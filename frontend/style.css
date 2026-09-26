@@ -6598,3 +6598,30 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 @media (max-width: 640px) {
   .board-bar .topbar-search { height: 44px; }
 }
+
+/* The top bar, one size up on desktop: 4px taller, and every control in
+   it scaled with it rather than left floating in a bigger box. Controls
+   go 36 -> 40, text one pixel up, the mark, avatar and icons two. The
+   theme switch keeps its geometry: 72 x 36 with a 28px knob travels
+   72 - 2 (border) - 6 (inset) - 28 = 36px, and each icon sits centred
+   under the knob's two stops. The phone bar is its own layout and is
+   left alone. */
+@media (min-width: 801px) {
+  .topbar .container { min-height: 60px; }
+  .topbar-search { height: 40px; }
+  .topbar-search input { font-size: 14px; }
+  .topbar-search-icon { width: 16px; height: 16px; }
+  .topbar-sorts select { height: 40px; font-size: 14px; }
+  .topbar-nav { font-size: 15px; }
+  .topbar-mark img { width: 24px; height: 24px; }
+  .auth-area .hero-account-btn { height: 34px; font-size: 14px; }
+  .auth-area .hero-avatar { width: 24px; height: 24px; font-size: 13px; }
+  .auth-trigger { font-size: 14px; }
+  .topnav .icon-link svg { width: 20px; height: 20px; }
+  .topbar .theme-toggle { width: 72px; height: 36px; }
+  .topbar .theme-knob { width: 28px; height: 28px; transform: translateX(36px); }
+  :root[data-theme="dark"] .topbar .theme-knob { transform: translateX(0); }
+  .topbar .theme-ico { top: 8px; width: 18px; height: 18px; }
+  .topbar .theme-ico-moon { left: 8px; }
+  .topbar .theme-ico-sun { left: 44px; }
+}
