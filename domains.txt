@@ -26175,3 +26175,25 @@ verastem.com
 ridango.com
 rethinkcanada.com
 wjgroundwater.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+retailorsna.com
+rush.com
+reservehealth.org
+scopemarkets.com
+simpsonhousingservices.com
+stengelhill.com
+supersourceinc.com
+swyfft.com
+tellurideacademy.com
+synexalifesciences.com
+palette.com
+sportsfieldsolutions.com
+sportable.com
+tbifc.com
+threekit.com
+traceconsultinggroup.com
+thewellnesscentre.com
+tcsea.org
+turnerfleischer.com
+willamalanedistrict.com
