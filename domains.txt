@@ -26131,3 +26131,16 @@ lifeviewgroup.com
 smardt.com
 swlahealth.org
 relianthealthcaregroup.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+tmtgolf.com
+restorativepathways.co
+revpanda.com
+tnrak.com
+sunayu.com
+sbamh.com
+westlibertyuniversity.com
+reverse1.com
+sesenergy.com
+schaumburgparkdistrict.com
+truecareny.com
