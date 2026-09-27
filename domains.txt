@@ -26125,3 +26125,9 @@ jobblyftet.com
 keeperab.com
 varnish-software.com
 seenconnects.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+lifeviewgroup.com
+smardt.com
+swlahealth.org
+relianthealthcaregroup.com
