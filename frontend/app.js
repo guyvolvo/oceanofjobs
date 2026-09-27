@@ -3007,15 +3007,21 @@ function renderDetailEmpty() {
   // A number still being counted shows bones, because a scoped /stats
   // was measured at up to 2.9s and a stale figure read as this one's.
   const pending = mode === "pending";
-  const bone = '<span class="skeleton sk-line"></span>';
+  // Three dots blinking in turn, in the number's place and at its height,
+  // while a filtered answer is being counted.
+  const bone = '<span class="ov-dots" role="status"><i></i><i></i><i></i><span class="visually-hidden">Loading</span></span>';
   // Label, number, and how it moved since the last period: today
   // against yesterday, this week against the week before, and the two
   // counts against a week ago. The change is worked out on the API's
   // own basis for each (see compute_scoped_stats), so a ratio never
   // compares the board's count with a differently filtered one.
+  // An empty comparison line still takes its line, so a tile is the same
+  // height counting as counted and nothing moves when the numbers land.
+  const HOLD = '<span class="ov-sub" aria-hidden="true">&nbsp;</span>';
   const trend = (now, prev, prevText) => {
-    if (pending || now == null || prev == null) return "";
+    if (pending || now == null || prev == null) return HOLD;
     const sub = `<span class="ov-sub">${escapeHtml(prevText)}</span>`;
+    // A zero last period has no percentage; the line alone.
     if (!prev) return sub;
     const pct = Math.round(((now - prev) / prev) * 100);
     const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
