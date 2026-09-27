@@ -6699,3 +6699,18 @@ table.jobs tbody tr.selected::before { transform: scaleY(1); }
 table.jobs tbody tr,
 table.jobs tbody tr[data-id] { border-bottom: 0; }
 .rail-acc + .rail-acc { border-top: 0; }
+
+/* The filters stand in a box of their own, like the overview: the shared
+   box around filters and listings dissolves into two, 10px apart, each
+   with the overview's edge and corners. From tablet width up, where the
+   filters are a column; below 801px they are a sheet. */
+@media (min-width: 801px) {
+  .board-box-main { gap: 10px; background: transparent; border: 0; border-radius: 0; overflow: visible; }
+  .board-box-main > .filter-rail,
+  .board-box-main > .board-list {
+    background: var(--white);
+    border: 1px solid var(--panel-line);
+    border-radius: 10px;
+  }
+  .board-box-main > .filter-rail { overflow: hidden; }
+}
