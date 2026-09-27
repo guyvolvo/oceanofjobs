@@ -855,6 +855,12 @@ function scopeShape(src) {
     new_jobs_7d: src.new_jobs_7d,
     closed_jobs_24h: src.closed_jobs_24h,
     closed_jobs_7d: src.closed_jobs_7d,
+    prev_new_jobs_24h: src.prev_new_jobs_24h,
+    prev_new_jobs_7d: src.prev_new_jobs_7d,
+    open_now_basis: src.open_now_basis,
+    open_jobs_7d_ago: src.open_jobs_7d_ago,
+    companies_now_basis: src.companies_now_basis,
+    companies_7d_ago: src.companies_7d_ago,
     median_open_days: src.median_open_days,
     oldest_open_days: src.oldest_open_days,
     top_companies: Array.isArray(src.top_companies) ? src.top_companies : [],
@@ -3002,21 +3008,45 @@ function renderDetailEmpty() {
   // was measured at up to 2.9s and a stale figure read as this one's.
   const pending = mode === "pending";
   const bone = '<span class="skeleton sk-line"></span>';
-  const tile = (value, label, cls = "") =>
-    `<div class="ov-tile"><span class="ov-value ${cls}">${value}</span>`
-    + `<span class="ov-label">${escapeHtml(label)}</span></div>`;
+  // Label, number, and how it moved since the last period: today
+  // against yesterday, this week against the week before, and the two
+  // counts against a week ago. The change is worked out on the API's
+  // own basis for each (see compute_scoped_stats), so a ratio never
+  // compares the board's count with a differently filtered one.
+  const trend = (now, prev, prevText) => {
+    if (pending || now == null || prev == null) return "";
+    const sub = `<span class="ov-sub">${escapeHtml(prevText)}</span>`;
+    if (!prev) return sub;
+    const pct = Math.round(((now - prev) / prev) * 100);
+    const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+    const arrow = dir === "up" ? "&#8599;" : dir === "down" ? "&#8600;" : "&#8594;";
+    const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k` : Math.abs(pct);
+    return `<span class="ov-delta ${dir}" title="${pct > 0 ? "+" : ""}${pct}% ${escapeHtml(prevText.replace(/^[\d,]+ /, "vs "))}">`
+      + `<span aria-hidden="true">${arrow}</span> ${shown}%</span>` + sub;
+  };
+  const tile = (value, label, extra = "") =>
+    `<div class="ov-tile"><span class="ov-label">${escapeHtml(label)}</span>`
+    + `<span class="ov-value">${value}</span>${extra}</div>`;
   const tiles = [];
-  const add = (value, label, cls) => { if (value !== null) tiles.push(tile(value, label, cls)); };
-  add(total == null ? (pending || !lastJobsResponse ? bone : null) : fmtInt(total), "Matching roles");
-  add(pending ? bone : scoped?.new_jobs_24h == null ? null : `+${fmtInt(scoped.new_jobs_24h)}`,
-      "New today", "ov-new");
-  add(pending ? bone : scoped?.companies_hiring == null ? null : fmtInt(scoped.companies_hiring),
-      "Companies");
-  // Fourth, so it lands under New today in the two-column grid. The same
-  // seven-day figure the scoped stats already carry beside the daily
-  // one; it was in the response and nowhere on the page.
-  add(pending ? bone : scoped?.new_jobs_7d == null ? null : `+${fmtInt(scoped.new_jobs_7d)}`,
-      "New this week", "ov-new");
+  const add = (value, label, extra) => { if (value !== null) tiles.push(tile(value, label, extra)); };
+  const s = scoped || {};
+  // The change is measured on the API's basis (closed rows included),
+  // and the figure shown is the board's own count, which leaves some
+  // out. So the week-ago figure is put on the shown one's basis: at the
+  // same ratio, "3,883, up 3%" reads beside "3,770 a week ago" rather
+  // than beside a 3,908 that says the opposite.
+  const onBasis = (shown, now, prev) => (shown == null || !now || prev == null) ? prev : Math.round(shown * prev / now);
+  const rolesPrev = onBasis(total, s.open_now_basis, s.open_jobs_7d_ago);
+  const companiesPrev = onBasis(s.companies_hiring, s.companies_now_basis, s.companies_7d_ago);
+  add(total == null ? (pending || !lastJobsResponse ? bone : null) : fmtInt(total), "Matching roles",
+      trend(s.open_now_basis, s.open_jobs_7d_ago, `${fmtInt(rolesPrev)} a week ago`));
+  add(pending ? bone : s.new_jobs_24h == null ? null : fmtInt(s.new_jobs_24h), "New today",
+      trend(s.new_jobs_24h, s.prev_new_jobs_24h, `${fmtInt(s.prev_new_jobs_24h)} yesterday`));
+  add(pending ? bone : s.companies_hiring == null ? null : fmtInt(s.companies_hiring), "Companies",
+      trend(s.companies_now_basis, s.companies_7d_ago, `${fmtInt(companiesPrev)} a week ago`));
+  // Fourth, so it lands under New today in the two-column grid.
+  add(pending ? bone : s.new_jobs_7d == null ? null : fmtInt(s.new_jobs_7d), "New this week",
+      trend(s.new_jobs_7d, s.prev_new_jobs_7d, `${fmtInt(s.prev_new_jobs_7d)} the week before`));
 
   // Search health. The loader's own last write, which is the one number
   // that says whether this is current. "Sources responding" is in the

@@ -5673,29 +5673,42 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 /* Value first, label under it, in a 2x2 that shares its rules. A tile
    whose number we do not have is left out rather than shown holding a
    dash, so the grid can be 3 or 2 wide as easily as 4. */
-/* Four tiles, each its own box with a gap between, rather than one
-   box ruled into quarters. */
+/* Four tiles set apart by their surfaces, not by lines: each a soft
+   tint of the pane with a gap of the pane's own colour between, so the
+   edges are plain without a border drawn anywhere. Label, then the
+   number, then how it moved since the last period. */
 .ov-tiles {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 .ov-tile {
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid var(--grey-line);
-  border-radius: 4px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "label label" "value delta" "sub sub";
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 6px;
+  padding: 14px 16px 13px;
+  border-radius: 10px;
+  background: var(--row-hover);
 }
+.ov-tile > .ov-label { grid-area: label; }
+.ov-tile > .ov-value { grid-area: value; }
+.ov-delta { grid-area: delta; justify-self: start; font: 500 12px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ov-delta.up { color: var(--green-text); }
+.ov-delta.down { color: #b0452f; }
+:root[data-theme="dark"] .ov-delta.down { color: #e8866b; }
+.ov-delta.flat { color: var(--grey); }
+.ov-sub { grid-area: sub; font: 400 12px var(--font); color: var(--grey); }
 .ov-value {
-  font: 400 28px/1 var(--font-display);
+  font: 400 30px/1 var(--font-display);
   color: var(--black);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
-.ov-value.ov-new { color: var(--green-text); }
 .ov-value .sk-line { display: block; width: 70%; height: 22px; border-radius: 3px; }
-.ov-label { font: 400 13px var(--font); color: var(--black); }
+.ov-label { font: 500 13px var(--font); color: var(--black); }
 
 .ov-block { display: flex; flex-direction: column; }
 .ov-block-title { font: 500 14px var(--font-display); color: var(--black); padding-bottom: 8px; }
