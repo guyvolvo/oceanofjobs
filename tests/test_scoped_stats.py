@@ -269,7 +269,10 @@ check("biggest first, same shape as the global list",
 # global equivalents are, because the frontend swaps one for the other.
 expected_keys = {"open_jobs", "companies_hiring", "new_jobs_24h", "new_jobs_7d",
                  "closed_jobs_24h", "closed_jobs_7d", "median_open_days",
-                 "oldest_open_days", "top_companies"}
+                 "oldest_open_days", "top_companies",
+                 # the previous period, for the overview's trend arrows
+                 "prev_new_jobs_24h", "prev_new_jobs_7d", "open_now_basis",
+                 "open_jobs_7d_ago", "companies_now_basis", "companies_7d_ago"}
 check("the scoped block carries exactly the contracted fields",
       set(il) == expected_keys, str(sorted(set(il) ^ expected_keys)))
 

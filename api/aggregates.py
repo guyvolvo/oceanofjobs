@@ -517,6 +517,17 @@ def compute_scoped_stats(conn, params: dict) -> dict:
           SUM(CASE WHEN julianday('now') - julianday(first_seen) <= 7 THEN 1 ELSE 0 END) AS added_7d,
           SUM(CASE WHEN closed_at IS NOT NULL
                     AND julianday('now') - julianday(closed_at) <= 1 THEN 1 ELSE 0 END) AS closed_24h,
+          SUM(CASE WHEN julianday('now') - julianday(first_seen) > 1
+                    AND julianday('now') - julianday(first_seen) <= 2 THEN 1 ELSE 0 END) AS added_prev_24h,
+          SUM(CASE WHEN julianday('now') - julianday(first_seen) > 7
+                    AND julianday('now') - julianday(first_seen) <= 14 THEN 1 ELSE 0 END) AS added_prev_7d,
+          SUM(CASE WHEN closed_at IS NULL THEN 1 ELSE 0 END) AS open_now,
+          SUM(CASE WHEN julianday('now') - julianday(first_seen) > 7
+                    AND (closed_at IS NULL OR julianday('now') - julianday(closed_at) < 7) THEN 1 ELSE 0 END) AS open_7d_ago,
+          COUNT(DISTINCT CASE WHEN closed_at IS NULL THEN company_domain END) AS companies_now,
+          COUNT(DISTINCT CASE WHEN julianday('now') - julianday(first_seen) > 7
+                    AND (closed_at IS NULL OR julianday('now') - julianday(closed_at) < 7)
+                    THEN company_domain END) AS companies_7d_ago,
           SUM(CASE WHEN closed_at IS NOT NULL
                     AND julianday('now') - julianday(closed_at) <= 7 THEN 1 ELSE 0 END) AS closed_7d
         FROM jobs
@@ -532,6 +543,13 @@ def compute_scoped_stats(conn, params: dict) -> dict:
         "new_jobs_7d": flow["added_7d"] or 0,
         "closed_jobs_24h": flow["closed_24h"] or 0,
         "closed_jobs_7d": flow["closed_7d"] or 0,
+        # Last period, for the overview's arrows. See the query.
+        "prev_new_jobs_24h": flow["added_prev_24h"] or 0,
+        "prev_new_jobs_7d": flow["added_prev_7d"] or 0,
+        "open_now_basis": flow["open_now"] or 0,
+        "open_jobs_7d_ago": flow["open_7d_ago"] or 0,
+        "companies_now_basis": flow["companies_now"] or 0,
+        "companies_7d_ago": flow["companies_7d_ago"] or 0,
         "median_open_days": round(median_days, 1) if median_days is not None else None,
         "oldest_open_days": round(ages[-1], 1) if n else None,
         "top_companies": top_companies,
@@ -597,6 +615,17 @@ def compute_stats(conn, params: dict | None = None) -> dict:
           SUM(CASE WHEN julianday('now') - julianday(first_seen) <= 7 THEN 1 ELSE 0 END) AS added_7d,
           SUM(CASE WHEN closed_at IS NOT NULL
                     AND julianday('now') - julianday(closed_at) <= 1 THEN 1 ELSE 0 END) AS closed_24h,
+          SUM(CASE WHEN julianday('now') - julianday(first_seen) > 1
+                    AND julianday('now') - julianday(first_seen) <= 2 THEN 1 ELSE 0 END) AS added_prev_24h,
+          SUM(CASE WHEN julianday('now') - julianday(first_seen) > 7
+                    AND julianday('now') - julianday(first_seen) <= 14 THEN 1 ELSE 0 END) AS added_prev_7d,
+          SUM(CASE WHEN closed_at IS NULL THEN 1 ELSE 0 END) AS open_now,
+          SUM(CASE WHEN julianday('now') - julianday(first_seen) > 7
+                    AND (closed_at IS NULL OR julianday('now') - julianday(closed_at) < 7) THEN 1 ELSE 0 END) AS open_7d_ago,
+          COUNT(DISTINCT CASE WHEN closed_at IS NULL THEN company_domain END) AS companies_now,
+          COUNT(DISTINCT CASE WHEN julianday('now') - julianday(first_seen) > 7
+                    AND (closed_at IS NULL OR julianday('now') - julianday(closed_at) < 7)
+                    THEN company_domain END) AS companies_7d_ago,
           SUM(CASE WHEN closed_at IS NOT NULL
                     AND julianday('now') - julianday(closed_at) <= 7 THEN 1 ELSE 0 END) AS closed_7d
         FROM jobs
@@ -890,6 +919,13 @@ def compute_stats(conn, params: dict | None = None) -> dict:
             "new_jobs_7d": throughput["added_7d"] or 0,
             "closed_jobs_24h": throughput["closed_24h"] or 0,
             "closed_jobs_7d": throughput["closed_7d"] or 0,
+            # Last period, for the overview's arrows. See the query.
+            "prev_new_jobs_24h": throughput["added_prev_24h"] or 0,
+            "prev_new_jobs_7d": throughput["added_prev_7d"] or 0,
+            "open_now_basis": throughput["open_now"] or 0,
+            "open_jobs_7d_ago": throughput["open_7d_ago"] or 0,
+            "companies_now_basis": throughput["companies_now"] or 0,
+            "companies_7d_ago": throughput["companies_7d_ago"] or 0,
         },
         "age": {
             "avg_open_days": round(sum(ages) / n, 1) if n else None,
