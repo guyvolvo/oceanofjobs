@@ -68,7 +68,9 @@ export default {
     // box. Never with an Authorization header or under /api/me/: those
     // are one person's.
     const shared = request.method === "GET" && !request.headers.has("authorization")
-      && !url.pathname.startsWith("/api/me/") && !url.pathname.startsWith("/api/pipeline-status");
+      && !url.pathname.startsWith("/api/me/") && !url.pathname.startsWith("/api/pipeline-status")
+      // The freshness signal itself: the board's "Last updated" reads it.
+      && url.pathname !== "/api/health";
     const init = { method: request.method, headers, body: request.body, redirect: "manual" };
     if (shared) init.cf = { cacheEverything: true };
     const response = await fetch(new Request(target, init));
