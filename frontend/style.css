@@ -6319,14 +6319,15 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 .job-detail-facts .fact { display: flex; flex-direction: column; gap: 4px; }
 .job-detail-skills { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* One tile everywhere a company mark appears: white, hairline, 4px, and
+/* One tile everywhere a company mark appears: no border (removed on
+   request, 2026-09-27; the hairline boxed every row in), 4px corners, and
    the image inset inside it rather than bleeding to the edge. A logo is
    someone else's artwork at someone else's aspect ratio, so it is
    contained and centred and never cropped. */
 .company-logo {
   box-sizing: border-box;
   background: var(--white);
-  border: 1px solid var(--grey-line);
+  border: 0;
   border-radius: 4px;
   object-fit: contain;
   padding: 6px;
