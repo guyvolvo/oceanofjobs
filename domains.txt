@@ -26207,3 +26207,22 @@ timistours.com
 tropicbioscience.com
 twhiteparker.com
 turtlerock.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+livespot360.com
+rslogistics.com
+save.com
+scotiaharvest.com
+scorpios.com
+somamedicalcenter.com
+standwithus.com
+takt.com
+telecelglobal.com
+thesound.com
+thomsongordongroup.com
+vanguardclinical.com
+vantagehotels.com
+ventientenergy.com
+victoriagardencity.com
+trailrunner.org
+wasatchcrest.com
