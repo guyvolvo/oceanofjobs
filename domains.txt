@@ -26296,3 +26296,9 @@ wildanet.com
 wonderflow.io
 worldsensing.com
 wscal.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+artidea.org
+kidneymn.com
+lucentgroup.co
+recoveryinmotion.com
