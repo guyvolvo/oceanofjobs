@@ -6666,3 +6666,27 @@ button.tree-cell:hover { filter: brightness(0.95); }
    muted and is used as is. */
 .rail-count { font-size: 12px; color: color-mix(in srgb, var(--grey) 76%, var(--white)); }
 :root[data-theme="dark"] .rail-count { color: var(--grey); }
+
+/* One hover feel across the site: the treemap's 120ms ease. The board's
+   rows, the rail's options and group heads, the account and landing
+   menus all changed colour in a single frame, which read as jagged next
+   to the treemap. The selected row's bar grows from its middle instead of
+   appearing. */
+table.jobs tbody tr[data-id],
+.rail-option,
+.rail-acc-head,
+.account-nav-link,
+.acct-match,
+.site-menu-item { transition: background-color 120ms ease; }
+table.jobs tbody tr[data-id]::before {
+  content: "";
+  position: absolute;
+  /* No left here: the selected rule and its phone variant (-8px) set it. */
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--black);
+  transform: scaleY(0);
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+table.jobs tbody tr.selected::before { transform: scaleY(1); }
