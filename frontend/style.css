@@ -6705,7 +6705,10 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
    with the overview's edge and corners. From tablet width up, where the
    filters are a column; below 801px they are a sheet. */
 @media (min-width: 801px) {
-  .board-box-main { gap: 10px; background: transparent; border: 0; border-radius: 0; overflow: visible; }
+  .board-box-main { gap: 20px; background: transparent; border: 0; border-radius: 0; overflow: visible; }
+  /* 20px between all three boxes, taken from the listings column, which
+     is the flexible one and had the empty middle to give. */
+  .board-grid { gap: 20px; }
   .board-box-main > .filter-rail,
   .board-box-main > .board-list {
     background: var(--white);
