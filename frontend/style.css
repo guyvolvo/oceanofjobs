@@ -6690,3 +6690,12 @@ table.jobs tbody tr[data-id]::before {
   transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 table.jobs tbody tr.selected::before { transform: scaleY(1); }
+
+/* No drawn lines inside the board's box: not between the filter column
+   and the listings, not under each listing, not between the filter
+   groups. Space and the hover fill do the separating. Asked for
+   2026-09-27. */
+.filter-rail { border-right: 0; }
+table.jobs tbody tr,
+table.jobs tbody tr[data-id] { border-bottom: 0; }
+.rail-acc + .rail-acc { border-top: 0; }
