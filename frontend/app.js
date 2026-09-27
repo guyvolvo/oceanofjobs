@@ -2987,6 +2987,79 @@ function companyLogoFor(domain) {
   return null;
 }
 
+// The overview's top hirers as a treemap: each company a rectangle sized
+// by its open roles in the current view, laid out by the squarified
+// algorithm (Bruls, Huizing and van Wijk) so cells stay close to square
+// and names fit. One measure, so one hue: the site's green, deeper for
+// the bigger employers, with identity carried by the name and logo in
+// each cell, never by colour. Positions are percentages of a fixed-
+// ratio box, so the map scales with the pane without being redone.
+const TREEMAP_N = 10;
+const TREEMAP_RATIO = 2; // width : height of the layout box
+
+function squarify(values, x, y, w, h) {
+  const out = [];
+  const total = values.reduce((a, b) => a + b, 0);
+  if (!total) return out;
+  const scale = (w * h) / total;
+  let items = values.map((v, i) => ({ i, area: v * scale }));
+  const worst = (row, side) => {
+    const s = row.reduce((a, r) => a + r.area, 0);
+    const mx = Math.max(...row.map((r) => r.area)), mn = Math.min(...row.map((r) => r.area));
+    return Math.max((side * side * mx) / (s * s), (s * s) / (side * side * mn));
+  };
+  while (items.length) {
+    const side = Math.min(w, h);
+    let row = [items[0]];
+    let k = 1;
+    while (k < items.length && worst([...row, items[k]], side) <= worst(row, side)) { row.push(items[k]); k++; }
+    const s = row.reduce((a, r) => a + r.area, 0);
+    if (w >= h) {
+      const rw = s / h; let cy = y;
+      row.forEach((r) => { const rh = r.area / rw; out[r.i] = { x, y: cy, w: rw, h: rh }; cy += rh; });
+      x += rw; w -= rw;
+    } else {
+      const rh = s / w; let cx = x;
+      row.forEach((r) => { const cw = r.area / rh; out[r.i] = { x: cx, y, w: cw, h: rh }; cx += cw; });
+      y += rh; h -= rh;
+    }
+    items = items.slice(k);
+  }
+  return out;
+}
+
+function companyTreemapHtml(rows) {
+  if (!rows.length) return "";
+  const W = 100 * TREEMAP_RATIO, H = 100;
+  const rects = squarify(rows.map((r) => r.n), 0, 0, W, H);
+  const max = rows[0].n, total = rows.reduce((a, r) => a + r.n, 0);
+  const cells = rows.map((c, i) => {
+    const r = rects[i];
+    const name = companyNameFor(c.value);
+    const share = Math.round((c.n / total) * 100);
+    // What a cell shows, from its own width and height in the layout box
+    // (200 x 100 units, about 2.2px each in the pane): a logo needs about
+    // 70px of height, a name 30px and 50px of width, a count one line.
+    // A cell too small for any of it keeps its colour, hover and click.
+    const showLogo = r.h >= 34 && r.w >= 30;
+    const showName = r.h >= 15 && r.w >= 24;
+    const showCount = showName ? r.h >= 22 : r.h >= 9 && r.w >= 14;
+    const big = r.w * r.h > 2400;
+    // Tall enough for a logo and a two-line name and the count.
+    const tall = r.h >= 50;
+    const depth = 0.14 + 0.32 * Math.sqrt(c.n / max);
+    return `<button type="button" class="tree-cell${big ? " tree-big" : ""}${tall ? " tree-tall" : ""}" data-company="${escapeHtml(c.value)}"
+        style="left:${(r.x / W) * 100}%;top:${r.y}%;width:${(r.w / W) * 100}%;height:${r.h}%;--depth:${depth.toFixed(3)}"
+        title="${escapeHtml(name)}: ${fmtInt(c.n)} open roles, ${share}% of these ${rows.length}"
+        aria-label="Show only ${escapeHtml(name)}, ${fmtInt(c.n)} open roles">
+        <span class="tree-inner">${showLogo ? companyLogoImg(c.value, 32, "tree-logo", companyLogoFor(c.value)) : ""}
+          ${showName ? `<span class="tree-name">${escapeHtml(name)}</span>` : ""}
+          ${showCount ? `<span class="tree-n">${fmtInt(c.n)}</span>` : ""}</span>
+      </button>`;
+  }).join("");
+  return `<div class="ov-tree" style="aspect-ratio:${TREEMAP_RATIO}">${cells}</div>`;
+}
+
 function renderDetailEmpty() {
   const panel = document.getElementById("job-detail");
   if (!panel || selectedJobId !== null) return;
@@ -2999,7 +3072,7 @@ function renderDetailEmpty() {
   const mode = currentScopeMode();
   const scoped = mode === "scoped" ? latestScoped.data : latestStats ? globalScope(latestStats) : null;
   const total = lastJobsResponse?.total;
-  const hiring = (railFacets.companies || []).slice(0, 4);
+  const hiring = (railFacets.companies || []).slice(0, TREEMAP_N);
   const remote = (railFacets.workplace || []).find((r) => r.value === "remote");
 
   // Value first, label under it, and a tile is dropped rather than
@@ -3071,12 +3144,7 @@ function renderDetailEmpty() {
       ${hiring.length ? `
         <div class="ov-block">
           <span class="ov-block-title">Companies with most open roles</span>
-          ${hiring.map((c) => `
-            <button type="button" class="ov-row ov-row-co" data-company="${escapeHtml(c.value)}"
-                    title="Show only ${escapeHtml(companyNameFor(c.value))}">
-              <span class="ov-co">${companyLogoImg(c.value, 32, "ov-logo", companyLogoFor(c.value))}<span class="ov-co-name">${escapeHtml(companyNameFor(c.value))}</span></span>
-              <span class="ov-row-n">${fmtInt(c.n)}</span>
-            </button>`).join("")}
+          ${companyTreemapHtml(hiring)}
         </div>` : ""}
 
       ${health ? `
