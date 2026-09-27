@@ -10,6 +10,7 @@ top-level module (`from job_filters import ...`), not `api.job_filters`,
 so the same import line works in both.
 """
 
+import contextvars
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -399,6 +400,15 @@ def fts_escape(term: str) -> str:
 # LIKE wildcard. It also means a stale bookmark naming a skill we have
 # since dropped narrows the match instead of erroring the board out.
 MAX_MATCH_SKILLS = 40
+
+
+# The name of a temp table holding the rowids of the open jobs that match
+# this request's skills, set by compute_facets for the length of one call.
+# A context variable, not a request parameter, so no URL can name a table.
+# While it is set, the skills clause reads the table instead of running
+# one LIKE per skill over every row again: the rail's five or so passes
+# for a CV of fifteen skills took 14s, each pass redoing the same tests.
+skill_rowset: contextvars.ContextVar = contextvars.ContextVar("skill_rowset", default=None)
 
 
 def wanted_skills(params: dict) -> list[str]:
@@ -809,9 +819,13 @@ def build_jobs_where(params: dict, has_fts=False,
         # probe.py tags every job from skills.py and the CV analyser
         # reads a CV with the same terms. A LIKE over descriptions would
         # find "no Python experience required" and call it a match.
-        clauses = " OR ".join("(',' || COALESCE(skills, '') || ',') LIKE ?" for _ in wanted)
-        where.append(f"({clauses})")
-        args.extend(f"%,{s},%" for s in wanted)
+        rowset = skill_rowset.get()
+        if rowset:
+            where.append(f"jobs.rowid IN (SELECT rid FROM temp.{rowset})")
+        else:
+            clauses = " OR ".join("(',' || COALESCE(skills, '') || ',') LIKE ?" for _ in wanted)
+            where.append(f"({clauses})")
+            args.extend(f"%,{s},%" for s in wanted)
 
     wanted_countries = wanted_country_codes(params) if places else []
     if wanted_countries:

@@ -62,7 +62,16 @@ export default {
     // reach it directly and walk around the rate limit. ORIGIN_KEY is a
     // Worker secret, set through the API and never in this file.
     headers.set("x-otj-origin-key", env.ORIGIN_KEY || "");
-    const response = await fetch(new Request(target, { method: request.method, headers, body: request.body, redirect: "manual" }));
+    // Public reads are cached at Cloudflare's edge for as long as the API
+    // says (Cache-Control s-maxage, 60 to 180 seconds), so a filter any
+    // visitor asked for recently answers from the edge instead of the
+    // box. Never with an Authorization header or under /api/me/: those
+    // are one person's.
+    const shared = request.method === "GET" && !request.headers.has("authorization")
+      && !url.pathname.startsWith("/api/me/") && !url.pathname.startsWith("/api/pipeline-status");
+    const init = { method: request.method, headers, body: request.body, redirect: "manual" };
+    if (shared) init.cf = { cacheEverything: true };
+    const response = await fetch(new Request(target, init));
 
     // So a human (or a curl) can tell which origin answered without
     // guessing from the response body.

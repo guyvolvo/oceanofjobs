@@ -28,7 +28,7 @@ from urllib.parse import parse_qs
 import boto3
 from boto3.dynamodb.conditions import Key
 
-from aggregates import (compute_facets, compute_scoped_stats, compute_stats,
+from aggregates import (scoped_variant_key, compute_facets, compute_scoped_stats, compute_stats,
                         has_board_filters, search_companies)
 from db import get_connection, status as db_status
 from help_page import HELP_HTML
@@ -1112,7 +1112,44 @@ def route_facets(params: dict) -> dict:
         variant += place
         if isinstance(ready, dict) and variant in ready:
             return ready[variant]
-    return compute_facets(get_connection(), params)
+    # Live facets, kept per worker for ten minutes like scoped stats: a
+    # Best matches view carries the reader's own skills, so no artifact
+    # can hold it, and its first answer costs seconds.
+    import time as _t
+    ck = "facets?" + "&".join(f"{k}={params[k]}" for k in sorted(params) if params.get(k) not in (None, "", False))
+    hit = _scoped_cache.get(ck)
+    if hit and hit[0] > _t.monotonic():
+        return hit[1]
+    out = compute_facets(get_connection(), params)
+    if len(_scoped_cache) >= _SCOPED_MAX:
+        _scoped_cache.clear()
+    _scoped_cache[ck] = (_t.monotonic() + _SCOPED_TTL_S, out)
+    return out
+
+
+# Scoped blocks computed live, kept per gunicorn worker for ten minutes.
+# The numbers move a few times an hour and a cold one costs up to a
+# minute of disk (see precompute.py), so a repeat within the window is
+# served from memory.
+_SCOPED_TTL_S = 600.0
+_SCOPED_MAX = 256
+_scoped_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _scoped_stats(params: dict, ready: dict | None) -> dict:
+    import time as _t
+    key = scoped_variant_key(params)
+    if key and ready and key in (ready.get("scoped_variants") or {}):
+        return ready["scoped_variants"][key]
+    ck = "&".join(f"{k}={params[k]}" for k in sorted(params) if params.get(k) not in (None, "", False))
+    hit = _scoped_cache.get(ck)
+    if hit and hit[0] > _t.monotonic():
+        return hit[1]
+    out = compute_scoped_stats(get_connection(), params)
+    if len(_scoped_cache) >= _SCOPED_MAX:
+        _scoped_cache.clear()
+    _scoped_cache[ck] = (_t.monotonic() + _SCOPED_TTL_S, out)
+    return out
 
 
 def route_stats(params: dict | None = None) -> dict:
@@ -1140,7 +1177,7 @@ def route_stats(params: dict | None = None) -> dict:
         if bool_param(params, "israel_only"):
             out["top_locations"] = ready.get("top_locations_israel", out.get("top_locations", []))
         if filtered:
-            out["scoped"] = compute_scoped_stats(get_connection(), params)
+            out["scoped"] = _scoped_stats(params, ready)
         elif (params.get("roles") or "").lower() == "tech":
             # The default view: narrowed by roles alone, whose scoped
             # block the merge precomputes as scoped_tech. Missing only

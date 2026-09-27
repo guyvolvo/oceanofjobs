@@ -104,6 +104,29 @@ def top_companies_with_logos(conn, limit: int = 30) -> list[dict]:
 
 
 def compute_facets(conn, params: dict) -> dict:
+    """The rail's counts. With skills in the request, the open jobs that
+    match them are found once into a temp table and every count reads it
+    (see job_filters.skill_rowset), instead of each of the rail's passes
+    running every skill test over every row again."""
+    import uuid
+    from job_filters import skill_rowset, wanted_skills
+
+    wanted = wanted_skills(params)
+    if not wanted or bool_param(params, "include_closed"):
+        return _compute_facets(conn, params)
+    name = "skill_rows_" + uuid.uuid4().hex[:12]
+    clauses = " OR ".join("(',' || COALESCE(skills, '') || ',') LIKE ?" for _ in wanted)
+    conn.execute(f"CREATE TEMP TABLE {name} AS SELECT rowid AS rid FROM jobs "
+                 f"WHERE closed_at IS NULL AND ({clauses})", [f"%,{s},%" for s in wanted])
+    token = skill_rowset.set(name)
+    try:
+        return _compute_facets(conn, params)
+    finally:
+        skill_rowset.reset(token)
+        conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+
+
+def _compute_facets(conn, params: dict) -> dict:
 
     def counts_by(column_expr: str, exclude_param: str, limit: int) -> list[dict]:
         scoped = dict(params)
@@ -115,7 +138,7 @@ def compute_facets(conn, params: dict) -> dict:
             FROM jobs
             WHERE {where_sql} AND {column_expr} IS NOT NULL AND TRIM({column_expr}) != ''
             GROUP BY {column_expr}
-            ORDER BY n DESC
+            ORDER BY n DESC, value
             LIMIT ?
             """,
             [*args, limit],
@@ -390,6 +413,28 @@ def search_companies(conn, params: dict) -> dict:
         [*args, needle, *([needle] if has_name else []), COMPANY_SEARCH_LIMIT],
     ).fetchall()
     return {"companies": [dict(r) for r in rows]}
+
+
+# The filters a precomputed scoped block can stand for: the board's
+# common first clicks. Anything else narrowing the view is computed live.
+SCOPED_VARIANT_KEYS = ("roles", "country", "department")
+
+
+def scoped_variant_key(params: dict) -> str | None:
+    """The artifact key for a request precompute.py covers, else None.
+
+    Only when confidence is "all" (the board's own), every other set
+    parameter is one of SCOPED_VARIANT_KEYS, and each holds one value.
+    """
+    if (params.get("confidence") or "verified") != "all":
+        return None
+    set_ = {k: str(v).strip() for k, v in params.items()
+            if k != "confidence" and v not in (None, "", False, "0")}
+    if not set_ or any(k not in SCOPED_VARIANT_KEYS for k in set_) or any("," in v for v in set_.values()):
+        return None
+    if "country" in set_:
+        set_["country"] = set_["country"].upper()
+    return "&".join(f"{k}={set_[k]}" for k in sorted(set_))
 
 
 def has_board_filters(params: dict) -> bool:

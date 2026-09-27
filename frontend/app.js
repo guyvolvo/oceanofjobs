@@ -5481,6 +5481,12 @@ let scopedStatsInFlight = null;
 // each fire a duplicate of the request already running.
 let scopedStatsPending = null;
 
+// Scoped answers already seen in this tab, by filter string, for ten
+// minutes: going back to a filter paints its numbers at once while a
+// fresh copy is asked for behind them.
+const scopedSeen = new Map();
+const SCOPED_SEEN_MS = 10 * 60 * 1000;
+
 async function refreshScopedStats({ force = false } = {}) {
   // refreshFacetOptions' test, not a second definition of it: confidence
   // rides along on every request the board makes, so it is not a filter
@@ -5524,7 +5530,10 @@ async function refreshScopedStats({ force = false } = {}) {
   // same filters keeps its numbers on screen while it revalidates; a new
   // filter drops them, because the previous filter's count sitting under
   // a new search reads as the new search's count.
-  if (!held) latestScoped = null;
+  if (!held) {
+    const seen = scopedSeen.get(params);
+    latestScoped = seen && Date.now() - seen.at < SCOPED_SEEN_MS ? { params, data: seen.data } : null;
+  }
   renderScopeDependent();
 
   try {
@@ -5539,6 +5548,10 @@ async function refreshScopedStats({ force = false } = {}) {
       scoped && typeof scoped.open_jobs === "number"
         ? { params, data: scopeShape(scoped) }
         : { params, data: null, degraded: true };
+    if (latestScoped.data) {
+      if (scopedSeen.size > 50) scopedSeen.clear();
+      scopedSeen.set(params, { at: Date.now(), data: latestScoped.data });
+    }
     renderScopeDependent();
   } catch (err) {
     if (seq !== scopedStatsSeq || err.name === "AbortError") return;

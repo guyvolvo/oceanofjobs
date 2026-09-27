@@ -36,7 +36,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "api"))
 
-from aggregates import compute_facets, compute_scoped_stats, compute_stats, top_companies_with_logos  # noqa: E402
+from aggregates import (compute_facets, compute_scoped_stats, compute_stats,  # noqa: E402
+                        scoped_variant_key, top_companies_with_logos)
 from job_filters import register_functions  # noqa: E402
 
 # Overridable so a second applier (the box, running beside the Lambda
@@ -106,6 +107,23 @@ def build(db_path: Path) -> dict[str, dict]:
             facets[f"{c}:IL"] = compute_facets(conn, {"confidence": c, "country": "IL"})
             facets[f"{c}:tech:IL"] = compute_facets(conn, {"confidence": c, "roles": "tech", "country": "IL"})
         stats["scoped_tech"] = compute_scoped_stats(conn, {"confidence": "all", "roles": "tech"})
+        # The board's common first clicks, so they answer from the artifact
+        # instead of scanning the table live: measured 2026-09-27, a cold
+        # scoped block took 57 to 64 seconds on the box (4.5GB database,
+        # 3.8GB of memory), 4s once warm. The ten biggest countries and
+        # eight biggest categories, each with and without roles=tech.
+        variants = {}
+        countries = [r[0] for r in conn.execute(
+            "SELECT country, COUNT(*) n FROM jobs WHERE closed_at IS NULL AND country IS NOT NULL "
+            "AND length(country) = 2 GROUP BY country ORDER BY n DESC LIMIT 10")]
+        categories = [r["value"] for r in (facets.get("all:tech") or {}).get("categories", [])[:8]]
+        # "All roles" is no roles parameter at all, the way the board asks.
+        for roles in ("tech", None):
+            for key, values in (("country", countries), ("department", categories)):
+                for v in values:
+                    p = {"confidence": "all", key: v, **({"roles": roles} if roles else {})}
+                    variants[scoped_variant_key(p)] = compute_scoped_stats(conn, p)
+        stats["scoped_variants"] = variants
     finally:
         conn.close()
     return {"stats.json": stats, "facets.json": facets}
