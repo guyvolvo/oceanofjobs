@@ -322,7 +322,7 @@
         const rows = [
           { el: document.querySelector(".hero-ticker.to-right"), track: document.getElementById("ticker-top"), seconds: 60, dir: 1 },
           { el: document.querySelector(".hero-logos"), track: document.getElementById("ticker-logos"), seconds: 38, dir: -1 },
-        ].map((r) => ({ ...r, seconds: r.seconds * (reduce ? 3 : 1), half: 0, x: 0, drag: null, spin: null }));
+        ].map((r) => ({ ...r, seconds: r.seconds, half: 0, x: 0, drag: null, spin: null }));
 
         // Each track holds its content twice, so any position can be folded
         // back into one half's width without a visible jump.
