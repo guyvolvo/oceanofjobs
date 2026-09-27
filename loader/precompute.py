@@ -116,6 +116,10 @@ def build(db_path: Path) -> dict[str, dict]:
         countries = [r[0] for r in conn.execute(
             "SELECT country, COUNT(*) n FROM jobs WHERE closed_at IS NULL AND country IS NOT NULL "
             "AND length(country) = 2 GROUP BY country ORDER BY n DESC LIMIT 10")]
+        # Israel always: the board's first audience, and not in the top ten
+        # by volume, so without this its first click was the slow one.
+        if "IL" not in countries:
+            countries.append("IL")
         categories = [r["value"] for r in (facets.get("all:tech") or {}).get("categories", [])[:8]]
         # "All roles" is no roles parameter at all, the way the board asks.
         for roles in ("tech", None):
