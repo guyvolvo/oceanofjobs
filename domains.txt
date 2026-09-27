@@ -26197,3 +26197,13 @@ thewellnesscentre.com
 tcsea.org
 turnerfleischer.com
 willamalanedistrict.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+revolutionmarketing.com
+rpmautocenter.com
+seattleboatco.com
+thecampus.com
+timistours.com
+tropicbioscience.com
+twhiteparker.com
+turtlerock.com
