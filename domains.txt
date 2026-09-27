@@ -26144,3 +26144,20 @@ reverse1.com
 sesenergy.com
 schaumburgparkdistrict.com
 truecareny.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+wsd.com
+shorepointinc.com
+wabanakipublichealth.org
+trafficorp.com
+vetnz.com
+upwardboundhouse.org
+targethousing.com
+townshipusc.com
+trimarkassoc.com
+waltersgroup.com
+redlineequipment.net
+sharesociety.com
+vamoshealth.com
+rwcsystems.com
+venus.com
