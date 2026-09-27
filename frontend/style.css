@@ -6612,29 +6612,31 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 }
 
 
-/* The overview's top hirers as a treemap (companyTreemapHtml). Cells sit
-   2px apart on the pane's own surface, 4px corners. One hue by size:
-   --depth mixes the site's green into the surface, so the biggest
-   employer is the deepest cell. Names and counts stay in ink, never the
-   green, and small cells drop their words but keep hover and click. */
+/* The overview's top hirers as a treemap (layoutCompanyTreemap). Tiles sit
+   2px apart on the pane's surface with 6px corners, and are laid out in
+   pixels with a 72 x 56 floor. One Voice: the top employer alone takes
+   --row-selected green; every other tile is a neutral mix of the ink into
+   the surface, --shade from 11% for the biggest share to 3%. Words stay in
+   ink. */
 .ov-tree { position: relative; width: 100%; margin-top: 4px; }
 .tree-cell {
   position: absolute;
   box-sizing: border-box;
-  border: 1px solid var(--white);
+  border: 0 solid var(--white);
   border-width: 0 2px 2px 0;
   padding: 0;
   background-clip: padding-box;
-  background-color: color-mix(in srgb, var(--green) calc(var(--depth) * 100%), var(--white));
+  background-color: color-mix(in srgb, var(--black) var(--shade, 6%), var(--white));
   border-radius: 6px;
   color: var(--black);
   text-align: left;
-  cursor: pointer;
   overflow: hidden;
   transition: filter 120ms ease;
 }
-.tree-cell:hover { filter: brightness(0.94); }
-:root[data-theme="dark"] .tree-cell:hover { filter: brightness(1.18); }
+.tree-cell.tree-top { background-color: var(--row-selected); }
+button.tree-cell { cursor: pointer; }
+button.tree-cell:hover { filter: brightness(0.95); }
+:root[data-theme="dark"] button.tree-cell:hover { filter: brightness(1.2); }
 .tree-cell:focus-visible { outline: 2px solid var(--black); outline-offset: -3px; }
 .tree-inner { position: absolute; inset: 8px 9px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
 .tree-name {
@@ -6644,14 +6646,23 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  overflow-wrap: normal;
-  word-break: normal;
 }
-/* With a logo above it a name gets one line; a second would push the
-   count out of the cell. */
-.tree-cell:has(.tree-logo):not(.tree-tall) .tree-name { -webkit-line-clamp: 1; }
-.tree-n { font: 400 12px/1 var(--font); font-variant-numeric: tabular-nums; opacity: 0.8; }
+.tree-name.tree-tight { font-size: 11px; }
+.tree-name.tree-ellipsis { display: block; white-space: nowrap; text-overflow: ellipsis; }
+.tree-n { font: 400 12px/1 var(--font); font-variant-numeric: tabular-nums; color: var(--grey); }
 .tree-big .tree-name { font-size: 15px; }
 .tree-big .tree-n { font-size: 13px; }
+.tree-other .tree-name { font-weight: 400; }
 .tree-cell .company-logo.tree-logo { width: 24px; height: 24px; margin: 0 0 4px; border-radius: 5px; flex: none; }
 .tree-big .company-logo.tree-logo { width: 30px; height: 30px; }
+
+/* The top bar in one size: the nav links at My Account's 14px. An older
+   13px rule on .topbar-nav a outranked the bar's own sizing. */
+@media (min-width: 801px) { .topbar .topbar-nav a { font-size: 14px; } }
+
+/* Filter counts, muted against their labels. In the light theme --grey is
+   the ink itself (#40513b), so the counts read as loud as the names; this
+   mutes it and keeps 4.5:1 on the rail. Dark mode's --grey is already
+   muted and is used as is. */
+.rail-count { font-size: 12px; color: color-mix(in srgb, var(--grey) 76%, var(--white)); }
+:root[data-theme="dark"] .rail-count { color: var(--grey); }

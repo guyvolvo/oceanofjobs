@@ -3028,36 +3028,89 @@ function squarify(values, x, y, w, h) {
   return out;
 }
 
+// The treemap is laid out in real pixels once it is on the page, because
+// its rules are in pixels: no tile under TREE_MIN_W x TREE_MIN_H, so a
+// name and a count always fit. While any tile would come out smaller, the
+// smallest company folds into an "Other" tile, and the layout is redone.
+// Colour follows the One Voice Rule: the top employer alone wears the
+// green (--row-selected), every other tile is neutral, darker to lighter
+// by share, so the treemap never outshouts the job list beside it.
+const TREE_MIN_W = 72;
+const TREE_MIN_H = 56;
+const TREE_LOGO_MIN_W = 100;
+
 function companyTreemapHtml(rows) {
   if (!rows.length) return "";
-  const W = 100 * TREEMAP_RATIO, H = 100;
-  const rects = squarify(rows.map((r) => r.n), 0, 0, W, H);
-  const max = rows[0].n, total = rows.reduce((a, r) => a + r.n, 0);
-  const cells = rows.map((c, i) => {
+  const data = rows.map((r) => ({ value: r.value, n: r.n }));
+  return `<div class="ov-tree" style="aspect-ratio:${TREEMAP_RATIO}" data-rows='${escapeHtml(JSON.stringify(data))}'></div>`;
+}
+
+function layoutCompanyTreemap(el) {
+  let rows;
+  try { rows = JSON.parse(el.dataset.rows || "[]"); } catch { rows = []; }
+  const W = el.clientWidth, H = el.clientHeight || W / TREEMAP_RATIO;
+  if (!rows.length || !W) return;
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  let k = rows.length, items, rects;
+  for (;;) {
+    const rest = rows.slice(k);
+    items = rows.slice(0, k).map((r) => ({ ...r }));
+    if (rest.length) items.push({ other: true, n: rest.reduce((a, r) => a + r.n, 0), count: rest.length });
+    rects = squarify(items.map((r) => r.n), 0, 0, W, H);
+    if (k <= 1 || rects.every((r) => r.w >= TREE_MIN_W - 0.5 && r.h >= TREE_MIN_H - 0.5)) break;
+    k--;
+  }
+  // Neutral shades for every tile after the first: a mix of the ink into
+  // the surface, from 11% for the biggest to 3% for the smallest share.
+  const shares = items.map((r) => r.n / total);
+  const top = shares[0], low = Math.min(...shares.slice(1), top);
+  el.innerHTML = items.map((it, i) => {
     const r = rects[i];
-    const name = companyNameFor(c.value);
-    const share = Math.round((c.n / total) * 100);
-    // What a cell shows, from its own width and height in the layout box
-    // (200 x 100 units, about 2.2px each in the pane): a logo needs about
-    // 70px of height, a name 30px and 50px of width, a count one line.
-    // A cell too small for any of it keeps its colour, hover and click.
-    const showLogo = r.h >= 34 && r.w >= 30;
-    const showName = r.h >= 15 && r.w >= 24;
-    const showCount = showName ? r.h >= 22 : r.h >= 9 && r.w >= 14;
-    const big = r.w * r.h > 2400;
-    // Tall enough for a logo and a two-line name and the count.
-    const tall = r.h >= 50;
-    const depth = 0.14 + 0.32 * Math.sqrt(c.n / max);
-    return `<button type="button" class="tree-cell${big ? " tree-big" : ""}${tall ? " tree-tall" : ""}" data-company="${escapeHtml(c.value)}"
-        style="left:${(r.x / W) * 100}%;top:${r.y}%;width:${(r.w / W) * 100}%;height:${r.h}%;--depth:${depth.toFixed(3)}"
-        title="${escapeHtml(name)}: ${fmtInt(c.n)} open roles, ${share}% of these ${rows.length}"
-        aria-label="Show only ${escapeHtml(name)}, ${fmtInt(c.n)} open roles">
-        <span class="tree-inner">${showLogo ? companyLogoImg(c.value, 32, "tree-logo", companyLogoFor(c.value)) : ""}
-          ${showName ? `<span class="tree-name">${escapeHtml(name)}</span>` : ""}
-          ${showCount ? `<span class="tree-n">${fmtInt(c.n)}</span>` : ""}</span>
-      </button>`;
+    const pct = Math.round((it.n / total) * 100);
+    const name = it.other ? "Other" : companyNameFor(it.value);
+    // "Other" is the sum of the smallest, not a big employer, so it always
+    // takes the lightest shade whatever its total.
+    const shade = i === 0 ? null : it.other ? 3 : 3 + 8 * (top === low ? 1 : (shares[i] - low) / (top - low));
+    const style = `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;`
+      + (shade == null ? "" : `--shade:${shade.toFixed(1)}%;`);
+    // A logo only where a two-line name and the count still fit under it.
+    const logo = !it.other && r.w >= TREE_LOGO_MIN_W && r.h >= 100
+      ? companyLogoImg(it.value, 32, "tree-logo", companyLogoFor(it.value)) : "";
+    const count = it.other ? `${fmtInt(it.n)} · ${it.count} ${it.count === 1 ? "company" : "companies"}` : fmtInt(it.n);
+    const title = it.other ? `${it.count} more companies, ${fmtInt(it.n)} open roles` : `${name}: ${fmtInt(it.n)} open roles, ${pct}% of these`;
+    const cls = `tree-cell${i === 0 ? " tree-top" : ""}${it.other ? " tree-other" : ""}${r.w * r.h > 24000 ? " tree-big" : ""}`;
+    const inner = `<span class="tree-inner">${logo}<span class="tree-name">${escapeHtml(name)}</span><span class="tree-n">${count}</span></span>`;
+    return it.other
+      ? `<div class="${cls}" style="${style}" title="${escapeHtml(title)}">${inner}</div>`
+      : `<button type="button" class="${cls}" style="${style}" data-tree-company="${escapeHtml(it.value)}"
+           title="${escapeHtml(title)}" aria-label="Show only ${escapeHtml(name)}, ${fmtInt(it.n)} open roles">${inner}</button>`;
   }).join("");
-  return `<div class="ov-tree" style="aspect-ratio:${TREEMAP_RATIO}">${cells}</div>`;
+  // A single word wider than its tile ("mobileye.com", "checkpoint") cannot
+  // wrap, and ran off the edge. Such a name drops to 11px, and one that
+  // still does not fit ends in an ellipsis rather than being cut.
+  el.querySelectorAll(".tree-name").forEach((n) => {
+    if (n.scrollWidth <= n.clientWidth + 1) return;
+    n.classList.add("tree-tight");
+    if (n.scrollWidth > n.clientWidth + 1) n.classList.add("tree-ellipsis");
+  });
+}
+
+// One listener per map rather than per tile, since a resize redraws the
+// tiles; and its own attribute, so the pane's [data-company] wiring does
+// not bind these a second time.
+function wireCompanyTreemap(el) {
+  if (el.dataset.wired) return;
+  el.dataset.wired = "1";
+  el.addEventListener("click", (e) => {
+    const cell = e.target.closest("[data-tree-company]");
+    if (!cell) return;
+    state.company = [cell.dataset.treeCompany];
+    railApply();
+  });
+  if ("ResizeObserver" in window) {
+    let w = el.clientWidth;
+    new ResizeObserver(() => { if (Math.abs(el.clientWidth - w) > 1) { w = el.clientWidth; layoutCompanyTreemap(el); } }).observe(el);
+  }
 }
 
 function renderDetailEmpty() {
@@ -3159,6 +3212,10 @@ function renderDetailEmpty() {
       <div class="ov-hint">Select a listing to see its details here.</div>
     </div>`;
 
+  paneBody().querySelectorAll(".ov-tree").forEach((el) => {
+    layoutCompanyTreemap(el);
+    wireCompanyTreemap(el);
+  });
   paneBody().querySelectorAll("[data-company]").forEach((row) => {
     row.addEventListener("click", () => {
       state.company = [row.dataset.company];
