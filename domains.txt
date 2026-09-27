@@ -26161,3 +26161,17 @@ sharesociety.com
 vamoshealth.com
 rwcsystems.com
 venus.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+sabcon.co
+thebluebirdgrp.com
+tstroofandglass.com
+userpilot.com
+siteworx.com
+thethirdestimate.com
+itracing-1749199701.com
+scarabdigital.com
+verastem.com
+ridango.com
+rethinkcanada.com
+wjgroundwater.com
