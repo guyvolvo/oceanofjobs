@@ -299,8 +299,7 @@
 
       // Feature rows rise into place as they scroll into view. Visible by
       // default: the motion is added only where it can run and is wanted.
-      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (!reduce && "IntersectionObserver" in window) {
+      if ("IntersectionObserver" in window) {
         document.documentElement.classList.add("hero-motion");
         const io = new IntersectionObserver((entries) => {
           entries.forEach((e) => {

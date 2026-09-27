@@ -5290,8 +5290,9 @@ let runThemeSwap = null;
 // one: the account menu's row said "Dark mode" after switching to dark.
 function toggleTheme() {
   if (!runThemeSwap) return Promise.resolve();
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduced || typeof document.startViewTransition !== "function") {
+  // Not gated on prefers-reduced-motion: every animation runs whatever
+  // the operating system is set to (see the top of style.css).
+  if (typeof document.startViewTransition !== "function") {
     runThemeSwap();
     return Promise.resolve();
   }
