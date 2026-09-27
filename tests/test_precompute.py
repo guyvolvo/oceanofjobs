@@ -140,7 +140,11 @@ with tempfile.TemporaryDirectory() as td:
             self.when = datetime.now(timezone.utc) - timedelta(seconds=age_s)
             self.puts = 0
 
+        force = False
+
         def head_object(self, Bucket, Key):
+            if Key.endswith("force") and not self.force:
+                raise RuntimeError("NoSuchKey")
             return {"LastModified": self.when}
 
         def put_object(self, **kw):
@@ -149,6 +153,10 @@ with tempfile.TemporaryDirectory() as td:
     fresh = AgedS3(60)
     check("a recent artifact is left alone rather than rebuilt",
           precompute._fresh_enough(fresh, "b") is True)
+    forced = AgedS3(60)
+    forced.force = True
+    check("unless precomputed/force is set, which rebuilds it whatever the age",
+          precompute._fresh_enough(forced, "b") is False)
     stale = AgedS3(precompute.MAX_AGE_S + 60)
     check("a stale one is rebuilt",
           precompute._fresh_enough(stale, "b") is False)

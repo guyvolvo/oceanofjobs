@@ -140,6 +140,18 @@ def _fresh_enough(s3, bucket: str) -> bool:
     unreadable means build it, which is the right answer for a first run
     and for anything that has gone wrong.
     """
+    # precomputed/force asks for a rebuild on the next run whatever the
+    # age. That, not deleting stats.json, is how to force one: deleting
+    # the live artifact left /api/stats computing everything on every
+    # request when the next run was skipped for the lock (2026-09-27,
+    # 125s per request until the rebuild landed). publish() removes the
+    # marker once the new artifacts are written.
+    try:
+        s3.head_object(Bucket=bucket, Key=f"{PREFIX}force")
+        print("precomputed/force is set, rebuilding", file=sys.stderr)
+        return False
+    except Exception:
+        pass
     try:
         head = s3.head_object(Bucket=bucket, Key=f"{PREFIX}stats.json")
     except Exception:
@@ -204,6 +216,11 @@ def publish(bucket: str, db_path: Path, frontend_bucket: str = "") -> list[str]:
                 written.append(f"{target}/{key}")
             except Exception as e:
                 print(f"couldn't write {key} to {target} (non-fatal): {e!r}", file=sys.stderr)
+    if written:
+        try:
+            s3.delete_object(Bucket=bucket, Key=f"{PREFIX}force")
+        except Exception:
+            pass  # no marker, or no delete right: the age rule takes over again
     return written
 
 

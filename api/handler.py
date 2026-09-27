@@ -1198,8 +1198,20 @@ def route_stats(params: dict | None = None) -> dict:
             print(f"couldn't refresh freshness on precomputed stats: {e!r}")
         return out
     # No artifact: compute_stats attaches the same scoped key itself, so
-    # both paths answer the same shape.
-    return compute_stats(get_connection(), params)
+    # both paths answer the same shape. Kept in the same ten-minute cache
+    # as the scoped blocks: the full compute is twenty queries, and on
+    # 2026-09-27, with the artifact missing, every request ran them and
+    # each took 125s while the disk thrashed.
+    import time as _t
+    ck = "stats-full?" + "&".join(f"{k}={params[k]}" for k in sorted(params) if params.get(k) not in (None, "", False))
+    hit = _scoped_cache.get(ck)
+    if hit and hit[0] > _t.monotonic():
+        return hit[1]
+    out = compute_stats(get_connection(), params)
+    if len(_scoped_cache) >= _SCOPED_MAX:
+        _scoped_cache.clear()
+    _scoped_cache[ck] = (_t.monotonic() + _SCOPED_TTL_S, out)
+    return out
 
 
 # /me/alerts: the one write surface on this whole API. Cognito-JWT-gated
