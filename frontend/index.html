@@ -359,27 +359,6 @@
         document.querySelectorAll(".feature-row").forEach((el) => io.observe(el));
       }
 
-      // The showcase card's depth: where the pointer is over it, as -1 to 1
-      // on each axis, for the CSS to push the photograph and the board
-      // apart with. Once per frame, mouse only, back to rest on leaving.
-      (function () {
-        const card = document.querySelector(".hero-showcase");
-        if (!card || !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-        let x = 0, y = 0, queued = false;
-        const paint = () => {
-          queued = false;
-          card.style.setProperty("--mx", x.toFixed(3));
-          card.style.setProperty("--my", y.toFixed(3));
-        };
-        card.addEventListener("pointermove", (e) => {
-          const r = card.getBoundingClientRect();
-          x = ((e.clientX - r.left) / r.width) * 2 - 1;
-          y = ((e.clientY - r.top) / r.height) * 2 - 1;
-          if (!queued) { queued = true; requestAnimationFrame(paint); }
-        });
-        card.addEventListener("pointerleave", () => { x = 0; y = 0; paint(); });
-      })();
-
       // The tulips drift against the cards as the block scrolls past: one
       // number, the block's distance from the middle of the window, turned
       // into up to 48px of travel for every card's image at once, so the
