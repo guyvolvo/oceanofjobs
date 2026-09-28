@@ -30478,5 +30478,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "ft.com",
+  "tenant": "ft",
+  "wd": "wd3",
+  "site": "FT_Chinese_External_Careers",
+  "jobs_seen": 2,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "usocean.com",
+  "tenant": "usocean",
+  "wd": "wd501",
+  "site": "USOcean",
+  "jobs_seen": 2,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
