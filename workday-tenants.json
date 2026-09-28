@@ -30328,5 +30328,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "championx.com",
+  "tenant": "championx",
+  "wd": "wd1",
+  "site": "ChampionX_External",
+  "jobs_seen": 122,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "materion.com",
+  "tenant": "materion",
+  "wd": "wd5",
+  "site": "Materion",
+  "jobs_seen": 111,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
