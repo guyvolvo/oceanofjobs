@@ -6884,7 +6884,8 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
    colours are the block's own rather than tokens, as .hero-api does. */
 .feature-preview { display: none; }
 /* Wide screens: each row is one tile. The card's slice of the photograph
-   fades into the tile's own dark ground over its last 340px, veil and
+   fades into the tile's own dark ground over its last 460px, eased so a
+   bright petal near the edge thins out rather than stops, veil and
    all, and the preview sits on that ground with no edge of its own, so
    the picture and what it describes read as one thing. The tile keeps
    the card's 48px corners and clips the photograph to them. */
@@ -6903,8 +6904,13 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   }
   .feature-card { border-radius: 0; background: transparent; }
   .feature-card-img {
-    --fade: linear-gradient(90deg, #000 calc(100% - var(--inset) - 340px), rgba(0, 0, 0, 0.55) calc(100% - var(--inset) - 190px),
-                            rgba(0, 0, 0, 0.15) calc(100% - var(--inset) - 90px), transparent calc(100% - var(--inset) - 30px));
+    --fade: linear-gradient(90deg,
+      #000 calc(100% - var(--inset) - 520px),
+      rgba(0, 0, 0, 0.82) calc(100% - var(--inset) - 420px),
+      rgba(0, 0, 0, 0.55) calc(100% - var(--inset) - 320px),
+      rgba(0, 0, 0, 0.28) calc(100% - var(--inset) - 220px),
+      rgba(0, 0, 0, 0.09) calc(100% - var(--inset) - 130px),
+      transparent calc(100% - var(--inset) - 60px));
     -webkit-mask-image: var(--fade);
     mask-image: var(--fade);
   }
