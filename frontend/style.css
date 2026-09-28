@@ -21,6 +21,15 @@
       hex, but the two palettes are tuned independently rather than one
       being a straight hex-invert of the other. */
 
+/* Geist, for the feature cards' titles only, as the design names it.
+   Self-hosted like the others; one weight, latin. OFL, licence beside it. */
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/Geist-500-latin.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
 @font-face {
   font-family: "Overused Grotesk";
   src: url("fonts/OverusedGrotesk-VF.woff2") format("woff2-variations");
@@ -4315,8 +4324,6 @@ a.hero-account-btn { text-decoration: none; }
   .hero-api { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 24px; }
   .hero-api h2 { font-size: 30px; }
 }
-/* The reason the board exists, so it is the largest of the four. */
-.hero-feature.feature-lead h2 { font-size: clamp(36px, 5.4vw, 5rem); }
 /* The video fills the card; the board stands in front of it, centred,
    its foot cut off by the card. The capture carries its own frame and
    rounded, transparent corners, so the shadow is a drop-shadow that
@@ -4356,34 +4363,6 @@ a.hero-account-btn { text-decoration: none; }
        it the CDN and the reader's browser keep serving the old picture. */
     background: url("/img/device-iphone.webp?v=2") top center / 100% auto no-repeat;
   }
-}
-
-.hero-features {
-  padding: clamp(56px, 9vw, 140px) var(--edge) clamp(24px, 4vw, 56px);
-}
-.hero-feature {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: 16px 56px;
-  align-items: start;
-  padding: clamp(28px, 4vw, 52px) 0;
-  border-top: var(--rule) solid var(--black);
-}
-.hero-feature h2 {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(32px, 4.6vw, 4.5rem);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  margin: 0;
-  text-wrap: balance;
-}
-.hero-feature p {
-  margin: 0.35em 0 0;
-  max-width: 44ch;
-  font-size: 16px;
-  line-height: 1.55;
-  color: var(--grey);
 }
 
 .hero-cta {
@@ -4599,22 +4578,18 @@ a.hero-account-btn { text-decoration: none; }
   .contact-bugnote span { flex: 1 1 100%; order: 3; }
 }
 
-/* The one authored motion on the page: each feature row rises and fades in
+/* The closing call to action rises and fades in
    once, on an exponential ease-out, as it scrolls into view. Only when the
    page script added .hero-motion, so without it everything is simply there. */
-.hero-motion .hero-feature > *,
 .hero-motion .hero-cta > * {
   opacity: 0;
   transform: translateY(28px);
   transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.hero-motion .hero-feature > p { transition-delay: 0.08s; }
-.hero-motion .hero-feature.in > *,
 .hero-motion .hero-cta.in > * { opacity: 1; transform: none; }
 
 @media (max-width: 720px) {
   .hero-bar { font-size: 12px; flex-wrap: wrap; row-gap: 4px; }
-  .hero-feature { grid-template-columns: 1fr; }
 }
 /* Slower, not still: a reader who asked for less motion still wants to
    know the row is a marquee and not a static list. */
@@ -6817,3 +6792,121 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
 /* The rail's accordion bodies open and close in height (renderFilterRail
    and railAnimateAcc in app.js run it); nothing to do here but clip. */
 .rail-acc-body.animating { overflow: hidden; box-sizing: border-box; }
+
+
+/* The features, as the "Tulips - Blur" design: four 200px cards, 50px
+   apart and 50px in from the edge of a #050505 block, 48px corners, 48px
+   of side padding, titles in 64px Geist over a 25% black veil. Each card
+   is a window onto one blurred photograph: its image layer is the size
+   of the whole block and sits shifted up by the card's place in the
+   stack (--i), so the tulips carry on behind the gaps. The block holds
+   the file's own width, 816px, centred: the photograph is a portrait
+   816px wide, and stretched across a wide window it blew up past two and
+   a half times and the tulips stopped being tulips.
+
+   Motion, when the page script added .hero-motion: each card rises in as
+   it scrolls into view, a step behind the one before, while its slice of
+   the photograph pulls into focus from a softer, larger picture. After
+   that the whole photograph drifts up to 48px against the cards with the
+   scroll (--drift, set by the page script), and a card under the pointer
+   lifts its veil. */
+.hero-features {
+  --card-h: 200px;
+  --card-gap: 50px;
+  --inset: 50px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  box-sizing: border-box;
+  width: calc(100% - 2 * clamp(16px, 2.4vw, 36px));
+  max-width: 816px;
+  margin: clamp(56px, 8vw, 120px) auto clamp(24px, 4vw, 56px);
+  padding: var(--inset);
+  border-radius: 24px;
+  background: #050505;
+}
+.feature-card {
+  position: relative;
+  isolation: isolate;
+  min-height: var(--card-h);
+  overflow: hidden;
+  border-radius: 48px;
+  background: #050505;
+}
+.feature-card-img {
+  position: absolute;
+  z-index: -1;
+  left: calc(-1 * var(--inset));
+  width: calc(100% + 2 * var(--inset));
+  top: calc(-1 * var(--inset) - var(--i) * (var(--card-h) + var(--card-gap)));
+  height: calc(4 * var(--card-h) + 3 * var(--card-gap) + 2 * var(--inset));
+  background: url("/img/features-tulips.webp") center / cover no-repeat;
+  transform: translate3d(0, var(--drift, 0px), 0) scale(var(--zoom, 1));
+  filter: blur(var(--soft, 0px));
+  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.feature-card-body {
+  box-sizing: border-box;
+  min-height: var(--card-h);
+  height: 100%;
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 24px 48px;
+  background: rgba(0, 0, 0, 0.25);
+  transition: background-color 400ms ease;
+}
+.feature-card h2 {
+  margin: 0;
+  font: 500 clamp(34px, 4.6vw, 64px) / 1.05 "Geist", var(--font-display);
+  letter-spacing: -0.02em;
+  color: #f4f1ee;
+  text-wrap: balance;
+}
+/* One line, as in the file: "CV keyword matching" is 631px of Geist
+   against 620px inside the padding, and edges into it rather than
+   wrapping and pushing its card past 200px. */
+@media (min-width: 721px) { .feature-card h2 { white-space: nowrap; } }
+.feature-card p {
+  margin: 0;
+  font: 400 14px / 1.5 var(--font);
+  color: rgba(244, 241, 238, 0.74);
+}
+.feature-card:hover .feature-card-body { background-color: rgba(0, 0, 0, 0.1); }
+.feature-card:hover .feature-card-img { --zoom: 1.04; }
+
+.hero-motion .feature-card {
+  opacity: 0;
+  transform: translateY(48px);
+  transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i) * 80ms);
+}
+.hero-motion .feature-card .feature-card-img {
+  --zoom: 1.18;
+  --soft: 14px;
+  transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), filter 1400ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i) * 80ms);
+}
+.hero-motion .feature-card h2,
+.hero-motion .feature-card p {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i) * 80ms + 180ms);
+}
+.hero-motion .feature-card p { transition-delay: calc(var(--i) * 80ms + 260ms); }
+.hero-motion .feature-card.in { opacity: 1; transform: none; }
+.hero-motion .feature-card.in .feature-card-img { --zoom: 1; --soft: 0px; }
+.hero-motion .feature-card.in:hover .feature-card-img { --zoom: 1.04; transition-delay: 0s; }
+.hero-motion .feature-card.in h2,
+.hero-motion .feature-card.in p { opacity: 1; transform: none; }
+
+/* Narrow screens: the card grows to fit its words, and the block comes
+   in to the page's own gutter. The file's
+   50px gaps stay; the inset and padding step down so a title fits. */
+@media (max-width: 720px) {
+  .hero-features { --inset: 16px; width: auto; margin-inline: var(--edge); }
+  .feature-card { border-radius: 32px; }
+  .feature-card-body { padding: 28px; }
+}

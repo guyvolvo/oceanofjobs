@@ -166,26 +166,42 @@
       <div class="showcase-device" aria-hidden="true"></div>
     </section>
 
+    <!-- Four windows onto one blurred photograph of tulips, so the flowers
+         run on behind the gaps (the "Tulips - Blur" design). Each card's
+         image layer is the whole block's picture, shifted up by the card's
+         own place in the stack; see .feature-card-img. -->
     <section class="hero-features" aria-label="What the board does">
-      <article class="hero-feature feature-lead">
-        <h2>Sources</h2>
-        <p>Every listing is scraped either from the company's own hiring system or from their
-           careers page.</p>
+      <article class="feature-card" style="--i: 0">
+        <div class="feature-card-img" aria-hidden="true"></div>
+        <div class="feature-card-body">
+          <h2>Sources</h2>
+          <p>Every listing is scraped either from the company's own hiring system or from their
+             careers page.</p>
+        </div>
       </article>
-      <article class="hero-feature">
-        <h2>CV keyword matching</h2>
-        <p>To analyze your CV for keywords and experience go to your account page and (locally)
-           upload your resume, which gives you the option to sort by "Best matches" according to
-           your CV.</p>
+      <article class="feature-card" style="--i: 1">
+        <div class="feature-card-img" aria-hidden="true"></div>
+        <div class="feature-card-body">
+          <h2>CV keyword matching</h2>
+          <p>To analyze your CV for keywords and experience go to your account page and (locally)
+             upload your resume, which gives you the option to sort by "Best matches" according to
+             your CV.</p>
+        </div>
       </article>
-      <article class="hero-feature">
-        <h2>Salary estimation</h2>
-        <p>There is a salary estimation algorithm which is made to be as accurate as possible.</p>
+      <article class="feature-card" style="--i: 2">
+        <div class="feature-card-img" aria-hidden="true"></div>
+        <div class="feature-card-body">
+          <h2>Salary estimation</h2>
+          <p>There is a salary estimation algorithm which is made to be as accurate as possible.</p>
+        </div>
       </article>
-      <article class="hero-feature">
-        <h2>Smart alerts</h2>
-        <p>To set up alerts on future job openings you must create an account to let AWS SES send
-           you alerts via email.</p>
+      <article class="feature-card" style="--i: 3">
+        <div class="feature-card-img" aria-hidden="true"></div>
+        <div class="feature-card-body">
+          <h2>Smart alerts</h2>
+          <p>To set up alerts on future job openings you must create an account to let AWS SES send
+             you alerts via email.</p>
+        </div>
       </article>
     </section>
 
@@ -313,8 +329,29 @@
             if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
           });
         }, { rootMargin: "0px 0px -12% 0px", threshold: 0.2 });
-        document.querySelectorAll(".hero-feature, .hero-cta").forEach((el) => io.observe(el));
+        document.querySelectorAll(".feature-card, .hero-cta").forEach((el) => io.observe(el));
       }
+
+      // The tulips drift against the cards as the block scrolls past: one
+      // number, the block's distance from the middle of the window, turned
+      // into up to 48px of travel for every card's image at once, so the
+      // photograph moves as one picture behind its windows. Only while the
+      // block is on screen, once per frame.
+      (function () {
+        const block = document.querySelector(".hero-features");
+        if (!block || !("IntersectionObserver" in window)) return;
+        let on = false, queued = false;
+        const paint = () => {
+          queued = false;
+          const r = block.getBoundingClientRect();
+          const p = Math.max(-1, Math.min(1, (r.top + r.height / 2 - innerHeight / 2) / innerHeight));
+          block.style.setProperty("--drift", `${(p * 48).toFixed(1)}px`);
+        };
+        const onScroll = () => { if (on && !queued) { queued = true; requestAnimationFrame(paint); } };
+        new IntersectionObserver(([e]) => { on = e.isIntersecting; if (on) onScroll(); }).observe(block);
+        addEventListener("scroll", onScroll, { passive: true });
+        addEventListener("resize", onScroll, { passive: true });
+      })();
 
       // Either row can be thrown. Drag it and let go: it takes the speed and
       // direction of the last tenth of a second of the drag, holds close to
