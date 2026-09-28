@@ -26353,3 +26353,8 @@ archimed.org
 svnl.com
 aktiv.com
 chaos.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+precision.io
+clark.io
+daintta-ltd.com
