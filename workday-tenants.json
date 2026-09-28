@@ -30438,5 +30438,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "covius.com",
+  "tenant": "covius",
+  "wd": "wd1",
+  "site": "coviuscareers",
+  "jobs_seen": 8,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
