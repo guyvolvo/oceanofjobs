@@ -30468,5 +30468,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "venator.com",
+  "tenant": "venator",
+  "wd": "wd3",
+  "site": "Venator",
+  "jobs_seen": 3,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
