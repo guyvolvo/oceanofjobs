@@ -26390,3 +26390,6 @@ quinoa-bildung-ggmbh.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 citizensadvicescotland.com
 korsit.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+gia.net
