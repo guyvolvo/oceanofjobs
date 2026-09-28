@@ -30448,5 +30448,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "gellerco.com",
+  "tenant": "gellerco",
+  "wd": "wd1",
+  "site": "GellerCareers",
+  "jobs_seen": 5,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "neb.co",
+  "tenant": "neb",
+  "wd": "wd5",
+  "site": "NEB_Careers",
+  "jobs_seen": 5,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
