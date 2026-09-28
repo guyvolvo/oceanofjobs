@@ -26358,3 +26358,7 @@ chaos.com
 precision.io
 clark.io
 daintta-ltd.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+pontosense.com
+center.com
