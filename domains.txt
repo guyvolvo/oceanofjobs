@@ -26369,3 +26369,6 @@ fraser.org
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 park-avenue.fr
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+superlinear.com
