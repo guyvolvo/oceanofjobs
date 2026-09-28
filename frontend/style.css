@@ -6798,20 +6798,23 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
    apart and 50px in from the edge of a #050505 block, 48px corners, 48px
    of side padding, titles in 64px Geist over a 25% black veil. Each card
    is a window onto one blurred photograph: its image layer is the size
-   of the whole block and sits shifted up by the card's place in the
-   stack (--i), so the tulips carry on behind the gaps. The block holds
-   the file's own width, 816px, centred: the photograph is a portrait
-   816px wide, and stretched across a wide window it blew up past two and
-   a half times and the tulips stopped being tulips.
+   of the file's whole artboard (816 x 1050) and sits shifted up by the
+   card's place in the stack (--i), so the tulips carry on behind the
+   gaps. The cards keep the file's 716px, the photograph being an 816px
+   portrait that turns to smudges stretched any wider; on a wide screen
+   the block spans the page and each row gets a preview of its feature
+   beside the card, the same 200px tall and 50px away.
 
-   Motion, when the page script added .hero-motion: each card rises in as
+   Motion, when the page script added .hero-motion: each row rises in as
    it scrolls into view, a step behind the one before, while its slice of
-   the photograph pulls into focus from a softer, larger picture. After
-   that the whole photograph drifts up to 48px against the cards with the
-   scroll (--drift, set by the page script), and a card under the pointer
-   lifts its veil. */
+   the photograph pulls into focus and its preview plays once. After that
+   the photograph drifts up to 48px against the cards with the scroll
+   (--drift, set by the page script), and a card under the pointer lifts
+   its veil. Every preview's resting state is its finished one, so with
+   no script it simply shows. */
 .hero-features {
   --card-h: 200px;
+  --card-w: 716px;
   --card-gap: 50px;
   --inset: 50px;
   display: flex;
@@ -6825,6 +6828,7 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   border-radius: 24px;
   background: #050505;
 }
+.feature-row { display: block; }
 .feature-card {
   position: relative;
   isolation: isolate;
@@ -6876,35 +6880,160 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
 .feature-card:hover .feature-card-body { background-color: rgba(0, 0, 0, 0.1); }
 .feature-card:hover .feature-card-img { --zoom: 1.04; }
 
-.hero-motion .feature-card {
+/* The previews. Dark in both themes like the block they sit in, so the
+   colours are the block's own rather than tokens, as .hero-api does. */
+.feature-preview { display: none; }
+@media (min-width: 1100px) {
+  .hero-features { max-width: none; }
+  .feature-row {
+    display: grid;
+    grid-template-columns: var(--card-w) minmax(0, 1fr);
+    gap: var(--card-gap);
+  }
+  .feature-preview {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    box-sizing: border-box;
+    height: var(--card-h);
+    padding: 26px 40px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 48px;
+    background: #0d0d0e;
+    color: #f4f1ee;
+    font-family: var(--font-ui);
+  }
+}
+.fp-head { display: flex; align-items: center; gap: 10px; font-size: 14px; color: rgba(244, 241, 238, 0.7); }
+.fp-dot { width: 8px; height: 8px; border-radius: 50%; background: #2fae60; box-shadow: 0 0 0 0 rgba(47, 174, 96, 0.6); animation: fp-pulse 2s ease-out infinite; }
+@keyframes fp-pulse { 70% { box-shadow: 0 0 0 8px rgba(47, 174, 96, 0); } 100% { box-shadow: 0 0 0 0 rgba(47, 174, 96, 0); } }
+
+/* Sources: two rows of the hiring systems the board reads, drifting in
+   opposite directions. Each track holds its list twice and slides by
+   half, so the loop has no seam. */
+.fp-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.fp-track { display: flex; gap: 10px; width: max-content; animation: fp-slide 48s linear infinite; }
+.fp-track > * { flex: none; }
+.fp-rev .fp-track { animation-direction: reverse; animation-duration: 56s; }
+@keyframes fp-slide { to { transform: translateX(calc(-50% - 5px)); } }
+.fp-ats {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 42px;
+  padding: 0 16px 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(244, 241, 238, 0.8);
+  white-space: nowrap;
+}
+.fp-ats img { width: 28px; height: 28px; border-radius: 8px; opacity: 0.85; object-fit: contain; }
+
+/* CV matching: a listing, and the skills it asks for lighting up where
+   the CV has them. */
+.fp-job { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.fp-job-title { font-size: 18px; font-weight: 600; }
+.fp-job-meta { margin-top: 2px; font-size: 13px; color: rgba(244, 241, 238, 0.6); }
+.fp-score { flex: none; padding: 4px 10px; border-radius: 999px; background: rgba(47, 174, 96, 0.14); color: #7fd49b; font-size: 13px; font-weight: 600; }
+.fp-skills { display: flex; flex-wrap: wrap; gap: 8px; }
+.fp-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  font-size: 14px;
+  color: rgba(244, 241, 238, 0.55);
+  transition: background-color 450ms ease, border-color 450ms ease, color 450ms ease;
+  transition-delay: calc(var(--k) * 140ms + 350ms);
+}
+.fp-skill.m { background: rgba(47, 174, 96, 0.16); border-color: rgba(47, 174, 96, 0.6); color: #e9f5ec; }
+.fp-skill.m::before { content: "✓"; font-size: 12px; color: #7fd49b; }
+
+/* Salary: the estimate, and where it sits on the board's range. */
+.fp-sal-top { display: flex; align-items: baseline; gap: 10px; }
+.fp-est { font: 500 34px / 1 "Geist", var(--font-display); letter-spacing: -0.02em; }
+.fp-sal-unit { font-size: 14px; color: rgba(244, 241, 238, 0.6); }
+.fp-bar { position: relative; height: 8px; margin-top: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); }
+/* ₪36K to ₪47K on a ₪10K to ₪80K track. */
+.fp-range {
+  position: absolute;
+  inset: 0 auto 0 37.1%;
+  width: 15.7%;
+  border-radius: 999px;
+  background: #2fae60;
+  transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1) 350ms;
+}
+.fp-scale { display: flex; justify-content: space-between; gap: 16px; font-size: 12.5px; color: rgba(244, 241, 238, 0.5); }
+.fp-scale span:nth-child(2) { text-align: center; }
+
+/* Alerts: two notifications, arriving. */
+.fp-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 16px 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--k) * 220ms + 350ms);
+}
+.fp-note b { display: block; font-size: 14.5px; font-weight: 600; }
+.fp-note span:not(.fp-bell) { font-size: 13px; color: rgba(244, 241, 238, 0.6); }
+.fp-bell { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 12px; background: rgba(47, 174, 96, 0.14); color: #7fd49b; }
+
+/* The reveal. */
+.hero-motion .feature-row .feature-card {
   opacity: 0;
   transform: translateY(48px);
   transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: calc(var(--i) * 80ms);
 }
-.hero-motion .feature-card .feature-card-img {
+.hero-motion .feature-row .feature-card-img {
   --zoom: 1.18;
   --soft: 14px;
   transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), filter 1400ms cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: calc(var(--i) * 80ms);
 }
-.hero-motion .feature-card h2,
-.hero-motion .feature-card p {
+.hero-motion .feature-row h2,
+.hero-motion .feature-row p {
   opacity: 0;
   transform: translateY(16px);
   transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: calc(var(--i) * 80ms + 180ms);
 }
-.hero-motion .feature-card p { transition-delay: calc(var(--i) * 80ms + 260ms); }
-.hero-motion .feature-card.in { opacity: 1; transform: none; }
-.hero-motion .feature-card.in .feature-card-img { --zoom: 1; --soft: 0px; }
-.hero-motion .feature-card.in:hover .feature-card-img { --zoom: 1.04; transition-delay: 0s; }
-.hero-motion .feature-card.in h2,
-.hero-motion .feature-card.in p { opacity: 1; transform: none; }
+.hero-motion .feature-row p { transition-delay: calc(var(--i) * 80ms + 260ms); }
+.hero-motion .feature-row .feature-preview {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i) * 80ms + 120ms);
+}
+.hero-motion .feature-row:not(.in) .fp-skill.m { background: transparent; border-color: rgba(255, 255, 255, 0.12); color: rgba(244, 241, 238, 0.55); }
+.hero-motion .feature-row:not(.in) .fp-range { transform: scaleX(0); }
+.hero-motion .feature-row:not(.in) .fp-note { opacity: 0; transform: translateX(28px); }
+.hero-motion .feature-row.in .feature-card,
+.hero-motion .feature-row.in .feature-preview { opacity: 1; transform: none; }
+.hero-motion .feature-row.in .feature-card-img { --zoom: 1; --soft: 0px; }
+.hero-motion .feature-row.in .feature-card:hover .feature-card-img { --zoom: 1.04; transition-delay: 0s; }
+.hero-motion .feature-row.in h2,
+.hero-motion .feature-row.in p { opacity: 1; transform: none; }
 
 /* Narrow screens: the card grows to fit its words, and the block comes
-   in to the page's own gutter. The file's
-   50px gaps stay; the inset and padding step down so a title fits. */
+   in to the page's own gutter. The file's 50px gaps stay; the inset and
+   padding step down so a title fits. */
 @media (max-width: 720px) {
   .hero-features { --inset: 16px; width: auto; margin-inline: var(--edge); }
   .feature-card { border-radius: 32px; }

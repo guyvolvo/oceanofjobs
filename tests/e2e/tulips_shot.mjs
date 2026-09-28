@@ -2,8 +2,8 @@
 // settled block on desktop (light and dark) and on a phone.
 import { chromium } from "playwright";
 const browser = await chromium.launch();
-const LOCAL = ["style.css", "hero_nav.js", "showcase_video.js", "img/features-tulips.webp", "fonts/Geist-500-latin.woff2"];
-const TYPES = { css: "text/css", js: "text/javascript", webp: "image/webp", woff2: "font/woff2" };
+const LOCAL = ["style.css", "hero_nav.js", "showcase_video.js", "img/features-tulips.webp", "fonts/Geist-500-latin.woff2", ...["greenhouse","lever","ashby","workday","smartrecruiters","workable","comeet","recruitee","teamtailor","bamboohr","breezy","jazzhr","pinpoint","eightfold"].map((n) => `img/ats/${n}.webp`), "img/ats/personio.svg", "img/ats/oracle.svg"];
+const TYPES = { css: "text/css", js: "text/javascript", webp: "image/webp", woff2: "font/woff2", svg: "image/svg+xml" };
 async function open(viewport, dark) {
   const page = await browser.newPage({ viewport });
   page.on("pageerror", (e) => console.log("pageerror", e.message));
@@ -24,7 +24,7 @@ async function open(viewport, dark) {
   await page.screenshot({ path: "tulips-desktop.png" });
   const box = await sec.boundingBox();
   console.log("block", Math.round(box.width), "x", Math.round(box.height),
-    "| cards:", await page.evaluate(() => [...document.querySelectorAll(".feature-card")].map((c) => { const r = c.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.top)}`; }).join(" ")),
+    "| cards:", await page.evaluate(() => [...document.querySelectorAll(".feature-card, .feature-preview")].map((c) => { const r = c.getBoundingClientRect(); return `${c.className.split(" ")[0].slice(8,12)}:${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; }).join(" ")),
     "| title font:", await page.evaluate(() => { const h = document.querySelector(".feature-card h2"); return getComputedStyle(h).fontSize + " " + (document.fonts.check('500 64px "Geist"') ? "Geist loaded" : "Geist missing"); }));
   await page.mouse.wheel(0, 300); await page.waitForTimeout(600);
   console.log("drift after scroll:", await sec.evaluate((el) => el.style.getPropertyValue("--drift")));

@@ -167,42 +167,78 @@
     </section>
 
     <!-- Four windows onto one blurred photograph of tulips, so the flowers
-         run on behind the gaps (the "Tulips - Blur" design). Each card's
-         image layer is the whole block's picture, shifted up by the card's
-         own place in the stack; see .feature-card-img. -->
+         run on behind the gaps (the "Tulips - Blur" design), each with a
+         preview of what it describes beside it on wide screens. Each card's
+         image layer is the whole stack's picture, shifted up by the card's
+         own place in it; see .feature-card-img. -->
     <section class="hero-features" aria-label="What the board does">
-      <article class="feature-card" style="--i: 0">
-        <div class="feature-card-img" aria-hidden="true"></div>
-        <div class="feature-card-body">
-          <h2>Sources</h2>
-          <p>Every listing is scraped either from the company's own hiring system or from their
+      <div class="feature-row" style="--i: 0">
+        <article class="feature-card">
+          <div class="feature-card-img" aria-hidden="true"></div>
+          <div class="feature-card-body">
+            <h2>Sources</h2>
+            <p>Every listing is scraped either from the company's own hiring system or from their
              careers page.</p>
+          </div>
+        </article>
+        <div class="feature-preview fp-sources" aria-hidden="true">
+          <div class="fp-head"><span class="fp-dot"></span>Straight from the hiring systems, checked every 5 minutes</div>
+          <div class="fp-marquee"><div class="fp-track"><span class="fp-ats"><img src="/img/ats/greenhouse.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Greenhouse</span><span class="fp-ats"><img src="/img/ats/lever.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Lever</span><span class="fp-ats"><img src="/img/ats/ashby.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Ashby</span><span class="fp-ats"><img src="/img/ats/workday.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workday</span><span class="fp-ats"><img src="/img/ats/smartrecruiters.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />SmartRecruiters</span><span class="fp-ats"><img src="/img/ats/workable.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workable</span><span class="fp-ats"><img src="/img/ats/comeet.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Comeet</span><span class="fp-ats"><img src="/img/ats/recruitee.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Recruitee</span><span class="fp-ats"><img src="/img/ats/greenhouse.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Greenhouse</span><span class="fp-ats"><img src="/img/ats/lever.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Lever</span><span class="fp-ats"><img src="/img/ats/ashby.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Ashby</span><span class="fp-ats"><img src="/img/ats/workday.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workday</span><span class="fp-ats"><img src="/img/ats/smartrecruiters.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />SmartRecruiters</span><span class="fp-ats"><img src="/img/ats/workable.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workable</span><span class="fp-ats"><img src="/img/ats/comeet.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Comeet</span><span class="fp-ats"><img src="/img/ats/recruitee.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Recruitee</span></div></div>
+          <div class="fp-marquee fp-rev"><div class="fp-track"><span class="fp-ats"><img src="/img/ats/personio.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Personio</span><span class="fp-ats"><img src="/img/ats/teamtailor.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Teamtailor</span><span class="fp-ats"><img src="/img/ats/bamboohr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />BambooHR</span><span class="fp-ats"><img src="/img/ats/breezy.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Breezy HR</span><span class="fp-ats"><img src="/img/ats/jazzhr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />JazzHR</span><span class="fp-ats"><img src="/img/ats/pinpoint.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Pinpoint</span><span class="fp-ats"><img src="/img/ats/oracle.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Oracle</span><span class="fp-ats"><img src="/img/ats/eightfold.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Eightfold</span><span class="fp-ats"><img src="/img/ats/personio.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Personio</span><span class="fp-ats"><img src="/img/ats/teamtailor.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Teamtailor</span><span class="fp-ats"><img src="/img/ats/bamboohr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />BambooHR</span><span class="fp-ats"><img src="/img/ats/breezy.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Breezy HR</span><span class="fp-ats"><img src="/img/ats/jazzhr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />JazzHR</span><span class="fp-ats"><img src="/img/ats/pinpoint.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Pinpoint</span><span class="fp-ats"><img src="/img/ats/oracle.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Oracle</span><span class="fp-ats"><img src="/img/ats/eightfold.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Eightfold</span></div></div>
         </div>
-      </article>
-      <article class="feature-card" style="--i: 1">
-        <div class="feature-card-img" aria-hidden="true"></div>
-        <div class="feature-card-body">
-          <h2>CV keyword matching</h2>
-          <p>To analyze your CV for keywords and experience go to your account page and (locally)
+      </div>
+      <div class="feature-row" style="--i: 1">
+        <article class="feature-card">
+          <div class="feature-card-img" aria-hidden="true"></div>
+          <div class="feature-card-body">
+            <h2>CV keyword matching</h2>
+            <p>To analyze your CV for keywords and experience go to your account page and (locally)
              upload your resume, which gives you the option to sort by "Best matches" according to
              your CV.</p>
+          </div>
+        </article>
+        <div class="feature-preview fp-cv" aria-hidden="true">
+          <div class="fp-job">
+            <div><div class="fp-job-title">Backend Engineer</div><div class="fp-job-meta">Tel Aviv · Hybrid</div></div>
+            <span class="fp-score">4 of 5 skills from your CV</span>
+          </div>
+          <div class="fp-skills">
+            <span class="fp-skill m" style="--k: 0">Python</span>
+            <span class="fp-skill m" style="--k: 1">Kubernetes</span>
+            <span class="fp-skill" style="--k: 2">Go</span>
+            <span class="fp-skill m" style="--k: 3">PostgreSQL</span>
+            <span class="fp-skill m" style="--k: 4">AWS</span>
+          </div>
         </div>
-      </article>
-      <article class="feature-card" style="--i: 2">
-        <div class="feature-card-img" aria-hidden="true"></div>
-        <div class="feature-card-body">
-          <h2>Salary estimation</h2>
-          <p>There is a salary estimation algorithm which is made to be as accurate as possible.</p>
+      </div>
+      <div class="feature-row" style="--i: 2">
+        <article class="feature-card">
+          <div class="feature-card-img" aria-hidden="true"></div>
+          <div class="feature-card-body">
+            <h2>Salary estimation</h2>
+            <p>There is a salary estimation algorithm which is made to be as accurate as possible.</p>
+          </div>
+        </article>
+        <div class="feature-preview fp-salary" aria-hidden="true">
+          <div class="fp-sal-top"><span class="fp-est">Est. ₪36K–47K</span><span class="fp-sal-unit">a month</span></div>
+          <div class="fp-bar"><span class="fp-range"></span></div>
+          <div class="fp-scale"><span>₪10K</span><span>Estimated from the title and level when a listing doesn't say</span><span>₪80K+</span></div>
         </div>
-      </article>
-      <article class="feature-card" style="--i: 3">
-        <div class="feature-card-img" aria-hidden="true"></div>
-        <div class="feature-card-body">
-          <h2>Smart alerts</h2>
-          <p>To set up alerts on future job openings you must create an account to let AWS SES send
+      </div>
+      <div class="feature-row" style="--i: 3">
+        <article class="feature-card">
+          <div class="feature-card-img" aria-hidden="true"></div>
+          <div class="feature-card-body">
+            <h2>Smart alerts</h2>
+            <p>To set up alerts on future job openings you must create an account to let AWS SES send
              you alerts via email.</p>
+          </div>
+        </article>
+        <div class="feature-preview fp-alerts" aria-hidden="true">
+          <div class="fp-note" style="--k: 0"><span class="fp-bell"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><div><b>3 new jobs match your alert</b><span>Backend · Tel Aviv · Daily at 09:00</span></div></div>
+          <div class="fp-note" style="--k: 1"><span class="fp-bell"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><div><b>1 new job matches your alert</b><span>Data · Remote · Instant</span></div></div>
         </div>
-      </article>
+      </div>
     </section>
 
 
@@ -329,7 +365,7 @@
             if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
           });
         }, { rootMargin: "0px 0px -12% 0px", threshold: 0.2 });
-        document.querySelectorAll(".feature-card, .hero-cta").forEach((el) => io.observe(el));
+        document.querySelectorAll(".feature-row, .hero-cta").forEach((el) => io.observe(el));
       }
 
       // The tulips drift against the cards as the block scrolls past: one
