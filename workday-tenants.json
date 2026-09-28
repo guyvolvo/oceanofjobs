@@ -30368,5 +30368,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "encore.com",
+  "tenant": "encore",
+  "wd": "wd1",
+  "site": "externalnew",
+  "jobs_seen": 42,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
