@@ -4693,6 +4693,34 @@ function renderFilterRail() {
   }).join("");
 }
 
+// Opens or closes one accordion section in place, height and fade, then
+// hands back to the full redraw. The redraw can't carry the motion: it
+// rebuilds every section on each filter change, and any enter animation
+// would replay on all of them. The chevron turns with the .open class.
+const RAIL_ACC_MS = 240;
+function railAnimateAcc(acc, opening, done) {
+  const body = acc.querySelector(".rail-acc-body");
+  if (!body || !body.animate) return done();
+  acc.querySelector(".rail-acc-head")?.setAttribute("aria-expanded", String(opening));
+  acc.classList.toggle("open", opening);
+  body.getAnimations().forEach((a) => a.cancel());
+  body.hidden = false;
+  const h = body.scrollHeight;
+  const cs = getComputedStyle(body);
+  body.classList.add("animating");
+  const frames = [
+    { height: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 },
+    { height: `${h}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 },
+  ];
+  const anim = body.animate(opening ? frames : frames.reverse(),
+    { duration: RAIL_ACC_MS, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+  anim.onfinish = () => {
+    body.classList.remove("animating");
+    if (!opening) body.hidden = true;
+    done();
+  };
+}
+
 // One listener on the rail rather than one per control, because the
 // rail redraws itself after every change and per-control listeners
 // would have to be rebound each time.
@@ -4724,10 +4752,13 @@ function wireFilterRail() {
       const acc = head.closest(".rail-acc");
       const key = acc.dataset.acc;
       const set = railOpenSet();
-      set.has(key) ? set.delete(key) : set.add(key);
+      const opening = !set.has(key);
+      opening ? set.add(key) : set.delete(key);
       railSaveOpen();
-      renderFilterRail();
-      host.querySelector(`.rail-acc[data-acc="${key}"] .rail-acc-head`)?.focus();
+      railAnimateAcc(acc, opening, () => {
+        renderFilterRail();
+        host.querySelector(`.rail-acc[data-acc="${key}"] .rail-acc-head`)?.focus();
+      });
       return;
     }
     const more = e.target.closest(".rail-more");

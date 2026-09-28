@@ -6718,3 +6718,83 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   }
   .board-box-main > .filter-rail { overflow: hidden; }
 }
+
+/* One motion for everything that drops down: the landing menus, the
+   account menu, the alerts and sign-in panel, the multi-select menus and
+   the select pickers. It grows out of its trigger, 96% to full size and
+   6px down, on an ease-out that lands softly (the Animate UI dropdown
+   was the reference), and plays backwards on close. @starting-style
+   gives the first frame when [hidden] comes off, and allow-discrete
+   holds display until the fade has run, so closing animates too. A
+   browser without either just shows and hides it, as before. Not
+   gated on prefers-reduced-motion, on purpose (see the top of file). */
+:root { --pop-ease: cubic-bezier(0.16, 1, 0.3, 1); }
+.site-menu-panel, .auth-panel, .ms-menu {
+  transform-origin: top right;
+  transition: opacity 140ms ease-out, transform 220ms var(--pop-ease),
+              display 220ms allow-discrete;
+}
+.ms-menu { transform-origin: top left; }
+.site-menu-panel[hidden], .auth-panel[hidden], .ms-menu[hidden] {
+  display: none;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+}
+@starting-style {
+  .site-menu-panel:not([hidden]), .auth-panel:not([hidden]), .ms-menu:not([hidden]) {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+}
+/* The account menu had its own slide; it takes the shared one. */
+.hero-menu { transform-origin: top right; transform: translateY(-6px) scale(0.96); }
+.hero-menu,
+.hero-menu:not([hidden]) {
+  transition: opacity 140ms ease-out, transform 220ms var(--pop-ease), visibility 0s linear 220ms;
+}
+.hero-menu:not([hidden]) { transform: none; transition-delay: 0s; }
+
+/* Selects draw their own picker where the browser allows it (Chromium's
+   customizable select), so Date posted, Sort and the rest open with the
+   same motion instead of the system's list. Mouse only: on a phone the
+   native picker is the better control. Elsewhere nothing changes. */
+@media (hover: hover) and (pointer: fine) {
+  @supports (appearance: base-select) {
+    :root select, ::picker(select) { appearance: base-select; }
+    :root select { display: inline-flex; align-items: center; }
+    .topbar-sorts select::picker-icon,
+    .board-bar select::picker-icon,
+    .qb-select::picker-icon { display: none; }
+    ::picker(select) {
+      margin: 6px 0;
+      padding: 6px;
+      border: 1px solid var(--grey-line);
+      border-radius: 10px;
+      background: var(--white);
+      color: var(--black);
+      box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.25);
+      transform-origin: top left;
+      opacity: 0;
+      transform: translateY(-6px) scale(0.96);
+      transition: opacity 140ms ease-out, transform 220ms var(--pop-ease),
+                  display 220ms allow-discrete, overlay 220ms allow-discrete;
+    }
+    select:open::picker(select) { opacity: 1; transform: none; }
+    @starting-style {
+      select:open::picker(select) { opacity: 0; transform: translateY(-6px) scale(0.96); }
+    }
+    select option {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font: inherit;
+      transition: background-color 120ms ease;
+    }
+    select option::checkmark { display: none; }
+    select option:hover, select option:focus-visible { background: var(--hover-bg); outline: 0; }
+    select option:checked { background: var(--row-selected); font-weight: 500; }
+  }
+}
+
+/* The rail's accordion bodies open and close in height (renderFilterRail
+   and railAnimateAcc in app.js run it); nothing to do here but clip. */
+.rail-acc-body.animating { overflow: hidden; box-sizing: border-box; }
