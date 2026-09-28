@@ -4103,148 +4103,78 @@ a.hero-account-btn { text-decoration: none; }
 .cta-arrow { flex: none; }
 .hero-secondary { font-size: 15px; color: var(--black); text-underline-offset: 3px; }
 .hero-secondary:hover { color: var(--green-text); }
-/* The stats tile, as the "Stats tile - Greyscale blur" design: a 190px
-   black tile with 48px corners. Over its left 680px a blurred greyscale
-   photograph fades to black, with a 15% shade over everything, and on it
-   three numbers in Geist, 64, 30 and 18px, the figures in green. Each is
-   a link into the board. The black on the right carries two rows of the
-   busiest companies' logos, drifting in opposite directions, and either
-   row can be thrown (the page script). The tile keeps the page's side
-   margins, like the showcase card under it. */
-.hero-band { padding: 0; }
-.stats-tile {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 680px) minmax(0, 1fr);
-  align-items: center;
-  height: 190px;
-  margin: clamp(24px, 3vw, 48px) clamp(16px, 2.4vw, 36px) 0;
-  overflow: hidden;
-  border-radius: 48px;
-  background: #000;
-  color: #f4f1ee;
-  font-family: "Geist", var(--font-display);
-  font-weight: 400;
-}
-.stats-tile-photo {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 680px;
-  background:
-    linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)),
-    linear-gradient(90deg, rgba(0, 0, 0, 0) 45%, #000 100%),
-    url("/img/stats-tile-blur.webp") -40px -60px / 1000px auto no-repeat;
-}
-.stats-tile-nums {
-  position: relative;
+/* The logo band: two rows of the busiest companies' wordmarks, centred
+   under the claim and a little wider than it (--band-w, the claim's text
+   width plus 40%, set by the page script), drifting in opposite
+   directions on the page's own ground. Nothing else in the band. */
+.hero-band { padding: 0 var(--edge); }
+.logo-band {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 0 72px;
+  gap: 14px;
+  width: var(--band-w, 1000px);
+  max-width: 100%;
+  margin: clamp(36px, 5vw, 64px) auto 0;
 }
-.stats-tile-nums a {
-  color: inherit;
-  text-decoration: none;
-  text-decoration-thickness: 0.06em;
-  text-underline-offset: 0.14em;
-  white-space: nowrap;
-}
-.stats-tile-nums a:hover { text-decoration-line: underline; }
-.stats-tile-nums a:focus-visible { outline: 2px solid #2fb36a; outline-offset: 4px; border-radius: 6px; }
-.st-1 { font-size: 64px; line-height: 1.05; letter-spacing: -0.02em; }
-.st-2 { font-size: 30px; line-height: 1.2; }
-.st-3 { font-size: 18px; line-height: 1.3; }
-.st-num { color: #2fb36a; font-variant-numeric: tabular-nums; }
-
-/* A strip at the tile's right end rather than the whole black, so the
-   numbers keep some room. */
-.stats-tile-logos {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  justify-self: end;
-  width: min(clamp(520px, 52vw, 880px), 100%);
-  min-width: 0;
-  margin-right: 40px;
-}
-/* The rows fade in over the first 40% of the strip on an eased curve, and
-   out over the last 18% into the tile's rounded end. A straight ramp left
-   a visible line where it began: the eye reads the first steps of a
-   linear fade as an edge. */
+/* Both rows fade in and out over the outer 30% at each side, on an eased
+   curve: the first steps of a straight ramp read as an edge. */
 .hero-ticker {
   overflow: hidden;
   --ticker-fade: linear-gradient(90deg,
-    transparent 0%, rgba(0, 0, 0, 0.02) 6%, rgba(0, 0, 0, 0.07) 12%, rgba(0, 0, 0, 0.16) 18%,
-    rgba(0, 0, 0, 0.3) 24%, rgba(0, 0, 0, 0.5) 30%, rgba(0, 0, 0, 0.72) 35%, #000 40%,
-    #000 82%, rgba(0, 0, 0, 0.6) 89%, rgba(0, 0, 0, 0.2) 95%, transparent 100%);
+    transparent 0%, rgba(0, 0, 0, 0.04) 6%, rgba(0, 0, 0, 0.16) 12%, rgba(0, 0, 0, 0.38) 18%,
+    rgba(0, 0, 0, 0.66) 24%, #000 30%, #000 70%, rgba(0, 0, 0, 0.66) 76%,
+    rgba(0, 0, 0, 0.38) 82%, rgba(0, 0, 0, 0.16) 88%, rgba(0, 0, 0, 0.04) 94%, transparent 100%);
   -webkit-mask-image: var(--ticker-fade);
   mask-image: var(--ticker-fade);
 }
 .hero-ticker-track {
   display: flex;
   width: max-content;
-  height: 52px;
+  height: 48px;
   will-change: transform;
 }
 /* Opposite directions, different speeds. Each track holds its content
    twice, so moving exactly half its width loops without a seam. */
 .hero-ticker.to-right .hero-ticker-track { animation: hero-ticker-right 46s linear infinite; }
 .hero-ticker.to-left .hero-ticker-track { animation: hero-ticker-left 38s linear infinite; }
-/* Wordmarks, straight on the black in one light colour: they say who is
-   hiring, not who paid. The files are already flattened to #f4f1ee, so
-   opacity alone sets how quiet they are. */
+/* Wordmarks in one quiet colour: they say who is hiring, not who paid.
+   The files are flattened to a light grey for dark grounds; on the light
+   page a brightness filter turns them to ink, and opacity sets how quiet
+   they are in either theme. A company without a file shows its name. */
 .hero-logo {
   flex: none;
   display: flex;
   align-items: center;
   height: 100%;
-  margin-right: 46px;
-  opacity: 0.8;
+  margin-right: 44px;
+  opacity: 0.5;
 }
+:root[data-theme="dark"] .hero-logo { opacity: 0.7; }
 .hero-logo img {
   display: block;
+  filter: brightness(0);
   pointer-events: none;
   -webkit-user-drag: none;
 }
+:root[data-theme="dark"] .hero-logo img { filter: none; }
 .hero-logo-text {
   font: 500 21px / 1 "Geist", var(--font-display);
   letter-spacing: -0.01em;
-  color: #f4f1ee;
+  color: var(--black);
   white-space: nowrap;
 }
 /* Once the page script moves the rows, the CSS drift stops and each row
    can be grabbed and thrown. pan-y leaves vertical swipes to the page. */
-.stats-tile-logos.is-live .hero-ticker-track { animation: none; }
-.stats-tile-logos.is-live .hero-ticker {
+.logo-band.is-live .hero-ticker-track { animation: none; }
+.logo-band.is-live .hero-ticker {
   cursor: grab;
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
-.stats-tile-logos.is-live .hero-ticker.is-dragging { cursor: grabbing; }
+.logo-band.is-live .hero-ticker.is-dragging { cursor: grabbing; }
 @keyframes hero-ticker-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 @keyframes hero-ticker-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-
-/* Narrow screens: the numbers over the logos, the photograph behind the
-   numbers across the whole width. */
-@media (max-width: 900px) {
-  .stats-tile {
-    grid-template-columns: minmax(0, 1fr);
-    height: auto;
-    gap: 24px;
-    padding: 36px 0 32px;
-    border-radius: 32px;
-  }
-  .stats-tile-photo { width: 100%; height: 100%; }
-  .stats-tile-logos { justify-self: stretch; width: auto; margin-right: 0; }
-  .stats-tile-nums { padding: 0 28px; }
-  .stats-tile-nums a { white-space: normal; }
-  .st-1 { font-size: clamp(30px, 7.6vw, 56px); }
-  .st-2 { font-size: clamp(22px, 5vw, 28px); }
-  .st-3 { font-size: 16px; }
-}
 
 /* The product shot: a photographed device with the board inside it,
    standing on a sunlit field. --showcase-bg is the art behind it, a
