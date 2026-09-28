@@ -306,7 +306,7 @@
         return `<span class="hero-logo hero-logo-text">${esc(c.name || c.domain)}</span>`;
       }
       // The band runs wider than the claim above it: the claim's
-      // own text width plus 40%, re-measured when the window changes and
+      // own text width plus 85%, re-measured when the window changes and
       // when the display face arrives. CSS alone cannot read another
       // element's text width; without this the band falls back to 920px.
       (function () {
@@ -316,7 +316,7 @@
         const size = () => {
           const r = document.createRange();
           r.selectNodeContents(claim);
-          band.style.setProperty("--band-w", `${Math.round(r.getBoundingClientRect().width * 1.4)}px`);
+          band.style.setProperty("--band-w", `${Math.round(r.getBoundingClientRect().width * 1.85)}px`);
         };
         size();
         addEventListener("resize", size, { passive: true });

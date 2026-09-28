@@ -4105,14 +4105,14 @@ a.hero-account-btn { text-decoration: none; }
 .hero-secondary:hover { color: var(--green-text); }
 /* The logo band: two rows of the busiest companies' wordmarks, centred
    under the claim and a little wider than it (--band-w, the claim's text
-   width plus 40%, set by the page script), drifting in opposite
+   width plus 85%, set by the page script), drifting in opposite
    directions on the page's own ground. Nothing else in the band. */
 .hero-band { padding: 0 var(--edge); }
 .logo-band {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: var(--band-w, 1000px);
+  width: var(--band-w, 1200px);
   max-width: 100%;
   margin: clamp(36px, 5vw, 64px) auto 0;
 }
