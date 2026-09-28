@@ -26347,3 +26347,9 @@ galadari-brothers.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 surrey.ai
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+archimed.org
+svnl.com
+aktiv.com
+chaos.com

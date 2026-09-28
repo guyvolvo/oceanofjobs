@@ -30428,5 +30428,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "dart.com",
+  "tenant": "dart",
+  "wd": "wd1",
+  "site": "DART",
+  "jobs_seen": 20,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
