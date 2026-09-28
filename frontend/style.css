@@ -4944,7 +4944,7 @@ a.hero-account-btn { text-decoration: none; }
 }
 .rail-acc-chev { color: var(--black); transition: transform 150ms cubic-bezier(0.2, 0, 0, 1); }
 .rail-acc.open .rail-acc-chev { transform: rotate(180deg); }
-.rail-acc-body { display: flex; flex-direction: column; gap: 18px; padding: 2px 8px 14px 38px; }
+.rail-acc-body { display: flex; flex-direction: column; gap: 18px; padding: 2px 8px 14px 8px; }
 .rail-acc-body[hidden] { display: none; }
 /* Inside a group the old group heads become sub-section labels, and
    the hairline and spacing between groups belong to the accordion. */
