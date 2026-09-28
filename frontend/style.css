@@ -21,8 +21,15 @@
       hex, but the two palettes are tuned independently rather than one
       being a straight hex-invert of the other. */
 
-/* Geist, for the feature cards' titles only, as the design names it.
-   Self-hosted like the others; one weight, latin. OFL, licence beside it. */
+/* Geist, for the feature cards' titles and the stats tile, as the
+   designs name it. Self-hosted like the others; two weights, latin. OFL,
+   licence beside it. */
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/Geist-400-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
 @font-face {
   font-family: "Geist";
   src: url("fonts/Geist-500-latin.woff2") format("woff2");
@@ -4096,113 +4103,136 @@ a.hero-account-btn { text-decoration: none; }
 .cta-arrow { flex: none; }
 .hero-secondary { font-size: 15px; color: var(--black); text-underline-offset: 3px; }
 .hero-secondary:hover { color: var(--green-text); }
-/* A line of live numbers over a row of company logos, on the page's own
-   paper. It was a green band for a while and behaved like a second
-   headline; as proof of scale it belongs quietly on the ground the rest of
-   the page stands on. */
-/* The band lives in its own section now. The block inside still steps out
-   of a gutter to reach the screen edge, so the section has to have that
-   gutter for it to step out of, or it steps off the page instead. */
-.hero-band { padding: 0 var(--edge); }
-
-.hero-block {
-  --ticker-size: clamp(26px, 3.4vw, 3.4rem);
-  --band-pad: clamp(16px, 2.6vw, 36px);
+/* The stats tile, as the "Stats tile - Greyscale blur" design: a 190px
+   black tile with 48px corners. Over its left 680px a blurred greyscale
+   photograph fades to black, with a 15% shade over everything, and on it
+   three numbers in Geist, 64, 30 and 18px, the figures in green. Each is
+   a link into the board. The black on the right carries two rows of the
+   busiest companies' logos, drifting in opposite directions, and either
+   row can be thrown (the page script). The tile keeps the page's side
+   margins, like the showcase card under it. */
+.hero-band { padding: 0; }
+.stats-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 680px) minmax(0, 1fr);
+  align-items: center;
+  height: 190px;
+  margin: clamp(24px, 3vw, 48px) clamp(16px, 2.4vw, 36px) 0;
+  overflow: hidden;
+  border-radius: 48px;
+  background: #000;
+  color: #f4f1ee;
+  font-family: "Geist", var(--font-display);
+  font-weight: 400;
+}
+.stats-tile-photo {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 680px;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)),
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 45%, #000 100%),
+    url("/img/stats-tile-blur.webp") -40px -60px / 1000px auto no-repeat;
+}
+.stats-tile-nums {
   position: relative;
   display: flex;
   flex-direction: column;
-  --band-top: calc(var(--band-pad) - 0.16 * var(--ticker-size));
-  gap: var(--band-top);
-  padding: var(--band-top) 0 var(--band-pad);
-  /* Edge to edge of the screen: the rows step out of the hero's gutter and
-     run off both sides, where the fade below takes them. */
-  margin-inline: calc(-1 * var(--edge));
-  color: var(--black);
-  overflow: hidden;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0 72px;
 }
-/* Both rows fade out at the window's edges rather than being cut off by
-   it, so they read as something passing through rather than a strip that
-   stops. */
+.stats-tile-nums a {
+  color: inherit;
+  text-decoration: none;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.14em;
+  white-space: nowrap;
+}
+.stats-tile-nums a:hover { text-decoration-line: underline; }
+.stats-tile-nums a:focus-visible { outline: 2px solid #2fb36a; outline-offset: 4px; border-radius: 6px; }
+.st-1 { font-size: 64px; line-height: 1.05; letter-spacing: -0.02em; }
+.st-2 { font-size: 30px; line-height: 1.2; }
+.st-3 { font-size: 18px; line-height: 1.3; }
+.st-num { color: #2fb36a; font-variant-numeric: tabular-nums; }
+
+.stats-tile-logos {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+/* Both rows fade out at the tile's edges rather than being cut off. */
 .hero-ticker {
   overflow: hidden;
-  /* A stencil, not a colour: a mask reads only the alpha channel, so black
-     means "keep this" and transparent means "fade out". Nothing here is
-     painted black. */
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 7%, black 93%, transparent);
-  mask-image: linear-gradient(90deg, transparent, black 7%, black 93%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
 }
 .hero-ticker-track {
   display: flex;
   width: max-content;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: var(--ticker-size);
-  line-height: 1.04;
-  letter-spacing: -0.03em;
-  white-space: nowrap;
+  height: 52px;
   will-change: transform;
 }
-/* Opposite directions, different speeds: the top row drifts right over a
-   minute, the bottom row runs left faster. Each track holds its content
+/* Opposite directions, different speeds. Each track holds its content
    twice, so moving exactly half its width loops without a seam. */
-.hero-ticker.to-right .hero-ticker-track { animation: hero-ticker-right 60s linear infinite; }
+.hero-ticker.to-right .hero-ticker-track { animation: hero-ticker-right 46s linear infinite; }
 .hero-ticker.to-left .hero-ticker-track { animation: hero-ticker-left 38s linear infinite; }
-/* The logos keep their own size rather than tracking the numbers: at this
-   type size half a line is too small to recognise a mark. The height is set
-   on the track, not the row, so the band can pad around it without the
-   rows jumping when the logos arrive. */
-.hero-logos {
-  padding-block: clamp(7px, 0.9vw, 12px);
-  background: var(--logo-band);
-  border-block: 1px solid var(--logo-band-rule);
-}
-.hero-logos .hero-ticker-track { height: clamp(30px, 3.4vw, 46px); }
+/* Each mark on a small light tile, the way an app icon sits: on the black
+   a dark mark (Apple's, OpenAI's) would vanish, and the tile keeps every
+   company legible whatever its colours. Grey, not colour: they say who is
+   hiring, not who paid. */
 .hero-logo {
   flex: none;
   display: grid;
   place-items: center;
-  height: 100%;
-  aspect-ratio: 1;
-  margin-right: clamp(26px, 3vw, 54px);
+  box-sizing: border-box;
+  width: 52px;
+  height: 52px;
+  margin-right: 22px;
+  padding: 9px;
+  border-radius: 14px;
+  background: #e9e6e3;
 }
-/* Grey, the way a row of marks on a page is grey: they say who is hiring,
-   not who paid. Desaturated, never faded: measured on the live row, the
-   old grayscale-plus-0.55-opacity pair left half the marks under 3:1 on
-   paper, and a company mark nobody can make out is not restraint. */
 .hero-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: grayscale(1) contrast(1.3);
+  filter: grayscale(1) contrast(1.15);
   pointer-events: none;
   -webkit-user-drag: none;
 }
-/* No theme-specific filter: the band is light in both, so a mark that
-   reads in one reads in the other. Inverting or brightening was only ever
-   compensating for a dark ground. */
 /* Once the page script moves the rows, the CSS drift stops and each row
-   can be grabbed and thrown (hero.html). pan-y leaves vertical swipes to
-   the page, so a phone still scrolls past the band. */
-.hero-block.is-live .hero-ticker-track { animation: none; }
-.hero-block.is-live .hero-ticker {
+   can be grabbed and thrown. pan-y leaves vertical swipes to the page. */
+.stats-tile-logos.is-live .hero-ticker-track { animation: none; }
+.stats-tile-logos.is-live .hero-ticker {
   cursor: grab;
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
-.hero-block.is-live .hero-ticker.is-dragging { cursor: grabbing; }
+.stats-tile-logos.is-live .hero-ticker.is-dragging { cursor: grabbing; }
 @keyframes hero-ticker-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 @keyframes hero-ticker-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.hero-ticker-item { display: inline-flex; align-items: center; }
-.hero-num { font-variant-numeric: tabular-nums; margin-right: 0.22em; color: var(--green-text); }
-/* A drawn dot between items, sized to the type. */
-.hero-ticker-item::after {
-  content: "";
-  width: 0.14em;
-  height: 0.14em;
-  margin: 0 0.42em;
-  border-radius: 50%;
-  background: currentColor;
+
+/* Narrow screens: the numbers over the logos, the photograph behind the
+   numbers across the whole width. */
+@media (max-width: 900px) {
+  .stats-tile {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    gap: 24px;
+    padding: 36px 0 32px;
+    border-radius: 32px;
+  }
+  .stats-tile-photo { width: 100%; height: 190px; }
+  .stats-tile-nums { padding: 0 28px; }
+  .stats-tile-nums a { white-space: normal; }
+  .st-1 { font-size: clamp(30px, 7.6vw, 56px); }
+  .st-2 { font-size: clamp(22px, 5vw, 28px); }
+  .st-3 { font-size: 16px; }
 }
 
 /* The product shot: a photographed device with the board inside it,

@@ -146,9 +146,21 @@
     </section>
 
     <section class="hero-band" aria-label="How much is on the board">
-      <div class="hero-block">
-        <div class="hero-ticker to-right" aria-hidden="true"><div class="hero-ticker-track" id="ticker-top"></div></div>
-        <div class="hero-ticker hero-logos to-left" aria-hidden="true"><div class="hero-ticker-track" id="ticker-logos"></div></div>
+      <!-- The "Stats tile - Greyscale blur" design: three numbers over a
+           blurred photograph on the left, each a way into the board, and on
+           the black to the right two rows of the busiest companies' logos
+           drifting in opposite directions. -->
+      <div class="stats-tile">
+        <div class="stats-tile-photo" aria-hidden="true"></div>
+        <div class="stats-tile-nums">
+          <a class="st-1" href="/board"><span class="st-num" id="st-open">&nbsp;</span> open jobs</a>
+          <a class="st-2" href="/board?workplace=remote"><span class="st-num" id="st-remote">&nbsp;</span> remote jobs</a>
+          <a class="st-3" href="/stats"><span class="st-num" id="st-companies">&nbsp;</span> companies hiring</a>
+        </div>
+        <div class="stats-tile-logos" aria-hidden="true">
+          <div class="hero-ticker to-right"><div class="hero-ticker-track" id="ticker-logos-a"></div></div>
+          <div class="hero-ticker to-left"><div class="hero-ticker-track" id="ticker-logos-b"></div></div>
+        </div>
         <p class="sr-only" id="hero-stats-text">Loading board statistics.</p>
       </div>
     </section>
@@ -284,16 +296,13 @@
   <script src="hero_nav.js"></script>
 
   <script>
-    // A ticker of live board numbers over a row of the busiest companies'
-    // logos, both from the same static stats.json the board's Statistics
-    // column reads, so this page costs no API call.
+    // The stats tile's three numbers and its two rows of the busiest
+    // companies' logos, all from the same static stats.json the board's
+    // Statistics column reads, so this page costs no API call.
     (function () {
       const fmt = (n) => Number(n || 0).toLocaleString("en-US");
       const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
-      function item(num, label) {
-        return `<span class="hero-ticker-item"><span class="hero-num">${num}</span> ${label}</span>`;
-      }
       function logo(c) {
         return `<span class="hero-logo"><img src="${esc(c.logo_url)}" alt="" loading="eager" decoding="async" draggable="false" /></span>`;
       }
@@ -308,11 +317,9 @@
       function render(stats) {
         const t = stats.totals || {};
         const remote = ((stats.workplace || []).find((w) => w.workplace === "remote") || {}).n;
-        fill(document.getElementById("ticker-top"), [
-          item(fmt(t.open_jobs), "open jobs"),
-          item(fmt(t.companies_hiring), "companies hiring"),
-          item(fmt(remote), "remote"),
-        ], 12);
+        if (t.open_jobs) document.getElementById("st-open").textContent = fmt(t.open_jobs);
+        if (remote) document.getElementById("st-remote").textContent = fmt(remote);
+        if (t.companies_hiring) document.getElementById("st-companies").textContent = fmt(t.companies_hiring);
         // The number inside the button: "Search 599,686 open jobs".
         const lede = document.getElementById("lede-count");
         if (t.open_jobs) lede.textContent = fmt(t.open_jobs);
@@ -322,14 +329,18 @@
         // written it, the ten-row chart list stands in, minus the ones
         // without a logo.
         const companies = (stats.top_companies_logos || (stats.top_companies || []).filter((c) => c.logo_url)).slice(0, 30);
-        const row = document.getElementById("ticker-logos");
+        // Split between the two rows, alternating, so each carries big names.
         if (companies.length) {
-          fill(row, companies.map(logo), 30);
-          // A logo that no longer loads leaves the row rather than showing a
-          // broken image. Every copy of it fails the same way, so the two
-          // halves stay the same width and the loop stays seamless.
-          row.querySelectorAll("img").forEach((img) => {
-            img.addEventListener("error", () => img.parentElement.remove(), { once: true });
+          const halves = [companies.filter((_, i) => i % 2 === 0), companies.filter((_, i) => i % 2 === 1)];
+          ["ticker-logos-a", "ticker-logos-b"].forEach((id, k) => {
+            const row = document.getElementById(id);
+            fill(row, halves[k].map(logo), 15);
+            // A logo that no longer loads leaves the row rather than showing
+            // a broken image. Every copy of it fails the same way, so the two
+            // halves stay the same width and the loop stays seamless.
+            row.querySelectorAll("img").forEach((img) => {
+              img.addEventListener("error", () => img.parentElement.remove(), { once: true });
+            });
           });
         }
         document.getElementById("hero-stats-text").textContent =
@@ -337,11 +348,6 @@
           (companies.length ? ` Hiring now: ${companies.slice(0, 10).map((c) => c.name || c.domain).join(", ")}.` : "");
       }
 
-      function labelsOnly() {
-        fill(document.getElementById("ticker-top"), ["open jobs", "companies hiring", "remote"].map((l) => item("", l)), 12);
-      }
-
-      labelsOnly();
       fetch("/stats.json", { cache: "no-cache" })
         .then((r) => (r.ok ? r.json() : fetch("/api/stats").then((x) => x.json())))
         .then(render)
@@ -389,10 +395,10 @@
         const SPIN_MS = 2600;
         const MAX_THROW = 8000; // px per second
         const SAMPLE_MS = 100;
-        const block = document.querySelector(".hero-block");
+        const block = document.querySelector(".stats-tile-logos");
         const rows = [
-          { el: document.querySelector(".hero-ticker.to-right"), track: document.getElementById("ticker-top"), seconds: 60, dir: 1 },
-          { el: document.querySelector(".hero-logos"), track: document.getElementById("ticker-logos"), seconds: 38, dir: -1 },
+          { el: block.querySelector(".hero-ticker.to-right"), track: document.getElementById("ticker-logos-a"), seconds: 46, dir: 1 },
+          { el: block.querySelector(".hero-ticker.to-left"), track: document.getElementById("ticker-logos-b"), seconds: 38, dir: -1 },
         ].map((r) => ({ ...r, seconds: r.seconds, half: 0, x: 0, drag: null, spin: null }));
 
         // Each track holds its content twice, so any position can be folded
