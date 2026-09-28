@@ -4365,22 +4365,6 @@ a.hero-account-btn { text-decoration: none; }
   }
 }
 
-.hero-cta {
-  margin: 0 var(--edge);
-  padding-block: clamp(24px, 4vw, 56px) clamp(56px, 8vw, 120px);
-  border-top: var(--rule) solid var(--black);
-}
-.hero-cta-link {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(52px, 9vw, 10rem);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--green-text);
-  text-decoration: none;
-}
-.hero-cta-link:hover { text-decoration: underline; text-decoration-thickness: 0.04em; text-underline-offset: 0.12em; }
-.hero-cta-link:focus-visible { outline: 2px solid var(--green); outline-offset: 6px; border-radius: 4px; }
 .hero-foot { padding-bottom: 18px; color: var(--grey); }
 .hero-foot .hero-foot-links { gap: 28px; }
 
@@ -4578,15 +4562,6 @@ a.hero-account-btn { text-decoration: none; }
   .contact-bugnote span { flex: 1 1 100%; order: 3; }
 }
 
-/* The closing call to action rises and fades in
-   once, on an exponential ease-out, as it scrolls into view. Only when the
-   page script added .hero-motion, so without it everything is simply there. */
-.hero-motion .hero-cta > * {
-  opacity: 0;
-  transform: translateY(28px);
-  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.hero-motion .hero-cta.in > * { opacity: 1; transform: none; }
 
 @media (max-width: 720px) {
   .hero-bar { font-size: 12px; flex-wrap: wrap; row-gap: 4px; }

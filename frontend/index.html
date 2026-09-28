@@ -241,10 +241,6 @@
     </section>
 
 
-    <section class="hero-cta">
-      <a class="hero-cta-link" href="/board">Browse <span id="cta-count">the open jobs</span></a>
-    </section>
-
     <!-- Its own block, not a fifth feature: the people who want this are
          not the people reading the four above. Last on the page, and dark
          in both themes, because a terminal is the one thing here that
@@ -339,7 +335,6 @@
             img.addEventListener("error", () => img.parentElement.remove(), { once: true });
           });
         }
-        document.getElementById("cta-count").textContent = `${fmt(t.open_jobs)} open jobs`;
         document.getElementById("hero-stats-text").textContent =
           `${fmt(t.open_jobs)} open jobs, ${fmt(remote)} of them remote.` +
           (companies.length ? ` Hiring now: ${companies.slice(0, 10).map((c) => c.name || c.domain).join(", ")}.` : "");
@@ -364,7 +359,7 @@
             if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
           });
         }, { rootMargin: "0px 0px -12% 0px", threshold: 0.2 });
-        document.querySelectorAll(".feature-row, .hero-cta").forEach((el) => io.observe(el));
+        document.querySelectorAll(".feature-row").forEach((el) => io.observe(el));
       }
 
       // The tulips drift against the cards as the block scrolls past: one
