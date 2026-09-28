@@ -4192,29 +4192,27 @@ a.hero-account-btn { text-decoration: none; }
    twice, so moving exactly half its width loops without a seam. */
 .hero-ticker.to-right .hero-ticker-track { animation: hero-ticker-right 46s linear infinite; }
 .hero-ticker.to-left .hero-ticker-track { animation: hero-ticker-left 38s linear infinite; }
-/* Each mark on a small light tile, the way an app icon sits: on the black
-   a dark mark (Apple's, OpenAI's) would vanish, and the tile keeps every
-   company legible whatever its colours. Grey, not colour: they say who is
-   hiring, not who paid. */
+/* Wordmarks, straight on the black in one light colour: they say who is
+   hiring, not who paid. The files are already flattened to #f4f1ee, so
+   opacity alone sets how quiet they are. */
 .hero-logo {
   flex: none;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  width: 52px;
-  height: 52px;
-  margin-right: 22px;
-  padding: 9px;
-  border-radius: 14px;
-  background: #e9e6e3;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin-right: 46px;
+  opacity: 0.8;
 }
 .hero-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: grayscale(1) contrast(1.15);
+  display: block;
   pointer-events: none;
   -webkit-user-drag: none;
+}
+.hero-logo-text {
+  font: 500 21px / 1 "Geist", var(--font-display);
+  letter-spacing: -0.01em;
+  color: #f4f1ee;
+  white-space: nowrap;
 }
 /* Once the page script moves the rows, the CSS drift stops and each row
    can be grabbed and thrown. pan-y leaves vertical swipes to the page. */
@@ -4239,7 +4237,7 @@ a.hero-account-btn { text-decoration: none; }
     padding: 36px 0 32px;
     border-radius: 32px;
   }
-  .stats-tile-photo { width: 100%; height: 190px; }
+  .stats-tile-photo { width: 100%; height: 100%; }
   .stats-tile-logos { justify-self: stretch; width: auto; margin-right: 0; }
   .stats-tile-nums { padding: 0 28px; }
   .stats-tile-nums a { white-space: normal; }

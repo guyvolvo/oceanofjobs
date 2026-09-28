@@ -3,7 +3,8 @@
 // holds together on desktop, in dark mode and on a phone.
 import { chromium } from "playwright";
 const browser = await chromium.launch();
-const LOCAL = ["style.css", "img/stats-tile-blur.webp", "fonts/Geist-400-latin.woff2", "fonts/Geist-500-latin.woff2"];
+import { readdirSync } from "fs";
+const LOCAL = ["style.css", "img/stats-tile-blur.webp", "fonts/Geist-400-latin.woff2", "fonts/Geist-500-latin.woff2", ...readdirSync("../../frontend/img/wordmarks").map((f) => `img/wordmarks/${f}`)];
 async function open(viewport, dark) {
   const page = await browser.newPage({ viewport });
   page.on("pageerror", (e) => console.log("pageerror", e.message));
@@ -23,7 +24,7 @@ async function open(viewport, dark) {
   console.log("tile", Math.round(box.width), "x", Math.round(box.height),
     "| numbers:", await page.evaluate(() => ["st-open", "st-remote", "st-companies"].map((id) => document.getElementById(id).textContent).join(" / ")),
     "| rows moved:", p1.join(","), "->", p2.join(","),
-    "| logos:", await page.locator(".hero-logo img").count());
+    "| wordmarks:", await page.locator(".hero-logo img").count(), "text:", await page.locator(".hero-logo-text").count(), "broken:", await page.evaluate(() => [...document.querySelectorAll(".hero-logo img")].filter((i) => i.complete && !i.naturalWidth).length));
   console.log("links:", await page.evaluate(() => [...document.querySelectorAll(".stats-tile-nums a")].map((a) => `${a.textContent.trim()} -> ${a.getAttribute("href")}`).join(" | ")));
   await tile.screenshot({ path: "stats-tile-desktop.png" });
   await page.close();

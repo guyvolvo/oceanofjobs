@@ -303,8 +303,16 @@
       const fmt = (n) => Number(n || 0).toLocaleString("en-US");
       const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
+      // Each company's own wordmark, found online and flattened to one light
+      // colour (img/wordmarks/), at a size that gives every mark about the
+      // same area so a wide, spaced one does not tower over a compact one.
+      // [file, width, height] in CSS pixels. A company without one shows
+      // its name set in Geist instead.
+      const WORDMARKS = {"amazon.com":["amazon-com.webp",98,30],"andurilindustries.com":["andurilindustries-com.webp",126,23],"anthropic.com":["anthropic-com.webp",161,18],"apple.com":["apple-com.webp",24,30],"aws.amazon.com":["aws-amazon-com.webp",51,30],"brex.com":["brex-com.webp",88,30],"checkpoint.com":["checkpoint-com.webp",67,30],"cloudflare.com":["cloudflare-com.webp",190,16],"coinbase.com":["coinbase-com.webp",126,23],"coreweave.com":["coreweave-com.webp",145,20],"crowdstrike.com":["crowdstrike-com.webp",128,23],"crusoe.com":["crusoe-com.webp",111,26],"databricks.com":["databricks-com.webp",135,21],"elastic.co":["elastic-co.webp",88,30],"gitlab.com":["gitlab-com.webp",97,30],"google.com":["google-com.webp",93,30],"microsoft.com":["microsoft-com.webp",117,25],"mongodb.com":["mongodb-com.webp",107,27],"nebius.com":["nebius-com.webp",137,21],"nvidia.com":["nvidia-com.webp",125,23],"openai.com":["openai-com.webp",104,28],"paloaltonetworks.com":["paloaltonetworks-com.webp",125,23],"samsara.com":["samsara-com.webp",134,22],"snowflake.com":["snowflake-com.webp",114,26],"spacex.com":["spacex-com.webp",154,19],"stripe.com":["stripe-com.webp",72,30],"zscaler.com":["zscaler-com.webp",118,24]};
       function logo(c) {
-        return `<span class="hero-logo"><img src="${esc(c.logo_url)}" alt="" loading="eager" decoding="async" draggable="false" /></span>`;
+        const m = WORDMARKS[c.domain];
+        if (m) return `<span class="hero-logo"><img src="/img/wordmarks/${m[0]}" alt="" width="${m[1]}" height="${m[2]}" loading="eager" decoding="async" draggable="false" /></span>`;
+        return `<span class="hero-logo hero-logo-text">${esc(c.name || c.domain)}</span>`;
       }
       function fill(el, items, minItems) {
         // Repeated until one copy is wider than any screen, then doubled, so
@@ -328,7 +336,7 @@
         // and startups first (api/hot_companies.py). Until a precompute has
         // written it, the ten-row chart list stands in, minus the ones
         // without a logo.
-        const companies = (stats.top_companies_logos || (stats.top_companies || []).filter((c) => c.logo_url)).slice(0, 30);
+        const companies = (stats.top_companies_logos || stats.top_companies || []).slice(0, 30);
         // Split between the two rows, alternating, so each carries big names.
         if (companies.length) {
           const halves = [companies.filter((_, i) => i % 2 === 0), companies.filter((_, i) => i % 2 === 1)];
