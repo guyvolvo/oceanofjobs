@@ -30278,5 +30278,45 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-24"
+ },
+ {
+  "domain": "easyservice.ai",
+  "tenant": "easyservice",
+  "wd": "wd5",
+  "site": "MercyHealthCareers",
+  "jobs_seen": 1178,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "elara.com",
+  "tenant": "elara",
+  "wd": "wd5",
+  "site": "External",
+  "jobs_seen": 821,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "bne.com",
+  "tenant": "bne",
+  "wd": "wd1",
+  "site": "Hardees",
+  "jobs_seen": 735,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "avnet.io",
+  "tenant": "avnet",
+  "wd": "wd1",
+  "site": "External",
+  "jobs_seen": 299,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
