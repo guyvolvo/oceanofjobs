@@ -30378,5 +30378,35 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "methode.com",
+  "tenant": "methode",
+  "wd": "wd5",
+  "site": "methode",
+  "jobs_seen": 34,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "cart.com",
+  "tenant": "cart",
+  "wd": "wd1",
+  "site": "cart",
+  "jobs_seen": 32,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "fhlbc.com",
+  "tenant": "fhlbc",
+  "wd": "wd1",
+  "site": "search",
+  "jobs_seen": 32,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
