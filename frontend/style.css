@@ -4157,18 +4157,24 @@ a.hero-account-btn { text-decoration: none; }
 .st-3 { font-size: 18px; line-height: 1.3; }
 .st-num { color: #2fb36a; font-variant-numeric: tabular-nums; }
 
+/* A narrow strip at the tile's right end, not the whole black: the logos
+   are a hint of who is hiring beside the numbers, not a second wall. */
 .stats-tile-logos {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  justify-self: end;
+  width: clamp(260px, 26vw, 440px);
   min-width: 0;
+  margin-right: 40px;
 }
-/* Both rows fade out at the tile's edges rather than being cut off. */
+/* Both rows fade out over a fifth of the strip at each end rather than
+   being cut off. */
 .hero-ticker {
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
-  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent);
 }
 .hero-ticker-track {
   display: flex;
@@ -4228,6 +4234,7 @@ a.hero-account-btn { text-decoration: none; }
     border-radius: 32px;
   }
   .stats-tile-photo { width: 100%; height: 190px; }
+  .stats-tile-logos { justify-self: stretch; width: auto; margin-right: 0; }
   .stats-tile-nums { padding: 0 28px; }
   .stats-tile-nums a { white-space: normal; }
   .st-1 { font-size: clamp(30px, 7.6vw, 56px); }
