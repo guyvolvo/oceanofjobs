@@ -26366,3 +26366,6 @@ center.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 e.ai
 fraser.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+park-avenue.fr
