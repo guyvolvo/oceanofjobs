@@ -6940,18 +6940,15 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
 .fp-sources { gap: 14px; padding-inline: 0; }
-.fp-track { display: flex; gap: 12px; width: max-content; animation: fp-slide 48s linear infinite; }
+.fp-track { display: flex; gap: 40px; width: max-content; animation: fp-slide 48s linear infinite; }
 .fp-track > * { flex: none; }
 .fp-rev .fp-track { animation-direction: reverse; animation-duration: 56s; }
-@keyframes fp-slide { to { transform: translateX(calc(-50% - 6px)); } }
+@keyframes fp-slide { to { transform: translateX(calc(-50% - 20px)); } }
 .fp-ats {
   display: inline-flex;
   align-items: center;
   gap: 12px;
   height: 60px;
-  padding: 0 22px 0 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
   font-size: 18px;
   font-weight: 500;
   color: rgba(244, 241, 238, 0.8);
