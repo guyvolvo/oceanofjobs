@@ -30408,5 +30408,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "cenhud.com",
+  "tenant": "cenhud",
+  "wd": "wd5",
+  "site": "cenhud",
+  "jobs_seen": 23,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "davidyurman.com",
+  "tenant": "davidyurman",
+  "wd": "wd1",
+  "site": "DavidYurmanCareers",
+  "jobs_seen": 23,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
