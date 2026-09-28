@@ -4335,6 +4335,44 @@ a.hero-account-btn { text-decoration: none; }
   filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.55));
 }
 .showcase-pc img { display: block; width: 100%; height: auto; }
+
+/* Depth, desktop only. The photograph moves off the card's own background
+   onto a layer of its own (::before) so it can move without the board,
+   with a light veil over it (::after). Under the pointer the card does
+   what the feature cards do, the veil lifting and the photograph easing
+   in, while the board rises toward the reader on a deeper shadow. The
+   pointer's place over the card (--mx, --my, -1 to 1, set by the page
+   script) pushes the photograph a few pixels one way and the board the
+   other, so the two read as layers at different depths. The photograph
+   starts at 103% so that push never shows its edge. */
+@media (min-width: 721px) {
+  .hero-showcase { background-image: none; }
+  .hero-showcase::before,
+  .hero-showcase::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .hero-showcase::before {
+    background: url("/img/showcase-waterfall.webp") center 38% / cover no-repeat;
+    transform: translate3d(calc(var(--mx, 0) * -10px), calc(var(--my, 0) * -7px), 0) scale(var(--zoom, 1.03));
+    transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .hero-showcase::after {
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.12);
+    transition: background-color 400ms ease;
+  }
+  .showcase-pc {
+    z-index: 2;
+    transform: translateX(-50%) translate3d(calc(var(--mx, 0) * 8px), calc(var(--my, 0) * 5px + var(--lift, 0px)), 0);
+    transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1), filter 600ms ease;
+  }
+  .hero-showcase:hover { --zoom: 1.07; --lift: -8px; }
+  .hero-showcase:hover::after { background-color: rgba(0, 0, 0, 0); }
+  .hero-showcase:hover .showcase-pc { filter: drop-shadow(0 46px 80px rgba(0, 0, 0, 0.62)); }
+}
 /* Phones only: the desktop scene is the waves and the PC. */
 .showcase-device { display: none; }
 @media (max-width: 720px) {
