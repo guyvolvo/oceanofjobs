@@ -155,10 +155,11 @@
 
     <section class="hero-showcase">
       <!-- The board itself, on a screen the section cuts off at the bottom,
-           over live grained waves (showcase_waves.js). A picture of the
+           over a looping gradient video (showcase_video.js). A picture of the
            product, so it is hidden from screen readers: the page says all
            of this in words above. Phones get the phone scene instead. -->
-      <canvas class="showcase-waves" aria-hidden="true"></canvas>
+      <video class="showcase-video" muted loop playsinline disablepictureinpicture preload="none"
+             poster="/img/showcase-gradient-poster.webp" aria-hidden="true"></video>
       <div class="showcase-pc" aria-hidden="true">
         <img src="/img/showcase-pc.webp" alt="" width="2374" height="1155" decoding="async" />
       </div>
@@ -236,7 +237,7 @@
   <script src="signin_dialog.js"></script>
   <script src="hero_account.js"></script>
   <script src="hero_nav.js"></script>
-  <script src="showcase_waves.js" defer></script>
+  <script src="showcase_video.js" defer></script>
 
   <script>
     // A ticker of live board numbers over a row of the busiest companies'
