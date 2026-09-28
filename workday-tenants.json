@@ -30358,5 +30358,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "genesiscare.com",
+  "tenant": "genesiscare",
+  "wd": "wd1",
+  "site": "Genesiscare_Careers",
+  "jobs_seen": 59,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
