@@ -6906,9 +6906,6 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
     font-family: var(--font-ui);
   }
 }
-.fp-head { display: flex; align-items: center; gap: 10px; font-size: 14px; color: rgba(244, 241, 238, 0.7); }
-.fp-dot { width: 8px; height: 8px; border-radius: 50%; background: #2fae60; box-shadow: 0 0 0 0 rgba(47, 174, 96, 0.6); animation: fp-pulse 2s ease-out infinite; }
-@keyframes fp-pulse { 70% { box-shadow: 0 0 0 8px rgba(47, 174, 96, 0); } 100% { box-shadow: 0 0 0 0 rgba(47, 174, 96, 0); } }
 
 /* Sources: two rows of the hiring systems the board reads, drifting in
    opposite directions. Each track holds its list twice and slides by
@@ -6918,32 +6915,33 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
-.fp-track { display: flex; gap: 10px; width: max-content; animation: fp-slide 48s linear infinite; }
+.fp-sources { gap: 14px; padding-inline: 0; }
+.fp-track { display: flex; gap: 12px; width: max-content; animation: fp-slide 48s linear infinite; }
 .fp-track > * { flex: none; }
 .fp-rev .fp-track { animation-direction: reverse; animation-duration: 56s; }
-@keyframes fp-slide { to { transform: translateX(calc(-50% - 5px)); } }
+@keyframes fp-slide { to { transform: translateX(calc(-50% - 6px)); } }
 .fp-ats {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  height: 42px;
-  padding: 0 16px 0 7px;
+  gap: 12px;
+  height: 60px;
+  padding: 0 22px 0 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 500;
   color: rgba(244, 241, 238, 0.8);
   white-space: nowrap;
 }
-.fp-ats img { width: 28px; height: 28px; border-radius: 8px; opacity: 0.85; object-fit: contain; }
+.fp-ats img { width: 40px; height: 40px; border-radius: 11px; opacity: 0.85; object-fit: contain; }
 
 /* CV matching: a listing, and the skills it asks for lighting up where
    the CV has them. */
 .fp-job { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .fp-job-title { font-size: 18px; font-weight: 600; }
 .fp-job-meta { margin-top: 2px; font-size: 13px; color: rgba(244, 241, 238, 0.6); }
-.fp-score { flex: none; padding: 4px 10px; border-radius: 999px; background: rgba(47, 174, 96, 0.14); color: #7fd49b; font-size: 13px; font-weight: 600; }
+.fp-score { flex: none; padding: 3px 10px; border: 1px solid #f4f1ee; border-radius: 999px; color: #f4f1ee; font-size: 13px; font-weight: 600; }
 .fp-skills { display: flex; flex-wrap: wrap; gap: 8px; }
 .fp-skill {
   display: inline-flex;
@@ -6955,22 +6953,22 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   border-radius: 999px;
   font-size: 14px;
   color: rgba(244, 241, 238, 0.55);
-  transition: background-color 450ms ease, border-color 450ms ease, color 450ms ease;
+  transition: border-color 450ms ease, color 450ms ease;
   transition-delay: calc(var(--k) * 140ms + 350ms);
 }
-.fp-skill.m { background: rgba(47, 174, 96, 0.16); border-color: rgba(47, 174, 96, 0.6); color: #e9f5ec; }
-.fp-skill.m::before { content: "✓"; font-size: 12px; color: #7fd49b; }
+.fp-skill.m { border-color: #f4f1ee; color: #f4f1ee; }
+.fp-skill.m::before { content: "✓"; font-size: 12px; }
 
 /* Salary: the estimate, and where it sits on the board's range. */
 .fp-sal-top { display: flex; align-items: baseline; gap: 10px; }
 .fp-est { font: 500 34px / 1 "Geist", var(--font-display); letter-spacing: -0.02em; }
 .fp-sal-unit { font-size: 14px; color: rgba(244, 241, 238, 0.6); }
 .fp-bar { position: relative; height: 8px; margin-top: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); }
-/* ₪36K to ₪47K on a ₪10K to ₪80K track. */
+/* $10K to $13K on a $2K to $22K track. */
 .fp-range {
   position: absolute;
-  inset: 0 auto 0 37.1%;
-  width: 15.7%;
+  inset: 0 auto 0 40%;
+  width: 15%;
   border-radius: 999px;
   background: #2fae60;
   transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1) 350ms;
@@ -7021,7 +7019,7 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: calc(var(--i) * 80ms + 120ms);
 }
-.hero-motion .feature-row:not(.in) .fp-skill.m { background: transparent; border-color: rgba(255, 255, 255, 0.12); color: rgba(244, 241, 238, 0.55); }
+.hero-motion .feature-row:not(.in) .fp-skill.m { border-color: rgba(255, 255, 255, 0.12); color: rgba(244, 241, 238, 0.55); }
 .hero-motion .feature-row:not(.in) .fp-range { transform: scaleX(0); }
 .hero-motion .feature-row:not(.in) .fp-note { opacity: 0; transform: translateX(28px); }
 .hero-motion .feature-row.in .feature-card,
