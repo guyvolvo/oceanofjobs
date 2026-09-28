@@ -6944,7 +6944,6 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   gap: 12px;
   height: 60px;
   padding: 0 22px 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   font-size: 18px;
