@@ -30498,5 +30498,45 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "fhlbsf.com",
+  "tenant": "fhlbsf",
+  "wd": "wd5",
+  "site": "FHLBSF",
+  "jobs_seen": 1,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "ico.io",
+  "tenant": "ico",
+  "wd": "wd3",
+  "site": "ICO",
+  "jobs_seen": 1,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "innovateuk.com",
+  "tenant": "innovateuk",
+  "wd": "wd3",
+  "site": "innovateukcareers",
+  "jobs_seen": 1,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
+ },
+ {
+  "domain": "endemolshine.de",
+  "tenant": "endemolshine",
+  "wd": "wd3",
+  "site": "EndemolShine_UK_Jobs",
+  "jobs_seen": 1,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
