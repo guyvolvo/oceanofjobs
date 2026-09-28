@@ -4157,24 +4157,30 @@ a.hero-account-btn { text-decoration: none; }
 .st-3 { font-size: 18px; line-height: 1.3; }
 .st-num { color: #2fb36a; font-variant-numeric: tabular-nums; }
 
-/* A narrow strip at the tile's right end, not the whole black: the logos
-   are a hint of who is hiring beside the numbers, not a second wall. */
+/* A strip at the tile's right end rather than the whole black, so the
+   numbers keep some room. */
 .stats-tile-logos {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
   justify-self: end;
-  width: clamp(260px, 26vw, 440px);
+  width: min(clamp(520px, 52vw, 880px), 100%);
   min-width: 0;
   margin-right: 40px;
 }
-/* Both rows fade out over a fifth of the strip at each end rather than
-   being cut off. */
+/* The rows fade in over the first 40% of the strip on an eased curve, and
+   out over the last 18% into the tile's rounded end. A straight ramp left
+   a visible line where it began: the eye reads the first steps of a
+   linear fade as an edge. */
 .hero-ticker {
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent);
-  mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent);
+  --ticker-fade: linear-gradient(90deg,
+    transparent 0%, rgba(0, 0, 0, 0.02) 6%, rgba(0, 0, 0, 0.07) 12%, rgba(0, 0, 0, 0.16) 18%,
+    rgba(0, 0, 0, 0.3) 24%, rgba(0, 0, 0, 0.5) 30%, rgba(0, 0, 0, 0.72) 35%, #000 40%,
+    #000 82%, rgba(0, 0, 0, 0.6) 89%, rgba(0, 0, 0, 0.2) 95%, transparent 100%);
+  -webkit-mask-image: var(--ticker-fade);
+  mask-image: var(--ticker-fade);
 }
 .hero-ticker-track {
   display: flex;
