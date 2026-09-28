@@ -26338,3 +26338,6 @@ wynshop.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 euroclear.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+chgcareers.com

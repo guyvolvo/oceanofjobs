@@ -30348,5 +30348,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "ascensushr.com",
+  "tenant": "ascensushr",
+  "wd": "wd1",
+  "site": "ascensuscareers",
+  "jobs_seen": 67,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-28"
  }
 ]
