@@ -26393,3 +26393,7 @@ korsit.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 gia.net
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+giant.net
+esm.com
