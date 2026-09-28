@@ -26382,3 +26382,7 @@ alloy.ai
 # Common Crawl discovery batch (merge_discovered_batch.py)
 assc.fr
 t3-services.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+amnesty.ai
+quinoa-bildung-ggmbh.com
