@@ -6806,7 +6806,7 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
    beside the card, the same 200px tall and 50px away.
 
    Motion, when the page script added .hero-motion: each row rises in as
-   it scrolls into view, a step behind the one before, while its slice of
+   one piece as it scrolls into view, a step behind the one before, while its slice of
    the photograph pulls into focus and its preview plays once. After that
    the photograph drifts up to 48px against the cards with the scroll
    (--drift, set by the page script), and a card under the pointer lifts
@@ -6883,13 +6883,33 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
 /* The previews. Dark in both themes like the block they sit in, so the
    colours are the block's own rather than tokens, as .hero-api does. */
 .feature-preview { display: none; }
+/* Wide screens: each row is one tile. The card's slice of the photograph
+   fades into the tile's own dark ground over its last 340px, veil and
+   all, and the preview sits on that ground with no edge of its own, so
+   the picture and what it describes read as one thing. The tile keeps
+   the card's 48px corners and clips the photograph to them. */
 @media (min-width: 1100px) {
   .hero-features { max-width: none; }
   .feature-row {
     display: grid;
     grid-template-columns: var(--card-w) minmax(0, 1fr);
-    gap: var(--card-gap);
+    overflow: hidden;
+    outline: 1px solid rgba(255, 255, 255, 0.07);
+    outline-offset: -1px;
+    border-radius: 48px;
+    /* The photograph's own black under its veil, so the fade has no step
+       to cross; the outline is what draws the tile on the block. */
+    background: #030303;
   }
+  .feature-card { border-radius: 0; background: transparent; }
+  .feature-card-img {
+    --fade: linear-gradient(90deg, #000 calc(100% - var(--inset) - 340px), rgba(0, 0, 0, 0.55) calc(100% - var(--inset) - 190px),
+                            rgba(0, 0, 0, 0.15) calc(100% - var(--inset) - 90px), transparent calc(100% - var(--inset) - 30px));
+    -webkit-mask-image: var(--fade);
+    mask-image: var(--fade);
+  }
+  .feature-card-body { background: linear-gradient(90deg, rgba(0, 0, 0, 0.25) calc(100% - 340px), transparent calc(100% - 30px)); }
+  .feature-card:hover .feature-card-body { background: linear-gradient(90deg, rgba(0, 0, 0, 0.1) calc(100% - 340px), transparent calc(100% - 30px)); }
   .feature-preview {
     display: flex;
     flex-direction: column;
@@ -6897,14 +6917,12 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
     gap: 12px;
     box-sizing: border-box;
     height: var(--card-h);
-    padding: 26px 40px;
+    padding: 26px 48px 26px 8px;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 48px;
-    background: #0d0d0e;
     color: #f4f1ee;
     font-family: var(--font-ui);
   }
+  .fp-sources { padding-right: 0; }
 }
 
 /* Sources: two rows of the hiring systems the board reads, drifting in
@@ -6993,7 +7011,7 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
 .fp-bell { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 12px; background: rgba(47, 174, 96, 0.14); color: #7fd49b; }
 
 /* The reveal. */
-.hero-motion .feature-row .feature-card {
+.hero-motion .feature-row {
   opacity: 0;
   transform: translateY(48px);
   transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -7015,14 +7033,14 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
 .hero-motion .feature-row p { transition-delay: calc(var(--i) * 80ms + 260ms); }
 .hero-motion .feature-row .feature-preview {
   opacity: 0;
-  transform: translateX(40px);
+  transform: translateX(24px);
   transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(var(--i) * 80ms + 120ms);
+  transition-delay: calc(var(--i) * 80ms + 260ms);
 }
 .hero-motion .feature-row:not(.in) .fp-skill.m { border-color: rgba(255, 255, 255, 0.12); color: rgba(244, 241, 238, 0.55); }
 .hero-motion .feature-row:not(.in) .fp-range { transform: scaleX(0); }
 .hero-motion .feature-row:not(.in) .fp-note { opacity: 0; transform: translateX(28px); }
-.hero-motion .feature-row.in .feature-card,
+.hero-motion .feature-row.in,
 .hero-motion .feature-row.in .feature-preview { opacity: 1; transform: none; }
 .hero-motion .feature-row.in .feature-card-img { --zoom: 1; --soft: 0px; }
 .hero-motion .feature-row.in .feature-card:hover .feature-card-img { --zoom: 1.04; transition-delay: 0s; }
