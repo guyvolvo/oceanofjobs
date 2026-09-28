@@ -4328,7 +4328,7 @@ a.hero-account-btn { text-decoration: none; }
    follows them rather than a box. */
 .showcase-pc {
   position: absolute;
-  top: 16%;
+  top: 20%;
   left: 50%;
   width: 82%;
   transform: translateX(-50%);
