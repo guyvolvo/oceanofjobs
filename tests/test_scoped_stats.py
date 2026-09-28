@@ -189,15 +189,20 @@ il = aggregates.compute_scoped_stats(counted, {"country": "IL"})
 # FTS index, PRAGMA table_info for the place columns) are not, but they
 # are capped too so nobody re-probes per clause the way compute_facets
 # does.
-scans = [s for s in counted.sql if "FROM jobs" in s]
+# A pass that reads the place table (aggregates.place_rows) looks up a
+# handful of rows by rowid and is not a scan; building that table is one.
+scans = [s for s in counted.sql if "FROM jobs" in s and "temp.place_rows_" not in s]
 check("the scoped block is three passes over jobs, not twenty",
       len(scans) <= 3, f"{len(scans)} passes: {[' '.join(s.split())[:60] for s in scans]}")
+check("and with a place filter, only two of them are full scans",
+      len(scans) <= 2, f"{len(scans)} passes")
 # Everything else is a schema probe, apart from the one companies lookup
 # that gives the top-companies chart its logos (aggregates._with_logos),
 # which reads ten rows by primary key and is not a probe at all.
-probes = [s for s in counted.sql if "FROM jobs" not in s and "FROM companies" not in s]
+probes = [s for s in counted.sql if "FROM jobs" not in s and "FROM companies" not in s
+          and not s.startswith("DROP TABLE IF EXISTS temp.")]
 check("and the schema probes are not repeated per clause",
-      len(probes) <= 2, f"{len(probes)} probes: {[' '.join(s.split())[:60] for s in probes]}")
+      len(probes) <= 3, f"{len(probes)} probes: {[' '.join(s.split())[:60] for s in probes]}")
 check("and the logo lookup is one query, not one per company",
       sum("FROM companies" in s for s in counted.sql) <= 1, f"{len(counted.sql)} total executes")
 

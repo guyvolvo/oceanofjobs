@@ -1120,10 +1120,30 @@ def route_facets(params: dict) -> dict:
     hit = _scoped_cache.get(ck)
     if hit and hit[0] > _t.monotonic():
         return hit[1]
-    out = compute_facets(get_connection(), params)
+    # The location tree is counted with country and city set aside, so
+    # it is the same for every place under the same other filters. From
+    # the artifact when those filters are a precomputed variant (tech
+    # roles alone, say), else from this worker's cache, else live once.
+    rest = {k: v for k, v in params.items() if k not in ("country", "city")}
+    locations = None
+    rest_variant = _unfiltered_confidence(rest)
+    if rest_variant is not None:
+        if (params.get("roles") or "").lower() == "tech":
+            rest_variant = f"{rest_variant}:tech"
+        ready = _precomputed_json("facets.json")
+        if isinstance(ready, dict) and isinstance(ready.get(rest_variant), dict):
+            locations = ready[rest_variant].get("locations")
+    pk = "places?" + "&".join(f"{k}={rest[k]}" for k in sorted(rest) if rest.get(k) not in (None, "", False))
+    if locations is None:
+        phit = _scoped_cache.get(pk)
+        if phit and phit[0] > _t.monotonic():
+            locations = phit[1]
+    out = compute_facets(get_connection(), params, locations=locations)
     if len(_scoped_cache) >= _SCOPED_MAX:
         _scoped_cache.clear()
     _scoped_cache[ck] = (_t.monotonic() + _SCOPED_TTL_S, out)
+    if pk not in _scoped_cache or _scoped_cache[pk][0] <= _t.monotonic():
+        _scoped_cache[pk] = (_t.monotonic() + _SCOPED_TTL_S, out.get("locations"))
     return out
 
 

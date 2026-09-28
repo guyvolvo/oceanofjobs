@@ -16,6 +16,7 @@ client at import time, which is right for a Lambda serving requests and
 wrong for a loader that already has a file open on disk.
 """
 
+import contextlib
 from datetime import datetime, timedelta, timezone
 
 from countries import label_for
@@ -103,7 +104,39 @@ def top_companies_with_logos(conn, limit: int = 30) -> list[dict]:
     return out
 
 
-def compute_facets(conn, params: dict) -> dict:
+@contextlib.contextmanager
+def place_rows(conn, params: dict):
+    """For the length of the block, the open jobs in the request's
+    countries and cities sit in a temp table and build_jobs_where reads
+    it instead of repeating the LIKE scans (see job_filters.place_rowset).
+    One scan of the open jobs up front, rather than one per count."""
+    import uuid
+    from job_filters import place_rowset, wanted_cities, wanted_country_codes
+
+    places = has_places(conn)
+    countries = wanted_country_codes(params) if places else []
+    cities = wanted_cities(params) if places else []
+    if not (countries or cities) or bool_param(params, "include_closed"):
+        yield
+        return
+    where, args = ["closed_at IS NULL"], []
+    if countries:
+        where.append("(" + " OR ".join("(',' || COALESCE(country, '') || ',') LIKE ?" for _ in countries) + ")")
+        args += [f"%,{c},%" for c in countries]
+    if cities:
+        where.append("(" + " OR ".join("(',' || COALESCE(city, '') || ',') LIKE ?" for _ in cities) + ")")
+        args += [f"%,{c},%" for c in cities]
+    name = "place_rows_" + uuid.uuid4().hex[:12]
+    conn.execute(f"CREATE TEMP TABLE {name} AS SELECT rowid AS rid FROM jobs WHERE {' AND '.join(where)}", args)
+    token = place_rowset.set((name, (tuple(countries), tuple(cities))))
+    try:
+        yield
+    finally:
+        place_rowset.reset(token)
+        conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+
+
+def compute_facets(conn, params: dict, locations: list | None = None) -> dict:
     """The rail's counts. With skills in the request, the open jobs that
     match them are found once into a temp table and every count reads it
     (see job_filters.skill_rowset), instead of each of the rail's passes
@@ -113,20 +146,22 @@ def compute_facets(conn, params: dict) -> dict:
 
     wanted = wanted_skills(params)
     if not wanted or bool_param(params, "include_closed"):
-        return _compute_facets(conn, params)
+        with place_rows(conn, params):
+            return _compute_facets(conn, params, locations)
     name = "skill_rows_" + uuid.uuid4().hex[:12]
     clauses = " OR ".join("(',' || COALESCE(skills, '') || ',') LIKE ?" for _ in wanted)
     conn.execute(f"CREATE TEMP TABLE {name} AS SELECT rowid AS rid FROM jobs "
                  f"WHERE closed_at IS NULL AND ({clauses})", [f"%,{s},%" for s in wanted])
     token = skill_rowset.set(name)
     try:
-        return _compute_facets(conn, params)
+        with place_rows(conn, params):
+            return _compute_facets(conn, params, locations)
     finally:
         skill_rowset.reset(token)
         conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 
 
-def _compute_facets(conn, params: dict) -> dict:
+def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
 
     def counts_by(column_expr: str, exclude_param: str, limit: int) -> list[dict]:
         scoped = dict(params)
@@ -296,7 +331,10 @@ def _compute_facets(conn, params: dict) -> dict:
 
     out = {
         "categories": counts_by(category_sql(conn), "department", 20),
-        "locations": location_tree(),
+        # Handed in when the caller already has it: the tree drops the
+        # place filters, so every city picked under the same other
+        # filters has the same one (see handler.route_facets).
+        "locations": location_tree() if locations is None else locations,
         "companies": companies,
     }
     salary = salary_bounds(conn, params)
@@ -481,6 +519,11 @@ SCOPED_TOP_COMPANIES = 10
 
 
 def compute_scoped_stats(conn, params: dict) -> dict:
+    with place_rows(conn, params):
+        return _compute_scoped_stats(conn, params)
+
+
+def _compute_scoped_stats(conn, params: dict) -> dict:
     """The few stats numbers that are properties of a result set rather
     than of the market, counted over the caller's own filters.
 
@@ -516,7 +559,7 @@ def compute_scoped_stats(conn, params: dict) -> dict:
         FROM jobs
         WHERE {where_sql}
         GROUP BY company_domain
-        ORDER BY n DESC
+        ORDER BY n DESC, domain
         """,
         args,
     ).fetchall()

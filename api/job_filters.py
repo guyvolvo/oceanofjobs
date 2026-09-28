@@ -411,6 +411,20 @@ MAX_MATCH_SKILLS = 40
 skill_rowset: contextvars.ContextVar = contextvars.ContextVar("skill_rowset", default=None)
 
 
+# The same idea for the place filters, set by aggregates.place_rows: the
+# name of a temp table holding the open jobs in the chosen countries and
+# cities, and the (countries, cities) it was built for. Country and city
+# are comma lists matched with LIKE, which no index can serve, so every
+# count the rail and the overview make was a full scan of the open jobs,
+# about a second each, eight of them per filter click. With the table
+# set, those clauses become a rowid lookup into a few hundred rows.
+# Used only when the request asks for exactly the places the table
+# holds and for open jobs only, as the table does, so a facet that drops
+# the place filters and a throughput pass that counts closings never
+# read it.
+place_rowset: contextvars.ContextVar = contextvars.ContextVar("place_rowset", default=None)
+
+
 def wanted_skills(params: dict) -> list[str]:
     known = {s.lower(): s for s in SKILL_LABELS}
     out: list[str] = []
@@ -828,6 +842,11 @@ def build_jobs_where(params: dict, has_fts=False,
             args.extend(f"%,{s},%" for s in wanted)
 
     wanted_countries = wanted_country_codes(params) if places else []
+    wanted_city_names = wanted_cities(params) if places else []
+    prows = place_rowset.get()
+    if prows and (wanted_countries or wanted_city_names)             and not bool_param(params, "include_closed")             and prows[1] == (tuple(wanted_countries), tuple(wanted_city_names)):
+        where.append(f"jobs.rowid IN (SELECT rid FROM temp.{prows[0]})")
+        wanted_countries = wanted_city_names = []
     if wanted_countries:
         # OR across codes, and a LIKE against the comma-joined column for
         # the same reason skills uses one: a job can name more than one
@@ -838,7 +857,6 @@ def build_jobs_where(params: dict, has_fts=False,
         where.append(f"({clauses})")
         args.extend(f"%,{c},%" for c in wanted_countries)
 
-    wanted_city_names = wanted_cities(params) if places else []
     if wanted_city_names:
         # Same shape as country above, against a column stored the same
         # comma-joined way, and OR across the names for the same reason: a
