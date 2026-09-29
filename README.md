@@ -1,6 +1,6 @@
 # <img src="frontend/favicon-180.png" alt="" height="32" valign="middle"> Ocean of Jobs
 
-Open-source tech job board. Scrapes job listings directly from ATS APIs and company career portals, tracks them over time, and serves them through a lightweight public API.
+Open-source tech job board. Listings scraped straight from company hiring systems, tracked over time, and served through a public API.
 
 **Live site:** [oceanofjobs.com](https://oceanofjobs.com/) (board at [/board](https://oceanofjobs.com/board), API docs at [/api/help](https://oceanofjobs.com/api/help))
 

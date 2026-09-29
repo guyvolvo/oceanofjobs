@@ -1,0 +1,54 @@
+name: og-image
+
+# Renders the link preview card (og.jpg) once a day with the board's live
+# counts, from scripts/og_image, and puts it at the site root. The file is
+# not in frontend/, so deploy-frontend's sync excludes it by name rather
+# than deleting it. An hour of cache, so a day's new numbers reach the edge
+# within the hour; the social sites keep their own copy per link anyway.
+
+on:
+  schedule:
+    - cron: "20 5 * * *"
+  push:
+    branches: [main]
+    paths: ["scripts/og_image/**", ".github/workflows/og-image.yml"]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: il-central-1
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save --prefix scripts/og_image playwright@1.63.0
+          npx --prefix scripts/og_image playwright install --with-deps chromium
+
+      - name: Render the card
+        run: node scripts/og_image/render.mjs og.jpg
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.FRONTEND_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Publish
+        run: |
+          aws s3 cp og.jpg "s3://${{ vars.FRONTEND_BUCKET }}/og.jpg" \
+            --content-type image/jpeg \
+            --cache-control "public, max-age=3600"
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/og.jpg"

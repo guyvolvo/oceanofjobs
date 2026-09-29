@@ -78,6 +78,7 @@ jobs:
             --exclude "explore.json" \
             --exclude "explore/*" \
             --exclude "media/*" \
+            --exclude "og.jpg" \
             --cache-control "no-cache"
 
       - name: Mark 404.html for a real 404 status

@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- The link preview card, 1200 x 630, as the "OG image - 1200x630" design.
+     render.mjs fills the three {{...}} counts from the live stats.json and
+     screenshots it. Fonts are the site's own files, so nothing here reaches
+     Google Fonts. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: "Geist"; src: url("../../frontend/fonts/Geist-400-latin.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Geist"; src: url("../../frontend/fonts/Geist-500-latin.woff2") format("woff2"); font-weight: 500; }
+html, body { margin: 0; background: #000; }
+.card { position: relative; width: 1200px; height: 630px; overflow: hidden; background: #000; color: #f4f1ee; font-family: "Geist", system-ui, sans-serif; }
+.photo, .fade { position: absolute; left: 0; top: 0; width: 900px; height: 630px; }
+.photo { background: url("photo.jpg") -120px -60px / 1400px auto no-repeat; }
+.fade { background: linear-gradient(90deg, rgba(0, 0, 0, 0) 35%, #000 100%); }
+.shade { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.2); }
+.body { position: relative; height: 100%; box-sizing: border-box; padding: 80px 88px; display: flex; flex-direction: column; justify-content: space-between; }
+.site { font-size: 22px; font-weight: 500; letter-spacing: 0.02em; color: rgba(244, 241, 238, 0.75); }
+.middle { display: flex; flex-direction: column; gap: 20px; }
+.name { font-size: 112px; font-weight: 500; line-height: 0.95; letter-spacing: -0.035em; }
+.tagline { font-size: 32px; font-weight: 400; line-height: 1.25; color: rgba(244, 241, 238, 0.85); }
+.counts { display: flex; gap: 40px; font-size: 26px; font-weight: 400; }
+.n { color: #2fb36a; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="photo"></div>
+  <div class="fade"></div>
+  <div class="shade"></div>
+  <div class="body">
+    <div class="site">oceanofjobs.com</div>
+    <div class="middle">
+      <div class="name">Ocean of Jobs</div>
+      <div class="tagline">Open-source tech job board.<br>Scraped straight from company hiring systems.</div>
+    </div>
+    <div class="counts">
+      <div><span class="n">{{jobs}}</span> open jobs</div>
+      <div><span class="n">{{remote}}</span> remote</div>
+      <div><span class="n">{{companies}}</span> companies hiring</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

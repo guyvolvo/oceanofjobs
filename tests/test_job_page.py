@@ -76,7 +76,7 @@ check("location is the derived city and country",
       repr(ld.get("jobLocation")))
 check("no salary in markup when none is given", "baseSalary" not in ld)
 check("the RSS feed is announced", 'type="application/rss+xml"' in p)
-check("the preview card is the site card", "og-hills.jpg" in p)
+check("the preview card is the site card", "/og.jpg" in p)
 
 # Remote, no place at all.
 r = job_page.render(job(location="Remote", country="", city="", workplace_type="remote"), NOW)
