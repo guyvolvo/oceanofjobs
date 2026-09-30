@@ -26438,3 +26438,8 @@ openmined.ai
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 oppizi.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+gouldand-ratner.com
+openworks.com
+openlane.com
