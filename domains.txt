@@ -26464,3 +26464,7 @@ today.com
 tokamak.io
 ooqiasa.com
 bakerstreet.co
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+dayone.com
+interrogare-gmbh.com
