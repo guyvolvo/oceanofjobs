@@ -15,8 +15,6 @@ exactly what its owner would see applying those filters on the live
 board, not a second, independently-drifting approximation of it.
 """
 
-import hashlib
-import hmac
 import html
 import os
 import re
@@ -31,6 +29,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from countries import label_for
 from job_filters import build_jobs_where, has_fts_index, has_places, register_functions, salary_source_select
+import unsubscribe_token as _unsub
 from profile import DIGEST_DAY, DIGEST_TIME, DIGEST_TZ, PROFILE_ID
 
 ALERTS_TABLE = os.environ.get("ALERTS_TABLE")
@@ -583,18 +582,12 @@ def job_page_url(job: dict) -> str:
 # session and nobody can forge a URL for someone else's. Without a
 # secret in the environment the mail keeps the older header, which
 # points at the account page.
-UNSUBSCRIBE_SECRET = os.environ.get("ALERTS_UNSUBSCRIBE_SECRET", "")
-
-
-def unsubscribe_token(user_id: str, alert_id: str, secret: str | None = None) -> str:
-    key = (secret if secret is not None else UNSUBSCRIBE_SECRET).encode("utf-8")
-    msg = f"{user_id}\n{alert_id}".encode("utf-8")
-    return hmac.new(key, msg, hashlib.sha256).hexdigest()[:32]
+unsubscribe_token = _unsub.unsubscribe_token
 
 
 def unsubscribe_url(alert: dict | None) -> str | None:
     a = alert or {}
-    if not UNSUBSCRIBE_SECRET or not a.get("user_id") or not a.get("alert_id"):
+    if not _unsub.SECRET or not a.get("user_id") or not a.get("alert_id"):
         return None
     return f"{SITE_ORIGIN}/api/alerts/unsubscribe?" + urlencode(
         {"u": a["user_id"], "a": a["alert_id"], "t": unsubscribe_token(a["user_id"], a["alert_id"])})

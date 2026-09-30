@@ -15,6 +15,7 @@ os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
 
 import alerts  # noqa: E402
+import unsubscribe_token as unsub  # noqa: E402
 
 failures = []
 
@@ -95,7 +96,7 @@ check("another secret gets another token", tok != alerts.unsubscribe_token("user
 check("without a secret in the environment there is no one-click URL and the old header stands",
       alerts.unsubscribe_url({"user_id": "u", "alert_id": "a"}) is None
       and alerts._mail_headers({"user_id": "u", "alert_id": "a"}) == [{"Name": "List-Unsubscribe", "Value": f"<{alerts.SITE_ORIGIN}/account>"}])
-alerts.UNSUBSCRIBE_SECRET = "s3cret"
+unsub.SECRET = "s3cret"
 try:
     url = alerts.unsubscribe_url({"user_id": "user-1", "alert_id": "alert-1"})
     hdrs = alerts._mail_headers({"user_id": "user-1", "alert_id": "alert-1"})
@@ -105,7 +106,7 @@ try:
           hdrs == [{"Name": "List-Unsubscribe", "Value": f"<{url}>"},
                    {"Name": "List-Unsubscribe-Post", "Value": "List-Unsubscribe=One-Click"}], repr(hdrs))
 finally:
-    alerts.UNSUBSCRIBE_SECRET = ""
+    unsub.SECRET = ""
 
 print()
 if failures:

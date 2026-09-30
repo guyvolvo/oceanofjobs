@@ -19,6 +19,7 @@ os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
 
 import alerts  # noqa: E402
 import handler  # noqa: E402
+import unsubscribe_token as unsub  # noqa: E402
 
 failures = []
 
@@ -56,7 +57,7 @@ handler._alerts_table = FakeTable({("user-1", "alert-1")})
 r = handler.lambda_handler(event("POST", "u=user-1&a=alert-1&t=abc"), None)
 check("with no secret the route is closed", r["statusCode"] == 404, repr(r))
 
-alerts.UNSUBSCRIBE_SECRET = "s3cret"
+unsub.SECRET = "s3cret"
 try:
     good = alerts.unsubscribe_token("user-1", "alert-1")
     r = handler.lambda_handler(event("POST", f"u=user-1&a=alert-1&t={good}"), None)
@@ -78,7 +79,7 @@ try:
     r = handler.lambda_handler(event("DELETE", ""), None)
     check("other methods are refused", r["statusCode"] == 405)
 finally:
-    alerts.UNSUBSCRIBE_SECRET = ""
+    unsub.SECRET = ""
 
 print()
 if failures:

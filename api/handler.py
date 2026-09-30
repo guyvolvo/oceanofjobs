@@ -1275,13 +1275,13 @@ def route_unsubscribe(user_id, alert_id, token) -> tuple[int, dict]:
     """
     import hmac as _hmac
 
-    from alerts import UNSUBSCRIBE_SECRET, unsubscribe_token
+    import unsubscribe_token as _unsub
 
-    if not UNSUBSCRIBE_SECRET:
+    if not _unsub.SECRET:
         return 404, {"error": "unsubscribe links are not enabled"}
     if not (user_id and alert_id and token):
         return 400, {"error": "missing parameters"}
-    if not _hmac.compare_digest(str(token), unsubscribe_token(user_id, alert_id)):
+    if not _hmac.compare_digest(str(token), _unsub.unsubscribe_token(user_id, alert_id)):
         return 403, {"error": "bad token"}
     try:
         _alerts_table.update_item(
