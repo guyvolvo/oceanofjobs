@@ -26435,3 +26435,6 @@ thurston-county.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 goodhabitz.com
 openmined.ai
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+oppizi.com
