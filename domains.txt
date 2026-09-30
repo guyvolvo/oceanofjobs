@@ -26443,3 +26443,6 @@ oppizi.com
 gouldand-ratner.com
 openworks.com
 openlane.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+tjm.org
