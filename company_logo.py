@@ -136,6 +136,7 @@ PLACEHOLDER_ICONS = {
 # which strips the same URLs whichever path wrote them.
 sys.path.insert(0, str(Path(__file__).resolve().parent / "loader"))
 from placeholder_logos import PLACEHOLDER_URL_PARTS  # noqa: E402
+from company_aliases import LOGO_OVERRIDES  # noqa: E402
 
 PLACEHOLDER_URL_RE = re.compile("|".join(re.escape(p) for p in PLACEHOLDER_URL_PARTS), re.I)
 

@@ -62,6 +62,19 @@ REAL_DOMAIN = {
 }
 
 
+# Companies whose own icon is unusable at a tile's size, with the image
+# to show instead, served from this site. Ubisoft's only icon is a 150px
+# .ico of its swirl in heavy black and white, a smudge at 52px; this is
+# the official stacked mark (swirl over the name) drawn from its vector
+# form onto a white ground, so it reads the same in both themes. The
+# resolver (company_logo.resolve_logo) takes an entry here before any
+# other tier, and resolve_company_logos re-resolves a company the day
+# it is added. Hand-verified, like everything else in this file.
+LOGO_OVERRIDES = {
+    "ubisoft.com": "https://oceanofjobs.com/img/logos/ubisoft.png",
+}
+
+
 def logo_domain(domain: str) -> str:
     """Where to look for this company's icon.
 
