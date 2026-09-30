@@ -266,7 +266,7 @@ def due(state, entries, now=None):
 # is deep are sure to finish, and each saves its progress, so the pile
 # drains; the full cap comes back once it has.
 BACKLOG_DEEP = 3 * MAX_PER_SWEEP
-BACKLOG_BITE = 250
+BACKLOG_BITE = 500
 
 
 def backlog_cap(n_due):
