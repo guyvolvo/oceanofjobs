@@ -26427,3 +26427,7 @@ worthington.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 openfn.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+doerr.com
+thurston-county.com
