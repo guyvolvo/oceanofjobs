@@ -26454,3 +26454,6 @@ goodfit.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 topoteretes.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+safaricom.co
