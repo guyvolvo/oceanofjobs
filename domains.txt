@@ -26412,3 +26412,6 @@ domes.ai
 doctolib.de
 # Game studios, added 2026-09-30 on request.
 riotgames.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+new-river.net
