@@ -191,6 +191,13 @@ check("so a parked domain gets no logo rather than the registrar's",
 check("GoDaddy's real parking icon is on the list",
       "c20af3aed3deab7c" in cl.PLACEHOLDER_ICONS)
 
+# A hand-picked image (company_aliases.LOGO_OVERRIDES) wins before any
+# request is made.
+s = FakeSession({})
+url, source = cl.resolve_logo(s, "ubisoft.com", "smartrecruiters", "Ubisoft2")
+check("a pinned logo is returned without asking anyone",
+      url == cl.LOGO_OVERRIDES["ubisoft.com"] and source == "pinned" and not s.asked, f"{source} {url} {s.asked}")
+
 print()
 if failures:
     print("%d failed:" % len(failures))

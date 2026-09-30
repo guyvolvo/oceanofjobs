@@ -55,6 +55,9 @@ check("a miss is not a recheck (the miss retry handles those)",
       not rcl.needs_recheck("acme.com", {"url": None, "source": "none"}))
 check("unless it was looked up at a domain since aliased",
       rcl.needs_recheck("epicgames.io", {"url": None, "source": "none", "looked_at": "epicgames.io"}))
+check("a company given a hand-picked logo is rechecked whatever it had",
+      rcl.needs_recheck("ubisoft.com", {"url": "https://www.ubisoft.com/favicon.ico", "source": "site", "check": V, "looked_at": "ubisoft.com"})
+      and not rcl.needs_recheck("ubisoft.com", {"url": rcl.LOGO_OVERRIDES["ubisoft.com"], "source": "pinned", "looked_at": "ubisoft.com"}))
 # wix2.com is aliased to wix.com. A logo stored before the alias existed
 # was looked up at wix2.com, whatever tier found it.
 check("a logo stored before its alias existed is rechecked",

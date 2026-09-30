@@ -79,7 +79,7 @@ LOGO_CHECK_VERSION = 5  # 5: loader/placeholder_logos.py and the parked-domain C
 # See referral_boards.py. referralsuseonly.com is not a website, so every
 # logo path that starts from the domain is looking somewhere that does
 # not exist. Ask the real company's domain instead.
-from company_aliases import logo_domain
+from company_aliases import LOGO_OVERRIDES, logo_domain
 
 
 def resolve_one(entry: dict, sess: requests.Session) -> tuple[str, dict]:
@@ -120,6 +120,10 @@ def needs_recheck(domain: str, entry: dict) -> bool:
     account on its own hiring system, which is the one tier that cannot
     hand back somebody else's picture.
     """
+    # A hand-picked image takes over the day it is added, whatever was
+    # stored before.
+    if domain in LOGO_OVERRIDES and entry.get("source") != "pinned":
+        return True
     # The alias test comes first: a miss recorded at a domain that has
     # since been aliased was a miss at the wrong site, and waiting out
     # the miss retry on it (Epic Games, 2026-09-30) means a week without

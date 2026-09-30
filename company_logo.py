@@ -479,6 +479,9 @@ def resolve_logo(sess, domain: str, ats: str | None = None,
     the landing page's logo band: five of the fourteen opaque ones had a
     transparent alternative the old first-match rule was walking past.
     """
+    pinned = LOGO_OVERRIDES.get(domain)
+    if pinned:
+        return pinned, "pinned"
     url = ats_logo(sess, ats or "", token or "")
     if url:
         return url, "ats"
