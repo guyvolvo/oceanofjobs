@@ -26446,3 +26446,8 @@ openlane.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 tjm.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+mvcc.com
+cyware.com
+goodfit.com
