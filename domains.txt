@@ -26402,3 +26402,6 @@ esm.com
 toloka.ai
 gramian.ai
 toloka.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ut.io

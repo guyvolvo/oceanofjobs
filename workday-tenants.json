@@ -30538,5 +30538,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-28"
+ },
+ {
+  "domain": "abcsupply.com",
+  "tenant": "abcsupply",
+  "wd": "wd1",
+  "site": "ABCSupplyCareers",
+  "jobs_seen": 304,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-09-30"
  }
 ]
