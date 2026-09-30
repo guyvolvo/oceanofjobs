@@ -85,6 +85,26 @@ resource "aws_iam_role_policy" "infra_deploy" {
         Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/${var.project_name}-*"
       },
       {
+        # The alerting in alarms.tf: the topic the alarms post to and its
+        # email subscription, then the alarms themselves. Both scoped to
+        # this project's names. Added 2026-09-30, when the first apply of
+        # alarms.tf failed on SNS:CreateTopic.
+        Sid    = "ManageAlertTopic"
+        Effect = "Allow"
+        Action = ["sns:CreateTopic", "sns:DeleteTopic", "sns:GetTopicAttributes", "sns:SetTopicAttributes",
+          "sns:ListTagsForResource", "sns:TagResource", "sns:UntagResource", "sns:Subscribe",
+          "sns:Unsubscribe", "sns:GetSubscriptionAttributes", "sns:SetSubscriptionAttributes",
+        "sns:ListSubscriptionsByTopic", "sns:GetDataProtectionPolicy", "sns:PutDataProtectionPolicy"]
+        Resource = "arn:aws:sns:${var.aws_region}:*:${var.project_name}-*"
+      },
+      {
+        Sid    = "ManageAlarms"
+        Effect = "Allow"
+        Action = ["cloudwatch:PutMetricAlarm", "cloudwatch:DescribeAlarms", "cloudwatch:DeleteAlarms",
+        "cloudwatch:ListTagsForResource", "cloudwatch:TagResource", "cloudwatch:UntagResource"]
+        Resource = "arn:aws:cloudwatch:${var.aws_region}:*:alarm:${var.project_name}-*"
+      },
+      {
         # DescribeLogGroups is a list operation, not scopable to one log
         # group's ARN the way ManageLambdaLogs above is.
         Sid      = "ListLogGroups"

@@ -18,6 +18,9 @@
 
 resource "aws_sns_topic" "alerts" {
   name = "${var.project_name}-alerts"
+  # The deploy role grants itself the SNS and alarm permissions in the
+  # same apply (iam_oidc.tf), so that update has to land first.
+  depends_on = [aws_iam_role_policy.infra_deploy]
 }
 
 # The address comes from the deploy workflow (ALERT_EMAIL, a repository
