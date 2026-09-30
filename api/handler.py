@@ -298,6 +298,19 @@ def lambda_handler(event, context):
                 return _response(405, json.dumps({"error": "method not allowed"}))
             status, body = route_contact(json.loads(event.get("body") or "{}"))
             return _response(status, json.dumps(body))
+        if path == "/alerts/unsubscribe":
+            # The List-Unsubscribe target in every alert mail (alerts.py's
+            # _mail_headers): a POST turns the one alert off, no session
+            # needed, on the strength of the signature in the URL. A GET
+            # is a person who followed the link: a page with the button.
+            q = _query_params(event)
+            if method == "POST":
+                status, body = route_unsubscribe(q.get("u"), q.get("a"), q.get("t"))
+                return _response(status, json.dumps(body))
+            if method == "GET":
+                return _html_response(200, unsubscribe_page(q.get("u"), q.get("a"), q.get("t")),
+                                      extra_headers={"X-Robots-Tag": "noindex"})
+            return _response(405, json.dumps({"error": "method not allowed"}))
         if path == "/pipeline-status":
             return _response(200, json.dumps(route_pipeline_status(), default=str))
         if path == "/geo":
@@ -1249,6 +1262,58 @@ def route_stats(params: dict | None = None) -> dict:
 # straight into job_filters.build_jobs_where -- an alert matches exactly
 # what its owner would see applying those same filters on the live board,
 # not a second approximation of it.
+
+def route_unsubscribe(user_id, alert_id, token) -> tuple[int, dict]:
+    """Turn one alert off from its mail's unsubscribe link.
+
+    The token is alerts.unsubscribe_token over the alert's key, so the
+    URL in a mail works for that alert and no other; compare_digest so
+    a wrong one takes as long to reject as a right one. An alert that no
+    longer exists is a 404, not an error: the person is unsubscribed
+    either way. Without a secret the route is closed, since every token
+    would then verify.
+    """
+    import hmac as _hmac
+
+    from alerts import UNSUBSCRIBE_SECRET, unsubscribe_token
+
+    if not UNSUBSCRIBE_SECRET:
+        return 404, {"error": "unsubscribe links are not enabled"}
+    if not (user_id and alert_id and token):
+        return 400, {"error": "missing parameters"}
+    if not _hmac.compare_digest(str(token), unsubscribe_token(user_id, alert_id)):
+        return 403, {"error": "bad token"}
+    try:
+        _alerts_table.update_item(
+            Key={"user_id": user_id, "alert_id": alert_id},
+            UpdateExpression="SET active = :f",
+            ConditionExpression="attribute_exists(alert_id)",
+            ExpressionAttributeValues={":f": False},
+        )
+    except _alerts_table.meta.client.exceptions.ConditionalCheckFailedException:
+        return 404, {"error": "no alert with that id"}
+    return 200, {"unsubscribed": True}
+
+
+def unsubscribe_page(user_id, alert_id, token) -> str:
+    """A person, not a mail client, opened the unsubscribe link: one
+    button that POSTs it, so a link scanner's GET turns nothing off."""
+    import html as _html
+    from urllib.parse import urlencode as _urlencode
+
+    action = "/api/alerts/unsubscribe?" + _urlencode({"u": user_id or "", "a": alert_id or "", "t": token or ""})
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" /><title>Unsubscribe from this alert</title>
+<style>body{{margin:0;background:#0a0a0b;color:#f4f1ee;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;}}
+main{{max-width:480px;margin:80px auto;padding:0 24px;}}h1{{font-size:24px;font-weight:500;margin:0 0 12px;}}
+p{{color:#9a9ca3;line-height:1.5;}}button{{margin-top:16px;padding:14px 24px;border:0;border-radius:12px;background:#2fb36a;color:#0b1a10;font-size:15px;font-weight:600;cursor:pointer;}}
+a{{color:#c9cacf;}}</style></head>
+<body><main><h1>Unsubscribe from this alert?</h1>
+<p>You will stop getting mail for this one alert. Your other alerts stay as they are, and you can turn this one back on from <a href="/account">your account</a>.</p>
+<form method="post" action="{_html.escape(action)}"><button type="submit">Unsubscribe</button></form>
+</main></body></html>"""
+
 
 def route_list_alerts(user_id: str) -> dict:
     resp = _alerts_table.query(KeyConditionExpression=Key("user_id").eq(user_id))

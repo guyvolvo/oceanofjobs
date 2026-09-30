@@ -15,6 +15,8 @@ exactly what its owner would see applying those filters on the live
 board, not a second, independently-drifting approximation of it.
 """
 
+import hashlib
+import hmac
 import html
 import os
 import re
@@ -65,7 +67,7 @@ def evaluate_alerts(jobs_db_path: Path) -> dict:
         try:
             prof = profiles.get(alert["user_id"]) or {}
             cadence = prof.get("cadence") or "instant"
-            matches = _find_new_matches(conn, alert)
+            matches = [m for m in _find_new_matches(conn, alert) if is_fresh(m, now)]
             # Before the first digest, the alert's own creation is the
             # last moment, so a daily alert made at ten waits for
             # tomorrow's nine rather than sending in the first pass.
@@ -261,8 +263,11 @@ def _find_new_matches(conn: sqlite3.Connection, alert: dict) -> list[dict]:
         has_logo = False
     logo_sql = ("(SELECT logo_url FROM companies WHERE domain = jobs.company_domain) AS logo_url"
                 if has_logo else "NULL AS logo_url")
+    # The mail says "Tel Aviv, Israel" from the listing's own city and
+    # country columns, which a snapshot can predate (has_places).
+    place_sql = "country, city" if has_places(conn) else "NULL AS country, NULL AS city"
     rows = conn.execute(
-        f"SELECT id, title, company_domain, {name_sql}, {logo_sql}, location, url, posted_at, first_seen, "
+        f"SELECT id, title, company_domain, {name_sql}, {logo_sql}, {place_sql}, location, url, posted_at, first_seen, "
         f"seniority, workplace_type, salary_text, salary_is_estimate, {salary_source_select(conn)} FROM jobs "
         f"WHERE {where_sql} ORDER BY first_seen DESC LIMIT 50",
         args,
@@ -289,11 +294,10 @@ def _send_digest(alert: dict, matches: list[dict]) -> None:
                 "Subject": {"Data": subject},
                 # Gmail and Apple Mail put an Unsubscribe control beside
                 # the sender when this is present, which is the control
-                # people actually reach for. It points at the account
-                # page rather than a one-click endpoint: List-Unsubscribe
-                # -Post needs a route that unsubscribes without a session
-                # and that route does not exist yet.
-                "Headers": [{"Name": "List-Unsubscribe", "Value": f"<{SITE_ORIGIN}/account>"}],
+                # people actually reach for. See _mail_headers: one-click
+                # (RFC 8058) through /api/alerts/unsubscribe when the
+                # signing secret is set, the account page otherwise.
+                "Headers": _mail_headers(alert),
                 # Both parts of one multipart/alternative message, not two
                 # separate sends -- an HTML-capable client (virtually all
                 # of them, Gmail included) renders Html and ignores Text
@@ -401,25 +405,6 @@ def _filter_summary(alert: dict) -> list[str]:
     return out
 
 
-def _digest_text(n: int, matches: list[dict], alert: dict | None = None, now: datetime | None = None) -> str:
-    now = now or datetime.now(timezone.utc)
-    alert = alert or {}
-    shown = matches[:ROWS_SHOWN]
-    lines = [f'{n} new job{"s" if n != 1 else ""} for "{alert_name(alert)}"', "Since your last alert", ""]
-    for j in shown:
-        lines.append(j["title"])
-        lines.append("  " + " · ".join(x for x in (_company(j), _place(j, alert)) if x))
-        sal = _salary(j)
-        bits = ([("Est. " if sal[1] else "") + sal[0]] if sal else []) + [_age(j, now).replace("Posted ", "")]
-        lines.append("  " + " · ".join(bits))
-        lines.append("  " + j["url"])
-        lines.append("")
-    lines.append(f'{"See all " + str(n) + " jobs" if n > len(shown) else "See all jobs"}: {board_url(alert)}')
-    lines.append("")
-    lines.append(f"Edit alert or unsubscribe: {SITE_ORIGIN}/account")
-    return "\n".join(lines)
-
-
 def _place(job: dict, alert: dict | None = None) -> str:
     """Where, compactly. A listing posted in ten offices at once is one
     line on the board and a wall in a mail. The place shown is the one
@@ -444,24 +429,186 @@ def _place(job: dict, alert: dict | None = None) -> str:
     return f"{want} + {rest} location{'s' if rest != 1 else ''}"
 
 
-# DESIGN.md's palette as literal values, because an email client has no
-# CSS variables. Paper is the only surface. The mail carries no mark and
-# no wordmark: the sender line already says who it is from, and a logo
-# plus a rule was 80px of the first screen saying nothing.
-_PAPER = "#f2f0ef"
-_CARD = "#ffffff"
-_INK = "#40513b"
-_LINK = "#3f6f45"
-_LINE = "#d2cfcb"
-_BTN_TEXT = _PAPER
-# Arial, not a system stack: Outlook on Windows resolves an unknown first
-# family to Times, and the stack that starts with -apple-system did
-# exactly that. No web fonts.
-_FONT = "Arial,Helvetica,sans-serif"
+# The mail's palette as literal values, because an email client has no
+# CSS variables. Dark, on purpose and throughout: the meta tags in the
+# head say so, so a client that inverts light mail leaves this alone.
+_PAGE = "#0a0a0b"
+_CARD = "#111214"
+_CARD_LINE = "#222328"
+_HEAD = "#000000"
+_TEXT = "#f4f1ee"
+_TEXT_2 = "#9a9ca3"
+_MUTED = "#8a8c93"
+_LINK = "#c9cacf"
+_ACCENT = "#2fb36a"
+_ON_ACCENT = "#0b1a10"
+_TILE = "#1c1d22"
+_TILE_LINE = "#2a2b31"
+# Geist where it is installed, the system face where it is not. No web
+# font: Gmail strips the link and Outlook ignores it.
+_FONT = "'Geist',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif"
+# Outlook's own renderer takes only its own font list.
+_MSO_FONT = "Arial,sans-serif"
+LOGO_PNG = f"{SITE_ORIGIN}/img/email-lighthouse.png"
 
-# Five, then the button carries the rest. A digest is a nudge to open the
-# board, not the board.
 ROWS_SHOWN = 5
+# A listing first posted longer ago than this stays out of the mail,
+# however recently the board happened to pick it up.
+MAX_AGE_DAYS = 30
+
+
+# Data cleanup, each a small function with a test in
+# tests/test_alert_helpers.py.
+
+_SUFFIX_RE = re.compile(r"\s*\(([^()]+)\)\s*$")
+
+
+def strip_company_suffix(title: str, company: str) -> str:
+    """'Staff Data Scientist (Armis)' -> 'Staff Data Scientist', when the
+    bracketed word is the company. Any other bracket stays: '(Remote)'
+    and '(m/f/d)' are part of the title."""
+    title = (title or "").strip()
+    m = _SUFFIX_RE.search(title)
+    if m and company and m.group(1).strip().casefold() == company.strip().casefold():
+        return title[:m.start()].rstrip()
+    return title
+
+
+_SEP_RE = re.compile(r"\s+-\s+")
+_SLASH_RE = re.compile(r"(?<=\S)/(?=\S)")
+
+
+def tidy_title(title: str) -> str:
+    """'Staff Security Engineer - Application/Product Security' ->
+    'Staff Security Engineer, Application & Product Security'.
+
+    Only the ' - ' separator, with spaces on both sides, is read as a
+    break; a hyphen inside a word ('Front-end') is left alone. The slash
+    is spelled out only in the part after the break, where it lists
+    alternatives, never in the role itself ('UX/UI Designer' stays)."""
+    title = (title or "").strip()
+    parts = _SEP_RE.split(title)
+    if len(parts) == 1:
+        return title
+    return ", ".join([parts[0], *(_SLASH_RE.sub(" & ", p) for p in parts[1:])])
+
+
+def clean_title(title: str, company: str) -> str:
+    return tidy_title(strip_company_suffix(title, company))
+
+
+def country_name(code: str) -> str:
+    """'il' -> 'Israel'. A code the table does not know comes back as it
+    was, upper-cased; a name is passed through."""
+    c = (code or "").strip()
+    if len(c) in (2, 3) and c.isalpha():
+        return label_for(c.upper())
+    return c
+
+
+def _posted(job: dict):
+    """When a listing was posted: the source's date, or when the board
+    first saw it for a source that gives none."""
+    return _parse(job.get("posted_at")) or _parse(job.get("first_seen"))
+
+
+def is_fresh(job: dict, now: datetime, days: int = MAX_AGE_DAYS) -> bool:
+    """Whether a listing belongs in a mail at all: posted within `days`.
+    A listing with no date of any kind is let through, since nothing
+    says it is old."""
+    when = _posted(job)
+    return when is None or (now - when) <= timedelta(days=days)
+
+
+def age_label(job: dict, now: datetime) -> tuple[str, bool]:
+    """('Just posted', True) inside 24 hours, else ('15d ago', False)."""
+    when = _posted(job)
+    if when is None:
+        return "Just posted", True
+    hours = max(0, (now - when).total_seconds() / 3600)
+    if hours < 24:
+        return "Just posted", True
+    return f"{int(hours // 24)}d ago", False
+
+
+def hosted_logo(job: dict) -> str | None:
+    """The company's logo, but only one served from this site. A mail
+    that loads images from thirty companies' own servers is a mail that
+    leaks who opened it to thirty companies, and half of them 404 or
+    block hot-linking anyway."""
+    url = (job.get("logo_url") or "").strip()
+    return url if url.startswith(SITE_ORIGIN + "/") else None
+
+
+def _first_place(job: dict, alert: dict | None) -> tuple[str, str]:
+    """(city, country code) for the row: the alert's own country when
+    the listing names several, else the first named."""
+    codes = [c.strip() for c in (job.get("country") or "").split(",") if c.strip()]
+    cities = [c.strip() for c in (job.get("city") or "").split(",") if c.strip()]
+    f = (alert or {}).get("filter") or {}
+    wanted = {c.strip().upper() for c in str(f.get("country") or ("IL" if f.get("israel_only") else "")).split(",") if c.strip()}
+    code = next((c for c in codes if c.upper() in wanted), codes[0] if codes else "")
+    return (cities[0] if cities else ""), code
+
+
+def row_place(job: dict, alert: dict | None = None) -> str:
+    """'Tel Aviv, Israel'. From the listing's own city and country columns
+    when the snapshot has them, else from its location text with a
+    trailing country code spelled out."""
+    city, code = _first_place(job, alert)
+    if city or code:
+        return ", ".join(x for x in (city, country_name(code)) if x)
+    text = _place(job, alert)
+    head, sep, tail = text.rpartition(", ")
+    if sep and len(tail.split(" + ")[0]) in (2, 3) and tail.split(" + ")[0].isalpha():
+        tail_code, _, rest = tail.partition(" + ")
+        return f"{head}, {country_name(tail_code)}" + (f" + {rest}" if rest else "")
+    return text
+
+
+def since_label(alert: dict | None, now: datetime | None = None) -> str:
+    """'Sep 29': the last digest, else when the alert was made."""
+    a = alert or {}
+    when = _parse(a.get("last_digest_at")) or _parse(a.get("last_notified_at")) or _parse(a.get("created_at"))
+    when = when or now or datetime.now(timezone.utc)
+    return f"{when:%b} {when.day}"
+
+
+def job_page_url(job: dict) -> str:
+    return f"{SITE_ORIGIN}/job/{job.get('id') or ''}"
+
+
+# One-click unsubscribe (RFC 8058). The URL carries the alert's key and
+# a signature over it, so the route can turn one alert off without a
+# session and nobody can forge a URL for someone else's. Without a
+# secret in the environment the mail keeps the older header, which
+# points at the account page.
+UNSUBSCRIBE_SECRET = os.environ.get("ALERTS_UNSUBSCRIBE_SECRET", "")
+
+
+def unsubscribe_token(user_id: str, alert_id: str, secret: str | None = None) -> str:
+    key = (secret if secret is not None else UNSUBSCRIBE_SECRET).encode("utf-8")
+    msg = f"{user_id}\n{alert_id}".encode("utf-8")
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()[:32]
+
+
+def unsubscribe_url(alert: dict | None) -> str | None:
+    a = alert or {}
+    if not UNSUBSCRIBE_SECRET or not a.get("user_id") or not a.get("alert_id"):
+        return None
+    return f"{SITE_ORIGIN}/api/alerts/unsubscribe?" + urlencode(
+        {"u": a["user_id"], "a": a["alert_id"], "t": unsubscribe_token(a["user_id"], a["alert_id"])})
+
+
+def _mail_headers(alert: dict | None) -> list[dict]:
+    """List-Unsubscribe, one-click where the secret allows it. Gmail and
+    Apple Mail show an Unsubscribe control beside the sender for either;
+    with the -Post header Gmail does it in one tap and without one."""
+    url = unsubscribe_url(alert)
+    if not url:
+        return [{"Name": "List-Unsubscribe", "Value": f"<{SITE_ORIGIN}/account>"}]
+    return [{"Name": "List-Unsubscribe", "Value": f"<{url}>"},
+            {"Name": "List-Unsubscribe-Post", "Value": "List-Unsubscribe=One-Click"}]
 
 
 def digest_subject(alert: dict | None, matches: list[dict]) -> str:
@@ -500,85 +647,112 @@ def alert_name(alert: dict | None) -> str:
     return parts[0] if parts else "your alert"
 
 
-def _logo_cell(job: dict) -> str:
-    """A 48px tile on white with a hairline, the same treatment the board
-    gives a company mark. A lettered tile at the same size when there is
-    no logo, so every row lines up whether the image loads or not."""
+def _digest_text(n: int, matches: list[dict], alert: dict | None = None, now: datetime | None = None) -> str:
+    now = now or datetime.now(timezone.utc)
+    alert = alert or {}
+    shown = matches[:ROWS_SHOWN]
+    lines = [f'{n} new job{"s" if n != 1 else ""} for "{alert_name(alert)}"',
+             f"Since your last alert on {since_label(alert, now)}", ""]
+    for j in shown:
+        lines.append(clean_title(j["title"], _company(j)))
+        lines.append("  " + " · ".join(x for x in (_company(j), row_place(j, alert), age_label(j, now)[0]) if x))
+        lines.append("  Apply: " + j["url"])
+        lines.append("  " + job_page_url(j))
+        lines.append("")
+    lines.append(f"See all {n} job{'s' if n != 1 else ''}: {board_url(alert)}")
+    lines.append(f"Edit this alert: {SITE_ORIGIN}/account")
+    lines.append("")
+    lines.append(f'You\'re getting this because you created an alert for "{alert_name(alert)}" on oceanofjobs.com.')
+    lines.append(f"Manage alerts or unsubscribe: {SITE_ORIGIN}/account")
+    return "\n".join(lines)
+
+
+def _button(href: str, label: str, *, pad: str, radius: int, width: int, height: int, font_px: int) -> str:
+    """A solid accent button that survives Outlook: VML for Word's
+    renderer, a padded link for everything else."""
     esc = html.escape
-    tile = (f"width:48px; height:48px; background:#ffffff; border:1px solid {_LINE}; "
-            f"border-radius:4px;")
-    if job.get("logo_url"):
-        return (f'<td width="48" align="center" valign="middle" style="{tile}">'
-                f'<img src="{esc(job["logo_url"])}" width="40" height="40" alt="" '
-                f'style="display:block; width:40px; height:40px; border:0;" /></td>')
+    arc = int(round(radius / height * 200))  # arcsize is a percentage of the half-height
+    return (f'<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" '
+            f'xmlns:w="urn:schemas-microsoft-com:office:word" href="{esc(href)}" '
+            f'style="height:{height}px;v-text-anchor:middle;width:{width}px;" arcsize="{arc}%" '
+            f'strokecolor="{_ACCENT}" fillcolor="{_ACCENT}"><w:anchorlock/>'
+            f'<center style="color:{_ON_ACCENT};font-family:{_MSO_FONT};font-size:{font_px}px;font-weight:600;">{label}</center>'
+            f'</v:roundrect><![endif]-->'
+            f'<!--[if !mso]><!--><a href="{esc(href)}" style="display:inline-block; padding:{pad}; '
+            f'border-radius:{radius}px; background:{_ACCENT}; color:{_ON_ACCENT}; font-family:{_FONT}; '
+            f'font-size:{font_px}px; line-height:1; font-weight:600; text-decoration:none; mso-hide:all;">{label}</a>'
+            f'<!--<![endif]-->')
+
+
+def _logo_cell(job: dict) -> str:
+    """A 48px tile: the company's mark when this site serves one, else
+    its first letter, so every row lines up either way."""
+    esc = html.escape
+    tile = (f"width:48px; height:48px; background:{_TILE}; border:1px solid {_TILE_LINE}; border-radius:12px;")
+    logo = hosted_logo(job)
+    if logo:
+        inner = (f'<img src="{esc(logo)}" width="48" height="48" alt="" '
+                 f'style="display:block; width:48px; height:48px; border:0; border-radius:12px;" />')
+        return f'<td width="48" align="center" valign="middle" style="{tile}">{inner}</td>'
     letter = (_company(job)[:1] or "?").upper()
     return (f'<td width="48" align="center" valign="middle" style="{tile} '
-            f'font-family:{_FONT}; font-size:18px; font-weight:700; color:{_INK};">{esc(letter)}</td>')
-
-
-def _no_autolink(text: str) -> str:
-    """A bare domain with the dots broken by a zero-width joiner.
-
-    Gmail autolinks anything that looks like a host and paints it its own
-    blue, which put a second, wrong-destination link inside a row whose
-    whole job is to be one link. The joiner is invisible and copies out
-    harmlessly. Only for a domain: a real company name has no dots to
-    break, and this would be vandalism on ordinary text."""
-    return html.escape(text).replace(".", "⁠.⁠")
-
-
-def _row_meta(j: dict, now: datetime) -> str:
-    """The third line: the estimate when there is one, then the age.
-    Never "Undisclosed" -- a digest row has no room to say that a number
-    is missing, and the absence says it."""
-    sal = _salary(j)
-    bits = []
-    if sal:
-        bits.append(("Est. " if sal[1] else "") + sal[0])
-    bits.append(_age(j, now).replace("Posted ", "").replace("just now", "Just now"))
-    return " &middot; ".join(html.escape(b) for b in bits)
+            f'font-family:{_FONT}; font-size:20px; line-height:1; font-weight:600; color:{_LINK};">{esc(letter)}</td>')
 
 
 def _row_html(j: dict, now: datetime, alert: dict | None = None) -> str:
-    """One listing. The whole row is the link: title, then who and where,
-    then the numbers. dir="auto" on the two text lines, so a Hebrew title
-    lays itself out to the right and an English one stays left; the meta
-    line is forced ltr, because a salary range and an age are ltr things
-    whatever the title above them is."""
+    """One listing: the tile, the title (a link to its page here) over
+    who, where and when, and an Apply button straight to the employer.
+    No rules between rows; 4px of dark between them is the separation.
+    dir="auto" on the two text lines so a Hebrew title lays itself out
+    to the right."""
     esc = html.escape
-    name = _company(j)
-    # A domain is the fallback when we have no company name, and it is
-    # the only thing here Gmail would try to linkify.
-    company = _no_autolink(name) if ("." in name and not j.get("company_name")) else esc(name)
-    where = esc(_place(j, alert))
-    who = " &middot; ".join(x for x in (company, where) if x)
-    link = (f'font-family:{_FONT}; color:{_INK}; text-decoration:none;')
+    company = _company(j)
+    title = clean_title(j["title"], company)
+    age, new = age_label(j, now)
+    age_html = f'<span style="color:{_ACCENT if new else _MUTED};">{esc(age)}</span>'
+    meta = " &middot; ".join(x for x in (esc(company), esc(row_place(j, alert)), age_html) if x)
+    apply = _button(j["url"], "Apply&nbsp;&#8599;", pad="11px 18px", radius=8, width=92, height=38, font_px=15)
+    # The phone gets its own copy of the button, under the words and
+    # hidden everywhere else: a table cell cannot move below its row,
+    # and the right-hand cell above is hidden by the same media query.
+    # No VML in this one, since Outlook's desktop renderer never takes
+    # the phone layout.
+    esc_url = esc(j["url"])
+    apply_mobile = (f'<div class="otj-apply-mob" style="display:none; max-height:0; overflow:hidden; mso-hide:all;">'
+                    f'<a href="{esc_url}" style="display:inline-block; padding:11px 18px; border-radius:8px; background:{_ACCENT}; '
+                    f'color:{_ON_ACCENT}; font-family:{_FONT}; font-size:15px; line-height:1; font-weight:600; text-decoration:none;">Apply&nbsp;&#8599;</a></div>')
     return f"""
-          <tr>
-            <td style="padding:16px 0; border-top:1px solid {_LINE};">
-              <a href="{esc(j['url'])}" style="{link} display:block;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                  <tr>
-                    {_logo_cell(j)}
-                    <td style="padding-left:14px; vertical-align:top;">
-                      <div dir="auto" style="font-family:{_FONT}; font-size:16px; line-height:1.3; font-weight:700; color:{_LINK};">{esc(j['title'])}</div>
-                      <div dir="auto" style="font-family:{_FONT}; font-size:14px; line-height:1.4; color:{_INK}; padding-top:3px;">{who}</div>
-                      <div dir="ltr" style="font-family:{_FONT}; font-size:13px; line-height:1.4; color:{_INK}; opacity:0.75; padding-top:3px;">{_row_meta(j, now)}</div>
-                    </td>
-                  </tr>
-                </table>
-              </a>
-            </td>
-          </tr>"""
+              <tr>
+                <td style="padding:0 0 4px 0;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td width="64" valign="middle" style="padding:16px 0 16px 16px; width:64px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>{_logo_cell(j)}</tr></table>
+                      </td>
+                      <td valign="middle" style="padding:16px;">
+                        <a href="{esc(job_page_url(j))}" dir="auto" style="display:block; font-family:{_FONT}; font-size:17px; line-height:1.3; font-weight:500; color:{_TEXT}; text-decoration:none;">{esc(title)}</a>
+                        <div dir="auto" style="padding-top:4px; font-family:{_FONT}; font-size:14px; line-height:1.4; color:{_TEXT_2};">{meta}</div>
+                        {apply_mobile}
+                      </td>
+                      <td class="otj-apply-desk" width="1" align="right" valign="middle" style="padding:16px 16px 16px 0; white-space:nowrap;">
+                        {apply}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>"""
 
 
 def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: datetime | None = None) -> str:
-    """The digest: a headline, the rows, one button, a two-link footer.
+    """The digest: a black header with the count, the rows, the button,
+    then the footer under the card.
 
-    Tables and inline styles throughout, one font stack, no web fonts and
-    no CSS beyond a media query that narrows the padding on a phone,
-    because that is the subset Gmail, Outlook and Apple Mail all render
-    the same way. 600px, 32px of padding, 20px under 480.
+    Nested presentation tables and inline styles throughout, no flex,
+    no positioning, no background images, no SVG, no web font: that is
+    the subset Gmail, Outlook and Apple Mail all render the same way.
+    600px centred, 40px of page around it, 16px on a phone. The head's
+    style block only adds the phone layout and hover; the mail reads
+    right without it.
     """
     esc = html.escape
     now = now or datetime.now(timezone.utc)
@@ -586,78 +760,105 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
     shown = matches[:ROWS_SHOWN]
     rows = "".join(_row_html(j, now, alert) for j in shown)
     name = alert_name(alert)
-    headline = f'{n} new job{"s" if n != 1 else ""} for &ldquo;{esc(name)}&rdquo;'
-    button = f"See all {n} jobs" if n > len(shown) else "See all jobs"
-    # Shown by the inbox list as the line after the subject, and by
-    # nothing else: hidden, zero-height, and followed by enough blank
-    # space that the headline does not get dragged in after it.
-    preheader = f'{n} new role{"s" if n != 1 else ""} in {esc(name)}'
+    since = since_label(alert, now)
+    plural = "s" if n != 1 else ""
+    title = f'{n} new job{plural} for "{name}"'
+    headline = (f'<span style="color:{_ACCENT};">{n}</span> new job{plural} for &ldquo;{esc(name)}&rdquo;')
+    # The inbox list shows this after the subject; nothing else does.
+    preheader = f'{n} new job{plural} matching "{esc(name)}" since {since}'
+    see_all = _button(board_url(alert), f"See all {n} job{plural}", pad="14px 24px", radius=12, width=150, height=46, font_px=15)
+    account = f"{SITE_ORIGIN}/account"
+    link = f"font-family:{_FONT}; color:{_LINK}; text-decoration:underline;"
     return f"""<!doctype html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{headline}</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="supported-color-schemes" content="dark" />
+  <title>{esc(title)}</title>
+  <!--[if mso]>
+  <xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+  <style>table, td {{ font-family: {_MSO_FONT}; }}</style>
+  <![endif]-->
   <style>
+    a:hover {{ color: #ffffff; }}
     @media only screen and (max-width: 480px) {{
-      .otj-pad {{ padding: 16px !important; }}
-      .otj-card-pad {{ padding: 20px !important; }}
-      .otj-head {{ font-size: 20px !important; }}
+      .otj-page {{ padding: 16px !important; }}
+      .otj-head {{ font-size: 30px !important; line-height: 1.1 !important; }}
+      .otj-apply-desk {{ display: none !important; }}
+      .otj-apply-mob {{ display: block !important; max-height: none !important; overflow: visible !important; padding-top: 12px; }}
     }}
   </style>
 </head>
-<body style="margin:0; padding:0; background:{_PAPER};">
-  <div style="display:none; font-size:1px; color:{_PAPER}; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">{preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{_PAPER};">
+<body style="margin:0; padding:0; background:{_PAGE}; -webkit-text-size-adjust:100%;">
+  <div style="display:none; font-size:1px; color:{_PAGE}; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">{preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{_PAGE};">
     <tr>
-      <td align="center">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width:600px;">
+      <td align="center" class="otj-page" style="padding:40px 16px;">
+        <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px;">
+
           <tr>
-            <td class="otj-pad" style="padding:32px;">
+            <td style="background:{_CARD}; border:1px solid {_CARD_LINE}; border-radius:20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-              <!-- The digest is a card on the paper rather than a column
-                   the width of the mail, which read as the message
-                   having no edges. The same 10px the board's own boxes
-                   carry. Outlook's Word engine squares the corners and
-                   keeps the border, which is the right way to degrade. -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{_CARD}; border:1px solid {_LINE}; border-radius:10px;">
                 <tr>
-                  <td class="otj-card-pad" style="padding:24px 28px 28px 28px;">
-
-              <div class="otj-head" dir="auto" style="font-family:{_FONT}; font-size:22px; line-height:1.25; font-weight:700; color:{_INK};">{headline}</div>
-              <div style="font-family:{_FONT}; font-size:14px; line-height:1.4; color:{_INK}; padding:6px 0 14px 0;">Since your last alert</div>
-
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{rows}
-              </table>
-
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr><td style="border-top:1px solid {_LINE}; font-size:0; line-height:0; height:1px;">&nbsp;</td></tr>
-                <tr>
-                  <td style="padding-top:20px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
+                  <td style="background:{_HEAD}; border-bottom:1px solid {_CARD_LINE}; border-radius:20px 20px 0 0; padding:32px 40px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="height:136px;">
                       <tr>
-                        <td style="background:{_INK}; border-radius:4px;">
-                          <a href="{esc(board_url(alert))}" style="display:inline-block; padding:11px 20px; font-family:{_FONT}; font-size:14px; line-height:1; font-weight:700; color:{_BTN_TEXT}; text-decoration:none;">{esc(button)}</a>
+                        <td valign="top" style="height:28px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td width="28" valign="middle" style="width:28px; padding-right:10px;"><img src="{LOGO_PNG}" width="28" height="28" alt="" style="display:block; width:28px; height:28px; border:0;" /></td>
+                              <td valign="middle" style="font-family:{_FONT}; font-size:16px; line-height:1; font-weight:600; color:{_TEXT}; letter-spacing:-0.01em;">oceanofjobs.com</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr><td style="height:35px; font-size:0; line-height:0;">&nbsp;</td></tr>
+                      <tr>
+                        <td valign="bottom">
+                          <div class="otj-head" dir="auto" style="font-family:{_FONT}; font-size:40px; line-height:1.05; font-weight:500; letter-spacing:-0.03em; color:{_TEXT};">{headline}</div>
+                          <div style="padding-top:10px; font-family:{_FONT}; font-size:15px; line-height:1.4; color:{_LINK};">Since your last alert on {since}</div>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
-              </table>
 
+                <tr>
+                  <td style="padding:16px 24px 0 24px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">{rows}
+                    </table>
                   </td>
                 </tr>
+
+                <tr>
+                  <td style="padding:28px 40px 36px 40px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td valign="middle">{see_all}</td>
+                        <td valign="middle" style="padding-left:20px; font-family:{_FONT}; font-size:14px; line-height:1;"><a href="{account}" style="{link}">Edit this alert</a></td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
               </table>
-
-              <div style="font-family:{_FONT}; font-size:12px; line-height:1.5; color:{_INK}; opacity:0.8; padding-top:20px;">
-                <a href="{SITE_ORIGIN}/account" style="color:{_INK}; text-decoration:underline;">Edit alert</a>
-                &nbsp;&middot;&nbsp;
-                <a href="{SITE_ORIGIN}/account" style="color:{_INK}; text-decoration:underline;">Unsubscribe</a>
-              </div>
-
             </td>
           </tr>
+
+          <tr>
+            <td style="padding:24px 40px 0 40px; font-family:{_FONT}; font-size:13px; line-height:1.6; color:{_MUTED};">
+              You&rsquo;re getting this because you created an alert for &ldquo;{esc(name)}&rdquo; on oceanofjobs.com.<br />
+              <span style="display:inline-block; padding-top:6px;"><a href="{account}" style="{link}">Manage alerts</a> &middot; <a href="{account}" style="{link}">Unsubscribe</a> &middot; <a href="{SITE_ORIGIN}/" style="{link}">oceanofjobs.com</a></span>
+            </td>
+          </tr>
+
         </table>
+        <!--[if mso]></td></tr></table><![endif]-->
       </td>
     </tr>
   </table>
