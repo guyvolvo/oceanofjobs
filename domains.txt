@@ -26457,3 +26457,10 @@ topoteretes.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 safaricom.co
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+crop.com
+today.com
+tokamak.io
+ooqiasa.com
+bakerstreet.co
