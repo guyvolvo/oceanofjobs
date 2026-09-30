@@ -217,3 +217,19 @@ spooling, so nothing has to be rebuilt to try again.
 - Put the snapshot publisher back on daily by removing the drop-in.
 - Import the box into Terraform and replace `var.box_instance_id` with
   `aws_instance.box.id`.
+
+## Metrics permission (2026-09-30)
+
+box/metrics.py puts `SourceFreshnessMinutes` and `PendingFragments` to
+CloudWatch (namespace `OceanOfJobs`) on every publish tick, and
+infra/alarms.tf alarms on them. The box's instance role
+(`otj-box-experiment`) is not in Terraform, so the permission was
+attached by hand:
+
+    aws iam put-role-policy --role-name otj-box-experiment --policy-name otj-box-metrics \
+      --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow",
+      "Action":"cloudwatch:PutMetricData","Resource":"*",
+      "Condition":{"StringEquals":{"cloudwatch:namespace":"OceanOfJobs"}}}]}'
+
+A rebuilt box needs the same, or every source alarm fires for missing
+data within half an hour of the switch.

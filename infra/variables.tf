@@ -1,3 +1,9 @@
+variable "alert_email" {
+  type        = string
+  default     = ""
+  description = "Where the alarms in alarms.tf send email. Set from the ALERT_EMAIL repository variable by deploy-infra.yml, so no address is committed. Empty leaves the alarms in place and nobody told."
+}
+
 variable "aws_region" {
   type    = string
   default = "il-central-1"

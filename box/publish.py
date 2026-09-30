@@ -39,6 +39,7 @@ for _p in (ROOT, ROOT / "api", ROOT / "loader", Path(__file__).resolve().parent)
     sys.path.insert(0, str(_p))
 
 import build_explore  # noqa: E402
+import metrics  # noqa: E402
 import precompute  # noqa: E402
 import sitemap  # noqa: E402
 from lock import exclusive  # noqa: E402
@@ -84,6 +85,14 @@ def main() -> int:
     if not PRIMARY:
         print("not primary, nothing to publish")
         return 0
+    # The freshness metrics (box/metrics.py) go first and outside the
+    # lock: a tick that an apply holds the lock on returns below without
+    # publishing, and the alarms treat a missing number as an outage.
+    # Five seconds of reading, and never a reason to skip the rest.
+    try:
+        metrics.publish(DB, BUCKET)
+    except Exception as e:  # noqa: BLE001
+        print(f"metrics failed: {e!r}", file=sys.stderr)
     with exclusive("publish") as got:
         if not got:
             # An apply or a snapshot has the disk. Everything here is
