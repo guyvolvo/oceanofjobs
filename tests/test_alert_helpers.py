@@ -81,7 +81,9 @@ check("no columns and a full name: as it was", alerts.row_place({"location": "Ha
 
 # Logos: only ones this site serves.
 check("a logo on this site is used", alerts.hosted_logo({"logo_url": f"{alerts.SITE_ORIGIN}/img/logos/ubisoft.png"}))
-check("a hot-linked logo is not", alerts.hosted_logo({"logo_url": "https://www.wix.com/favicon.ico"}) is None)
+check("any other logo is served through this site's logo route",
+      alerts.hosted_logo({"logo_url": "https://www.wix.com/favicon.ico", "company_domain": "wix.com"}) == f"{alerts.SITE_ORIGIN}/api/logo/wix.com")
+check("no logo at all is none", alerts.hosted_logo({"logo_url": None, "company_domain": "wix.com"}) is None)
 
 # The since line.
 check("the last digest's date", alerts.since_label({"last_digest_at": "2026-09-29T09:00:00+00:00"}) == "Sep 29")

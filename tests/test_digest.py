@@ -68,6 +68,8 @@ h = alerts._digest_html(len(matches), matches, ALERT, NOW)
 t = alerts._digest_text(len(matches), matches, ALERT, NOW)
 
 # The shell: dark by declaration, tables only, one font stack, no web font
+check("the site name in the header is a link in the mail's own colour, so Gmail does not autolink it blue",
+      f'<a href="{alerts.SITE_ORIGIN}/" style="color:#f4f1ee; text-decoration:none;">oceanofjobs.com</a>' in h)
 check("the head declares the dark scheme so clients do not invert it",
       '<meta name="color-scheme" content="dark" />' in h and '<meta name="supported-color-schemes" content="dark" />' in h)
 check("the preheader is hidden and says how many, what for, since when",
@@ -85,7 +87,7 @@ check("page, card and header colours", "background:#0a0a0b" in h
       and "background:#000000; border-bottom:1px solid #222328" in h)
 
 # The header
-check("the lighthouse and the site name", f'<img src="{alerts.LOGO_PNG}" width="28" height="28"' in h and ">oceanofjobs.com</td>" in h)
+check("the lighthouse and the site name", f'<img src="{alerts.LOGO_PNG}" width="28" height="28"' in h and ">oceanofjobs.com</a></td>" in h)
 check("the count is green inside a 40px headline, 30px on a phone",
       '<span style="color:#2fb36a;">4</span> new jobs for &ldquo;Israel&rdquo;' in h
       and "font-size:40px; line-height:1.05; font-weight:500; letter-spacing:-0.03em" in h
@@ -95,12 +97,13 @@ check("the since line carries the date", ">Since your last alert on Sep 19</div>
 # Rows
 check("four rows, 4px apart, no rules between them",
       h.count("padding:0 0 4px 0;") == 4 and "border-top" not in h)
-check("a hot-linked logo is not loaded; the tile shows the company's letter",
-      "wix.com/favicon.png" not in h
-      and 'border-radius:12px; font-family:\'Geist\',-apple-system,\'Segoe UI\',Helvetica,Arial,sans-serif; font-size:20px; line-height:1; font-weight:600; color:#c9cacf;">W</td>' in h)
+check("a company's own logo is loaded through this site, never from its server",
+      "wix.com/favicon.png" not in h and f'<img src="{alerts.SITE_ORIGIN}/api/logo/wix.com" width="48" height="48"' in h)
 check("a logo this site serves is shown in the tile",
       f'<img src="{alerts.SITE_ORIGIN}/img/logos/wix.png" width="48" height="48"' in h)
-check("no company name at all: the domain's letter", 'color:#c9cacf;">W</td>' in h and h.count('color:#c9cacf;">W</td>') == 2)
+check("no logo at all: the tile shows the company's letter, from the domain when there is no name",
+      'border-radius:12px; font-family:\'Geist\',-apple-system,\'Segoe UI\',Helvetica,Arial,sans-serif; font-size:20px; line-height:1; font-weight:600; color:#c9cacf;">W</td>' in h
+      and h.count('color:#c9cacf;">W</td>') == 1)
 check("the title links to the job's page here, 17px, no underline",
       f'<a href="{alerts.SITE_ORIGIN}/job/abc" dir="auto" style="display:block; font-family:\'Geist\',-apple-system,\'Segoe UI\',Helvetica,Arial,sans-serif; font-size:17px; line-height:1.3; font-weight:500; color:#f4f1ee; text-decoration:none;">Senior Product Manager</a>' in h)
 check("company, city with the country spelled out, and the age",

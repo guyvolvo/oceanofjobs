@@ -20,6 +20,7 @@ import json
 import math
 import os
 import re
+from pathlib import Path
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -298,6 +299,12 @@ def lambda_handler(event, context):
                 return _response(405, json.dumps({"error": "method not allowed"}))
             status, body = route_contact(json.loads(event.get("body") or "{}"))
             return _response(status, json.dumps(body))
+        if path.startswith("/logo/") and len(path) > len("/logo/"):
+            # A company's logo, served from this domain: what the alert
+            # mail's tiles point at (alerts.hosted_logo), since a mail that
+            # loads images from thirty companies' own servers is a mail
+            # that leaks who opened it, and half of them refuse hot-links.
+            return route_company_logo(path[len("/logo/"):])
         if path == "/alerts/unsubscribe":
             # The List-Unsubscribe target in every alert mail (alerts.py's
             # _mail_headers): a POST turns the one alert off, no session
@@ -1262,6 +1269,92 @@ def route_stats(params: dict | None = None) -> dict:
 # straight into job_filters.build_jobs_where -- an alert matches exactly
 # what its owner would see applying those same filters on the live board,
 # not a second approximation of it.
+
+_LOGO_DOMAIN_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{1,78}[a-z0-9]$")
+_LOGO_CACHE_DIR = Path(os.environ.get("LOGO_CACHE_DIR", "/var/lib/otj/logo-cache"))
+_LOGO_MAX_BYTES = 2 * 1024 * 1024
+_LOGO_TTL_S = 7 * 24 * 3600
+_LOGO_MISS_TTL_S = 24 * 3600
+
+
+def _fetch_logo(url: str) -> tuple[str, bytes] | None:
+    """The image behind a resolved logo URL, or None. Only an image, only
+    up to 2MB, and only from the URL the resolver stored, never from a
+    caller's own."""
+    import requests
+
+    try:
+        r = requests.get(url, timeout=8, stream=True,
+                         headers={"User-Agent": "Mozilla/5.0 (compatible; oceanofjobs.com logo cache)"})
+        ct = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if r.status_code != 200 or not ct.startswith("image/"):
+            return None
+        body = r.raw.read(_LOGO_MAX_BYTES + 1, decode_content=True)
+        if not body or len(body) > _LOGO_MAX_BYTES:
+            return None
+        return ct, body
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def route_company_logo(domain: str, conn=None, fetch=None, cache_dir: Path | None = None) -> dict:
+    """GET /api/logo/{domain}: the company's resolved logo, fetched once
+    from where the resolver found it and kept on disk for a week; a
+    miss is kept for a day so a dead URL is not asked again on every
+    open. The domain has to be a company on the board, and the image
+    comes from that row's own logo_url, so this cannot be pointed at an
+    arbitrary host. Served with a week of cache, which CloudFront and
+    the mail clients' image proxies both honour."""
+    import base64
+    import hashlib
+    import time
+
+    domain = (domain or "").split("?")[0].strip().lower()
+    if domain.endswith(".png"):
+        domain = domain[:-4]
+    if not _LOGO_DOMAIN_RE.match(domain):
+        return _response(404, json.dumps({"error": "no such company"}))
+    cache_dir = cache_dir or _LOGO_CACHE_DIR
+    key = hashlib.sha1(domain.encode("utf-8")).hexdigest()
+    blob, meta = cache_dir / f"{key}.bin", cache_dir / f"{key}.ct"
+    now = time.time()
+    try:
+        if meta.exists():
+            age = now - meta.stat().st_mtime
+            ct = meta.read_text(encoding="utf-8").strip()
+            if ct == "miss" and age < _LOGO_MISS_TTL_S:
+                return _response(404, json.dumps({"error": "no logo"}))
+            if ct != "miss" and age < _LOGO_TTL_S and blob.exists():
+                return _logo_response(ct, blob.read_bytes())
+    except OSError:
+        pass
+
+    conn = conn or get_connection()
+    row = conn.execute("SELECT logo_url FROM companies WHERE domain = ?", (domain,)).fetchone()
+    url = (row[0] if row else None) or ""
+    got = (fetch or _fetch_logo)(url) if url.startswith(("http://", "https://")) else None
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        if got:
+            blob.write_bytes(got[1])
+            meta.write_text(got[0], encoding="utf-8")
+        else:
+            meta.write_text("miss", encoding="utf-8")
+    except OSError:
+        pass
+    if not got:
+        return _response(404, json.dumps({"error": "no logo"}))
+    return _logo_response(got[0], got[1])
+
+
+def _logo_response(content_type: str, body: bytes) -> dict:
+    import base64
+
+    return {"statusCode": 200,
+            "headers": {"Content-Type": content_type, "Cache-Control": f"public, max-age={_LOGO_TTL_S}",
+                        "X-Robots-Tag": "noindex", **CORS_HEADERS},
+            "body": base64.b64encode(body).decode("ascii"), "isBase64Encoded": True}
+
 
 def route_unsubscribe(user_id, alert_id, token) -> tuple[int, dict]:
     """Turn one alert off from its mail's unsubscribe link.

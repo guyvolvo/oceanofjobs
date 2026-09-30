@@ -21,7 +21,7 @@ import re
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import boto3
 from boto3.dynamodb.conditions import Attr
@@ -531,12 +531,20 @@ def age_label(job: dict, now: datetime) -> tuple[str, bool]:
 
 
 def hosted_logo(job: dict) -> str | None:
-    """The company's logo, but only one served from this site. A mail
-    that loads images from thirty companies' own servers is a mail that
-    leaks who opened it to thirty companies, and half of them 404 or
-    block hot-linking anyway."""
+    """The company's logo, served from this site: one already here as it
+    is, any other through /api/logo/{domain} (api/handler.py's
+    route_company_logo), which fetches it once from where the resolver
+    found it and keeps it. A mail that loads images from thirty
+    companies' own servers is a mail that leaks who opened it to thirty
+    companies, and half of them 404 or block hot-linking anyway. No
+    logo at all is None, and the tile shows the company's letter."""
     url = (job.get("logo_url") or "").strip()
-    return url if url.startswith(SITE_ORIGIN + "/") else None
+    if not url:
+        return None
+    if url.startswith(SITE_ORIGIN + "/"):
+        return url
+    domain = (job.get("company_domain") or "").strip().lower()
+    return f"{SITE_ORIGIN}/api/logo/{quote(domain)}" if domain else None
 
 
 def _first_place(job: dict, alert: dict | None) -> tuple[str, str]:
@@ -805,7 +813,7 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                             <tr>
                               <td width="28" valign="middle" style="width:28px; padding-right:10px;"><img src="{LOGO_PNG}" width="28" height="28" alt="" style="display:block; width:28px; height:28px; border:0;" /></td>
-                              <td valign="middle" style="font-family:{_FONT}; font-size:16px; line-height:1; font-weight:600; color:{_TEXT}; letter-spacing:-0.01em;">oceanofjobs.com</td>
+                              <td valign="middle" style="font-family:{_FONT}; font-size:16px; line-height:1; font-weight:600; letter-spacing:-0.01em;"><a href="{SITE_ORIGIN}/" style="color:{_TEXT}; text-decoration:none;">oceanofjobs.com</a></td>
                             </tr>
                           </table>
                         </td>
