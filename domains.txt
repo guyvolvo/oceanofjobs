@@ -26451,3 +26451,6 @@ tjm.org
 mvcc.com
 cyware.com
 goodfit.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+topoteretes.com
