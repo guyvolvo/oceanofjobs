@@ -26468,3 +26468,17 @@ bakerstreet.co
 # Common Crawl discovery batch (merge_discovered_batch.py)
 dayone.com
 interrogare-gmbh.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+altanfeethi.co
+jordandigitalmarketing.com
+rallyuxr.com
+alvariumbeer.com
+tnz.com
+tomoro.ai
+togl.co
+centraleinnovation.com
+nwbbank.com
+nowatch.com
+passionfroot.net
+superflypresents.com
