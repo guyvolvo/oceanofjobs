@@ -26424,3 +26424,6 @@ opendatajobs.com
 tmgm.com
 tmeic.com
 worthington.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+openfn.org
