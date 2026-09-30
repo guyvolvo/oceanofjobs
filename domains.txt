@@ -26405,3 +26405,8 @@ toloka.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 ut.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+langham.ai
+domes.ai
+doctolib.de
