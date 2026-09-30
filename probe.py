@@ -1338,8 +1338,14 @@ def f_recruitee(sess, token):
                 workplace_type=_recruitee_workplace(j)) for j in d["offers"]]
 
 
+# The most a SmartRecruiters read will page through. One tracked company
+# has 16,921 open postings (a real count); 200 pages covers it.
+_SMARTRECRUITERS_MAX_JOBS = 20000
+
+
 def f_smartrecruiters(sess, token):
-    d = get_json(sess, f"https://api.smartrecruiters.com/v1/companies/{token}/postings?limit=100")
+    base = f"https://api.smartrecruiters.com/v1/companies/{token}/postings"
+    d = get_json(sess, f"{base}?limit=100")
     if not isinstance(d, dict) or "content" not in d:
         return None
     # This endpoint returns HTTP 200 with an empty `content` list for ANY
@@ -1353,8 +1359,24 @@ def f_smartrecruiters(sess, token):
             print(f"    [f_smartrecruiters] {token} -> 200 empty content, treating as no-match",
                   file=sys.stderr)
         return None
+    # The list is paged at 100 and totalFound says how many there are.
+    # Reported live 2026-09-30: Ubisoft's 301 roles loaded as 100, and
+    # every board past a hundred had been read that way since this was
+    # written. The first request alone carries the conditional GET (the
+    # validators arm for one request, see _cond_headers), so an unchanged
+    # board still costs one 304; the pages after it are plain reads, all
+    # or nothing like every paged fetcher here, since a page missing
+    # would read as a hundred roles closed.
+    pages = [d]
+    total = int(d.get("totalFound") or 0)
+    if total > len(d["content"]):
+        offsets = list(range(len(d["content"]), min(total, _SMARTRECRUITERS_MAX_JOBS), 100))
+        rest = _fetch_all(lambda off: get_json(sess, f"{base}?limit=100&offset={off}"), offsets, workers=4)
+        if rest is None:
+            return None
+        pages += [pg for pg in rest if isinstance(pg, dict)]
     out = []
-    for j in d["content"]:
+    for j in (j for pg in pages for j in (pg.get("content") or [])):
         loc = j.get("location") or {}
         level = j.get("experienceLevel") or {}
         # Two independent booleans, not one field. Both explicitly False
