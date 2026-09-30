@@ -26397,3 +26397,8 @@ gia.net
 # Common Crawl discovery batch (merge_discovered_batch.py)
 giant.net
 esm.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+toloka.ai
+gramian.ai
+toloka.com
