@@ -26482,3 +26482,6 @@ nwbbank.com
 nowatch.com
 passionfroot.net
 superflypresents.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+creative-spirit.de
