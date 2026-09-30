@@ -178,6 +178,12 @@ class Resolution:
     # reads this, not error's mere presence, to decide whether a MISS
     # should overwrite a stale ats/token or leave it alone.
     retryable: bool = False
+    # True when this run never asked the board at all: it was deferred by
+    # the guess shard or the deadline (_deferred). Retryable as well, but a
+    # sweep's scheduler needs the distinction: a board that was polled and
+    # failed holds its interval, a board that was never polled keeps its
+    # old due time, so it stays first in line for the next run.
+    deferred: bool = False
     # Where the company's logo actually lives, resolved once at discovery
     # time (see company_logo.py) instead of guessed in every visitor's
     # browser on every page view. logo_source records which tier answered
@@ -4044,6 +4050,7 @@ def _deferred(res: Resolution, why: str) -> Resolution:
     """
     res.error = why
     res.retryable = True
+    res.deferred = True
     return res
 
 
@@ -4566,10 +4573,29 @@ def print_row(r: Resolution) -> None:
         print(f"{r.domain:<26} {r.ats + ':' + r.token:<38} {r.job_count:>4} jobs")
 
 
-def run_and_report(items: list, resolve_one, json_mode: bool) -> list[Resolution]:
+def _poll_known(sess: requests.Session, e: dict) -> Resolution:
+    """One board of a --known sweep. Past the deadline it is handed back
+    deferred rather than polled: the caller saves what was polled and
+    this board, untouched, stays first in line for the next run."""
+    if BATCH_DEADLINE is not None and time.monotonic() > BATCH_DEADLINE:
+        return _deferred(Resolution(domain=e["domain"]),
+                         "sweep deadline reached before this board was polled")
+    return refetch_known(sess, e["domain"], e["ats"], e["token"],
+                         etag=e.get("etag"), last_modified=e.get("last_modified"),
+                         content_hash=e.get("content_hash"))
+
+
+def run_and_report(items: list, resolve_one, json_mode: bool, sink=None) -> list[Resolution]:
     """Shared by --batch and --known: runs resolve_one(item) across the
     worker pool, printing rows as they land (unless --json), then a
     summary.
+
+    With a sink, each result is handed over the moment it lands and its
+    jobs are dropped from the returned list. A sweep of 900 boards with
+    their full job lists held to the end is what ran the fast scraper out
+    of memory on 2026-09-28; handed over one at a time, a run holds one
+    board's jobs at a time, and what was polled before a crash or the
+    deadline is already written.
     """
     results = []
     t0 = time.time()
@@ -4577,6 +4603,9 @@ def run_and_report(items: list, resolve_one, json_mode: bool) -> list[Resolution
         futs = {ex.submit(resolve_one, item): item for item in items}
         for f in as_completed(futs):
             r = f.result()
+            if sink is not None:
+                sink(r)
+                r.jobs = []
             results.append(r)
             if not json_mode:
                 print_row(r)
@@ -4611,6 +4640,11 @@ def main() -> int:
     ap.add_argument("--fetch", help="ats:token, skip discovery")
     ap.add_argument("--raw", help="dump status/content-type/first 400 chars for a URL, no parsing")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--out", type=Path, metavar="PATH",
+                     help="write each result as one JSON line to PATH the moment it lands, and "
+                          "keep no jobs in memory. What scrape_handler.py reads: a run that dies "
+                          "or hits --deadline-minutes has still written every board it polled. "
+                          "Rows are not printed, and --json output would carry no jobs.")
     ap.add_argument("--show", type=int, default=0, help="print N sample jobs per hit")
     ap.add_argument("--verbose", action="store_true", help="print every probe to stderr")
     ap.add_argument("--no-comeet", action="store_true",
@@ -4674,6 +4708,14 @@ def main() -> int:
     if args.raw:
         return raw_dump(sess, args.raw)
 
+    json_mode = args.json or args.out is not None
+    out_fh = open(args.out, "w", encoding="utf-8") if args.out else None
+    sink = None
+    if out_fh is not None:
+        def sink(r):
+            out_fh.write(json.dumps(asdict(r), ensure_ascii=False) + "\n")
+            out_fh.flush()
+
     if args.fetch:
         ats, _, token = args.fetch.partition(":")
         fn = FETCHERS.get(ats)
@@ -4688,6 +4730,8 @@ def main() -> int:
         # passing jobs by position sent every fetched board into a bool
         # and left --show and --json printing an empty list.
         r = Resolution(f"{ats}:{token}", ats, token, len(jobs), 1, None, jobs=jobs)
+        if sink is not None:
+            sink(r)
         results = [r]
     elif args.known:
         with open(args.known, encoding="utf-8") as fh:
@@ -4736,13 +4780,7 @@ def main() -> int:
         if not known:
             print(f"no resolved (ats+token) entries in {args.known}", file=sys.stderr)
             return 2
-        results = run_and_report(
-            known,
-            lambda e: refetch_known(sess, e["domain"], e["ats"], e["token"],
-                                     etag=e.get("etag"), last_modified=e.get("last_modified"),
-                                     content_hash=e.get("content_hash")),
-            args.json
-        )
+        results = run_and_report(known, lambda e: _poll_known(sess, e), json_mode, sink)
     else:
         domains = []
         if args.domain:
@@ -4767,13 +4805,19 @@ def main() -> int:
             ap.print_help()
             return 2
 
-        results = run_and_report(domains, lambda d: resolve(d, sess), args.json)
+        results = run_and_report(domains, lambda d: resolve(d, sess), json_mode, sink)
 
     if args.show:
         for r in results:
             for j in r.jobs[:args.show]:
                 print(f"    {j.title[:58]:<58} {j.location[:30]}")
 
+    if out_fh is not None:
+        out_fh.close()
+        deferred = sum(1 for r in results if r.deferred)
+        print(f"{len(results) - deferred} of {len(results)} boards polled"
+              + (f", {deferred} left for the next run by the deadline" if deferred else ""),
+              file=sys.stderr)
     if args.json:
         print(json.dumps([asdict(r) for r in results], indent=2, ensure_ascii=False))
     return 0

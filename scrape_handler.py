@@ -73,6 +73,16 @@ from deltas import put_fragment  # noqa: E402
 import scrape_state  # noqa: E402
 TMP = Path("/tmp")
 BUCKET = os.environ["DATA_BUCKET"]
+# When the probe stops taking new boards. Whatever it polled by then is
+# already on disk (its --out file, one board per line) and gets written
+# and scheduled below; the rest keep their old due time and go first next
+# run. So a run can no longer lose its work: the 40-hour loop of
+# 2026-09-28 (a failed run saved nothing, the next faced the same pile
+# and failed the same way) has nothing to feed on. Five minutes leaves
+# the boards in flight at the deadline time to finish, and the fragment
+# and state writes after them, inside the 420s hard kill on the probe and
+# the Lambda's 600s.
+PROBE_DEADLINE_MIN = 5
 
 # Must match the EventBridge schedule's own real interval in seconds --
 # see scrape_lambda.tf's own environment block for why this is passed in
@@ -144,6 +154,19 @@ def _pick_shard(known: list) -> tuple[list, int, int]:
     return shard, shard_index, num_shards
 
 
+def _stream_results(path: Path, meta: list):
+    """probe.py's --out file, one board per line: each yielded whole for
+    the fragment writer, with a copy minus its jobs kept in meta for the
+    scheduler and the counts. One board's jobs in memory at a time."""
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            meta.append({k: v for k, v in r.items() if k != "jobs"})
+            yield r
+
+
 def lambda_handler(event, context):
     s3 = boto3.client("s3")
     known_path = TMP / "known.json"
@@ -212,32 +235,50 @@ def lambda_handler(event, context):
 
     shard_path = TMP / "known-shard.json"
     shard_path.write_text(json.dumps(sweep, ensure_ascii=False), encoding="utf-8")
+    # A warm container keeps /tmp between runs; a stale file here would
+    # be read as this run's results if the probe died before opening it.
+    results_path = TMP / "results.ndjson"
+    results_path.unlink(missing_ok=True)
 
     _write_status(s3, "scraping", f"sweeping {len(sweep)} of {len(known)} companies due now")
 
-    # 200s ceiling carried over from the pre-sharding design (see git
-    # history) -- comfortably more than a ~50-company shard needs, but
-    # harmless to leave generous here since the real cost driver is
-    # memory x duration, not the ceiling itself.
-    probe = subprocess.run(
-        [sys.executable, str(ROOT / "probe.py"), "--known", str(shard_path), "--json"],
-        # 420, not 200. On 2026-09-14 a busy hour left more boards due than a
-        # 200s run could poll; each run timed out, saved no poll state, and so
-        # left every board still due for the next, which timed out the same
-        # way. The pipeline showed offline for 45 minutes. The Lambda allows
-        # 600s and all that follows the poll is a small fragment write.
-        capture_output=True, text=True, timeout=420,
-    )
-    if probe.stderr:
-        print(probe.stderr)
-    if probe.returncode != 0:
-        _write_status(s3, "error", f"probe.py exited {probe.returncode}")
-        raise RuntimeError(f"probe.py exited {probe.returncode}")
+    # The probe writes each board's result to results_path as it lands
+    # and stops taking boards at PROBE_DEADLINE_MIN. The 420s timeout is
+    # only a backstop now, for a probe that hangs rather than finishes;
+    # even then the file holds every board polled before it.
+    try:
+        probe = subprocess.run(
+            [sys.executable, str(ROOT / "probe.py"), "--known", str(shard_path),
+             "--out", str(results_path), "--deadline-minutes", str(PROBE_DEADLINE_MIN)],
+            capture_output=True, text=True, timeout=420,
+        )
+    except subprocess.TimeoutExpired as e:
+        print(f"probe.py killed at 420s; keeping what it wrote. stderr: {(e.stderr or '')[-800:]}")
+        probe = None
+    if probe is not None:
+        if probe.stderr:
+            print(probe.stderr)
+        if probe.returncode != 0:
+            print(f"probe.py exited {probe.returncode}; keeping what it wrote")
+    if not results_path.exists():
+        _write_status(s3, "error", "probe.py wrote no results")
+        raise RuntimeError("probe.py wrote no results")
 
-    resolved_path = TMP / "resolved.json"
-    resolved_path.write_text(probe.stdout, encoding="utf-8")
+    # Fragments before poll state, and both from the file, one board at a
+    # time. A fragment written for a board whose state then fails to save
+    # is polled once more next run, a harmless repeat; state saved for a
+    # board whose fragment was never written would leave its listings
+    # unposted until the board next changed.
+    _write_status(s3, "loading", "writing deltas for the boards that changed")
+    meta: list[dict] = []
+    fragments = put_fragment(BUCKET, _stream_results(results_path, meta))
+    print(f"delta fragments: {len(fragments)} written"
+          if fragments else "delta fragments: (nothing changed, none written)")
 
-    data = json.loads(probe.stdout)
+    # A deferred board was never asked. It is not scheduled, so it keeps
+    # its old due time and stays at the front of the line.
+    data = [r for r in meta if not r.get("deferred")]
+    deferred = len(meta) - len(data)
     hits = [r for r in data if r.get("ats")]
     errors = [r["domain"] for r in data if r.get("error")]
     unchanged = [r for r in data if r.get("unchanged")]
@@ -248,26 +289,20 @@ def lambda_handler(event, context):
     print(f"sweep: {len(hits)}/{len(data)} re-verified, {n_jobs} jobs, "
           f"{len(unchanged)} unchanged, poll state {'saved' if saved else 'NOT saved'} "
           f"({sched['changed']} reset to floor, {sched['unchanged']} backed off, "
-          f"{sched['errored']} held)")
+          f"{sched['errored']} held)"
+          + (f"; {deferred} boards not reached by the deadline, left for the next run" if deferred else ""))
     if errors:
         print(f"{len(errors)} known boards failed to re-poll: {len(errors)} companies")
 
-    # One small fragment, not N partition rewrites. This is the change
-    # that makes a wide sweep affordable: persisting a sweep used to mean
-    # a 48MB pull-modify-push per shard it touched, 50-170s each, and a
-    # run wanting 18 of them finished 1 and discarded the rest. A
+    # The fragments above are one small write, not N partition rewrites.
+    # That is what makes a wide sweep affordable: persisting a sweep used
+    # to mean a 48MB pull-modify-push per shard it touched, 50-170s each,
+    # and a run wanting 18 of them finished 1 and discarded the rest. A
     # fragment holds only the companies that actually changed, so the
     # sweep never opens a database at all and the write is kilobytes.
-    #
-    # The 5-minute applier (scrape_maintenance_handler.py) replays these
-    # into jobs-read.db. Fragments survive until it has successfully
-    # pushed a snapshot containing them, so a crash here or there costs a
+    # The applier on the box replays them; fragments survive until a
+    # snapshot containing them has been pushed, so a crash there costs a
     # repeat, never a listing.
-    _write_status(s3, "loading", f"writing delta for {len(changed)} changed companies")
-    fragments = put_fragment(BUCKET, data)
-    print(f"delta fragments: {len(fragments)} written"
-          if fragments else "delta fragments: (nothing changed, none written)")
-
     _write_status(s3, "idle", f"last sweep: {len(data)} companies, {len(unchanged)} unchanged, "
                               f"{len(changed)} changed, {n_jobs} jobs")
     return {"swept": len(data), "unchanged": len(unchanged), "changed": len(changed),

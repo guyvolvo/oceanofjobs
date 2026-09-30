@@ -85,16 +85,19 @@ def put_fragment(bucket: str, results: list[dict]) -> list[str]:
     Only companies with real results are written: an unchanged company
     carries no jobs and nothing to apply, so including it would just make
     every fragment the size of the company list.
+
+    results may be any iterable, including a generator reading a file one
+    company at a time: nothing here holds more than one fragment's worth.
     """
     if not bucket:
         return []
-    payload = [r for r in results if r.get("ats") and not r.get("unchanged")]
-    if not payload:
-        return []
+    payload = (r for r in results if r.get("ats") and not r.get("unchanged"))
 
-    s3 = boto3.client("s3")
+    s3 = None
     keys: list[str] = []
     for i, batch in enumerate(_chunks(payload)):
+        if s3 is None:
+            s3 = boto3.client("s3")
         # The index keeps one sweep's own fragments in the order they
         # were produced. Keys sort lexicographically and the applier
         # relies on that ordering, and a bare microsecond stamp can
