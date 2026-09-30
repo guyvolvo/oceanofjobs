@@ -51,6 +51,9 @@ REAL_DOMAIN = {
     "sentinellabs.io": "sentinelone.com",
     "pagayais.com": "pagaya.com",
     "atbayjobs.com": "at-bay.com",
+    # Epic Games, recorded under the guessed .io on 2026-09 (the token
+    # is "epicgames"); the site and its icon are on .com.
+    "epicgames.io": "epicgames.com",
     "couchbaseinc.com": "couchbase.com",
     "eleoshealth.com": "eleos.health",
     "wix2.com": "wix.com",

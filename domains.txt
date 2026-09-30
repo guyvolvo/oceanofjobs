@@ -26410,3 +26410,5 @@ ut.io
 langham.ai
 domes.ai
 doctolib.de
+# Game studios, added 2026-09-30 on request.
+riotgames.com

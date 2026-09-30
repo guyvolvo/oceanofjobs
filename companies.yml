@@ -961,6 +961,19 @@ greenhouse:
     source: hand-verified
     note: added 2026-09-18. The domain guesses "playtika", a squatted Workable slug with no jobs, so the real board (26 roles, 16 of them Israeli) was never reached. The guess is a known false positive now.
 
+  # Game studios, added 2026-09-30 on request. Both boards resolve by
+  # guessing too; pinned so the fast poll never depends on the guess.
+  - domain: riotgames.com
+    token: "riotgames"
+    jobs_seen: 167
+    source: hand-verified
+    note: added 2026-09-30, the board fetched live (167 roles).
+  - domain: rockstargames.com
+    token: "rockstargames"
+    jobs_seen: 38
+    source: hand-verified
+    note: added 2026-09-30, the board fetched live (38 roles).
+
   # Navan was TripActions, and the board kept the old name.
   - domain: navan.com
     token: "tripactions"
@@ -1059,6 +1072,12 @@ smartrecruiters:
     jobs_seen: 61
     source: techaviv-board
     note: added 2026-09-19 from TechAviv's board (jobs.techaviv.com), the token read off the listing's own apply link and the board fetched live.
+  # Ubisoft's board is Ubisoft2 for the same reason, so the guess never reached it.
+  - domain: ubisoft.com
+    token: "Ubisoft2"
+    jobs_seen: 301
+    source: hand-verified
+    note: added 2026-09-30, the board fetched live (301 roles).
 
 bamboohr:
   # BambooHR careers pages, keyed on the subdomain.
