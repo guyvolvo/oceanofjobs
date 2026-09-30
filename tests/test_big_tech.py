@@ -169,6 +169,14 @@ check("apple: place, url, date and team", a.location == "Herzliya, Israel"
       and a.url == "https://jobs.apple.com/en-il/details/200611225/embedded-fw-engineer"
       and a.posted_at.startswith("2026-07-19") and a.department == "Software and Services", repr(a))
 check("apple: no CSRF token means no board", probe.f_apple(Sess(gets=[Resp(200)]), "ISR") is None)
+# The evergreen roles' date is the request time echoed to the nanosecond,
+# which is no posting date at all.
+check("apple: an echoed request time is no posting date",
+      probe._apple_posted("2026-09-30T09:53:47.231938983Z") is None)
+check("apple: a real millisecond date is kept",
+      (probe._apple_posted("2026-09-17T22:44:19.804Z") or "").startswith("2026-09-17T22:44:19"))
+check("apple: a date without fractions is kept",
+      (probe._apple_posted("2026-09-17T22:44:19Z") or "").startswith("2026-09-17"))
 check("apple: a failed detail call falls back to the summary", a.description == "Firmware on Apple SoCs.", repr(a.description))
 detail = Resp(200, body={"res": {"jobSummary": "About Apple.", "description": "Build C++ tools.",
                                  "responsibilities": "Design backend features.",

@@ -2419,6 +2419,25 @@ def _apple_description(sess, pid, headers):
     return "\n\n".join(parts) or None
 
 
+def _apple_posted(raw):
+    """postDateInGMT, unless Apple made it up.
+
+    For its always-open roles (the retail "IN-Business Expert" and the
+    like) Apple answers with the moment of the request, to the nanosecond:
+    "2026-09-30T09:53:47.231938983Z". A real posting date carries
+    milliseconds at most ("2026-09-17T22:44:19.804Z"). Taken at face value,
+    the echo re-dated every one of those roles to "just now" on each scrape,
+    and the board's newest-first order was Apple from the top down.
+    Reported live 2026-09-30. More than three fractional digits is the
+    echo; that date is unknown, and the listing's age falls back to when we
+    first saw it.
+    """
+    m = re.search(r"\.(\d+)", _txt(raw))
+    if m and len(m.group(1)) > 3:
+        return None
+    return _normalize_date(raw)
+
+
 def f_apple(sess, token, known_ids=None, detail_budget=None):
     place = _country_token(token)
     if not place:
@@ -2492,7 +2511,7 @@ def f_apple(sess, token, known_ids=None, detail_budget=None):
                           for loc in places)
         out.append(Job("apple", token, pid, _txt(j.get("postingTitle")), where,
                        f"{APPLE_BASE}/en-il/details/{pid}/{_txt(j.get('transformedPostingTitle'))}",
-                       _normalize_date(j.get("postDateInGMT")),
+                       _apple_posted(j.get("postDateInGMT")),
                        _txt((j.get("team") or {}).get("teamName")) or None,
                        len(body or ""), body or None))
     return out
