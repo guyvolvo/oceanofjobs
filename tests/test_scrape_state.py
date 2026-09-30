@@ -152,8 +152,14 @@ scrape_state.record(many, [result("m%d.com" % i, unchanged=True) for i in range(
 for r in many.values():
     r["next_at"] = (T0 - timedelta(hours=1)).isoformat()  # everything overdue at once
 due_now = scrape_state.due(many, entries(*many.keys()), T0)
-check("a sweep is capped however many boards are due",
-      len(due_now) == scrape_state.MAX_PER_SWEEP, str(len(due_now)))
+# 3,400 due is a deep backlog: sweeps have been failing, so it takes the
+# small bite that is sure to finish and save its progress.
+check("a deep backlog is swept in small bites",
+      len(due_now) == scrape_state.BACKLOG_BITE, str(len(due_now)))
+check("an ordinary backlog still gets the full cap",
+      scrape_state.backlog_cap(2000) == scrape_state.MAX_PER_SWEEP
+      and scrape_state.backlog_cap(scrape_state.BACKLOG_DEEP) == scrape_state.MAX_PER_SWEEP
+      and scrape_state.backlog_cap(scrape_state.BACKLOG_DEEP + 1) == scrape_state.BACKLOG_BITE)
 
 # Deferring has to be fair, or the same boards get skipped forever.
 staggered = {}

@@ -250,9 +250,28 @@ def due(state, entries, now=None):
     # Most overdue first, so deferring is fair rather than arbitrary and
     # nothing can be starved indefinitely.
     scored.sort(key=lambda pair: pair[0])
-    print("%d boards due, sweeping the %d most overdue" % (len(scored), MAX_PER_SWEEP),
+    cap = backlog_cap(len(scored))
+    print("%d boards due, sweeping the %d most overdue" % (len(scored), cap),
           file=sys.stderr)
-    return [e for _, e in scored[:MAX_PER_SWEEP]]
+    return [e for _, e in scored[:cap]]
+
+
+# A backlog this deep means sweeps have been failing, and a board that has
+# gone unpolled for hours has usually changed: it needs a full download and
+# parse, not a 304 in 68ms. MAX_PER_SWEEP of those overran the probe's
+# 420s every run, and a run that times out saves no poll state, so the next
+# faced the same pile and failed the same way. Twice now: 45 minutes on
+# 2026-09-14, and 40 hours from 2026-09-28 18:30 UTC (an out-of-memory run
+# started it; the timeouts kept it going). Smaller bites while the backlog
+# is deep are sure to finish, and each saves its progress, so the pile
+# drains; the full cap comes back once it has.
+BACKLOG_DEEP = 3 * MAX_PER_SWEEP
+BACKLOG_BITE = 250
+
+
+def backlog_cap(n_due):
+    """How many of n_due boards one sweep takes."""
+    return BACKLOG_BITE if n_due > BACKLOG_DEEP else MAX_PER_SWEEP
 
 
 # A prune that drops more than this share of the state file is refused.
