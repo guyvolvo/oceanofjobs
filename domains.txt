@@ -26419,3 +26419,8 @@ new-river.net
 # Common Crawl discovery batch (merge_discovered_batch.py)
 trabaja.de
 opendatajobs.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+tmgm.com
+tmeic.com
+worthington.com
