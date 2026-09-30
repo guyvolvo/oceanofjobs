@@ -120,10 +120,14 @@ def needs_recheck(domain: str, entry: dict) -> bool:
     account on its own hiring system, which is the one tier that cannot
     hand back somebody else's picture.
     """
-    if not entry.get("url"):
-        return False
+    # The alias test comes first: a miss recorded at a domain that has
+    # since been aliased was a miss at the wrong site, and waiting out
+    # the miss retry on it (Epic Games, 2026-09-30) means a week without
+    # a logo the real site has had all along.
     if entry.get("looked_at", domain) != logo_domain(domain):
         return True
+    if not entry.get("url"):
+        return False
     return (entry.get("source") in ("google", "site")
             and entry.get("check", 1) < LOGO_CHECK_VERSION)
 
