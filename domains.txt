@@ -26415,3 +26415,7 @@ riotgames.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 new-river.net
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+trabaja.de
+opendatajobs.com
