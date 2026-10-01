@@ -48,7 +48,7 @@ for _p in (ROOT, ROOT / "api", ROOT / "loader"):
 from deltas import PREFIX as DELTA_PREFIX, delete_fragments  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lock import exclusive  # noqa: E402
+from lock import exclusive, someone_waiting  # noqa: E402
 
 DB = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db"))
 BUCKET = os.environ["DATA_BUCKET"]
