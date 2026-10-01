@@ -1180,13 +1180,20 @@ def classify_categories(conn: sqlite3.Connection) -> int:
 # the temp rowset the API built to get round it is not needed. A
 # definition that changes here is rebuilt on the box by
 # ensure_box_indexes, which compares the text SQLite kept.
+#
+# Open rows, whatever their confidence. The predicate used to add
+# confidence = 'verified', and the board sends confidence=all on every
+# request, so SQLite could not use any of these for the board: a
+# country page was a scan of the whole table and a sort, 5s idle and
+# 40s under an apply (2026-10-01). Open rows that are not verified
+# number 15 of 1.19 million, so the condition bought nothing.
 BOX_INDEXES = (
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_role_posted ON jobs(role_class, posted_at, id, country, city)"
-    " WHERE closed_at IS NULL AND confidence = 'verified'",
+    " WHERE closed_at IS NULL",
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_posted ON jobs(posted_at, id, country, city)"
-    " WHERE closed_at IS NULL AND confidence = 'verified'",
+    " WHERE closed_at IS NULL",
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_category ON jobs(category, role_class, posted_at)"
-    " WHERE closed_at IS NULL AND confidence = 'verified'",
+    " WHERE closed_at IS NULL",
     # A few thousand rows, the only ones with a shekel figure. The salary
     # facet's bounds and median read these and nothing else, so asking
     # "what range does this result set occupy" walks a tiny index rather
@@ -1215,8 +1222,9 @@ RETIRED_INDEXES = ("idx_jobs_closed_at", "idx_jobs_confidence")
 
 
 # meta board_indexes: '1' the original shape, '2' with city in the two
-# board indexes. The API reads it (job_filters.SnapshotCaps.place_index).
-BOX_INDEXES_VERSION = "2"
+# board indexes, '3' open rows of any confidence. The API reads it
+# (job_filters.SnapshotCaps.place_index, open_index_all).
+BOX_INDEXES_VERSION = "3"
 
 
 def _index_name(sql: str) -> str:

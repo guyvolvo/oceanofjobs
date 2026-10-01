@@ -232,12 +232,16 @@ class SnapshotCaps:
     claiming to search all of it. Not marked means not used.
     """
 
-    __slots__ = ("fts", "fts_full", "category_col", "posted_at_utc", "board_indexes", "salary_ils", "place_index")
+    __slots__ = ("fts", "fts_full", "category_col", "posted_at_utc", "board_indexes", "salary_ils", "place_index",
+                 "open_index_all")
 
     def __init__(self, fts: bool = False, fts_full: bool = False,
                  category_col: str | None = None, posted_at_utc: bool = False,
                  board_indexes: bool = False, salary_ils: bool = False,
-                 place_index: bool = False):
+                 place_index: bool = False, open_index_all: bool = False):
+        # The board indexes cover open rows of any confidence (meta
+        # board_indexes = 3), so confidence=all can name one too.
+        self.open_index_all = open_index_all
         self.salary_ils = salary_ils
         self.fts = fts
         self.fts_full = fts_full
@@ -309,9 +313,10 @@ def _read_caps(conn) -> SnapshotCaps:
         fts_full=complete and "title" in (fts_sql or ""),
         category_col="category" if category else None,
         posted_at_utc=posted_at_utc == "1",
-        board_indexes=board_indexes in ("1", "2"),
+        board_indexes=board_indexes in ("1", "2", "3"),
         salary_ils=bool(salary_ils),
-        place_index=board_indexes == "2",
+        place_index=board_indexes in ("2", "3"),
+        open_index_all=board_indexes == "3",
     )
 
 
@@ -361,7 +366,7 @@ def count_index_hint(params: dict, caps: "SnapshotCaps") -> str:
     if any(params.get(p) for p in _SELECTIVE_PARAMS):
         return ""
     # The partial index's own two conditions, asked of the request.
-    if (params.get("confidence") or "verified") != "verified":
+    if (params.get("confidence") or "verified") != "verified" and not caps.open_index_all:
         return ""
     if bool_param(params, "include_closed"):
         return ""
