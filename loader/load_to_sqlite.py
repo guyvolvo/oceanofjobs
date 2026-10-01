@@ -1202,6 +1202,21 @@ BOX_INDEXES = (
     # 70MB of index instead.
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_company ON jobs(company_domain, role_class, country, first_seen)"
     " WHERE closed_at IS NULL",
+    # The loader's own to-do lists. Each of these steps asked "which rows
+    # still need X" with a scan of the whole table, every run, to find a
+    # few dozen rows: roles 222s, categories 107s, meta 86s, and the
+    # merge's description null-out inside its 222s (2026-10-02, timed).
+    # A partial index holds exactly the rows awaiting each step, so each
+    # is a read of a near-empty index. The WHERE text must stay
+    # identical to the query's, since SQLite matches them term by term.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_role_todo ON jobs(id) WHERE role_class IS NULL",
+    "CREATE INDEX IF NOT EXISTS idx_jobs_role_review ON jobs(id)"
+    " WHERE (role_class IN ('adjacent', 'unknown') OR role_evidence LIKE '%company-tech%')"
+    " AND (role_evidence IS NULL OR role_evidence NOT LIKE '%company2:%')",
+    "CREATE INDEX IF NOT EXISTS idx_jobs_category_todo ON jobs(id) WHERE category IS NULL",
+    "CREATE INDEX IF NOT EXISTS idx_jobs_description_pending ON jobs(id) WHERE description IS NOT NULL",
+    # update_meta's open count per confidence, from the index.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_open_confidence ON jobs(confidence) WHERE closed_at IS NULL",
     # A few thousand rows, the only ones with a shekel figure. The salary
     # facet's bounds and median read these and nothing else, so asking
     # "what range does this result set occupy" walks a tiny index rather

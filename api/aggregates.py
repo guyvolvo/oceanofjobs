@@ -158,6 +158,10 @@ def _company_columns(conn) -> set[str]:
     return {r[1] for r in conn.execute("PRAGMA table_info(companies)")}
 
 
+_DIRECTORY_CACHE: dict = {}
+_DIRECTORY_TTL_S = 1800
+
+
 def company_directory(conn, params: dict, limit: int = 500) -> dict:
     """The companies directory (/companies): who has open roles under the
     board's filters, busiest first, with how many of those roles were
@@ -174,7 +178,16 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
     from job_filters import build_jobs_where, has_fts_index, has_places
 
     scoped = {k: v for k, v in params.items() if k != "company"}
-    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    # Kept per worker for half an hour. The list for everywhere groups
+    # every open row by company, a walk of the whole company index, 10s
+    # idle and 100s under an apply (2026-10-02); the list barely moves
+    # in that time and every visitor asks the same question first.
+    ckey = tuple(sorted((k, v) for k, v in scoped.items() if v not in (None, "")))
+    now = datetime.now(timezone.utc)
+    hit = _DIRECTORY_CACHE.get(ckey)
+    if hit and (now - hit[0]).total_seconds() < _DIRECTORY_TTL_S:
+        return hit[1]
+    week_ago = (now - timedelta(days=7)).isoformat()
     with place_rows(conn, scoped):
         where_sql, args = build_jobs_where(scoped, has_fts_index(conn), has_places(conn))
         rows = [dict(r) for r in conn.execute(
@@ -202,7 +215,11 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
             r["ats"] = c.get("ats")
             r["has_logo"] = bool(c.get("logo_url"))
             r["trend"] = trends.get(r["domain"], [])
-    return {"companies": rows, "capped": len(rows) >= limit, "limit": limit}
+    out = {"companies": rows, "capped": len(rows) >= limit, "limit": limit}
+    if len(_DIRECTORY_CACHE) > 64:
+        _DIRECTORY_CACHE.clear()
+    _DIRECTORY_CACHE[ckey] = (now, out)
+    return out
 
 
 def company_trends(conn, domains: list[str], days: int = 7) -> dict[str, list]:
