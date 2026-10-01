@@ -90,31 +90,38 @@ def record_company_day(db_path: Path) -> bool:
         today = now.date().isoformat()
         from datetime import timedelta
         backfilled = False
-        # Before today's own check: a box that wrote today's rows before
-        # the backfill existed still has no past, and must get one.
-        if not conn.execute("SELECT 1 FROM company_daily WHERE day < ? LIMIT 1", (today,)).fetchone():
+        # What the past lacks is filled in from what the jobs table
+        # already knows: a role was open on a day if it had been seen by
+        # then and not closed by then. Each of the last fourteen days,
+        # then one day a week back to twelve weeks, each only where the
+        # table has nothing for that day, so a box keeps the rows it
+        # wrote itself. Closed rows that archive.py has since moved out
+        # make the oldest weeks read a little low; the daily rows from
+        # here on are exact. Before today's own check below, because a
+        # box that wrote today's rows first still has no past.
+        wanted = [(now - timedelta(days=d)).date() for d in range(1, 15)]
+        wanted += [(now - timedelta(days=7 * k)).date() for k in range(3, 13)]
+        for day in wanted:
+            if conn.execute("SELECT 1 FROM company_daily WHERE day = ? LIMIT 1", (day.isoformat(),)).fetchone():
+                continue
             backfilled = True
-            # A table with no past in it (first run, or only today's
-            # rows) fills in the past twelve weeks, one row a week, from
-            # what the jobs table already knows: a role was
-            # open on a day if it had been seen by then and not closed
-            # by then. Closed rows that archive.py has since moved out
-            # make the oldest weeks read a little low; the daily rows
-            # from here on are exact.
-            for k in range(12, 0, -1):
-                day = (now - timedelta(days=7 * k)).date()
-                end = f"{day.isoformat()}T23:59:59"
-                before = f"{(day - timedelta(days=1)).isoformat()}T23:59:59"
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO company_daily (day, domain, open_n, new_n)
-                    SELECT ?, company_domain, COUNT(*), SUM(CASE WHEN first_seen > ? THEN 1 ELSE 0 END)
-                    FROM jobs
-                    WHERE first_seen <= ? AND (closed_at IS NULL OR closed_at > ?)
-                      AND company_domain IS NOT NULL AND company_domain != ''
-                    GROUP BY company_domain
-                    """,
-                    (day.isoformat(), before, end, end))
+            end = f"{day.isoformat()}T23:59:59"
+            before = f"{(day - timedelta(days=1)).isoformat()}T23:59:59"
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO company_daily (day, domain, open_n, new_n)
+                SELECT ?, company_domain, COUNT(*), SUM(CASE WHEN first_seen > ? THEN 1 ELSE 0 END)
+                FROM jobs
+                WHERE first_seen <= ? AND (closed_at IS NULL OR closed_at > ?)
+                  AND company_domain IS NOT NULL AND company_domain != ''
+                GROUP BY company_domain
+                """,
+                (day.isoformat(), before, end, end))
+            # A day with nothing open still counts as done, or it would
+            # be recomputed on every run. The empty domain is the mark;
+            # readers ask for domains by name and never see it.
+            conn.execute("INSERT OR IGNORE INTO company_daily (day, domain, open_n, new_n) VALUES (?, '', 0, 0)",
+                         (day.isoformat(),))
         if conn.execute("SELECT 1 FROM company_daily WHERE day = ? LIMIT 1", (today,)).fetchone():
             conn.commit()
             return backfilled

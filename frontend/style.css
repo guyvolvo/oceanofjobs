@@ -7092,9 +7092,22 @@ table.jobs tbody tr.skeleton-row {
 .dir-row:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 /* The trend: twelve weeks of open roles, one line in ink, with its
    span said under it. Nothing drawn until two weeks are on record. */
-.dir-trend-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 28px; }
+.dir-trend-cell { display: flex; flex-direction: column; align-items: center; min-height: 28px; }
 .dir-trend { display: block; width: 90px; height: 28px; overflow: visible; color: var(--black); }
-.dir-trend-cap { font: 400 10px var(--font); color: var(--grey); }
+/* The column heads, on the row's own grid so they sit over what they name. */
+.dir-cols {
+  flex: none;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 90px auto auto;
+  column-gap: 14px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--grey-line);
+  font: 400 12px var(--font);
+  color: var(--grey);
+}
+.dir-cols span:nth-child(3) { text-align: center; }
+.dir-cols span:nth-child(4) { min-width: 64px; }
+.dir-cols span:last-child { min-width: 96px; text-align: right; }
 .dir-follow {
   height: 28px;
   padding: 0 12px;
@@ -7182,6 +7195,6 @@ table.jobs tbody tr.skeleton-row {
 @media (max-width: 640px) {
   /* No room for the trend beside the name on a phone. */
   .dir-row { grid-template-columns: 44px minmax(0, 1fr) auto auto; }
-  .dir-trend-cell { display: none; }
+  .dir-trend-cell, .dir-cols { display: none; }
   .dir-follow { padding: 0 10px; }
 }

@@ -16,7 +16,7 @@ if (mock) {
     const f = await r.json();
     const systems = ["greenhouse", "workday", "comeet", "lever", "ashby", "smartrecruiters", null];
     const companies = (f.companies || []).map((c, i) => ({ domain: c.value, n: c.n, new_7d: i % 3 === 0 ? Math.round(c.n / 9) : 0, name: c.name, ats: systems[i % systems.length], has_logo: i % 5 !== 4,
-      trend: i % 7 === 6 ? [] : Array.from({ length: 12 }, (_, k) => Math.round(c.n * (0.7 + 0.3 * Math.sin((k + i) / 2)))) }));
+      trend: i % 7 === 6 ? [] : Array.from({ length: 7 }, (_, k) => Math.round(c.n * (0.7 + 0.3 * Math.sin((k + i) / 2)))) }));
     await route.fulfill({ json: { companies, capped: companies.length >= 500, limit: 500 } });
   });
   await ctx.route((url) => /\/api\/companies\/(?!directory)[^/]+$/.test(url.pathname), async (route) => {

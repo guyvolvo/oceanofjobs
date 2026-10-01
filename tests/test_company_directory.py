@@ -107,26 +107,24 @@ with tempfile.TemporaryDirectory() as td:
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     job_filters.register_functions(conn)
-    rows = {r["domain"]: dict(r) for r in conn.execute("SELECT * FROM company_daily")}
+    rows = {r["domain"]: dict(r) for r in conn.execute("SELECT * FROM company_daily WHERE day = ? AND domain != ''", (NOW.date().isoformat(),))}
     check("one row per company with open roles, counting the last day's arrivals",
           set(rows) == {"wiz.io", "monday.com", "acme.com"} and rows["wiz.io"]["open_n"] == 4 and rows["wiz.io"]["new_n"] == 1
           and rows["wiz.io"]["day"] == NOW.date().isoformat(), repr(rows.get("wiz.io")))
     p = aggregates.company_profile(conn, "wiz.io")
-    # Backfilled weeks only exist where something was open: wiz.io's
-    # oldest role was seen 30 days ago, so it has four weekly rows and
-    # today's; the fixture's oldest role (41 days) gives the table five
-    # weeks and today.
-    check("the profile carries the history: today's row and the backfilled weeks it was hiring in",
-          [h["open_n"] for h in p["history"]] == [1, 1, 1, 1, 4], repr([h["open_n"] for h in p["history"]]))
-    days = conn.execute("SELECT COUNT(DISTINCT day) FROM company_daily").fetchone()[0]
-    check("the first run backfilled one row a week back to the oldest open role", days == 6, str(days))
-    four_weeks_ago = [h for h in p["history"] if 26 <= (NOW.date() - datetime.strptime(h["day"], "%Y-%m-%d").date()).days <= 29]
-    check("a backfilled week counts what was open then: wiz.io had one role seen 30 days ago",
-          four_weeks_ago and four_weeks_ago[0]["open_n"] == 1, repr(four_weeks_ago))
+    # Backfilled days only exist where something was open: the last
+    # fourteen days daily, then weeks three and four for wiz.io (its
+    # oldest role was seen 30 days ago), then today's row.
+    hist = {(NOW.date() - datetime.strptime(h["day"], "%Y-%m-%d").date()).days: h["open_n"] for h in p["history"]}
+    check("the profile carries the history: fourteen daily rows, the weekly ones it was hiring in, and today",
+          len(p["history"]) == 17 and hist[0] == 4 and hist[5] == 1 and hist[21] == 1 and hist[28] == 1, repr(sorted(hist.items())))
+    days = conn.execute("SELECT COUNT(DISTINCT day) FROM company_daily WHERE domain != ''").fetchone()[0]
+    check("the table has the last fourteen days, weeks three to five (monday.com's), and today", days == 18, str(days))
     d = aggregates.company_directory(conn, {"confidence": "verified"})
     t = {c["domain"]: c["trend"] for c in d["companies"]}
-    check("the directory carries a twelve-week trend per company, oldest first, this week last",
-          len(t["wiz.io"]) == 12 and t["wiz.io"][-1] == 4 and t["monday.com"][-1] == 2 and t["wiz.io"][7] == 1, repr(t["wiz.io"]))
+    check("the directory carries a seven-day trend per company, oldest first, today last",
+          len(t["wiz.io"]) == 7 and t["wiz.io"][-1] == 4 and t["wiz.io"][0] == 1 and t["monday.com"][-1] == 2, repr(t["wiz.io"]))
+    check("a day the box already wrote is kept, not recomputed", precompute.record_company_day(db) is False)
     conn.close()
 
 print()

@@ -17,8 +17,9 @@
   const atsKey = (a) => (a ? (ATS[a] ? a : "custom") : null);
   const atsName = (a) => (a ? ATS[a] || "Company website" : "Unknown");
 
-  // A row's trend: twelve weeks of open roles as one line, 90 by 28.
-  // Fewer than two weeks on record draws nothing rather than a dot.
+  // A row's trend: the last seven days of open roles as one line, 90 by
+  // 28, under the list's "Trend chart" head. Fewer than two days on
+  // record draws nothing rather than a dot.
   function rowSpark(trend) {
     const pts = (trend || []).map((v, i) => [i, v]).filter(([, v]) => v != null);
     if (pts.length < 2) return "";
@@ -27,7 +28,7 @@
     const min = Math.min(...vals), max = Math.max(...vals), span = Math.max(1, max - min);
     const d = pts.map(([i, v], k) => `${k ? "L" : "M"}${(i / n * w).toFixed(1)} ${(h - 3 - ((v - min) / span) * (h - 6)).toFixed(1)}`).join(" ");
     const up = vals[vals.length - 1] >= vals[0];
-    return `<svg class="dir-trend${up ? " up" : " down"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="Open roles over twelve weeks, ${fmt(vals[0])} to ${fmt(vals[vals.length - 1])}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="dir-trend-cap">12 weeks</span>`;
+    return `<svg class="dir-trend${up ? " up" : " down"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="Open roles over seven days, ${fmt(vals[0])} to ${fmt(vals[vals.length - 1])}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   }
 
   const COUNTRY_KEY = "iljobs_dir_country";
