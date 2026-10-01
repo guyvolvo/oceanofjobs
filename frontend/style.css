@@ -7323,7 +7323,13 @@ table.jobs tbody tr.skeleton-row {
 }
 .acct-stat:last-child { border-right: 0; }
 .acct-stat-label { font: 500 13px var(--font); color: var(--black); }
-.acct-stat-value { font: 500 30px var(--font-display); letter-spacing: -0.02em; line-height: 1; color: var(--black); font-variant-numeric: tabular-nums; }
+.acct-stat-value { display: flex; align-items: baseline; gap: 8px; font: 500 30px var(--font-display); letter-spacing: -0.02em; line-height: 1; color: var(--black); font-variant-numeric: tabular-nums; }
+/* The move since the period before, in the board's own colours. */
+.acct-delta { font: 500 12px var(--font); letter-spacing: 0; white-space: nowrap; }
+.acct-delta.up { color: var(--green-text); }
+.acct-delta.down { color: #b0452f; }
+:root[data-theme="dark"] .acct-delta.down { color: #e8866b; }
+.acct-delta.flat { color: var(--grey); }
 .acct-stat-sub { font: 400 12px var(--font); color: var(--grey); }
 .acct-stat-sub a { color: var(--green-text); }
 /* The one green tile: what is new. */

@@ -41,8 +41,20 @@
     return `<svg class="acct-spark ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">${area}<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   }
 
-  function tile(label, value, sub, sparkHtml, cls = "") {
-    return `<div class="acct-stat ${cls}"><span class="acct-stat-label">${label}</span><span class="acct-stat-value">${value}</span><span class="acct-stat-sub">${sub}</span>${sparkHtml}</div>`;
+  function tile(label, value, sub, sparkHtml, cls = "", delta = "") {
+    return `<div class="acct-stat ${cls}"><span class="acct-stat-label">${label}</span><span class="acct-stat-value">${value}${delta}</span><span class="acct-stat-sub">${sub}</span>${sparkHtml}</div>`;
+  }
+
+  // How a number moved, the way the board's overview says it: an arrow
+  // and a percentage against the period before. Nothing when there was
+  // nothing before to measure against.
+  function delta(now, prev) {
+    if (now == null || prev == null || !prev) return "";
+    const pct = Math.round(((now - prev) / prev) * 100);
+    const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+    const arrow = dir === "up" ? "&#8599;" : dir === "down" ? "&#8600;" : "&#8594;";
+    const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k` : Math.abs(pct);
+    return `<span class="acct-delta ${dir}" title="${pct > 0 ? "+" : ""}${pct}% against the period before"><span aria-hidden="true">${arrow}</span> ${shown}%</span>`;
   }
 
   // ---- the market ----
@@ -117,8 +129,8 @@
     const stillOpen = savedJobs.filter((j) => !j.closed_at).length;
     const noSkills = !draft.skills.length;
     host.innerHTML = [
-      tile("New matches this week", noSkills ? "–" : fmt(week), noSkills ? '<a href="#skills">Add your skills</a>' : `${fmt(before)} the week before`, spark(days.slice(-14).map((d) => d.new)), "acct-stat-green"),
-      tile("Open roles that fit you", open == null ? "–" : fmt(open), monthAgo == null ? "" : `${fmt(monthAgo)} a month ago`, spark(days.slice(-30).map((d) => d.open))),
+      tile("New matches this week", noSkills ? "–" : fmt(week), noSkills ? '<a href="#skills">Add your skills</a>' : `${fmt(before)} the week before`, spark(days.slice(-14).map((d) => d.new)), "acct-stat-green", noSkills ? "" : delta(week, before)),
+      tile("Open roles that fit you", open == null ? "–" : fmt(open), monthAgo == null ? "" : `${fmt(monthAgo)} a month ago`, spark(days.slice(-30).map((d) => d.open)), "", delta(open, monthAgo)),
       tile("Alerts", fmt(alerts.length), alerts.length ? `${on} on, ${alerts.length - on} paused${sent ? ` · last sent ${ago(sent)}` : ""}` : '<a href="#alerts">Create one</a>', ""),
       tile("Saved jobs", fmt(savedJobs.length), savedJobs.length ? `${stillOpen} still open` : '<a href="/board">Save one from the board</a>', ""),
     ].join("");
