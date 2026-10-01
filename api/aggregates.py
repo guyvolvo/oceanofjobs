@@ -55,6 +55,99 @@ def _with_logos(conn, rows: list[dict]) -> list[dict]:
     return rows
 
 
+def _company_columns(conn) -> set[str]:
+    return {r[1] for r in conn.execute("PRAGMA table_info(companies)")}
+
+
+def company_directory(conn, params: dict, limit: int = 500) -> dict:
+    """The companies directory (/companies): who has open roles under the
+    board's filters, busiest first, with how many of those roles were
+    first seen in the past week. The same WHERE as /api/jobs minus the
+    company filter, so the list answers the question the board's own
+    filters ask; a country narrows it to the companies hiring there,
+    and the counts are their roles there.
+
+    Capped, and says so: the facets' company list is capped the same
+    way, and a page of 20,000 rows is not a directory anyone reads.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from job_filters import build_jobs_where, has_fts_index, has_places
+
+    scoped = {k: v for k, v in params.items() if k != "company"}
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    with place_rows(conn, scoped):
+        where_sql, args = build_jobs_where(scoped, has_fts_index(conn), has_places(conn))
+        rows = [dict(r) for r in conn.execute(
+            f"""
+            SELECT company_domain AS domain, COUNT(*) AS n,
+                   SUM(CASE WHEN first_seen >= ? THEN 1 ELSE 0 END) AS new_7d
+            FROM jobs
+            WHERE {where_sql} AND company_domain IS NOT NULL AND company_domain != ''
+            GROUP BY company_domain
+            ORDER BY n DESC, company_domain
+            LIMIT ?
+            """,
+            [week_ago, *args, limit],
+        )]
+    cols = _company_columns(conn)
+    if rows:
+        pick = ", ".join(c for c in ("domain", "ats", "company_name", "logo_url") if c in cols)
+        domains = [r["domain"] for r in rows]
+        known = {c["domain"]: dict(c) for c in conn.execute(
+            f"SELECT {pick} FROM companies WHERE domain IN ({','.join('?' * len(domains))})", domains)}
+        for r in rows:
+            c = known.get(r["domain"], {})
+            r["name"] = c.get("company_name") or None
+            r["ats"] = c.get("ats")
+            r["has_logo"] = bool(c.get("logo_url"))
+    return {"companies": rows, "capped": len(rows) >= limit, "limit": limit}
+
+
+def company_profile(conn, domain: str) -> dict | None:
+    """One company for the directory's panel: what the companies table
+    knows, its open roles worldwide and how many are a week old or
+    less, and its daily history (company_daily, written once a day by
+    the publish run) for the last twelve weeks. None for a domain the
+    board has never seen.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from job_filters import build_jobs_where, has_fts_index, has_places
+
+    cols = _company_columns(conn)
+    pick = ", ".join(c for c in ("domain", "ats", "company_name", "logo_url", "first_seen") if c in cols)
+    row = conn.execute(f"SELECT {pick} FROM companies WHERE domain = ? COLLATE NOCASE", (domain,)).fetchone()
+    if not row:
+        return None
+    company = dict(row)
+    where_sql, args = build_jobs_where({"company": company["domain"]}, has_fts_index(conn), has_places(conn))
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    counts = conn.execute(
+        f"""
+        SELECT COUNT(*) AS open_n, SUM(CASE WHEN first_seen >= ? THEN 1 ELSE 0 END) AS new_7d
+        FROM jobs WHERE {where_sql}
+        """,
+        [week_ago, *args],
+    ).fetchone()
+    history: list[dict] = []
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'company_daily'").fetchone():
+        since = (datetime.now(timezone.utc) - timedelta(days=84)).date().isoformat()
+        history = [dict(r) for r in conn.execute(
+            "SELECT day, open_n, new_n FROM company_daily WHERE domain = ? AND day >= ? ORDER BY day",
+            (company["domain"], since))]
+    return {
+        "domain": company["domain"],
+        "name": company.get("company_name") or None,
+        "ats": company.get("ats"),
+        "has_logo": bool(company.get("logo_url")),
+        "tracked_since": company.get("first_seen"),
+        "open_jobs": counts["open_n"] or 0,
+        "new_jobs_7d": counts["new_7d"] or 0,
+        "history": history,
+    }
+
+
 def top_companies_with_logos(conn, limit: int = 30) -> list[dict]:
     """The companies on the landing page's logo row, hand-picked ones first.
 

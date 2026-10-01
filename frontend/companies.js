@@ -1,0 +1,311 @@
+// The companies directory (/companies). The list is /api/companies/
+// directory under the chosen filters; a picked company reads its own
+// profile (/api/companies/<domain>), its facets and its newest roles.
+// What the API does not have (industry, size) is not on the page.
+(function () {
+  const API = "/api";
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+  const ATS = { greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", workday: "Workday", smartrecruiters: "SmartRecruiters",
+    workable: "Workable", comeet: "Comeet", recruitee: "Recruitee", personio: "Personio", teamtailor: "Teamtailor",
+    bamboohr: "BambooHR", breezy: "Breezy", jazzhr: "JazzHR", pinpoint: "Pinpoint", oracle: "Oracle", eightfold: "Eightfold",
+    hunter: "Hunter" };
+  // A scraper of our own is named for the company it reads; a reader
+  // sees that as "its own careers site".
+  const atsName = (a) => (a ? ATS[a] || "Own careers site" : "Unknown");
+  const STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>';
+
+  const COUNTRY_KEY = "iljobs_dir_country";
+  const FOLLOW_KEY = "iljobs_dir_follow";
+  let following = new Set();
+  try { following = new Set(JSON.parse(localStorage.getItem(FOLLOW_KEY) || "[]")); } catch { /* per-browser nicety only */ }
+  let savedCountry = "";
+  try { savedCountry = localStorage.getItem(COUNTRY_KEY) || ""; } catch { /* as above */ }
+  const state = { country: savedCountry, ats: new Set(), view: "hiring", q: "", sort: "roles", selected: null, shown: 50 };
+  let directory = null;   // the API's list for the current country
+  let countries = [];     // every country with its open-role count, once
+  let loadSeq = 0;
+
+  const countryName = (code) => (countries.find((c) => c.value === code) || {}).label || code;
+  const where = () => (state.country ? ` in ${countryName(state.country)}` : "");
+
+  async function loadCountries() {
+    try {
+      const r = await fetch(`${API}/facets?confidence=all`);
+      countries = ((await r.json()).locations || []).map((c) => ({ value: c.value, label: c.label, n: c.n }));
+    } catch { countries = []; }
+    // The list may have drawn first with the country's code for a name.
+    if (directory) renderAll(); else renderPills();
+  }
+
+  async function loadDirectory() {
+    const seq = ++loadSeq;
+    directory = null;
+    renderList();
+    renderPills();
+    let data;
+    try {
+      const r = await fetch(`${API}/companies/directory?confidence=all${state.country ? `&country=${encodeURIComponent(state.country)}` : ""}`);
+      if (!r.ok) throw new Error(`${r.status}`);
+      data = await r.json();
+    } catch (e) {
+      if (seq !== loadSeq) return;
+      // Said plainly, with the status, rather than "Counting" for ever.
+      $("#dir-count").textContent = "Could not load the list";
+      $("#dir-sub").textContent = /^\d+$/.test(e.message) ? `The API answered ${e.message}. Try again in a minute.` : "The API did not answer. Try again in a minute.";
+      return;
+    }
+    if (seq !== loadSeq) return;
+    directory = data;
+    renderAll();
+  }
+
+  function rows() {
+    let out = (directory?.companies || []).map((c) => ({ ...c, name: c.name || c.domain }));
+    if (state.view === "following") out = out.filter((r) => following.has(r.domain));
+    if (state.ats.size) out = out.filter((r) => r.ats && state.ats.has(r.ats));
+    if (state.q) {
+      const q = state.q.toLowerCase();
+      out = out.filter((r) => r.name.toLowerCase().includes(q) || r.domain.includes(q) || atsName(r.ats).toLowerCase().includes(q));
+    }
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    out.sort(state.sort === "name" ? byName
+      : state.sort === "new" ? (a, b) => (b.new_7d || 0) - (a.new_7d || 0) || b.n - a.n || byName(a, b)
+      : (a, b) => b.n - a.n || byName(a, b));
+    return out;
+  }
+
+  function atsCounts() {
+    const counts = {};
+    for (const r of (directory?.companies || [])) if (r.ats) counts[r.ats] = (counts[r.ats] || 0) + 1;
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }
+
+  function logoTile(r) {
+    const letter = esc((r.name || r.domain || "?").trim()[0].toUpperCase());
+    const img = r.has_logo === false ? "" : `<img src="/logo/${encodeURIComponent(r.domain)}.png" alt="" loading="lazy" onerror="this.hidden=true" />`;
+    return `<span class="dir-logo">${img}<span class="dir-letter">${letter}</span></span>`;
+  }
+
+  function renderSidebar() {
+    const hiring = directory ? directory.companies.length : null;
+    $("#dir-browse").innerHTML = [["hiring", `Hiring now${where()}`, hiring], ["following", "Following", following.size]].map(([key, label, n]) =>
+      `<button type="button" class="side-cat${state.view === key ? " on" : ""}" data-view="${key}" aria-pressed="${state.view === key}"><span>${esc(label)}</span><span class="side-cat-n">${n == null ? "" : fmt(n)}</span></button>`).join("");
+    const counts = atsCounts();
+    $("#dir-systems").innerHTML = counts.length
+      ? counts.slice(0, 8).map(([a, n]) => `<button type="button" class="side-cat${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}" aria-pressed="${state.ats.has(a)}"><span>${esc(atsName(a))}</span><span class="side-cat-n">${fmt(n)}</span></button>`).join("")
+      : `<div class="side-cat side-hint">${directory ? "None" : "Counting"}</div>`;
+  }
+
+  function renderPills() {
+    const sum = (id, text) => { const el = $(id); el.textContent = text; el.hidden = !text; };
+    sum("#dir-sum-place", state.country ? countryName(state.country) : "");
+    sum("#dir-sum-ats", [...state.ats].map(atsName).join(", "));
+    $("#dir-pop-place").innerHTML = [`<button type="button" class="dir-opt${state.country ? "" : " on"}" data-country=""><span>Anywhere</span></button>`]
+      .concat(countries.map((c) => `<button type="button" class="dir-opt${state.country === c.value ? " on" : ""}" data-country="${esc(c.value)}"><span>${esc(c.label)}</span><span class="dir-n">${fmt(c.n)}</span></button>`)).join("")
+      || '<div class="dir-opt side-hint">Counting</div>';
+    $("#dir-pop-ats").innerHTML = atsCounts().map(([a, n]) =>
+      `<button type="button" class="dir-opt${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}"><span>${esc(atsName(a))}</span><span class="dir-n">${fmt(n)}</span></button>`).join("") || '<div class="dir-opt side-hint">Counting</div>';
+    $("#dir-reset").hidden = !state.country && !state.ats.size && state.view === "hiring" && !state.q;
+  }
+
+  function renderList() {
+    const body = $("#dir-rows");
+    if (!directory) {
+      $("#dir-count").textContent = "Counting";
+      $("#dir-sub").textContent = "";
+      body.innerHTML = "";
+      return;
+    }
+    const list = rows();
+    const total = list.reduce((s, r) => s + (r.n || 0), 0);
+    const fresh = list.reduce((s, r) => s + (r.new_7d || 0), 0);
+    $("#dir-count").textContent = `${directory.capped && state.view === "hiring" && !state.q && !state.ats.size ? `The ${fmt(directory.limit)} busiest` : fmt(list.length)} companies hiring${where()}`;
+    $("#dir-sub").textContent = list.length ? `1–${Math.min(state.shown, list.length)} · ${fmt(total)} open roles between them, ${fmt(fresh)} new this week` : "";
+    body.innerHTML = list.slice(0, state.shown).map((r) => `
+      <div class="dir-row${r.domain === state.selected ? " selected" : ""}" data-domain="${esc(r.domain)}" tabindex="0" role="button">
+        <button type="button" class="dir-star${following.has(r.domain) ? " on" : ""}" data-follow="${esc(r.domain)}" aria-pressed="${following.has(r.domain)}" aria-label="Follow ${esc(r.name)}">${STAR}</button>
+        ${logoTile(r)}
+        <div class="dir-main">
+          <div class="dir-name">${esc(r.name)}</div>
+          <div class="dir-line">${esc(r.domain)} · ${esc(atsName(r.ats))}</div>
+        </div>
+        <div class="dir-count"><b>${fmt(r.n)}</b><span>${r.new_7d ? `+${fmt(r.new_7d)} this week` : "open roles"}</span></div>
+      </div>`).join("") + (list.length > state.shown
+        ? `<div class="dir-more"><button type="button" class="btn ghost" id="dir-more">Show ${Math.min(50, list.length - state.shown)} more</button></div>`
+        : (list.length ? "" : `<div class="dir-empty">No companies match.</div>`));
+  }
+
+  function renderAll() { renderSidebar(); renderPills(); renderList(); }
+
+  // Twelve weeks of open roles as one line, from company_daily. Before
+  // the table has a fortnight in it the chart would be two dots, so it
+  // says when the record starts instead.
+  function sparkline(history) {
+    const pts = (history || []).map((h) => h.open_n);
+    if (pts.length < 14) return `<span class="dir-hint">Daily counts start ${history?.length ? `on ${esc(history[0].day)}` : "with the next publish run"}.</span>`;
+    const w = 280, h = 56, max = Math.max(1, ...pts), min = Math.min(...pts);
+    const span = Math.max(1, max - min);
+    const xy = pts.map((v, i) => [i * (w / (pts.length - 1)), h - 4 - ((v - min) / span) * (h - 8)]);
+    const d = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+    return `<svg class="dir-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--black)" stroke-width="1.5"/></svg>
+      <div class="dir-spark-axis"><span>${esc(history[0].day.slice(5))}</span><span>${fmt(min)}–${fmt(max)} open</span><span>${esc(history[history.length - 1].day.slice(5))}</span></div>`;
+  }
+
+  const age = (iso) => {
+    if (!iso) return "";
+    const hrs = (Date.now() - new Date(iso).getTime()) / 36e5;
+    return hrs < 1 ? "just now" : hrs < 24 ? `${Math.floor(hrs)}h ago` : `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  let panelSeq = 0;
+  async function openCompany(domain) {
+    state.selected = domain;
+    $("#job-detail").classList.toggle("open", !!domain);
+    $("#job-scrim").classList.toggle("open", !!domain);
+    document.querySelectorAll(".dir-row").forEach((r) => r.classList.toggle("selected", r.dataset.domain === domain));
+    history.replaceState(null, "", domain ? `#${domain}` : location.pathname + location.search);
+    const head = $("#dir-pane-head");
+    const body = $("#dir-pane-body");
+    if (!domain) {
+      head.innerHTML = `<div class="list-head-text"><span class="col-head-title">Company</span><span class="col-head-sub">${esc(state.country ? countryName(state.country) : "Everywhere")}</span></div>`;
+      body.innerHTML = `<div class="detail-empty"><div class="ov-hint">Select a company to see its details here.</div></div>`;
+      return;
+    }
+    const seq = ++panelSeq;
+    const row = rows().find((r) => r.domain === domain) || { domain, name: domain, n: null, ats: null };
+    head.innerHTML = `<span class="dir-crumb">Companies / <b>${esc(row.name)}</b></span><button type="button" class="pane-close" id="dir-close" aria-label="Close">&#10005;</button>`;
+    body.innerHTML = `<div class="dir-panel">
+      <div class="dir-company">${logoTile(row)}<div><h2>${esc(row.name)}</h2>
+        <div class="dir-line">${esc(atsName(row.ats))} · <a href="https://${esc(domain)}" target="_blank" rel="noopener">${esc(domain)}</a></div></div></div>
+      <div class="dir-actions">
+        <a class="btn primary" href="/board?company=${encodeURIComponent(domain)}${state.country ? `&country=${encodeURIComponent(state.country)}` : ""}">See ${row.n == null ? "the" : fmt(row.n)} open roles</a>
+        <a class="btn ghost" href="/account">Alert me when they post</a>
+        <a class="btn ghost" href="https://${esc(domain)}" target="_blank" rel="noopener">Careers page &nearr;</a>
+      </div>
+      <div class="ov-tiles" id="dir-tiles"></div>
+      <div class="ov-block"><span class="ov-block-title">Open roles, twelve weeks</span><div id="dir-spark"><span class="dir-hint">Counting</span></div></div>
+      <div class="ov-block"><span class="ov-block-title">Hiring for</span><div class="dir-bars" id="dir-bars"><span class="dir-hint">Counting</span></div></div>
+      <div class="ov-block"><div class="dir-block-head"><span class="ov-block-title">Newest roles</span><a id="dir-all" href="/board?company=${encodeURIComponent(domain)}">All</a></div><div class="dir-jobs" id="dir-jobs"></div></div>
+    </div>`;
+    const here = state.country ? `&country=${encodeURIComponent(state.country)}` : "";
+    const q = (extra) => `${API}/jobs?company=${encodeURIComponent(domain)}&confidence=all&${extra}`;
+    const [profile, newest, cf] = await Promise.all([
+      fetch(`${API}/companies/${encodeURIComponent(domain)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(q(`limit=4&sort=age&dir=asc${here}`)).then((r) => r.json()).catch(() => null),
+      fetch(`${API}/facets?confidence=all&company=${encodeURIComponent(domain)}${here}`).then((r) => r.json()).catch(() => null),
+    ]);
+    if (seq !== panelSeq) return;
+    const hereN = newest?.total ?? row.n;
+    const tiles = [];
+    const tile = (label, value, sub, cls = "") => tiles.push(`<div class="ov-tile ${cls}"><span class="ov-label">${label}</span><span class="ov-value">${value}</span>${sub ? `<span class="ov-sub">${sub}</span>` : ""}</div>`);
+    const worldwide = profile && state.country && profile.open_jobs > hereN ? `of ${fmt(profile.open_jobs)} worldwide` : "";
+    tile(state.country ? `Open roles in ${esc(countryName(state.country))}` : "Open roles", fmt(hereN), worldwide);
+    tile("New this week", profile ? fmt(profile.new_jobs_7d) : "–", "first seen in the past 7 days", "dir-green");
+    tile("Hiring system", esc(atsName(profile?.ats ?? row.ats)), "", "dir-words");
+    const cities = (cf?.locations || []).flatMap((c) => (c.cities || []).slice(0, 3).map((x) => x.value));
+    tile(state.country ? "Sites" : "Countries", esc(cities.slice(0, 3).join(" · ") || (cf?.locations || []).slice(0, 3).map((c) => c.label).join(" · ") || "–"), "", "dir-words");
+    $("#dir-tiles").innerHTML = tiles.join("");
+    $("#dir-spark").innerHTML = sparkline(profile?.history);
+    const cats = (cf?.categories || []).slice(0, 5);
+    const max = Math.max(1, ...cats.map((c) => c.n));
+    $("#dir-bars").innerHTML = cats.length ? cats.map((c) => `<div class="dir-bar"><span>${esc(c.value)}</span><span class="dir-bar-track"><span class="dir-bar-fill" style="width:${Math.round(100 * c.n / max)}%"></span></span><span class="dir-bar-n">${fmt(c.n)}</span></div>`).join("") : `<span class="dir-hint">No categorised roles.</span>`;
+    $("#dir-all").textContent = `All ${fmt(hereN)}`;
+    $("#dir-jobs").innerHTML = (newest?.jobs || []).map((j) => `<a class="dir-job" href="/job/${esc(j.id)}"><span class="dir-job-title">${esc(j.title)}${j.location ? ` <span class="dir-job-where">· ${esc(String(j.location).split(";")[0])}</span>` : ""}</span><span class="dir-job-age">${age(j.posted_at)}</span></a>`).join("") || `<span class="dir-hint">No open roles here.</span>`;
+  }
+
+  function wire() {
+    wireSideBar();
+    $("#theme-toggle")?.addEventListener("click", () => {
+      const dark = document.documentElement.getAttribute("data-theme") !== "dark";
+      if (dark) document.documentElement.setAttribute("data-theme", "dark");
+      else document.documentElement.removeAttribute("data-theme");
+      $("#theme-toggle").setAttribute("aria-checked", String(dark));
+      try { localStorage.setItem("iljobs_theme", dark ? "dark" : "light"); } catch { /* as above */ }
+    });
+    $("#dir-browse").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-view]"); if (!b) return;
+      state.view = b.dataset.view; state.shown = 50; renderAll();
+    });
+    $("#dir-systems").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ats]"); if (!b) return;
+      state.ats.has(b.dataset.ats) ? state.ats.delete(b.dataset.ats) : state.ats.add(b.dataset.ats);
+      state.shown = 50; renderAll();
+    });
+    const search = $("#dir-search");
+    search.addEventListener("input", () => { state.q = search.value.trim(); state.shown = 50; renderList(); renderPills(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "")) { e.preventDefault(); search.focus(); }
+    });
+
+    // Pills: one open at a time, a click outside or Escape closes.
+    const closePills = () => {
+      document.querySelectorAll(".dir-pill[aria-expanded='true']").forEach((p) => { p.setAttribute("aria-expanded", "false"); p.nextElementSibling.hidden = true; });
+      document.body.classList.remove("pill-open");
+    };
+    document.addEventListener("click", (e) => {
+      const pill = e.target.closest(".dir-pill");
+      if (pill) {
+        const open = pill.getAttribute("aria-expanded") === "true";
+        closePills();
+        if (!open) { pill.setAttribute("aria-expanded", "true"); pill.nextElementSibling.hidden = false; document.body.classList.add("pill-open"); }
+        return;
+      }
+      if (!e.target.closest(".dir-pop")) closePills();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (closeSideDrawer()) return;
+      if (document.querySelector(".dir-pill[aria-expanded='true']")) return closePills();
+      if (state.selected) openCompany(null);
+    });
+    $("#dir-pop-place").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-country]"); if (!b) return;
+      state.country = b.dataset.country; state.shown = 50;
+      try { localStorage.setItem(COUNTRY_KEY, state.country); } catch { /* as above */ }
+      closePills(); loadDirectory();
+    });
+    $("#dir-pop-ats").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ats]"); if (!b) return;
+      state.ats.has(b.dataset.ats) ? state.ats.delete(b.dataset.ats) : state.ats.add(b.dataset.ats);
+      state.shown = 50; renderAll();
+    });
+    $("#dir-reset").addEventListener("click", () => {
+      Object.assign(state, { country: "", view: "hiring", q: "", shown: 50 }); state.ats.clear(); search.value = "";
+      try { localStorage.setItem(COUNTRY_KEY, ""); } catch { /* as above */ }
+      loadDirectory();
+    });
+    $("#dir-sort").addEventListener("change", (e) => { state.sort = e.target.value; renderList(); });
+
+    $("#dir-rows").addEventListener("click", (e) => {
+      const star = e.target.closest("[data-follow]");
+      if (star) {
+        const d = star.dataset.follow;
+        following.has(d) ? following.delete(d) : following.add(d);
+        try { localStorage.setItem(FOLLOW_KEY, JSON.stringify([...following])); } catch { /* as above */ }
+        renderAll();
+        return;
+      }
+      if (e.target.closest("#dir-more")) { state.shown += 50; renderList(); return; }
+      const row = e.target.closest(".dir-row");
+      if (row) openCompany(row.dataset.domain === state.selected ? null : row.dataset.domain);
+    });
+    $("#dir-rows").addEventListener("keydown", (e) => {
+      const row = e.target.closest(".dir-row");
+      if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCompany(row.dataset.domain); }
+    });
+    $("#dir-pane-head").addEventListener("click", (e) => { if (e.target.closest("#dir-close")) openCompany(null); });
+    $("#job-scrim").addEventListener("click", () => openCompany(null));
+  }
+
+  async function start() {
+    wire();
+    openCompany(null);
+    loadCountries();
+    await loadDirectory();
+    const want = decodeURIComponent(location.hash.slice(1));
+    if (want) openCompany(want);
+  }
+  document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", start) : start();
+})();

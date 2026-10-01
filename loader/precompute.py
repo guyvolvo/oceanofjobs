@@ -70,6 +70,43 @@ PREFIX = os.environ.get("PRECOMPUTED_PREFIX", "precomputed/")
 MAX_AGE_S = 1800
 
 
+def record_company_day(db_path: Path) -> bool:
+    """One row per company per day: its open roles, and how many of them
+    were first seen in the last day. The directory's sparklines and
+    "+N this week" read it (api/aggregates.py company_profile).
+
+    Written into the live database by the publish run, which already
+    holds the box's lock, once a day: a second call the same day is a
+    no-op. One GROUP BY over the open rows, a few seconds on the box.
+    True when a day was written.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS company_daily ("
+            "day TEXT NOT NULL, domain TEXT NOT NULL, open_n INTEGER NOT NULL, new_n INTEGER NOT NULL, "
+            "PRIMARY KEY (day, domain))")
+        now = datetime.now(timezone.utc)
+        today = now.date().isoformat()
+        if conn.execute("SELECT 1 FROM company_daily WHERE day = ? LIMIT 1", (today,)).fetchone():
+            return False
+        from datetime import timedelta
+        day_ago = (now - timedelta(days=1)).isoformat()
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO company_daily (day, domain, open_n, new_n)
+            SELECT ?, company_domain, COUNT(*), SUM(CASE WHEN first_seen >= ? THEN 1 ELSE 0 END)
+            FROM jobs
+            WHERE closed_at IS NULL AND company_domain IS NOT NULL AND company_domain != ''
+            GROUP BY company_domain
+            """,
+            (today, day_ago))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def build(db_path: Path) -> dict[str, dict]:
     """{filename: payload} for everything worth precomputing."""
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)

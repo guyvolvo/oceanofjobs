@@ -29,8 +29,8 @@ from urllib.parse import parse_qs
 import boto3
 from boto3.dynamodb.conditions import Key
 
-from aggregates import (scoped_variant_key, compute_facets, compute_scoped_stats, compute_stats,
-                        has_board_filters, search_companies)
+from aggregates import (scoped_variant_key, company_directory, company_profile, compute_facets,
+                        compute_scoped_stats, compute_stats, has_board_filters, search_companies)
 from db import get_connection, status as db_status
 from help_page import HELP_HTML
 from openapi import spec as openapi_spec
@@ -291,8 +291,18 @@ def lambda_handler(event, context):
             # same question from the next visitor gets the same answer.
             return _response(200, json.dumps(search_companies(get_connection(), params), default=str),
                              cache_seconds=60)
+        if path == "/companies/directory":
+            # The /companies page's list: cached at the edge like the
+            # facets, since every visitor's first question is the same.
+            return _response(200, json.dumps(company_directory(get_connection(), params), default=str),
+                             cache_seconds=300)
         if path == "/companies":
             return _response(200, json.dumps(route_companies(params), default=str), cache_seconds=60)
+        if path.startswith("/companies/") and len(path) > len("/companies/"):
+            profile = company_profile(get_connection(), path[len("/companies/"):].strip("/").lower())
+            if profile is None:
+                return _response(404, json.dumps({"error": "no company with that domain"}))
+            return _response(200, json.dumps(profile, default=str), cache_seconds=300)
         if path == "/stats":
             return _response(200, json.dumps(route_stats(params), default=str), cache_seconds=60)
         if path == "/facets":
