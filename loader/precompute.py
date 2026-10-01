@@ -88,10 +88,12 @@ def record_company_day(db_path: Path) -> bool:
             "PRIMARY KEY (day, domain))")
         now = datetime.now(timezone.utc)
         today = now.date().isoformat()
-        if conn.execute("SELECT 1 FROM company_daily WHERE day = ? LIMIT 1", (today,)).fetchone():
-            return False
         from datetime import timedelta
+        backfilled = False
+        # Before today's own check: a box that wrote today's rows before
+        # the backfill existed still has no past, and must get one.
         if not conn.execute("SELECT 1 FROM company_daily WHERE day < ? LIMIT 1", (today,)).fetchone():
+            backfilled = True
             # A table with no past in it (first run, or only today's
             # rows) fills in the past twelve weeks, one row a week, from
             # what the jobs table already knows: a role was
@@ -113,6 +115,9 @@ def record_company_day(db_path: Path) -> bool:
                     GROUP BY company_domain
                     """,
                     (day.isoformat(), before, end, end))
+        if conn.execute("SELECT 1 FROM company_daily WHERE day = ? LIMIT 1", (today,)).fetchone():
+            conn.commit()
+            return backfilled
         day_ago = (now - timedelta(days=1)).isoformat()
         conn.execute(
             """
