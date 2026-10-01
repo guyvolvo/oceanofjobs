@@ -4211,7 +4211,9 @@ function railCountryBlocks() {
   // The facet lists up to sixty.
   const onAlready = (c) => picked.has(c.value) || (c.cities || []).some((t) => cities.has(t.value));
   const listed = new Set((railExpanded.has("location") ? countries : countries.slice(0, RAIL_TOP_N)).map((c) => c.value));
-  for (const c of countries) {
+  // What is on comes first, whatever its size: it is the reason the
+  // list is being looked at.
+  for (const c of [...countries.filter(onAlready), ...countries.filter((c) => !onAlready(c))]) {
     const all = c.cities || [];
     const countryHit = !q || (c.label || c.value).toLowerCase().includes(q);
     const cityHits = q ? all.filter((t) => (t.label || t.value).toLowerCase().includes(q)) : all;
