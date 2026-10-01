@@ -363,7 +363,9 @@ def count_index_hint(params: dict, caps: "SnapshotCaps") -> str:
     """
     if not caps.board_indexes:
         return ""
-    if any(params.get(p) for p in _SELECTIVE_PARAMS):
+    # roles=all adds no clause (see build_jobs_where), so it is not a
+    # filter with an index of its own; roles=tech is.
+    if any(params.get(p) for p in _SELECTIVE_PARAMS if not (p == "roles" and (params.get("roles") or "").lower() == "all")):
         return ""
     # The partial index's own two conditions, asked of the request.
     if (params.get("confidence") or "verified") != "verified" and not caps.open_index_all:
