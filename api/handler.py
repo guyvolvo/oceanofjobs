@@ -243,6 +243,11 @@ def lambda_handler(event, context):
         except Exception as e:  # noqa: BLE001
             print(f"company page failed: {e!r}")
             return _html_response(500, company_page.render_missing(""), extra_headers={"X-Robots-Tag": "noindex"})
+    # A company's logo, at its own path rather than under /api/, because
+    # Cloudflare rate-limits /api/* per address and a page shows fifty
+    # of these. /api/logo/ below still answers, for mail already sent.
+    if path.startswith("/logo/") and len(path) > len("/logo/"):
+        return route_company_logo(path[len("/logo/"):])
     if path.startswith("/api"):
         path = path[4:] or "/"
     params = _query_params(event)

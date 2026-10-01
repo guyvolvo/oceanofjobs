@@ -98,7 +98,7 @@ check("the since line carries the date", ">Since your last alert on Sep 19</div>
 check("four rows, 4px apart, no rules between them",
       h.count("padding:0 0 4px 0;") == 4 and "border-top" not in h)
 check("a company's own logo is loaded through this site, never from its server",
-      "wix.com/favicon.png" not in h and f'<img src="{alerts.SITE_ORIGIN}/api/logo/wix.com" width="48" height="48"' in h)
+      "wix.com/favicon.png" not in h and f'<img src="{alerts.SITE_ORIGIN}/logo/wix.com.png" width="48" height="48"' in h)
 check("a logo this site serves is shown in the tile",
       f'<img src="{alerts.SITE_ORIGIN}/img/logos/wix.png" width="48" height="48"' in h)
 check("no logo at all: the tile shows the company's letter, from the domain when there is no name",

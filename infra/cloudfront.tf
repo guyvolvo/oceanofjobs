@@ -246,6 +246,26 @@ resource "aws_cloudfront_cache_policy" "job_page" {
   }
 }
 
+# A company's logo (api/handler.py route_company_logo): the box fetches
+# it once from wherever the resolver found it, and from then on it is a
+# function of the domain alone. A week here, the same the box sends in
+# Cache-Control, so 20,000 companies' icons are served from the edge
+# and not from a 3.8GB box.
+resource "aws_cloudfront_cache_policy" "logo" {
+  name        = "${var.project_name}-logo-cache"
+  comment     = "Company logos: a week, keyed on the path alone"
+  default_ttl = 604800
+  min_ttl     = 0
+  max_ttl     = 2592000
+  parameters_in_cache_key_and_forwarded_to_origin {
+    cookies_config { cookie_behavior = "none" }
+    headers_config { header_behavior = "none" }
+    query_strings_config { query_string_behavior = "none" }
+    enable_accept_encoding_gzip   = false
+    enable_accept_encoding_brotli = false
+  }
+}
+
 resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   default_root_object = "index.html"
@@ -437,6 +457,26 @@ resource "aws_cloudfront_distribution" "main" {
     cached_methods         = ["GET", "HEAD"]
     cache_policy_id        = aws_cloudfront_cache_policy.job_page.id
     compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.legacy_domain_redirect.arn
+    }
+  }
+
+  # Company logos, outside /api/ on purpose. Cloudflare's rate limit
+  # covers /api/*, /job/* and /company/* at 60 requests per 10 seconds
+  # per address, and a board page shows fifty companies: a reader paging
+  # through the directory was blocked by their own logos (QA, 2026-10-01).
+  # Here the edge serves them, and a cold one costs the box one fetch.
+  ordered_cache_behavior {
+    path_pattern           = "/logo/*"
+    target_origin_id       = "box"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = aws_cloudfront_cache_policy.logo.id
+    compress               = false
 
     function_association {
       event_type   = "viewer-request"

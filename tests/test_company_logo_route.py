@@ -67,6 +67,10 @@ with tempfile.TemporaryDirectory() as td:
     r = handler.lambda_handler({"rawPath": "/api/logo/unknown.com", "rawQueryString": "",
                                 "requestContext": {"http": {"method": "GET"}}}, None) if False else None
     check("the route is wired under /api/logo/", 'path.startswith("/logo/")' in Path(ROOT / "api/handler.py").read_text(encoding="utf-8"))
+    src = Path(ROOT / "api/handler.py").read_text(encoding="utf-8")
+    check("and at /logo/<domain>.png outside the API prefix, where the rate limit does not reach",
+          'if path.startswith("/logo/") and len(path) > len("/logo/"):' in src
+          and src.index('path.startswith("/logo/") and len(path)') < src.index('if path.startswith("/api"):'))
 
 print()
 if failures:

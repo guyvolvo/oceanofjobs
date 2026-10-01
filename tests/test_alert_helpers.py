@@ -82,7 +82,7 @@ check("no columns and a full name: as it was", alerts.row_place({"location": "Ha
 # Logos: only ones this site serves.
 check("a logo on this site is used", alerts.hosted_logo({"logo_url": f"{alerts.SITE_ORIGIN}/img/logos/ubisoft.png"}))
 check("any other logo is served through this site's logo route",
-      alerts.hosted_logo({"logo_url": "https://www.wix.com/favicon.ico", "company_domain": "wix.com"}) == f"{alerts.SITE_ORIGIN}/api/logo/wix.com")
+      alerts.hosted_logo({"logo_url": "https://www.wix.com/favicon.ico", "company_domain": "wix.com"}) == f"{alerts.SITE_ORIGIN}/logo/wix.com.png")
 check("no logo at all is none", alerts.hosted_logo({"logo_url": None, "company_domain": "wix.com"}) is None)
 
 # The since line.

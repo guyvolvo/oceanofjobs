@@ -532,19 +532,20 @@ def age_label(job: dict, now: datetime) -> tuple[str, bool]:
 
 def hosted_logo(job: dict) -> str | None:
     """The company's logo, served from this site: one already here as it
-    is, any other through /api/logo/{domain} (api/handler.py's
-    route_company_logo), which fetches it once from where the resolver
-    found it and keeps it. A mail that loads images from thirty
-    companies' own servers is a mail that leaks who opened it to thirty
-    companies, and half of them 404 or block hot-linking anyway. No
-    logo at all is None, and the tile shows the company's letter."""
+    is, any other through /logo/{domain}.png (api/handler.py's
+    route_company_logo, cached at the edge for a week), which fetches
+    it once from where the resolver found it and keeps it. A mail that
+    loads images from thirty companies' own servers is a mail that
+    leaks who opened it to thirty companies, and half of them 404 or
+    block hot-linking anyway. No logo at all is None, and the tile
+    shows the company's letter."""
     url = (job.get("logo_url") or "").strip()
     if not url:
         return None
     if url.startswith(SITE_ORIGIN + "/"):
         return url
     domain = (job.get("company_domain") or "").strip().lower()
-    return f"{SITE_ORIGIN}/api/logo/{quote(domain)}" if domain else None
+    return f"{SITE_ORIGIN}/logo/{quote(domain)}.png" if domain else None
 
 
 def _first_place(job: dict, alert: dict | None) -> tuple[str, str]:
