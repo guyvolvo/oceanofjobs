@@ -554,7 +554,23 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
             for c in country_counts(country_limit)
         ]
 
-    companies = counts_by("company_domain", "company", 500)
+    # The company list ignores the company filter, so for a given set of
+    # other filters it is one answer; grouping every open row by company
+    # is a walk of the whole company index (10s idle, up to 100s under an
+    # apply), so that answer is kept per worker for half an hour, the
+    # way the directory's is.
+    from datetime import datetime, timezone
+    cscoped = {k: v for k, v in params.items() if k != "company" and v not in (None, "")}
+    ckey = ("facet-companies", tuple(sorted(cscoped.items())))
+    cnow = datetime.now(timezone.utc)
+    chit = _DIRECTORY_CACHE.get(ckey)
+    if chit and (cnow - chit[0]).total_seconds() < _DIRECTORY_TTL_S:
+        companies = chit[1]
+    else:
+        companies = counts_by("company_domain", "company", 500)
+        if len(_DIRECTORY_CACHE) > 64:
+            _DIRECTORY_CACHE.clear()
+        _DIRECTORY_CACHE[ckey] = (cnow, companies)
     # The name beside the count, so the rail and the overview's Hiring
     # most can say "NVIDIA" rather than "nvidia.com". One IN query over
     # the same companies table the rows read from; guarded on the column
