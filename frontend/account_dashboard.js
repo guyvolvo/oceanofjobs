@@ -37,7 +37,7 @@
     if (pts.length < 2) return "";
     const w = 90, h = 28, min = Math.min(...pts), max = Math.max(...pts), span = Math.max(1, max - min);
     const d = values.map((v, i) => `${i ? "L" : "M"}${(i / (values.length - 1) * w).toFixed(1)} ${(h - 3 - ((v - min) / span) * (h - 6)).toFixed(1)}`).join(" ");
-    const area = cls ? `<path class="acct-spark-area" d="${d} L${w} ${h} L0 ${h} Z"/>` : "";
+    const area = `<path class="acct-spark-area" d="${d} L${w} ${h} L0 ${h} Z"/>`;
     return `<svg class="acct-spark ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">${area}<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   }
 
