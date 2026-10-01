@@ -6642,9 +6642,13 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
 /* Folded: a 56px strip holding the mark and the button that unfolds it. */
 body.side-folded .board-shell { grid-template-columns: 56px minmax(0, 1fr); }
 body.side-folded .site-side { padding-left: 8px; overflow: hidden; }
-body.side-folded .side-group,
+body.side-folded .side-group:not(.side-nav),
 body.side-folded .side-foot,
 body.side-folded .side-brand span { display: none; }
+/* Folded, the site's links stay as their icons, one under another. */
+body.side-folded .side-nav { padding: 4px; }
+body.side-folded .side-nav a { justify-content: center; width: 32px; height: 32px; padding: 0; }
+body.side-folded .side-nav a span { display: none; }
 body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
 body.side-folded .side-fold svg { transform: rotate(180deg); }
 
@@ -6713,6 +6717,8 @@ body.side-folded .side-fold svg { transform: rotate(180deg); }
   font: 400 14px var(--font-ui);
   cursor: pointer;
 }
+.side-nav a { justify-content: flex-start; gap: 10px; }
+.side-nav a svg { flex: none; color: var(--black); }
 .side-nav a:hover,
 .site-side .view-switch .seg-btn:hover,
 .side-cat:hover { background: var(--row-hover); }
