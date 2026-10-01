@@ -7247,3 +7247,149 @@ table.jobs tbody tr.skeleton-row {
 .board-pills .rail-acc.open .rail-acc-head,
 .dir-pill[aria-expanded="true"],
 .dir-follow.on { border-color: var(--black); }
+
+
+/* The account page as a dashboard (October 2026): a greeting header
+   with the one action, the sections as tabs under it, and an overview
+   of the reader's own numbers. The side box it replaces is gone from
+   the markup; its rules above are harmless. */
+.account-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; }
+.acct-hero {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  padding: 6px 4px 0;
+}
+.acct-hero .acct-id-mark { width: 48px; height: 48px; font-size: 20px; }
+.acct-hero-text { min-width: 0; }
+.acct-hero-title { margin: 0; font: 500 clamp(22px, 2.4vw, 30px) var(--font-display); letter-spacing: -0.02em; line-height: 1.1; color: var(--black); }
+.acct-hero-sub { margin: 4px 0 0; font: 400 14px var(--font-ui); color: var(--grey); }
+.acct-hero-sub b { font-weight: 600; color: var(--black); }
+.acct-hero-sub a { color: var(--green-text); }
+.acct-hero-actions { display: flex; align-items: center; gap: 14px; }
+.acct-hero-actions .btn { height: 38px; }
+.acct-hero-actions .acct-signout { color: var(--grey); }
+/* The tab strip: a row of pills, the open one inked. */
+.acct-tabs,
+.account-nav.acct-tabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+}
+.acct-tabs .account-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--black) 40%, transparent);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--black);
+  font: 500 13px var(--font-ui);
+  text-decoration: none;
+}
+.acct-tabs .account-nav-link:hover { background: var(--hover-bg); }
+.acct-tabs .account-nav-link.active { background: var(--black); border-color: var(--black); color: var(--white); box-shadow: none; }
+.acct-tabs .account-nav-link.active .account-nav-count { color: var(--white); }
+.acct-tabs .account-nav-count { font: 400 12px var(--font); color: inherit; opacity: 0.7; }
+.acct-tabs .account-nav-count[data-zero="1"] { display: none; }
+.account-back { display: none; }
+
+/* The four numbers. */
+.acct-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.acct-stat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 108px;
+  padding: 14px 16px;
+  border: 1px solid var(--grey-line);
+  border-radius: 10px;
+  background: var(--hover-bg);
+}
+.acct-stat-label { font: 500 13px var(--font); color: var(--black); }
+.acct-stat-value { font: 500 30px var(--font-display); letter-spacing: -0.02em; line-height: 1; color: var(--black); font-variant-numeric: tabular-nums; }
+.acct-stat-sub { font: 400 12px var(--font); color: var(--grey); }
+.acct-stat-sub a { color: var(--green-text); }
+/* The one green tile: what is new. */
+.acct-stat-green .acct-stat-value { color: var(--green-text); }
+.acct-spark { position: absolute; right: 14px; bottom: 14px; width: 90px; height: 28px; color: var(--grey); overflow: visible; }
+.acct-stat-green .acct-spark { color: var(--green-text); }
+
+.acct-dash-row { display: grid; gap: 24px; margin-top: 20px; align-items: start; }
+.acct-dash-market { grid-template-columns: 1.7fr 1fr; }
+.acct-dash-bottom { grid-template-columns: 1.3fr 1fr 1fr; }
+.acct-panel-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.acct-panel-sub { font: 400 12px var(--font); color: var(--grey); }
+.acct-range { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--grey-line); border-radius: 999px; }
+.acct-range button { height: 24px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: var(--grey); font: 500 12px var(--font-ui); cursor: pointer; }
+.acct-range button.on { background: var(--black); color: var(--white); }
+
+/* The market chart. The bars are the arrivals, the line what is open;
+   today's bar is the one green. */
+.acct-chart { position: relative; }
+.acct-market-svg { display: block; width: 100%; height: 220px; }
+.acct-grid { stroke: var(--grey-line); stroke-width: 1; }
+.acct-axis { font: 400 10px var(--font); fill: var(--grey); }
+.acct-bar { fill: color-mix(in srgb, var(--black) 28%, transparent); }
+.acct-bar.today { fill: var(--green); }
+.acct-line { stroke: var(--black); stroke-width: 1.5; stroke-linejoin: round; }
+.acct-cursor line { stroke: var(--grey-line); stroke-width: 1; }
+.acct-cursor circle { fill: var(--black); }
+.acct-cursor[hidden] { display: none; }
+.acct-tip { position: absolute; top: 8px; padding: 4px 8px; border: 1px solid var(--grey-line); border-radius: 4px; background: var(--white); font: 400 12px var(--font); color: var(--black); white-space: nowrap; pointer-events: none; }
+.acct-tip[hidden] { display: none; }
+.acct-legend { display: flex; gap: 16px; margin-top: 6px; font: 400 12px var(--font); color: var(--grey); }
+.acct-legend > span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
+.acct-legend-line::before { height: 2px !important; vertical-align: 3px !important; background: var(--black); }
+.acct-legend-bar::before { background: color-mix(in srgb, var(--black) 28%, transparent); }
+.acct-legend-today::before { background: var(--green); }
+
+/* Skills against demand. A skill the reader does not list is dashed. */
+.acct-demand { display: flex; flex-direction: column; gap: 8px; }
+.acct-demand-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 44px; align-items: center; column-gap: 10px; min-height: 22px; font: 400 13px var(--font); color: var(--black); }
+.acct-demand-name { display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-demand-track { height: 8px; border-radius: 2px; background: var(--hover-bg); overflow: hidden; }
+.acct-demand-fill { display: block; height: 100%; background: var(--black); }
+.acct-demand-row.suggested .acct-demand-track { background: none; border: 1px dashed var(--grey); }
+.acct-demand-row.suggested .acct-demand-fill { background: color-mix(in srgb, var(--black) 30%, transparent); }
+.acct-demand-n { text-align: right; color: var(--grey); font-variant-numeric: tabular-nums; }
+.acct-add { height: 20px; padding: 0 8px; border: 1px solid var(--green-text); border-radius: 999px; background: none; color: var(--green-text); font: 500 11px var(--font-ui); cursor: pointer; }
+.acct-add:hover { background: var(--green-text); color: var(--white); }
+.acct-note b { color: var(--black); }
+
+/* Pay: a histogram, the middle half filled, the median marked. */
+.acct-pay-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.acct-pay-value { font: 500 28px var(--font-display); letter-spacing: -0.02em; color: var(--black); }
+.acct-pay-sub { font: 400 12px var(--font); color: var(--grey); }
+.acct-pay-svg { display: block; width: 100%; height: 70px; margin-top: 10px; overflow: visible; }
+.acct-pay-bar { fill: color-mix(in srgb, var(--black) 18%, transparent); }
+.acct-pay-bar.mid { fill: color-mix(in srgb, var(--black) 55%, transparent); }
+.acct-pay-median { stroke: var(--green); stroke-width: 2; }
+.acct-pay-foot { display: flex; justify-content: space-between; margin-top: 4px; font: 400 11px var(--font); color: var(--grey); }
+
+/* The activity list. */
+.acct-activity { display: flex; flex-direction: column; }
+.acct-act { display: grid; grid-template-columns: 72px minmax(0, 1fr); column-gap: 10px; padding: 8px 0; border-top: 1px solid var(--grey-line); font: 400 13px var(--font); color: var(--black); }
+.acct-act:first-child { border-top: 0; }
+.acct-act-when { color: var(--grey); white-space: nowrap; }
+.acct-act-sub { color: var(--grey); }
+
+@media (max-width: 960px) {
+  .acct-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .acct-dash-market, .acct-dash-bottom { grid-template-columns: minmax(0, 1fr); }
+  .acct-hero { grid-template-columns: 40px minmax(0, 1fr); }
+  .acct-hero .acct-id-mark { width: 40px; height: 40px; font-size: 16px; }
+  .acct-hero-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (max-width: 640px) {
+  .acct-stats { grid-template-columns: minmax(0, 1fr); }
+  .acct-market-svg { height: 180px; }
+}

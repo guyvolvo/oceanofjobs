@@ -63,6 +63,10 @@ function cadenceSummary() {
 // They are set wherever the block they count gets filled, rather than by
 // a request that asks for totals.
 const counts = { skills: 0, alerts: 0, saved: 0 };
+// What the saved list loaded, for the overview (account_dashboard.js):
+// the rows with when each was saved, and the listings themselves.
+let dashSavedRows = [];
+let dashSavedJobs = [];
 
 function setCount(key, n) {
   counts[key] = n;
@@ -846,7 +850,8 @@ async function loadSaved() {
   let ids = [];
   try {
     const data = await authedFetch("/me/saved");
-    ids = (data.saved || []).map((r) => r.job_id).filter(Boolean);
+    dashSavedRows = data.saved || [];
+    ids = dashSavedRows.map((r) => r.job_id).filter(Boolean);
   } catch {
     host.innerHTML = '<p class="alerts-empty">Could not load your saved listings.</p>';
     return;
@@ -877,6 +882,7 @@ async function loadSaved() {
 }
 
 function paintSaved(jobs) {
+  dashSavedJobs = jobs;
   const host = $("saved-list");
   host.innerHTML = jobs.map((j) => {
     const where = [j.company_name || (j.company_domain || "").replace(/\.invalid$/, ""), j.location].filter(Boolean).join(" · ");
@@ -1079,6 +1085,8 @@ async function bootAccount() {
   // list empty, which reads as "my data is gone" rather than "you are
   // signed out".
   if (!getAuthTokens()?.id_token) showSignedOut();
+  // The overview's own numbers, once the three lists it reads are in.
+  if (window.paintDashboard) paintDashboard();
 }
 
 function showSignedOut() {
