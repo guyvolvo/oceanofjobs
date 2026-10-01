@@ -646,20 +646,57 @@ def wanted_country_codes(params: dict) -> list[str]:
 # the filter narrows, exactly as a stale country code does, instead of
 # erroring the board out.
 MAX_CITIES_FILTER = 20
+CITY_IN_COUNTRY_RE = re.compile(r"^([A-Za-z]{2}):(.+)$")
 
 
-def wanted_cities(params: dict) -> list[str]:
-    out: list[str] = []
+def wanted_city_pairs(params: dict) -> list[tuple]:
+    """(country code or None, city name) for each city asked for.
+
+    A city can be written with its country, "AR:Buenos Aires", and then
+    means that city in that country alone. The board writes every city
+    this way since October 2026: there is a Buenos Aires in Argentina,
+    Bolivia and Brazil, and a bare name matched all three, which is
+    what made ticking one tick the others (reported 2026-10-01). A bare
+    name still means the city in any country, for links and saved
+    alerts from before.
+    """
+    out: list[tuple] = []
     for part in (params.get("city") or "").split(","):
         name = part.strip()
+        code = None
+        m = CITY_IN_COUNTRY_RE.match(name)
+        if m and m.group(1).upper() in ALPHA2:
+            code, name = m.group(1).upper(), m.group(2).strip()
         # The comma test cannot fire while the input is split on commas.
         # It is written anyway so this stays correct if a caller ever
         # hands the names over already split.
         if not name or "," in name or "%" in name or "_" in name:
             continue
+        if (code, name) not in out:
+            out.append((code, name))
+    return out[:MAX_CITIES_FILTER]
+
+
+def city_clauses(pairs: list) -> tuple:
+    """The SQL for a list of (code, name) pairs: one clause each, ORed."""
+    clauses, args = [], []
+    for code, name in pairs:
+        if code:
+            clauses.append("((',' || COALESCE(country, '') || ',') LIKE ? AND (',' || COALESCE(city, '') || ',') LIKE ?)")
+            args += [f"%,{code},%", f"%,{name},%"]
+        else:
+            clauses.append("(',' || COALESCE(city, '') || ',') LIKE ?")
+            args.append(f"%,{name},%")
+    return " OR ".join(clauses), args
+
+
+def wanted_cities(params: dict) -> list[str]:
+    """The city names alone, for callers that only need to know which."""
+    out: list[str] = []
+    for _, name in wanted_city_pairs(params):
         if name not in out:
             out.append(name)
-    return out[:MAX_CITIES_FILTER]
+    return out
 
 
 # The job ids a caller asked for.
@@ -842,7 +879,7 @@ def build_jobs_where(params: dict, has_fts=False,
             args.extend(f"%,{s},%" for s in wanted)
 
     wanted_countries = wanted_country_codes(params) if places else []
-    wanted_city_names = wanted_cities(params) if places else []
+    wanted_city_names = wanted_city_pairs(params) if places else []
     prows = place_rowset.get()
     if prows and (wanted_countries or wanted_city_names)             and not bool_param(params, "include_closed")             and prows[1] == (tuple(wanted_countries), tuple(wanted_city_names)):
         where.append(f"jobs.rowid IN (SELECT rid FROM temp.{prows[0]})")
@@ -866,10 +903,12 @@ def build_jobs_where(params: dict, has_fts=False,
         #
         # Combined with country by AND, like every other filter here, so
         # country=IL&city=Haifa asks for both and a Haifa in some other
-        # country would not answer it.
-        clauses = " OR ".join("(',' || COALESCE(city, '') || ',') LIKE ?" for _ in wanted_city_names)
+        # country would not answer it. A city written with its own
+        # country, "AR:Buenos Aires", is ANDed with that country inside
+        # its clause, so two such cities in two countries still OR.
+        clauses, city_args = city_clauses(wanted_city_names)
         where.append(f"({clauses})")
-        args.extend(f"%,{c},%" for c in wanted_city_names)
+        args.extend(city_args)
 
     if params.get("search"):
         # "any" collects each term's clause and ORs them at the end;

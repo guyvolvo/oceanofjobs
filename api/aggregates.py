@@ -230,11 +230,11 @@ def place_rows(conn, params: dict):
     it instead of repeating the LIKE scans (see job_filters.place_rowset).
     One scan of the open jobs up front, rather than one per count."""
     import uuid
-    from job_filters import place_rowset, wanted_cities, wanted_country_codes
+    from job_filters import city_clauses, place_rowset, wanted_city_pairs, wanted_country_codes
 
     places = has_places(conn)
     countries = wanted_country_codes(params) if places else []
-    cities = wanted_cities(params) if places else []
+    cities = wanted_city_pairs(params) if places else []
     if not (countries or cities) or bool_param(params, "include_closed"):
         yield
         return
@@ -243,8 +243,9 @@ def place_rows(conn, params: dict):
         where.append("(" + " OR ".join("(',' || COALESCE(country, '') || ',') LIKE ?" for _ in countries) + ")")
         args += [f"%,{c},%" for c in countries]
     if cities:
-        where.append("(" + " OR ".join("(',' || COALESCE(city, '') || ',') LIKE ?" for _ in cities) + ")")
-        args += [f"%,{c},%" for c in cities]
+        clauses, city_args = city_clauses(cities)
+        where.append(f"({clauses})")
+        args += city_args
     name = "place_rows_" + uuid.uuid4().hex[:12]
     conn.execute(f"CREATE TEMP TABLE {name} AS SELECT rowid AS rid FROM jobs WHERE {' AND '.join(where)}", args)
     token = place_rowset.set((name, (tuple(countries), tuple(cities))))

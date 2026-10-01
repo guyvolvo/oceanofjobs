@@ -671,7 +671,7 @@ function activeFilterSummary() {
   if (state.seniority.length) parts.push(state.seniority.map((s) => SENIORITY_LABELS[s] || s).join(", "));
   if (state.company.length) parts.push(state.company.join(", "));
   if (state.country.length) parts.push(state.country.map(countryLabel).join(", "));
-  if (state.city.length) parts.push(state.city.join(", "));
+  if (state.city.length) parts.push(state.city.map(cityName).join(", "));
   if (state.workplace.length) parts.push(state.workplace.map((w) => WORKPLACE_LABELS[w] || w).join(", "));
   if (state.skills.length) parts.push(`${state.skills.length} CV skill${state.skills.length === 1 ? "" : "s"}`);
   if (state.max_age_days) parts.push(`posted in the last ${state.max_age_days} days`);
@@ -1889,7 +1889,7 @@ function lastAppliedFilter() {
     ["search", () => state.search, () => { state.search = ""; setSearchBox(""); }, () => `"${state.search}"`],
     ["max_age_days", () => state.max_age_days, () => { state.max_age_days = 0; const el = document.getElementById("f-date-posted"); if (el) el.value = ""; }, () => `posted in the last ${state.max_age_days} days`],
     ["workplace", () => state.workplace.length, () => { state.workplace = []; }, () => state.workplace.map((w) => WORKPLACE_LABELS[w] || w).join(", ")],
-    ["city", () => state.city.length, () => { state.city = []; }, () => state.city.join(", ")],
+    ["city", () => state.city.length, () => { state.city = []; }, () => state.city.map(cityName).join(", ")],
     ["country", () => state.country.length, () => { state.country = []; }, () => state.country.map(countryLabel).join(", ")],
     ["company", () => state.company.length, () => { state.company = []; }, () => state.company.join(", ")],
     ["seniority", () => state.seniority.length, () => { state.seniority = []; }, () => state.seniority.map((x) => SENIORITY_LABELS[x] || x).join(", ")],
@@ -4050,7 +4050,7 @@ function railAccordionSummary(acc) {
     if (part === "location") {
       const countries = railFacets.locations || [];
       bits.push(...state.country.map((c) => (countries.find((x) => x.value === c) || {}).label || c));
-      bits.push(...state.city);
+      bits.push(...state.city.map(cityName));
     }
     if (part === "company") bits.push(...state.company.map((d) => companyNameFor(d)));
     if (part === "salary") {
@@ -4195,6 +4195,13 @@ function railSearchHtml(group) {
             aria-label="${escapeHtml(group.search)}" autocomplete="off" />`;
 }
 
+// A city filter names its country: "AR:Buenos Aires". There is a
+// Buenos Aires in Argentina, Bolivia and Brazil, and a bare name ticked
+// all three at once (reported 2026-10-01). The API reads the pair.
+const cityKey = (country, city) => `${country.value}:${city.value}`;
+const cityCountry = (v) => (/^[A-Z]{2}:/.test(v) ? v.slice(0, 2) : null);
+const cityName = (v) => v.replace(/^[A-Z]{2}:/, "");
+
 // Location: countries, each with its own cities under it
 //
 // Several countries can be on at once and each is its own block, so
@@ -4214,7 +4221,7 @@ function railCountryBlocks() {
   // country that is on, with a Show all under them: the way the other
   // groups work, so a reader sees where the roles are before typing.
   // The facet lists up to sixty.
-  const onAlready = (c) => picked.has(c.value) || (c.cities || []).some((t) => cities.has(t.value));
+  const onAlready = (c) => picked.has(c.value) || (c.cities || []).some((t) => cities.has(cityKey(c, t)));
   const listed = new Set((railExpanded.has("location") ? countries : countries.slice(0, RAIL_TOP_N)).map((c) => c.value));
   // What is on comes first, whatever its size: it is the reason the
   // list is being looked at.
@@ -4225,7 +4232,7 @@ function railCountryBlocks() {
     if (q && !countryHit && !cityHits.length) continue;
     if (!q && !listed.has(c.value) && !onAlready(c)) continue;
 
-    const mine = all.filter((t) => cities.has(t.value));
+    const mine = all.filter((t) => cities.has(cityKey(c, t)));
     // A search opens what it found. Closing a country by hand still
     // wins, so typing does not fight a reader who just collapsed one.
     // A country that is merely listed starts folded, and the same
@@ -4235,7 +4242,7 @@ function railCountryBlocks() {
     const pool = q && cityHits.length ? cityHits : all;
     const top = railExpanded.has(`city:${c.value}`) || q ? pool : pool.slice(0, RAIL_TOP_N);
     const shownValues = new Set(top.map((t) => t.value));
-    const shown = [...top, ...all.filter((t) => cities.has(t.value) && !shownValues.has(t.value))];
+    const shown = [...top, ...all.filter((t) => cities.has(cityKey(c, t)) && !shownValues.has(t.value))];
 
     blocks.push(`
       <div class="rail-country${open ? " open" : ""}">
@@ -4255,8 +4262,8 @@ function railCountryBlocks() {
         ${open
           ? `<div class="rail-cities">
                ${shown.map((t, i) => railOptionHtml({
-                 kind: "city", value: t.value, label: t.label || t.value, n: t.n,
-                 checked: cities.has(t.value), mark: q,
+                 kind: "city", value: cityKey(c, t), label: t.label || t.value, n: t.n,
+                 checked: cities.has(cityKey(c, t)), mark: q,
                  cls: "rail-city" + (i === shown.length - 1 ? " last" : ""),
                })).join("")}
                ${!q && pool.length > RAIL_TOP_N
@@ -4686,19 +4693,17 @@ function railToggle(kind, value, on) {
   } else if (kind === "country") {
     // Clicking a country's own box is a claim about the whole country,
     // so it clears whatever cities were narrowing it.
-    const home = (railFacets.locations || []).find((c) => c.value === value);
-    const theirs = new Set((home?.cities || []).map((t) => t.value));
-    state.city = state.city.filter((t) => !theirs.has(t));
+    state.city = state.city.filter((t) => cityCountry(t) !== value);
     state.country = on ? [...new Set([...state.country, value])] : state.country.filter((v) => v !== value);
   } else if (kind === "city") {
     state.city = on ? [...new Set([...state.city, value])] : state.city.filter((v) => v !== value);
     // A city belongs to its country, and the API ANDs the two, so
     // picking Tel Aviv without IL asks for nothing. The country goes on
     // with it and shows a dash rather than a tick.
-    const home = (railFacets.locations || []).find((c) => (c.cities || []).some((t) => t.value === value));
+    const home = (railFacets.locations || []).find((c) => c.value === cityCountry(value));
     if (on && home && !state.country.includes(home.value)) state.country = [...state.country, home.value];
     if (!on && home) {
-      const left = (home.cities || []).some((t) => state.city.includes(t.value));
+      const left = state.city.some((t) => cityCountry(t) === home.value);
       // The last city out of a country leaves the country itself on,
       // which is the honest reading of "I was looking here".
       if (!left && !state.country.includes(home.value)) state.country = [...state.country, home.value];
@@ -4839,9 +4844,8 @@ function activeChips() {
   // so a country only gets a chip when no city has narrowed it.
   const narrowed = new Set();
   for (const city of state.city) {
-    const home = (railFacets.locations || []).find((c) => (c.cities || []).some((t) => t.value === city));
-    if (home) narrowed.add(home.value);
-    chips.push({ kind: "city", value: city, text: city });
+    if (cityCountry(city)) narrowed.add(cityCountry(city));
+    chips.push({ kind: "city", value: city, text: cityName(city) });
   }
   for (const code of state.country) {
     if (narrowed.has(code)) continue;
