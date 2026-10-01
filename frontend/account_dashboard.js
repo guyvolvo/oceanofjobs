@@ -72,6 +72,20 @@
     try { return await getJSON(`/jobs/history?${q}`); } catch { return null; }
   }
 
+  // The card grows when the panel beside it fills in, and shrinks on a
+  // narrower window; the drawing follows its box either way.
+  let marketResize = null, marketDrawn = "", marketWatch = null;
+  function watchMarket(host) {
+    if (marketWatch || typeof ResizeObserver === "undefined") return;
+    marketWatch = new ResizeObserver(() => {
+      const r = host.getBoundingClientRect();
+      if (`${Math.round(r.width)}x${Math.round(r.height)}` === marketDrawn) return;
+      clearTimeout(marketResize);
+      marketResize = setTimeout(() => { if (history) drawMarket(); }, 120);
+    });
+    marketWatch.observe(host);
+  }
+
   function drawMarket() {
     const host = document.getElementById("acct-market");
     if (!host) return;
@@ -81,7 +95,11 @@
     }
     // 24h is yesterday to today: the record is daily.
     const days = history.days.slice(-(range === 1 ? 2 : range));
-    const W = 640, H = 220, L = 44, R = 12, T = 14, B = 26;
+    const box = host.getBoundingClientRect();
+    const W = Math.max(320, Math.round(box.width || host.clientWidth || 640)), H = Math.max(160, Math.round(box.height || host.clientHeight || 220));
+    const L = 44, R = 12, T = 14, B = 26;
+    marketDrawn = `${W}x${H}`;
+    watchMarket(host);
     const iw = W - L - R, ih = H - T - B;
     const maxOpen = Math.max(1, ...days.map((d) => d.open));
     const minOpen = Math.min(...days.map((d) => d.open));
@@ -95,7 +113,7 @@
     const area = `${line} L${x(days.length - 1).toFixed(1)} ${T + ih} L${x(0).toFixed(1)} ${T + ih} Z`;
     const ticks = [0, 0.5, 1].map((f) => `<text class="acct-axis" x="${L - 6}" y="${(T + ih - f * ih + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(minOpen + span * f))}</text>`).join("");
     const first = days[0].day, last = days[days.length - 1].day;
-    host.innerHTML = `<svg class="acct-market-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Open roles matching your background over ${days.length} days, ${fmt(days[0].open)} to ${fmt(days[days.length - 1].open)}">
+    host.innerHTML = `<svg class="acct-market-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Open roles matching your background over ${days.length} days, ${fmt(days[0].open)} to ${fmt(days[days.length - 1].open)}">
       <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih}" y2="${T + ih}"/>
       <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih / 2}" y2="${T + ih / 2}"/>
       ${ticks}
