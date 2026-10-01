@@ -59,7 +59,7 @@
 
   // ---- the market ----
   let history = null;
-  let range = 30;
+  let range = 7;
   async function loadHistory() {
     const { skills, country, min } = matchScope();
     if (!skills.length) return null;
@@ -75,23 +75,27 @@
       host.innerHTML = `<p class="acct-matches-empty">${draft.skills.length ? "Could not load the market." : "Add skills to see your market."}</p>`;
       return;
     }
-    const days = history.days.slice(-range);
+    // 24h is yesterday to today: the record is daily.
+    const days = history.days.slice(-(range === 1 ? 2 : range));
     const W = 640, H = 220, L = 44, R = 12, T = 14, B = 26;
     const iw = W - L - R, ih = H - T - B;
     const maxOpen = Math.max(1, ...days.map((d) => d.open));
-    const maxNew = Math.max(1, ...days.map((d) => d.new));
+    const minOpen = Math.min(...days.map((d) => d.open));
     const x = (i) => L + (days.length === 1 ? iw / 2 : i / (days.length - 1) * iw);
-    const yOpen = (v) => T + ih - (v / maxOpen) * ih;
-    const yNew = (v) => T + ih - (v / maxNew) * ih * 0.5;
-    const bw = Math.max(2, Math.min(14, iw / days.length * 0.6));
-    const bars = days.map((d, i) => `<rect class="acct-bar${i === days.length - 1 ? " today" : ""}" x="${(x(i) - bw / 2).toFixed(1)}" y="${yNew(d.new).toFixed(1)}" width="${bw.toFixed(1)}" height="${(T + ih - yNew(d.new)).toFixed(1)}" rx="1"/>`).join("");
+    // The line sits on the range the numbers occupy, the way the tiles'
+    // sparklines do, so a day's move is visible rather than a flat line
+    // over a tall axis.
+    const span = Math.max(1, maxOpen - minOpen);
+    const yOpen = (v) => T + ih - ((v - minOpen) / span) * ih;
     const line = days.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${yOpen(d.open).toFixed(1)}`).join(" ");
-    const ticks = [0, 0.5, 1].map((f) => `<text class="acct-axis" x="${L - 6}" y="${(T + ih - f * ih + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(maxOpen * f))}</text>`).join("");
+    const area = `${line} L${x(days.length - 1).toFixed(1)} ${T + ih} L${x(0).toFixed(1)} ${T + ih} Z`;
+    const ticks = [0, 0.5, 1].map((f) => `<text class="acct-axis" x="${L - 6}" y="${(T + ih - f * ih + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(minOpen + span * f))}</text>`).join("");
     const first = days[0].day, last = days[days.length - 1].day;
     host.innerHTML = `<svg class="acct-market-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Open roles matching your background over ${days.length} days, ${fmt(days[0].open)} to ${fmt(days[days.length - 1].open)}">
       <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih}" y2="${T + ih}"/>
       <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih / 2}" y2="${T + ih / 2}"/>
-      ${ticks}${bars}
+      ${ticks}
+      <path class="acct-area" d="${area}"/>
       <path class="acct-line" d="${line}" fill="none"/>
       <text class="acct-axis" x="${L}" y="${H - 8}">${dayLabel(first)}</text><text class="acct-axis" x="${W - R}" y="${H - 8}" text-anchor="end">${dayLabel(last)}</text>
       <g class="acct-cursor" hidden><line x1="0" x2="0" y1="${T}" y2="${T + ih}"/><circle r="3.5"/></g>

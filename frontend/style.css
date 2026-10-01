@@ -7358,8 +7358,7 @@ table.jobs tbody tr.skeleton-row {
 .acct-market-svg { display: block; width: 100%; height: 220px; }
 .acct-grid { stroke: var(--grey-line); stroke-width: 1; }
 .acct-axis { font: 400 10px var(--font); fill: var(--grey); }
-.acct-bar { fill: color-mix(in srgb, var(--black) 28%, transparent); }
-.acct-bar.today { fill: var(--green); }
+.acct-area { fill: var(--black); opacity: 0.12; }
 .acct-line { stroke: var(--black); stroke-width: 1.5; stroke-linejoin: round; }
 .acct-cursor line { stroke: var(--grey-line); stroke-width: 1; }
 .acct-cursor circle { fill: var(--black); }
@@ -7369,8 +7368,6 @@ table.jobs tbody tr.skeleton-row {
 .acct-legend { display: flex; gap: 16px; margin-top: 6px; font: 400 12px var(--font); color: var(--grey); }
 .acct-legend > span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
 .acct-legend-line::before { height: 2px !important; vertical-align: 3px !important; background: var(--black); }
-.acct-legend-bar::before { background: color-mix(in srgb, var(--black) 28%, transparent); }
-.acct-legend-today::before { background: var(--green); }
 
 /* Skills against demand. A skill the reader does not list is dashed. */
 .acct-demand { display: flex; flex-direction: column; gap: 8px; }
