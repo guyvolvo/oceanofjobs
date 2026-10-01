@@ -24,7 +24,7 @@ from pathlib import Path
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -1290,6 +1290,21 @@ _LOGO_CACHE_DIR = Path(os.environ.get("LOGO_CACHE_DIR", "/var/lib/otj/logo-cache
 _LOGO_MAX_BYTES = 2 * 1024 * 1024
 _LOGO_TTL_S = 7 * 24 * 3600
 _LOGO_MISS_TTL_S = 24 * 3600
+_LOGO_MISS = "miss:2"  # bumped when the route learns a new place to look
+
+
+def _real_icon(got: tuple[str, bytes] | None) -> tuple[str, bytes] | None:
+    """A fetched image, unless it is Google's 16x16 "nothing found"
+    placeholder: a PNG's IHDR carries its size at bytes 16 to 24."""
+    if not got:
+        return None
+    ct, body = got
+    if body[:8] == b"\x89PNG\r\n\x1a\n" and len(body) >= 24:
+        w = int.from_bytes(body[16:20], "big")
+        h = int.from_bytes(body[20:24], "big")
+        if w == 16 and h == 16:
+            return None
+    return got
 
 
 def _fetch_logo(url: str) -> tuple[str, bytes] | None:
@@ -1337,24 +1352,36 @@ def route_company_logo(domain: str, conn=None, fetch=None, cache_dir: Path | Non
         if meta.exists():
             age = now - meta.stat().st_mtime
             ct = meta.read_text(encoding="utf-8").strip()
-            if ct == "miss" and age < _LOGO_MISS_TTL_S:
+            # A miss is marked with the code's own version, so a miss
+            # from before the Google fallback below existed is retried.
+            if ct == _LOGO_MISS and age < _LOGO_MISS_TTL_S:
                 return _response(404, json.dumps({"error": "no logo"}))
-            if ct != "miss" and age < _LOGO_TTL_S and blob.exists():
+            if not ct.startswith("miss") and age < _LOGO_TTL_S and blob.exists():
                 return _logo_response(ct, blob.read_bytes())
     except OSError:
         pass
 
     conn = conn or get_connection()
     row = conn.execute("SELECT logo_url FROM companies WHERE domain = ?", (domain,)).fetchone()
-    url = (row[0] if row else None) or ""
-    got = (fetch or _fetch_logo)(url) if url.startswith(("http://", "https://")) else None
+    if row is None:
+        return _response(404, json.dumps({"error": "no such company"}))
+    url = row[0] or ""
+    get = fetch or _fetch_logo
+    got = get(url) if url.startswith(("http://", "https://")) else None
+    # The resolved URL can refuse a server: HelloFresh's icon answers 403
+    # to anything that is not a browser (2026-10-01), and the board used
+    # to load it from the browser. Google's favicon service is a neutral
+    # host that has most of them; its "nothing found" answer is a 16x16
+    # placeholder served as a success, so that size is read as a miss.
+    if not got:
+        got = _real_icon(get(f"https://www.google.com/s2/favicons?domain={quote(domain)}&sz=64"))
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
         if got:
             blob.write_bytes(got[1])
             meta.write_text(got[0], encoding="utf-8")
         else:
-            meta.write_text("miss", encoding="utf-8")
+            meta.write_text(_LOGO_MISS, encoding="utf-8")
     except OSError:
         pass
     if not got:

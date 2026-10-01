@@ -30,17 +30,30 @@ def check(name, ok, detail=""):
         failures.append(name)
 
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 40
+def png(w, h):
+    """The first 24 bytes of a PNG: the signature and an IHDR with its size."""
+    return b"\x89PNG\r\n\x1a\n" + (13).to_bytes(4, "big") + b"IHDR" + w.to_bytes(4, "big") + h.to_bytes(4, "big") + b"x" * 20
+
+
+PNG = png(64, 64)
 conn = sqlite3.connect(":memory:")
 conn.execute("CREATE TABLE companies (domain TEXT, logo_url TEXT)")
 conn.executemany("INSERT INTO companies VALUES (?, ?)", [
-    ("wix.com", "https://www.wix.com/favicon.png"), ("nologo.com", None), ("dead.com", "https://dead.com/x.png")])
+    ("wix.com", "https://www.wix.com/favicon.png"), ("nologo.com", None), ("dead.com", "https://dead.com/x.png"),
+    ("hellofresh.com", "https://www.hellofresh.com/favicons/hellofresh.ico"), ("obscure.com", None)])
 fetched = []
 
 
 def fetch(url):
     fetched.append(url)
-    return ("image/png", PNG) if "wix" in url else None
+    if "wix" in url:
+        return ("image/png", PNG)
+    # Google's favicon service: HelloFresh's real mark, a placeholder for the rest.
+    if url.startswith("https://www.google.com/s2/favicons?domain=hellofresh.com"):
+        return ("image/png", png(64, 64))
+    if url.startswith("https://www.google.com/s2/favicons"):
+        return ("image/png", png(16, 16))
+    return None
 
 
 with tempfile.TemporaryDirectory() as td:
@@ -55,11 +68,23 @@ with tempfile.TemporaryDirectory() as td:
     r3 = handler.route_company_logo("wix.com.png", conn=conn, fetch=fetch, cache_dir=cache)
     check("a .png suffix is tolerated", r3["statusCode"] == 200 and len(fetched) == 1)
     r = handler.route_company_logo("nologo.com", conn=conn, fetch=fetch, cache_dir=cache)
-    check("a company with no logo is a 404 and nothing is fetched", r["statusCode"] == 404 and len(fetched) == 1)
+    check("a company with no logo asks Google alone, and its placeholder is a 404",
+          r["statusCode"] == 404 and len(fetched) == 2 and fetched[-1].startswith("https://www.google.com/s2/favicons?domain=nologo.com"))
     r = handler.route_company_logo("dead.com", conn=conn, fetch=fetch, cache_dir=cache)
     r = handler.route_company_logo("dead.com", conn=conn, fetch=fetch, cache_dir=cache)
-    check("a URL that gives no image is a 404, asked once and then remembered",
-          r["statusCode"] == 404 and fetched.count("https://dead.com/x.png") == 1)
+    check("a URL that gives no image falls back to Google, and a miss is asked once and then remembered",
+          r["statusCode"] == 404 and fetched.count("https://dead.com/x.png") == 1
+          and sum(u.startswith("https://www.google.com/s2/favicons?domain=dead.com") for u in fetched) == 1)
+    r = handler.route_company_logo("hellofresh.com", conn=conn, fetch=fetch, cache_dir=cache)
+    check("a host that refuses the box is served from Google's copy of its mark",
+          r["statusCode"] == 200 and base64.b64decode(r["body"]) == png(64, 64)
+          and fetched[-2] == "https://www.hellofresh.com/favicons/hellofresh.ico", repr(r)[:120])
+    import hashlib
+    old = cache / (hashlib.sha1(b"obscure.com").hexdigest() + ".ct")
+    old.write_text("miss", encoding="utf-8")
+    before = len(fetched)
+    handler.route_company_logo("obscure.com", conn=conn, fetch=fetch, cache_dir=cache)
+    check("a miss written before the Google fallback existed is retried", len(fetched) == before + 1)
     r = handler.route_company_logo("unknown.com", conn=conn, fetch=fetch, cache_dir=cache)
     check("a domain not on the board is a 404", r["statusCode"] == 404)
     r = handler.route_company_logo("../etc/passwd", conn=conn, fetch=fetch, cache_dir=cache)
