@@ -141,15 +141,15 @@
     const body = $("#dir-rows");
     if (!directory) {
       $("#dir-count").innerHTML = bone("240px", 14);
-      $("#dir-sub").innerHTML = bone("200px");
+      $("#dir-sub").textContent = "";
       body.innerHTML = boneList(10);
       return;
     }
     const list = rows();
-    const total = list.reduce((s, r) => s + (r.n || 0), 0);
-    const fresh = list.reduce((s, r) => s + (r.new_7d || 0), 0);
-    $("#dir-count").textContent = `${fmt(list.length)} companies hiring${where()}`;
-    $("#dir-sub").textContent = list.length ? `1–${Math.min(state.shown, list.length)} · ${fmt(total)} open roles between them, ${fmt(fresh)} new this week` : "";
+    $("#dir-count").textContent = state.view === "following"
+      ? `${fmt(list.length)} companies you follow${where()}`
+      : `Top ${fmt(list.length)} companies by open jobs${where()}`;
+    $("#dir-sub").textContent = "";
     body.innerHTML = list.slice(0, state.shown).map((r) => `
       <div class="dir-row${r.domain === state.selected ? " selected" : ""}" data-domain="${esc(r.domain)}" tabindex="0" role="button">
         ${logoTile(r)}
