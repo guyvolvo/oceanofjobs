@@ -1629,30 +1629,6 @@ table.jobs .title-cell a:not(.apply-link):hover { color: var(--green-text); }
 /* All listings / Best matches / Saved: the Explore page's segmented
    control, a touch taller to sit with the filter row above it. */
 .view-switch { margin-bottom: 12px; }
-/* Separate pills rather than a joined segmented control. Four views are
-   four choices, not four halves of one switch, and the phone already
-   drew them this way: one shape for both. */
-.board-bar .view-switch {
-  display: flex;
-  gap: 8px;
-  border: 0;
-  border-radius: 0;
-  overflow: visible;
-}
-.board-bar .view-switch .seg-btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--grey-line);
-  border-radius: 999px;
-  background: var(--white);
-  white-space: nowrap;
-}
-.board-bar .view-switch .seg-btn:hover { background: var(--hover-bg); }
-.board-bar .view-switch .seg-btn.active {
-  border-color: var(--black);
-  background: var(--black);
-  color: var(--white);
-}
 
 /* What Best matches is ordered by, each skill removable. The skills fold
    down under "My skills"; grid rows animate to the content's own
@@ -4648,122 +4624,6 @@ a.hero-account-btn { text-decoration: none; }
 
 /* --- the top bar ------------------------------------------------- */
 
-/* Only what applies to the whole result set. Sticky under the topbar so
-   the search box and the count stay put while the list runs past them:
-   the count is the one number that says whether a filter did anything,
-   and it was scrolling away exactly when someone changed one. */
-.board-bar {
-  flex: none;
-  z-index: 9; /* under .topbar's 10 */
-  /* The same ground as the boxes below, so the two do not meet in a
-     seam across the page. */
-  background: var(--hover-bg);
-  /* No bottom rule: the boxes below start their own edge. */
-  padding: 16px var(--gutter) 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.board-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.board-bar-row > * { min-width: 0; } /* form controls have a real intrinsic width too */
-
-.board-bar #f-date-posted,
-.board-bar #f-sort { flex: 0 0 150px; }
-
-.board-bar select {
-  height: 38px;
-  padding: 0 10px;
-  border: 1.5px solid var(--black);
-  border-radius: 4px;
-  background: var(--white);
-  color: var(--black);
-  font: 400 13px var(--font-ui);
-}
-.board-bar select:focus { outline: 2px solid var(--green); outline-offset: -2px; }
-
-/* The same chevron the rail's carets use, so the two arrows sitting a
-   few pixels apart match. */
-.board-bar select {
-  appearance: none;
-  padding-right: 28px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2340513b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 10px 6px;
-}
-:root[data-theme="dark"] .board-bar select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ededec' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-.board-bar-row-2 { flex-wrap: wrap; row-gap: 8px; }
-.board-bar .view-switch { margin: 0; flex: 0 0 auto; }
-.board-bar #f-reset { flex: 0 0 auto; height: 30px; padding: 0 12px; color: var(--red); }
-.board-bar #f-reset[hidden] { display: none; }
-
-/* Pushed to the far end, and the only thing on the row that is allowed
-   to sit on its own. */
-.board-bar .result-count {
-  margin: 0 0 0 auto;
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.rail-toggle { display: none; } /* a column above 800px; see the sheet rules below */
-
-/* --- active filter chips ----------------------------------------- */
-
-.active-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* Outlined, not filled. The chip is a thing to remove, and fifty of the
-   board's own signal green across one row would say "these matter most"
-   about the reader's own filters. */
-.active-chips .chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  height: 30px;
-  padding: 0 9px;
-  /* Ink on nothing: a hairline and text in the theme's own ink, black
-     on light and white on dark, no fill and no green. */
-  border: 1px solid var(--black);
-  border-radius: 4px;
-  background: none;
-  color: var(--black);
-  font: 400 13px var(--font-ui);
-  text-transform: none;
-  letter-spacing: normal;
-  cursor: pointer;
-}
-.active-chips .chip:hover .chip-label { text-decoration: underline; text-underline-offset: 3px; }
-.active-chips .chip:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
-.active-chips .chip-label { max-width: 20ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip-x { flex: 0 0 auto; opacity: 0.6; }
-.active-chips .chip:hover .chip-x { opacity: 1; }
-
-/* --- the grid ----------------------------------------------------- */
-
-/* Three columns that fill what is left of the viewport, each scrolling
-   on its own. The page itself does not scroll here: the board is a tool
-   you work inside, and losing the filters because you read to the
-   bottom of the list was the thing the old single scroll kept doing. */
-/* Two boxes on a tinted ground. The tint is what separates them, which
-   is why the filter column gave up the tint it used to carry: two
-   tinted surfaces touching read as one, and the box edge had nothing
-   left to do. The same gutter as the bar above, so the boxes line up
-   with the search box. */
 .board-grid {
   display: grid;
   /* The pane grows with the window and the list gives the width up.
@@ -4848,7 +4708,6 @@ a.hero-account-btn { text-decoration: none; }
 }
 .rail-reset[hidden] { display: none; }
 /* Only the sheet needs a way out; above 800px the rail is a column. */
-.rail-close { display: none; }
 
 /* --- the filter rail ---------------------------------------------- */
 
@@ -5186,14 +5045,6 @@ a.hero-account-btn { text-decoration: none; }
    scroll and the head rides at its top, which keeps the count and the
    sort in reach fifty rows down. */
 .board-list .list-head { position: sticky; top: 0; z-index: 2; }
-/* Only where the overview panel is on screen to say it instead. Above
-   1100px that panel is always beside the list, and once a listing is
-   open the pane head carries "N of TOTAL", so the count was written
-   twice a column apart. Below 1100px the panel is a drawer and this head
-   is the only place the number lives, so it stays. */
-@media (min-width: 1101px) {
-  .board-list .list-head { display: none; }
-}
 
 table.jobs tbody tr[data-id],
 table.jobs tbody tr.skeleton-row {
@@ -5765,7 +5616,6 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   /* Box 2 leaves the grid and becomes the sheet. Box 1 keeps its
      border, its radius and the inset. */
   .board-grid { grid-template-columns: minmax(0, 1fr); }
-  .board-box-main { grid-template-columns: 236px minmax(0, 1fr); }
   .job-detail.board-box { border-radius: 0; border: 0; }
 
   .job-detail {
@@ -5812,157 +5662,9 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   .board-box { border: 0; border-radius: 0; }
   .board-box-main { grid-template-columns: minmax(0, 1fr); }
   .board-list { padding-left: 0; }
-  .rail-toggle { display: inline-flex; }
-
-  /* Up from the bottom, not in from the side. A side sheet on a phone
-     is a desktop drawer shrunk: it leaves a dead strip of board beside
-     it, it opens away from the thumb, and the Filters button that
-     summons it is at the top of the screen while the sheet arrives from
-     the left. A bottom sheet comes from where the hand already is and
-     takes the full width, which is what the rail's rows want anyway. */
-  .filter-rail {
-    position: fixed;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: auto;
-    max-height: 85vh;
-    max-height: 85dvh;
-    z-index: 20;
-    border: 0;
-    border-top: var(--rule) solid var(--black);
-    border-radius: 4px 4px 0 0;
-    padding: 12px 16px max(28px, env(safe-area-inset-bottom));
-    transform: translateY(100%);
-    transition: transform 0.25s ease;
-  }
-  body.rail-open .filter-rail { transform: none; }
-  /* The grab handle every bottom sheet has, so it reads as one. */
-  .filter-rail::before {
-    content: "";
-    display: block;
-    width: 36px;
-    height: 4px;
-    margin: 0 auto 10px;
-    border-radius: 999px;
-    background: var(--grey-line);
-  }
-  /* The board behind must not scroll while the sheet is up: on a phone
-     the sheet covers most of it and a stray drag moved the list instead
-     of the sheet. */
-  body.rail-open { overflow: hidden; }
-  body.rail-open #job-scrim { opacity: 1; visibility: visible; }
-
-  .rail-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-  }
-  .rail-head-title { font: 700 14px var(--font); color: var(--black); }
-  .rail-close {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border: 1.5px solid var(--grey-line);
-    border-radius: 4px;
-    background: var(--white);
-    color: var(--grey);
-    cursor: pointer;
-  }
-  .rail-close::before { content: "\2715"; font-size: 12px; }
-  .rail-close:hover { background: var(--black); border-color: var(--black); color: var(--white); }
-
-  /* Each control takes a row of its own, full width, which is what
-     this bar was before the three-column layout. The chips stay behind
-     the Filters button's own count: two rows of them on a 390px screen
-     is most of the first screen, and the count says the same thing in
-     one line. */
-  .board-bar-row-2 { gap: 10px; }
-  .board-bar-row-2 .rail-toggle-unused {
-    order: 1;
-    width: 100%;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .board-bar-row-2 .view-switch { order: 2; width: 100%; }
-  /* Four labels across 390px. They shrink to fit rather than wrap:
-     "Best matches" on two lines made its segment taller than the three
-     beside it and the whole control lost its baseline. */
-  .board-bar-row-2 .view-switch .seg-btn {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0 4px;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  .board-bar-row-2 .result-count { order: 3; margin: 0; white-space: normal; }
-  .board-bar-row-2 .active-chips { display: none; }
-  .board-bar-row-2 #f-reset { display: none; }
 }
 
 @media (max-width: 640px) {
-  .board-bar { position: static; padding: 12px 8px; gap: 10px; }
-  .board-bar-row { flex-wrap: nowrap; gap: 8px; }
-  /* Date posted moves into the filter sheet and the sort moves into the
-     list head, so neither takes a row here. Search plus Filters is the
-     whole of the first row. */
-  .board-bar #f-date-posted,
-  .board-bar #f-sort,
-  .board-bar .search-go { display: none; }
-  .rail-toggle {
-    height: 44px;
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    padding: 0 14px;
-    border-radius: 999px;
-    line-height: 1;
-  }
-  /* The count on the Filters button, so the sheet is not the only place
-     that says anything is on. */
-  .rail-toggle[data-count]:not([data-count="0"])::after {
-    content: attr(data-count);
-    display: inline-grid;
-    place-items: center;
-    flex: 0 0 auto;
-    min-width: 18px;
-    height: 18px;
-    margin-left: 7px;
-    padding: 0 5px;
-    border-radius: 999px;
-    background: var(--green-text);
-    color: var(--white);
-    font: 700 11px var(--font-ui);
-  }
-
-  /* The view switch stops being a segmented control and becomes chips
-     that scroll: four segments across 390px gives each of them nine
-     characters and no room for a thumb. */
-  .board-bar-row-2 { flex-direction: row; gap: 8px; overflow: visible; }
-  .board-bar-row-2 .view-switch {
-    order: 0;
-    width: auto;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-  }
-  .board-bar-row-2 .view-switch::-webkit-scrollbar { display: none; }
-  /* Roomier than the desktop's 14px. The labels are the same length on
-     a third of the width, so the same padding reads as the text being
-     pressed against the border. The row scrolls, so the extra width
-     costs nothing. */
-  .board-bar-row-2 .view-switch .seg-btn {
-    flex: 0 0 auto;
-    height: 34px;
-    padding: 0 18px;
-  }
-
   .job-detail {
     /* A phone has no room for a side sheet, so it is the whole screen
        and swipes down to close (see wireJobDetailSwipe). */
@@ -6326,11 +6028,6 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 
 /* Above the phone breakpoint the button says the number in words; the
    badge is a phone treatment. */
-@media (min-width: 801px) {
-  .rail-toggle[data-count]:not([data-count="0"])::after {
-    content: " (" attr(data-count) ")";
-  }
-}
 
 /* The end of the list. Centred and quiet: it is a place the reader
    arrives at, not a control they go looking for. */
@@ -6401,22 +6098,6 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   .pane-sticky[hidden] { display: flex; }
 }
 
-/* The filter bar's controls take the pill radius the view chips under
-   them already have, so the two rows read as one bar rather than a
-   square row above a round one. The extra side padding is not
-   decoration: at 999px the corner eats into the text box, and a
-   placeholder starting under the curve looks clipped. */
-.board-bar select,
-.board-bar .search-go,
-.board-bar .rail-toggle {
-  border-radius: 999px;
-}
-.board-bar select { padding-left: 14px; }
-.board-bar .search-go { padding-left: 20px; padding-right: 20px; }
-/* The active-filter chips share that row with the view pills, so they
-   take the same shape. A 4px chip beside a 999px one reads as a
-   different kind of control rather than the same row. */
-.active-chips .chip { border-radius: 999px; }
 
 /* Date posted and Newest live in the top bar. Neither narrows by a
    value, which is what the rail is for: one bounds the result set and
@@ -6484,42 +6165,6 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 @media (max-width: 800px) {
   .topbar-board .container { display: flex; }
   .topbar-board .topnav { margin-left: auto; }
-}
-
-/* Nothing is left on the bar's first row above 800px: the search box is
-   in the topbar and the Filters button is a phone control. */
-.board-bar-row-1 { display: none; }
-
-@media (max-width: 800px) {
-  /* No room for any of it up there. The selects go back to the sheet and
-     the list head; the search box goes back to the filter bar, where
-     wireSearchHome() moves the node. The display rules cover the moment
-     before that runs, and the case where it never does. */
-  .topbar-sorts { display: none; }
-  .topbar .topbar-search { display: none; }
-  .board-bar-row-1 { display: flex; }
-  .board-bar .topbar-search {
-    display: flex;
-    /* Basis 0, not the 560px width it carries upstairs: the box takes
-       what the Search and Filters buttons leave, rather than shrinking
-       alongside them and taking 2px off each. */
-    flex: 1 1 0;
-    width: auto;
-    height: 38px;
-    padding-left: 16px;
-    order: -1;
-  }
-  /* The box goes back to being a plain field down here. The magnifier
-     costs 23px of a placeholder that is already cut off at 390px, and a
-     phone has no / to press. The clear cross stays: backspacing a search
-     out by hand is worst on the device with no Escape key. */
-  .board-bar .topbar-search-icon { display: none; }
-}
-
-/* The phone's 44px tap target, the height this box has had there since
-   the mobile pass. */
-@media (max-width: 640px) {
-  .board-bar .topbar-search { height: 44px; }
 }
 
 /* The top bar, one size up on desktop: 4px taller, and every control in
@@ -6638,24 +6283,6 @@ table.jobs tbody tr,
 table.jobs tbody tr[data-id] { border-bottom: 0; }
 .rail-acc + .rail-acc { border-top: 0; }
 
-/* The filters stand in a box of their own, like the overview: the shared
-   box around filters and listings dissolves into two, 10px apart, each
-   with the overview's edge and corners. From tablet width up, where the
-   filters are a column; below 801px they are a sheet. */
-@media (min-width: 801px) {
-  .board-box-main { gap: 20px; background: transparent; border: 0; border-radius: 0; overflow: visible; }
-  /* 20px between all three boxes, taken from the listings column, which
-     is the flexible one and had the empty middle to give. */
-  .board-grid { gap: 20px; }
-  .board-box-main > .filter-rail,
-  .board-box-main > .board-list {
-    background: var(--white);
-    border: 1px solid var(--panel-line);
-    border-radius: 10px;
-  }
-  .board-box-main > .filter-rail { overflow: hidden; }
-}
-
 /* One motion for everything that drops down: the landing menus, the
    account menu, the alerts and sign-in panel, the multi-select menus and
    the select pickers. It grows out of its trigger, 96% to full size and
@@ -6700,7 +6327,6 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
     :root select, ::picker(select) { appearance: base-select; }
     :root select { display: inline-flex; align-items: center; }
     .topbar-sorts select::picker-icon,
-    .board-bar select::picker-icon,
     .qb-select::picker-icon { display: none; }
     ::picker(select) {
       margin: 6px 0;
@@ -6999,4 +6625,353 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   .hero-features { --inset: 16px; width: auto; margin-inline: var(--edge); }
   .feature-card { border-radius: 32px; }
   .feature-card-body { padding: 28px; }
+}
+
+
+/* The board's frame: a sidebar and a main column. Built as a preview
+   first (board-next.html, October 2026) by moving the live board's
+   nodes, then folded in here. The sidebar sits on the page ground
+   with each group of links in a box like the two boards; the main
+   column is one header row, the filter pills, and the grid. */
+
+.board-shell {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  transition: grid-template-columns 220ms var(--pop-ease);
+}
+/* Folded: a 56px strip holding the mark and the button that unfolds it. */
+body.side-folded .board-shell { grid-template-columns: 56px minmax(0, 1fr); }
+body.side-folded .site-side { padding-left: 8px; overflow: hidden; }
+body.side-folded .side-group,
+body.side-folded .side-foot,
+body.side-folded .side-brand span { display: none; }
+body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
+body.side-folded .side-fold svg { transform: rotate(180deg); }
+
+.site-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px 0 16px 16px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--grey-line) transparent;
+}
+.side-group {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--panel-line);
+  border-radius: 10px;
+  background: var(--white);
+}
+.side-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+.side-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 6px;
+  color: var(--black);
+  text-decoration: none;
+  font: 500 15px var(--font-display);
+}
+.side-brand img { width: 22px; height: 22px; border-radius: 5px; }
+.side-fold {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--grey);
+  cursor: pointer;
+}
+.side-fold:hover { background: var(--row-hover); color: var(--black); }
+.side-fold:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+.side-nav a,
+.site-side .view-switch .seg-btn,
+.side-cat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--black);
+  text-align: left;
+  text-decoration: none;
+  font: 400 14px var(--font-ui);
+  cursor: pointer;
+}
+.side-nav a:hover,
+.site-side .view-switch .seg-btn:hover,
+.side-cat:hover { background: var(--row-hover); }
+/* The row that is on sits on an 18% wash of the ink, bold. No green in
+   the sidebar, so the one green on the screen stays New today. */
+.side-nav a.current,
+.site-side .view-switch .seg-btn.active,
+.side-cat.on { background: color-mix(in srgb, var(--black) 18%, transparent); color: var(--black); font-weight: 600; }
+.site-side .view-switch { border: 0; border-radius: 10px; }
+.site-side .view-switch .seg-btn { border-right: 0; }
+.side-title { padding: 6px 8px 6px; font: 400 12px var(--font); color: var(--grey); }
+.side-cats { display: flex; flex-direction: column; gap: 2px; }
+.side-cat > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-cat-n { flex: none; font: 400 12px var(--font); color: var(--grey); }
+.side-cat.on .side-cat-n { color: var(--black); opacity: 0.75; }
+.side-more, .side-hint { color: var(--grey); font-size: 13px; }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
+.side-account { display: none; }
+.side-source { padding: 0 8px; color: var(--grey); font: 400 13px var(--font-ui); text-decoration: none; }
+.side-source:hover { color: var(--green-text); }
+.side-scrim { display: none; }
+
+/* The main column: the header row, the pills, the grid. */
+.board-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 14px 20px 0;
+}
+.board-head { display: flex; align-items: center; gap: 10px; }
+.board-head .topbar-search { flex: 0 1 640px; width: auto; }
+.board-corner { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.side-open { display: none; }
+
+/* The filter rail becomes the pill row. Each accordion head is a pill
+   and its body a popover under it; the category section is drawn in
+   the sidebar instead and stays hidden here. */
+.board-pills { display: flex; align-items: center; gap: 8px; }
+.board-pills .filter-rail { flex: none; display: flex; flex-direction: row; align-items: center; min-height: 0; border: 0; background: none; overflow: visible; }
+.board-pills .rail-groups,
+.board-pills .rail-groups:has(.rail-acc) {
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  overflow: visible;
+}
+.board-pills .rail-acc { position: relative; }
+.board-pills .rail-acc + .rail-acc { border-top: 0; }
+.board-pills .rail-acc[data-acc="category"] { display: none; }
+.board-pills .rail-acc-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: auto;
+  min-height: 0;
+  height: 36px;
+  padding: 0 12px 0 14px;
+  /* The same 1.5px ink line as the search box above them, so the row
+     of filters reads as controls and not as chips. */
+  border: 1.5px solid var(--black);
+  border-radius: 999px;
+  background: var(--white);
+}
+.board-pills .rail-acc-head:hover { background: var(--hover-bg); }
+.board-pills .rail-acc.open .rail-acc-head { background: var(--black); color: var(--white); }
+.board-pills .rail-acc.open .rail-acc-icon,
+.board-pills .rail-acc.open .rail-acc-chev { color: var(--white); }
+.board-pills .rail-acc.open .rail-acc-sum { color: var(--green-bright, var(--green)); }
+.board-pills .rail-acc-icon { width: 16px; height: 16px; }
+.board-pills .rail-acc-text { flex-direction: row; align-items: baseline; gap: 7px; }
+.board-pills .rail-acc-name { font: 500 15px var(--font-ui); }
+.board-pills .rail-acc-sum { font: 400 14px var(--font-ui); max-width: 220px; }
+.board-pills .rail-acc-body {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: 320px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 10px;
+  background: var(--white);
+}
+.rail-reset { height: 36px; padding: 0 10px; color: var(--red); background: none; border: 0; font: 400 14px var(--font-ui); cursor: pointer; }
+.rail-reset[hidden] { display: none; }
+.active-chips[hidden] { display: none; }
+
+/* The grid: the list, now the whole of box 1, and the pane. */
+.board-grid {
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 29vw, 480px);
+  gap: 10px;
+  padding: 0;
+  background: none;
+  transition: grid-template-columns 220ms var(--pop-ease);
+}
+/* A listing open: the pane widens to hold its description and the
+   list gives up the width it was not using. */
+.board-grid:has(.job-detail.open) { grid-template-columns: minmax(0, 1fr) clamp(500px, 42vw, 760px); }
+.board-box-main { grid-template-columns: minmax(0, 1fr); }
+/* The boxes run off the bottom of the window: a list that scrolls
+   inside its box has no end to draw a border under. */
+.board-grid .board-box { border-bottom: 0; border-radius: 10px 10px 0 0; }
+@media (min-width: 1101px) { .job-detail { position: relative; } }
+.board-list .list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.list-head .topbar-sorts select { height: 32px; font-size: 13px; }
+.sort-wrap {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding-left: 12px;
+  border: 1.5px solid var(--black);
+  border-radius: 999px;
+  color: var(--grey);
+  font: 400 13px var(--font-ui);
+}
+.list-head .sort-wrap select { height: 29px; border: 0; background-color: transparent; padding-left: 4px; }
+
+/* Rows in three lines: title and level with the age at the right;
+   company, team, place and workplace on one line; the salary and the
+   skills. 124px becomes about 84, nine rows a screen instead of six. */
+table.jobs tbody tr[data-id],
+table.jobs tbody tr.skeleton-row {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  height: auto;
+  min-height: 84px;
+  padding: 12px 16px;
+}
+.logo-cell .company-logo.listing { width: 44px; height: 44px; }
+/* A letter in place of a logo gets the tile a logo would have had, so
+   the row does not read as missing one. */
+.logo-cell .company-logo.listing[src^="data:"] { outline: 1px solid var(--grey-line); outline-offset: -1px; }
+.main-cell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "title title" "meta where" "chips chips";
+  column-gap: 0;
+  row-gap: 4px;
+  align-content: start;
+}
+.job-card-title { grid-area: title; }
+.job-meta { grid-area: meta; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-where { grid-area: where; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-meta:has(+ .job-where:not(:empty))::after { content: " \00B7"; padding-right: 4px; color: var(--grey); }
+.job-chips { grid-area: chips; }
+.job-chips:empty { display: none; }
+.job-links, .job-salary-line { display: none; }
+
+/* The overview: trends in plain ink, the company map's top tile a
+   shade and not a green, and the one green is New today. The map is
+   taller than before, since nothing sits under it now. */
+.ov-delta.up, .ov-delta.down { color: var(--grey); }
+.tree-cell.tree-top { background-color: color-mix(in srgb, var(--black) 16%, var(--white)); }
+.ov-tiles .ov-tile:nth-child(2) .ov-value { color: var(--green-text); }
+
+@media (max-width: 1100px) {
+  .board-shell { grid-template-columns: minmax(0, 1fr); }
+  body.side-folded .board-shell { grid-template-columns: minmax(0, 1fr); }
+  /* The sidebar is a drawer behind the menu button, over a scrim. */
+  .site-side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(300px, 86vw);
+    z-index: 30;
+    padding: 14px 12px max(16px, env(safe-area-inset-bottom));
+    background: var(--white);
+    border-right: 1px solid var(--grey-line);
+    transform: translateX(-100%);
+    transition: transform 220ms var(--pop-ease);
+  }
+  body.side-open .site-side { transform: none; }
+  body.side-folded .site-side { padding-left: 12px; overflow-y: auto; }
+  body.side-folded .side-group,
+  body.side-folded .side-foot,
+  body.side-folded .side-brand span { display: flex; }
+  body.side-folded .side-brand-row { flex-direction: row; }
+  .side-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 29;
+    background: var(--scrim);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 220ms ease, visibility 220ms;
+  }
+  body.side-open .side-scrim { opacity: 1; visibility: visible; }
+  body.side-open { overflow: hidden; }
+  .side-fold { display: none; }
+  .side-open {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1.5px solid var(--black);
+    border-radius: 999px;
+    background: var(--white);
+    color: var(--black);
+    cursor: pointer;
+  }
+  .side-open > span { display: flex; flex-direction: column; gap: 4px; }
+  .side-open i { display: block; width: 16px; height: 2px; border-radius: 1px; background: currentColor; }
+  .side-open:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .board-main { padding: 12px 16px 0; }
+  .board-head .topbar-search { flex: 1 1 auto; }
+  /* One column, open listing or not: the pane is the sheet here. */
+  .board-grid,
+  .board-grid:has(.job-detail.open) { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 800px) {
+  /* The pills scroll sideways in one row, and a pill's list comes up
+     from the bottom, where the thumb is, over the same scrim the pane
+     uses. */
+  .board-pills { overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .board-pills::-webkit-scrollbar { display: none; }
+  .board-pills .rail-groups,
+  .board-pills .rail-groups:has(.rail-acc) { flex-wrap: nowrap; }
+  .board-pills .rail-acc { position: static; }
+  .board-pills .rail-acc-body {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: 70dvh;
+    z-index: 32;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 0;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  body.pill-open #job-scrim { opacity: 1; visibility: visible; z-index: 31; }
+  .board-main { padding: 10px 12px 0; gap: 10px; }
+  .board-pills { margin: 0 -12px; padding: 0 12px; }
+  .board-grid { background: var(--white); }
+  .board-grid .board-box { border-radius: 0; }
+}
+
+@media (max-width: 640px) {
+  /* Sign-in and the theme switch move into the drawer (wireSideBar). */
+  .board-corner { display: none; }
+  .side-account { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 8px; }
+  .board-list .list-head { height: auto; min-height: 52px; flex-wrap: wrap; padding: 8px 14px; }
+  /* Four short lines on a phone: the one-line company and place would
+     be an ellipsis each. */
+  .main-cell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "title" "meta" "where" "chips"; }
+  .job-meta::after { content: none !important; }
+  .job-meta, .job-where { white-space: normal; }
+  table.jobs tbody tr[data-id],
+  table.jobs tbody tr.skeleton-row { padding: 12px 12px; }
 }

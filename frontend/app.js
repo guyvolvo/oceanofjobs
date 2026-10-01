@@ -2540,9 +2540,21 @@ function jobWhoLine(j) {
   return j.department ? `${who} · ${highlight(j.department)}` : who;
 }
 
+const PLACE_SPLIT = /\s*;\s*|\s*\|\s*/;
+function shortPlace(location) {
+  const places = String(location).split(PLACE_SPLIT).filter(Boolean);
+  if (places.length < 2) return highlight(location);
+  const wanted = state.country.flatMap((c) => {
+    const row = (railFacets.locations || []).find((x) => x.value === c);
+    return [c.toLowerCase(), (row?.label || "").toLowerCase()];
+  }).filter(Boolean);
+  const pick = places.find((p) => wanted.some((w) => p.toLowerCase().includes(w))) || places[0];
+  return `<span title="${escapeHtml(places.join("; "))}">${highlight(pick)} + ${places.length - 1} more</span>`;
+}
+
 function jobWhereLine(j) {
   const parts = [];
-  if (j.location) parts.push(highlight(j.location));
+  if (j.location) parts.push(shortPlace(j.location));
   if (j.workplace_type) parts.push(escapeHtml(WORKPLACE_LABELS[j.workplace_type] || j.workplace_type));
   return parts.join(" · ");
 }
@@ -2747,7 +2759,7 @@ function jobRowsHtml(jobs, starred) {
           <div class="job-chips">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</div>
           <div class="job-links">
             <a class="apply-link" href="${escapeHtml(j.url || "#")}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
-            <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Save link</button>
+            <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy link</button>
           </div>
           <div class="job-salary-line">${jobSalaryLine(j)}</div>
         </td>
@@ -2878,7 +2890,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
     <div class="job-detail-actions">
       <a class="job-detail-apply" href="${escapeHtml(job.url || "#")}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
       <button type="button" class="job-detail-star ${starred ? "on" : ""}" data-star="${job.id}" aria-pressed="${starred}">${STAR_SVG}<span>${starred ? "Saved" : "Save"}</span></button>
-      <button type="button" class="link job-detail-permalink" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}" title="Copy a link to this listing">Save link</button>
+      <button type="button" class="link job-detail-permalink" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}" title="Copy a link to this listing">Copy link</button>
     </div>
 
     <div class="job-detail-facts">
@@ -2995,7 +3007,7 @@ function companyLogoFor(domain) {
 // each cell, never by colour. Positions are percentages of a fixed-
 // ratio box, so the map scales with the pane without being redone.
 const TREEMAP_N = 10;
-const TREEMAP_RATIO = 2; // width : height of the layout box
+const TREEMAP_RATIO = 1.15; // width : height of the layout box; taller than wide-ish, since nothing sits under it
 
 function squarify(values, x, y, w, h) {
   const out = [];
@@ -3180,16 +3192,6 @@ function renderDetailEmpty() {
   add(pending ? bone : s.new_jobs_7d == null ? null : fmtInt(s.new_jobs_7d), "New this week",
       trend(s.new_jobs_7d, s.prev_new_jobs_7d, `${fmtInt(s.prev_new_jobs_7d)} the week before`));
 
-  // Search health. The loader's own last write, which is the one number
-  // that says whether this is current. "Sources responding" is in the
-  // design and not in the data: /stats carries pipeline.error_count and
-  // a company total, which is a different question (how many companies
-  // errored, ever) and would be a made-up percentage dressed as a
-  // measurement. The row stays out until something measures it.
-  // Same source as the text beside it, for the same reason.
-  const freshMins = lastCheckedAt === null ? null : (Date.now() - lastCheckedAt) / 60000;
-  const health = updatedAgo();
-
   paneBody().innerHTML = `
     <div class="detail-empty">
       ${tiles.length ? `<div class="ov-tiles">${tiles.join("")}</div>` : ""}
@@ -3200,14 +3202,6 @@ function renderDetailEmpty() {
           ${companyTreemapHtml(hiring)}
         </div>` : ""}
 
-      ${health ? `
-        <div class="ov-block">
-          <span class="ov-block-title">Search health</span>
-          <div class="ov-row static">
-            <span>Last updated</span>
-            <span class="ov-dot-row"><span class="ov-dot ${freshMins != null && freshMins > 120 ? "stale" : ""}"></span>${escapeHtml(health.replace("Updated ", ""))}</span>
-          </div>
-        </div>` : ""}
 
       <div class="ov-hint">Select a listing to see its details here.</div>
     </div>`;
@@ -3241,7 +3235,7 @@ async function copyToClipboard(btn, url) {
     document.execCommand("copy");
     document.body.removeChild(ta);
   }
-  // innerHTML, not textContent -- a plain-text button (Save link) round-trips
+  // innerHTML, not textContent -- a plain-text button (Copy link) round-trips
   // through either the same way, but an icon-only button (an inline <svg>,
   // no text content at all) needs innerHTML or the restore below would wipe
   // the icon out instead of bringing it back.
@@ -3643,44 +3637,9 @@ function closeJobDetailAndSync() {
   syncUrl();
 }
 
-function wireRailSheet() {
-  const open = () => {
-    document.body.classList.add("rail-open");
-    document.getElementById("rail-toggle")?.setAttribute("aria-expanded", "true");
-    // Focus goes into the sheet so a reader who opened it with the
-    // keyboard is inside it rather than still on the button behind it.
-    // Not into the search box, though: on a phone that summons the
-    // on-screen keyboard the moment the sheet appears, which takes half
-    // the sheet and makes it jump as it opens. The close button is in
-    // the sheet, is the first thing in it, and types nothing.
-    const first = matchMedia("(max-width: 800px)").matches
-      ? document.getElementById("rail-close")
-      : document.querySelector("#filter-rail .rail-search");
-    first?.focus({ preventScroll: true });
-  };
-  document.getElementById("rail-toggle")?.addEventListener("click", () => {
-    document.body.classList.contains("rail-open") ? closeRailSheet() : open();
-  });
-  document.getElementById("rail-close")?.addEventListener("click", closeRailSheet);
-  // The sheet covers the list, so a tap on what is left of the list is
-  // the nearest way out, same as the job sheet's scrim.
-  document.getElementById("job-scrim")?.addEventListener("click", () => {
-    if (document.body.classList.contains("rail-open")) closeRailSheet();
-  });
-}
-
-function closeRailSheet() {
-  document.body.classList.remove("rail-open");
-  const btn = document.getElementById("rail-toggle");
-  if (btn) {
-    btn.setAttribute("aria-expanded", "false");
-    btn.focus();
-  }
-}
-
 function wireJobDetail() {
   document.getElementById("jobs-body").addEventListener("click", (e) => {
-    if (e.target.closest("a, button")) return; // Apply/Save link/star handle their own click
+    if (e.target.closest("a, button")) return; // Apply/Copy link/star handle their own click
     const row = e.target.closest("tr[data-id]");
     if (row) openJobDetailAndPush(row.dataset.id);
   });
@@ -3696,7 +3655,8 @@ function wireJobDetail() {
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      if (document.body.classList.contains("rail-open")) return closeRailSheet();
+      if (closeSideDrawer()) return;
+      if (railClosePills()) return;
       if (selectedJobId !== null) closeJobDetailAndSync();
       return;
     }
@@ -4271,14 +4231,20 @@ const RAIL_GROUPS = [
 const RAIL_ICON = (d) => `<svg class="rail-acc-icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
   stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const RAIL_ACCORDION = [
-  { key: "role", title: "Role", parts: ["department", "seniority"],
-    icon: RAIL_ICON('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>') },
-  { key: "place", title: "Location", parts: ["location", "workplace"],
+  { key: "place", title: "Location", parts: ["location"],
     icon: RAIL_ICON('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>') },
   { key: "pay", title: "Salary", parts: ["salary"],
     icon: RAIL_ICON('<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6.5 15h4"/>') },
   { key: "employer", title: "Company", parts: ["company"],
     icon: RAIL_ICON('<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/>') },
+  { key: "level", title: "Seniority", parts: ["seniority"],
+    icon: RAIL_ICON('<path d="M4 20v-7M10 20V9M16 20V4M22 20H2"/>') },
+  { key: "work", title: "Work type", parts: ["workplace"],
+    icon: RAIL_ICON('<path d="M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/>') },
+  // Drawn in the sidebar by renderSideCategories, from these same rows;
+  // the pill itself is hidden (see .board-pills in style.css).
+  { key: "category", title: "Category", parts: ["department"],
+    icon: RAIL_ICON('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>') },
 ];
 const RAIL_CHEVRON = '<svg class="rail-acc-chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const RAIL_OPEN_KEY = "iljobs_rail_open";
@@ -4288,20 +4254,21 @@ const RAIL_OPEN_KEY = "iljobs_rail_open";
 let railOpen = null;
 
 function railOpenSet() {
-  if (railOpen) return railOpen;
-  try {
-    const saved = JSON.parse(localStorage.getItem(RAIL_OPEN_KEY) || "null");
-    if (Array.isArray(saved)) railOpen = new Set(saved);
-  } catch { /* storage refused: fall through to the default */ }
-  if (!railOpen) {
-    const first = RAIL_ACCORDION.find((a) => railAccordionSummary(a));
-    railOpen = new Set([(first || RAIL_ACCORDION[0]).key]);
-  }
+  if (!railOpen) railOpen = new Set();
   return railOpen;
 }
 
-function railSaveOpen() {
-  try { localStorage.setItem(RAIL_OPEN_KEY, JSON.stringify([...railOpenSet()])); } catch { /* per-browser nicety only */ }
+// A pill row starts shut and does not remember across visits: an open
+// list over the board is a thing being done, not a setting.
+function railSaveOpen() {}
+
+// Shuts every open pill. True if one was.
+function railClosePills() {
+  const set = railOpenSet();
+  if (!set.size) return false;
+  set.clear();
+  renderFilterRail();
+  return true;
 }
 
 // What a closed group is narrowing the board by, in the rail's own
@@ -4352,7 +4319,7 @@ let railFacetsLoaded = false;
 // which countries are folded. View state: it never reaches the URL or
 // localStorage, and Back has no business re-collapsing a group somebody
 // just opened.
-const railExpanded = new Set();
+const railExpanded = new Set(["department"]);
 const railCollapsed = new Set();
 const railQueries = new Map();
 // Companies found by typing past the top 500 the facet carries, so a
@@ -4673,7 +4640,7 @@ function renderFilterRail() {
     const inner = acc.parts.map((k) => parts[k] || "").join("");
     if (!inner) return "";
     const isOpen = open.has(acc.key);
-    const summary = isOpen ? "" : railAccordionSummary(acc);
+    const summary = railAccordionSummary(acc);
     // One inner group needs no label of its own under a header that
     // already names it, except salary, whose label says what the
     // numbers are.
@@ -4691,7 +4658,93 @@ function renderFilterRail() {
         <div class="rail-acc-body" id="rail-acc-${acc.key}"${isOpen ? "" : " hidden"}>${inner}</div>
       </div>`;
   }).join("");
+  document.body.classList.toggle("pill-open", open.size > 0);
+  renderSideCategories();
 }
+
+// The sidebar's category list: the same rows, counts and ticks as the
+// rail's own category group, drawn as a list a reader can keep in view.
+// A click goes through railToggle, which is what a tick in the rail
+// does, so there is one path into a change.
+function renderSideCategories() {
+  const host = document.getElementById("side-cats");
+  const group = RAIL_GROUPS.find((g) => g.key === "department");
+  if (!host || !group) return;
+  const picked = railSelected(group);
+  const rows = railVisibleRows(group);
+  const total = railRows(group).length;
+  if (!rows.length) {
+    host.innerHTML = railFacetsLoaded ? "" : '<div class="side-cat side-hint">Counting</div>';
+    return;
+  }
+  host.innerHTML = rows.map((r) => `<button type="button" class="side-cat${picked.has(r.value) ? " on" : ""}"
+      data-value="${escapeHtml(r.value)}" aria-pressed="${picked.has(r.value)}">
+      <span>${escapeHtml(railLabel(group, r))}</span>${r.n == null ? "" : `<span class="side-cat-n">${fmtInt(r.n)}</span>`}</button>`).join("")
+    + (total > RAIL_TOP_N
+      ? `<button type="button" class="side-cat side-more" data-more="department">${railExpanded.has("department") ? "Show fewer" : `Show all (${fmtInt(total)})`}</button>`
+      : "");
+}
+
+function wireSideCategories() {
+  document.getElementById("side-cats")?.addEventListener("click", (e) => {
+    if (e.target.closest("[data-more]")) {
+      railExpanded.has("department") ? railExpanded.delete("department") : railExpanded.add("department");
+      renderFilterRail();
+      return;
+    }
+    const b = e.target.closest(".side-cat[data-value]");
+    if (b) railToggle("department", b.dataset.value, !b.classList.contains("on"));
+  });
+}
+
+// The sidebar: folds to a strip on a desktop, is a drawer behind the
+// menu button below 1100px, and on a phone also holds the sign-in and
+// theme controls the header has no room for.
+function wireSideBar() {
+  const side = document.getElementById("site-side");
+  if (!side) return;
+  const FOLD_KEY = "iljobs_side_folded";
+  const fold = document.getElementById("side-fold");
+  const setFolded = (on) => {
+    document.body.classList.toggle("side-folded", on);
+    fold?.setAttribute("aria-expanded", String(!on));
+    fold?.setAttribute("aria-label", on ? "Expand the sidebar" : "Collapse the sidebar");
+    if (fold) fold.title = on ? "Expand" : "Collapse";
+    try { localStorage.setItem(FOLD_KEY, on ? "1" : "0"); } catch { /* per-browser nicety only */ }
+  };
+  try { setFolded(localStorage.getItem(FOLD_KEY) === "1"); } catch { /* as above */ }
+  fold?.addEventListener("click", () => setFolded(!document.body.classList.contains("side-folded")));
+
+  const openBtn = document.getElementById("side-open");
+  const setOpen = (on) => {
+    document.body.classList.toggle("side-open", on);
+    openBtn?.setAttribute("aria-expanded", String(on));
+    if (on) side.querySelector("a, button")?.focus({ preventScroll: true });
+    else openBtn?.focus({ preventScroll: true });
+  };
+  openBtn?.addEventListener("click", () => setOpen(!document.body.classList.contains("side-open")));
+  document.getElementById("side-scrim")?.addEventListener("click", () => setOpen(false));
+  // A pick in the drawer is the end of the visit to it.
+  side.addEventListener("click", (e) => {
+    if (e.target.closest(".side-cat, .seg-btn") && document.body.classList.contains("side-open")) setOpen(false);
+  });
+  closeSideDrawer = () => { if (document.body.classList.contains("side-open")) { setOpen(false); return true; } return false; };
+
+  const corner = document.querySelector(".board-corner");
+  const foot = document.getElementById("side-account");
+  const narrow = matchMedia("(max-width: 640px)");
+  const place = () => {
+    const home = narrow.matches ? foot : corner;
+    if (!home) return;
+    for (const id of ["auth-area", "theme-toggle"]) {
+      const el = document.getElementById(id);
+      if (el && el.parentElement !== home) home.append(el);
+    }
+  };
+  place();
+  narrow.addEventListener("change", place);
+}
+let closeSideDrawer = () => false;
 
 // Opens or closes one accordion section in place, height and fade, then
 // hands back to the full redraw. The redraw can't carry the motion: it
@@ -4753,8 +4806,8 @@ function wireFilterRail() {
       const key = acc.dataset.acc;
       const set = railOpenSet();
       const opening = !set.has(key);
+      if (opening) set.clear();
       opening ? set.add(key) : set.delete(key);
-      railSaveOpen();
       railAnimateAcc(acc, opening, () => {
         renderFilterRail();
         host.querySelector(`.rail-acc[data-acc="${key}"] .rail-acc-head`)?.focus();
@@ -4779,6 +4832,13 @@ function wireFilterRail() {
     }
   });
 }
+
+// A click outside the pill row shuts the open list. Capture, so a click
+// that app.js handles elsewhere (a row, the pane) shuts it too.
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#filter-rail")) return;
+  railClosePills();
+}, true);
 
 function railToggle(kind, value, on) {
   if (kind === "salary_known") {
@@ -5043,25 +5103,6 @@ function wireActiveChips() {
 // already put it in. The same element moves either way: two inputs that
 // have to agree is how a search box ends up showing one thing and
 // filtering by another.
-function wireSearchHome() {
-  const box = document.getElementById("topbar-search");
-  const up = document.querySelector(".topbar-center");
-  const down = document.querySelector(".board-bar-row-1");
-  if (!box || !up || !down) return;
-  const narrow = window.matchMedia("(max-width: 800px)");
-  const place = () => {
-    const home = narrow.matches ? down : up;
-    if (box.parentElement === home) return;
-    const held = document.activeElement === document.getElementById("f-search");
-    if (narrow.matches) home.prepend(box);
-    else home.insertBefore(box, document.querySelector(".topbar-sorts"));
-    // Moving a node blurs whatever was focused inside it.
-    if (held) document.getElementById("f-search").focus();
-  };
-  place();
-  narrow.addEventListener("change", place);
-}
-
 // The / hint and the clear cross are two views of one thing: whether
 // there is anything in the box.
 function paintSearchBox() {
@@ -5101,7 +5142,6 @@ function applySearchNow(raw) {
 }
 
 function wireSearchBox() {
-  wireSearchHome();
   const el = document.getElementById("f-search");
   if (!el) return;
   paintSearchBox();
@@ -5263,7 +5303,8 @@ function wireFilters() {
     });
   });
 
-  wireRailSheet();
+  wireSideBar();
+  wireSideCategories();
   wireInfiniteList();
 }
 

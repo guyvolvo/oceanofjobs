@@ -1,60 +1,46 @@
-// The board for the landing page's devices, filtered to companies people know, so
-// the product shot shows real jobs at Apple, AWS and Nvidia rather than
-// whatever happens to be newest. 16:10 for the MacBook, phone-sized for
-// the iPhone, light and dark each.
-// Run from tests/e2e:  node board_shot.mjs
-import { chromium, devices } from "@playwright/test";
-const COMPANIES = "apple.com,aws.amazon.com,nvidia.com,microsoft.com,stripe.com";
-// Engineering roles at those companies rather than whatever is newest: a
-// retail "Operations Expert" at Apple says nothing about a tech board.
-const QUERY = `?company=${COMPANIES}&department=${encodeURIComponent("Software Engineering")}`;
-const browser = await chromium.launch();
-for (const [name, opts] of [
-  ["desktop", { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }],
-  ["phone", { ...devices["iPhone 14"], isMobile: false, hasTouch: true }],
-]) {
-  for (const theme of ["light", "dark"]) {
-    const context = await browser.newContext(opts);
-    await context.addInitScript((t) => {
-      try {
-        localStorage.setItem("iljobs_theme", t);
-        // The statistics column starts collapsed, so the shot is the board
-        // itself rather than half a sidebar. index.html reads this before
-        // first paint, so there is no open-then-collapse flash.
-        localStorage.setItem("iljobs_stats_collapsed", "1");
-      } catch {}
-    }, theme);
-    const page = await context.newPage();
-    await page.goto(`https://opentechjobs.org/board${QUERY}`, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await page.waitForSelector("#jobs-body tr", { timeout: 60000 });
-    // "Updating" while the pipeline is mid-scrape, "Live" once it settles.
-    // That is the board's real state, not a render race, so this waits for
-    // a quiet moment and reloads between tries rather than faking the text.
-    const atRest = () => page.waitForFunction(
-      // The topbar mark is gone (2026-09-24); with no element there is nothing to wait for.
-      () => { const el = document.getElementById("status-text"); return !el || el.textContent.trim() === "Live"; },
-      null, { timeout: 20000 }).then(() => true).catch(() => false);
-    let settled = await atRest();
-    for (let attempt = 0; !settled && attempt < 8; attempt++) {
-      await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
-      await page.waitForSelector("#jobs-body tr", { timeout: 60000 });
-      settled = await atRest();
-    }
-    if (!settled) console.log("   pipeline still updating after retries");
-    await page.waitForTimeout(2500);
-    const status = await page.evaluate(() => ({
-      status: document.getElementById("status-text")?.textContent.trim(),
-      collapsed: document.documentElement.classList.contains("stats-collapsed"),
-    }));
-    console.log("  ", JSON.stringify(status));
-    const shown = await page.evaluate(() =>
-      [...document.querySelectorAll("#jobs-body tr")].slice(0, 5).map((tr) => [
-        tr.querySelector(".job-card-title")?.textContent.trim().slice(0, 44),
-        tr.querySelector(".job-meta")?.textContent.trim().split("·")[0].trim(),
-      ].join(" @ ")));
-    await page.screenshot({ path: `board-${name}-${theme}.png` });
-    console.log(name, theme, JSON.stringify(shown));
-    await context.close();
+// Screenshots of the board (board.html) served by scripts/live_preview.py
+// at several widths, with page errors and a few layout facts printed.
+import { chromium } from "playwright";
+const base = process.env.BASE || "http://localhost:8010";
+const b = await chromium.launch();
+const errors = [];
+for (const [w, h] of [[1440, 900], [1100, 900], [800, 900], [390, 844]]) {
+  const p = await b.newPage({ viewport: { width: w, height: h } });
+  p.on("pageerror", (e) => errors.push(`${w}: ${e.message}`));
+  p.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(`${w} console: ${m.text().slice(0, 140)}`); });
+  await p.addInitScript(() => { localStorage.setItem("iljobs_geo_asked", "1"); localStorage.setItem("iljobs_theme", "dark"); });
+  await p.goto(base + "/board", { waitUntil: "domcontentloaded" });
+  await p.waitForFunction(() => !document.querySelector("#jobs-body tr.skeleton-row") && document.querySelectorAll("#jobs-body tr[data-id]").length > 0, null, { timeout: 30000 }).catch(() => errors.push(`${w}: no rows`));
+  await p.waitForTimeout(1200);
+  const facts = await p.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - window.innerWidth,
+    side: Math.round(document.querySelector("#site-side").getBoundingClientRect().width),
+    sideOnScreen: document.querySelector("#site-side").getBoundingClientRect().right > 0,
+    pills: [...document.querySelectorAll(".board-pills .rail-acc")].filter((x) => x.offsetParent !== null).length,
+    cats: document.querySelectorAll("#side-cats .side-cat").length,
+    count: document.querySelector("#result-count")?.textContent.trim(),
+    rowH: Math.round(document.querySelector("#jobs-body tr[data-id]")?.getBoundingClientRect().height || 0),
+    menuBtn: getComputedStyle(document.querySelector("#side-open")).display,
+    corner: getComputedStyle(document.querySelector(".board-corner")).display,
+    authIn: document.getElementById("auth-area")?.parentElement.className,
+  }));
+  console.log(w, JSON.stringify(facts));
+  await p.screenshot({ path: `tests/e2e/board-${w}.png` });
+  if (w === 390) {
+    await p.click("#side-open"); await p.waitForTimeout(400);
+    await p.screenshot({ path: "tests/e2e/board-390-drawer.png" });
+    await p.click("#side-scrim", { position: { x: 380, y: 400 } }).catch(() => {}); await p.waitForTimeout(300);
+    await p.click('.rail-acc[data-acc="work"] .rail-acc-head'); await p.waitForTimeout(500);
+    await p.screenshot({ path: "tests/e2e/board-390-pill.png" });
   }
+  if (w === 1440) {
+    await p.click('.rail-acc[data-acc="place"] .rail-acc-head'); await p.waitForTimeout(500);
+    await p.screenshot({ path: "tests/e2e/board-1440-pill.png" });
+    await p.keyboard.press("Escape"); await p.waitForTimeout(300);
+    await p.click("#jobs-body tr[data-id] .main-cell"); await p.waitForTimeout(1500);
+    await p.screenshot({ path: "tests/e2e/board-1440-open.png" });
+  }
+  await p.close();
 }
-await browser.close();
+await b.close();
+console.log(errors.length ? "ERRORS:\n" + errors.join("\n") : "no page errors");

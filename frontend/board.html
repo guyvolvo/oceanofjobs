@@ -78,11 +78,6 @@
 </head>
 <body class="board-page">
 
-  <!-- Status glyph sprite, defined once and referenced by <use> wherever
-       a state is shown. Two places today: the topbar indicator and the
-       Data Health tile. Shapes carry the meaning so the state survives
-       being read in greyscale, by someone colourblind, or at the 13px
-       the topbar renders it. -->
   <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
     <symbol id="status-positive" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -120,128 +115,77 @@
     </symbol>
   </svg>
 
-  <div class="topbar topbar-board">
-    <div class="container">
-      <!-- The mark and the three destinations, plain text, the current
-           one in bold. This is the column the pipeline status light held
-           until it came out; a bar with a centred search group and
-           nothing to its left read as if something had failed to load. -->
-      <div class="topbar-left"><a class="topbar-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><nav class="topbar-nav" aria-label="Site"><a href="/board" class="current" aria-current="page">Jobs</a><a href="/stats">Statistics</a><a href="/api/help">API</a></nav></div>
-      <!-- Search and the two whole-result-set controls are one group,
-           centred on the bar rather than pushed to its two ends. -->
-      <div class="topbar-center">
-        <!-- Search lives in the bar above 800px: it is the one control
-             that applies to the whole board, and down in the filter bar it
-             scrolled under the topbar the moment the list got long. Below
-             800px wireSearchHome() moves this same node back into the
-             filter bar, where a phone has the width for it. One input with
-             one set of listeners, not two that have to agree.
-
-             It replaced a marquee of the ten most recent listings, which
-             cost a second /jobs query on every filter change to say what
-             the first row of the list already said. -->
-        <div class="topbar-search" id="topbar-search" role="search">
-          <svg class="topbar-search-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-            <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
-            <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-          <input type="text" id="f-search" autocomplete="off" aria-label="Search jobs" placeholder="Search jobs, companies, skills, or locations" title="Every word must appear somewhere in the listing: title, company, location, category or description. &quot;Quote a phrase&quot; to keep it together." />
-            <button type="button" class="topbar-search-clear" id="f-search-clear" aria-label="Clear search" hidden>
-            <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
-              <path d="M2 2l6 6M8 2l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-        <!-- The two controls that order and bound the whole result set,
-             beside the search rather than on a row of their own. Neither
-             narrows by a value, which is what the rail is for. -->
-        <div class="topbar-sorts">
-          <select id="f-date-posted" title="Date posted">
-            <option value="">Date posted</option>
-            <option value="any">Any time</option>
-            <option value="1">Past 24 hours</option>
-            <option value="3">Past 3 days</option>
-            <option value="7">Past 7 days</option>
-            <option value="14">Past 14 days</option>
-            <option value="30">Past 30 days</option>
-          </select>
-          <select id="f-sort" title="Sort">
-            <option value="">Sort</option>
-            <option value="match:asc" hidden>Best match</option>
-            <!-- Relevance ranks by where the search words appear
-                 (see relevance_score_sql). Newest stays the default:
-                 a job board is read by date first. -->
-            <option value="relevance:asc">Relevance</option>
-            <option value="age:asc">Newest</option>
-            <option value="age:desc">Oldest</option>
-          </select>
-        </div>
-      </div>
-      <nav class="topnav">
-        <!-- Populated entirely by app.js's renderAuthState(), same convention as the .ms filter dropdowns below -->
-        <div class="auth-area" id="auth-area"></div>
-        <button type="button" class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Dark mode"><span class="theme-knob" aria-hidden="true"></span><svg class="theme-ico theme-ico-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="theme-ico theme-ico-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></button>
-        <a class="icon-link" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener" aria-label="View source on GitHub" title="View source on GitHub">
-          <span class="visually-hidden">GitHub</span>
-          <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        </a>
-      </nav>
-    </div>
-  </div>
-
-  <!-- The board is three columns under one filter bar: what to narrow
-       by on the left, the listings in the middle, the open one on the
-       right. It replaced a single list with every filter stacked above
-       it, where the filter row ran out of width around six controls and
-       hid the rest behind a "Filters" button, and where opening a
-       listing threw a sheet over the board so reading one meant losing
-       your place in the others.
-
-       Market Stats used to be the right-hand column. Its headline
-       numbers now answer from the detail pane while nothing is open
-       (see the empty state in app.js), which is the one moment a reader
-       is looking for them, and the charts and market panels it also
-       held live at /stats, linked from the same place. -->
+  <!-- The board is a sidebar and a main column. The sidebar holds what
+       is about the site and about the reader (where else to go, which
+       listings, which categories); the main column holds the search,
+       the filters as a row of pills, and the two boxes: the list, and
+       the open listing or, with nothing open, what the filters add up
+       to. Below 1100px the sidebar is a drawer behind the menu button
+       and the pane is a sheet; below 800px the pills' lists are sheets
+       too, and the boxes run edge to edge. -->
   <div class="board-shell">
+    <aside class="site-side" id="site-side" aria-label="Site">
+      <div class="side-brand-row">
+        <a class="side-brand" href="/"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /><span>oceanofjobs.com</span></a>
+        <button type="button" class="side-fold" id="side-fold" aria-label="Collapse the sidebar" aria-expanded="true" title="Collapse">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+      </div>
+      <nav class="side-group side-nav" aria-label="Site"><a href="/board" class="current" aria-current="page">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a href="/api/help">API</a></nav>
+      <!-- Which listings the board shows. Filters apply in every view:
+           Best matches orders what they leave, it does not replace them. -->
+      <div class="side-group view-switch" id="view-switch" role="tablist" aria-label="Which listings to show">
+        <button type="button" class="seg-btn active" data-view="tech" role="tab" aria-selected="true">Tech roles</button>
+        <button type="button" class="seg-btn" data-view="all" role="tab" aria-selected="false">All roles</button>
+        <button type="button" class="seg-btn" data-view="matches" role="tab" aria-selected="false">Best matches</button>
+        <button type="button" class="seg-btn" data-view="saved" role="tab" aria-selected="false">Saved</button>
+      </div>
+      <!-- The category filter, as a list with counts: the one filter a
+           reader sets first and leaves set. Drawn by renderSideCategories
+           from the same rows as the rail's own (hidden) category group. -->
+      <div class="side-group side-section">
+        <div class="side-title">Categories</div>
+        <div class="side-cats" id="side-cats"></div>
+      </div>
+      <div class="side-foot">
+        <!-- Sign-in and the theme switch live here on a phone, where the
+             header has no room for them (wireSideBar). -->
+        <div class="side-account" id="side-account"></div>
+        <a class="side-source" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">Source code</a>
+      </div>
+    </aside>
+    <div class="side-scrim" id="side-scrim" aria-hidden="true"></div>
 
-    <!-- Only what applies to the whole result set: what to search, how
-         far back, and in what order. Everything that narrows by a value
-         moved into the rail, where the counts can sit beside the
-         options. -->
-    <div class="board-bar">
-      <!-- The search box is the first child of this row below 800px and
-           is not in the document here; see wireSearchHome(). Above it the
-           row has nothing left to hold, and hides. -->
-      <div class="board-bar-row board-bar-row-1">
-        <!-- The board searches as you type and always has. The button is
-             for the reader who types and then looks for one, and for a
-             phone keyboard's Go: it submits what is already in the box. -->
-        <button type="button" class="btn primary search-go" id="f-search-go">Search</button>
-        <!-- Opens the rail as a sheet below 800px, where there is no
-             room for a column, and sits beside the search because that
-             is the row a thumb is already on. Hidden above it. -->
-        <button type="button" class="btn ghost rail-toggle" id="rail-toggle" aria-expanded="false" aria-controls="filter-rail">Filters</button>
+    <div class="board-main">
+      <div class="board-head">
+        <button type="button" class="side-open" id="side-open" aria-label="Menu" aria-expanded="false" aria-controls="site-side"><span aria-hidden="true"><i></i><i></i><i></i></span></button>
+  <div class="topbar-search" id="topbar-search" role="search">
+    <svg class="topbar-search-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <input type="text" id="f-search" autocomplete="off" aria-label="Search jobs" placeholder="Search jobs, companies, skills, or locations" title="Every word must appear somewhere in the listing: title, company, location, category or description. &quot;Quote a phrase&quot; to keep it together." />
+      <button type="button" class="topbar-search-clear" id="f-search-clear" aria-label="Clear search" hidden>
+      <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+        <path d="M2 2l6 6M8 2l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+        <div class="board-corner">
+          <!-- Populated entirely by app.js's renderAuthState() -->
+          <div class="auth-area" id="auth-area"></div>
+          <button type="button" class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Dark mode"><span class="theme-knob" aria-hidden="true"></span><svg class="theme-ico theme-ico-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="theme-ico theme-ico-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></button>
+        </div>
       </div>
 
-      <div class="board-bar-row board-bar-row-2">
-        <!-- Which listings the board shows. Saved used to be a checkbox
-             among the filters, and the CV match a chip that only
-             appeared once a link from /account had set it, so neither
-             was something a reader could find. Filters apply in every
-             view: Best matches orders what they leave, it does not
-             replace them. -->
-        <div class="view-switch seg" id="view-switch" role="tablist" aria-label="Which listings to show">
-          <button type="button" class="seg-btn active" data-view="tech" role="tab" aria-selected="true">Tech roles</button>
-          <button type="button" class="seg-btn" data-view="all" role="tab" aria-selected="false">All roles</button>
-          <button type="button" class="seg-btn" data-view="matches" role="tab" aria-selected="false">Best matches</button>
-          <button type="button" class="seg-btn" data-view="saved" role="tab" aria-selected="false">Saved</button>
-        </div>
-
-        <!-- One chip per active filter value, each removing just that
-             value. The rail says what is on; this says it again where
-             the reader is looking, and is the only place that can undo
-             a single pick without opening the group it came from. -->
-        <div class="active-chips" id="active-chips" aria-label="Active filters"></div>
+      <!-- Every filter that narrows by a value, with its counts, as a
+           row of pills. Each pill is one rail section (renderFilterRail)
+           and opens its list under it. -->
+      <div class="board-pills">
+        <aside class="filter-rail" id="filter-rail" aria-label="Filters">
+          <div class="rail-groups" id="rail-groups"></div>
+        </aside>
+        <button type="button" class="rail-reset" id="f-reset" hidden>Reset</button>
       </div>
 
       <!-- Best matches only: the CV skills the order is built from.
@@ -251,43 +195,41 @@
       <!-- What the search did that the result count cannot say:
            words past the ten-word cap, or an any-word search. -->
       <div id="search-notice" class="search-notice" hidden></div>
-    </div>
+      <!-- app.js still draws one chip per active value here; the pills
+           say the same thing, so the row is not shown. -->
+      <div class="active-chips" id="active-chips" hidden></div>
 
-    <div class="board-grid">
-
-      <!-- Two boxes on a tinted ground: the filters and the listings
-           share one, the side panel has its own. The pair inside the
-           first box is divided by a hairline rather than a gap, so they
-           read as two halves of one surface. -->
-      <div class="board-box board-box-main">
-
-      <!-- Every filter that narrows by a value, with its counts. The
-           groups are ordered by how often they get used rather than
-           alphabetically: where, then what kind of work, then how
-           senior, then how it is worked, then who, then what it pays. -->
-      <!-- Each column's head is the same 64px, so they read as the top of
-           one board rather than as three panels that happen to be
-           adjacent. Each head stays put while its own column scrolls.
-           The listings column hides its own above 1100px; see
-           .board-list .list-head in style.css for why. -->
-      <aside class="filter-rail" id="filter-rail" aria-label="Filters">
-        <div class="rail-head col-head">
-          <span class="col-head-title">Filters</span>
-          <button type="button" class="rail-reset" id="f-reset" hidden>Reset</button>
-          <button type="button" class="rail-close" id="rail-close" aria-label="Close filters"></button>
-        </div>
-        <div class="rail-groups" id="rail-groups"></div>
-      </aside>
-
+      <div class="board-grid">
+        <div class="board-box board-box-main">
       <div class="board-list">
         <div class="col-head list-head">
           <div class="list-head-text">
             <span class="col-head-title" id="result-count"></span>
             <span class="col-head-sub" id="result-sub"></span>
           </div>
-          <!-- Nothing on the right. The Newest dropdown in the bar is
-               the sort, and a second control for it here meant two
-               places to change one thing. -->
+          <!-- The two controls that bound and order the whole result
+               set, at the right of the count they change. -->
+          <div class="topbar-sorts">
+            <select id="f-date-posted" title="Date posted">
+            <option value="">Any date</option>
+            <option value="any" hidden>Any time</option>
+            <option value="1">Past 24 hours</option>
+            <option value="3">Past 3 days</option>
+            <option value="7">Past 7 days</option>
+            <option value="14">Past 14 days</option>
+            <option value="30">Past 30 days</option>
+          </select>
+            <span class="sort-wrap"><span class="sort-label">Sort</span><select id="f-sort" title="Sort">
+            <option value="">Sort</option>
+            <option value="match:asc" hidden>Best match</option>
+            <!-- Relevance ranks by where the search words appear
+                 (see relevance_score_sql). Newest stays the default:
+                 a job board is read by date first. -->
+            <option value="relevance:asc">Relevance</option>
+            <option value="age:asc">Newest</option>
+            <option value="age:desc">Oldest</option>
+          </select></span>
+          </div>
         </div>
         <!-- Shown by a background refresh that found new listings while
              the reader was further down the list (see loadJobs). -->
@@ -369,14 +311,8 @@
           <button type="button" class="btn ghost" id="jobs-more-btn">Load more</button>
         </div>
       </div>
+        </div>
 
-      </div><!-- /.board-box-main -->
-
-      <!-- Beside the list rather than over it, so reading a listing
-           never costs your place in the others. It keeps the sheet
-           behaviour below 1100px, where there is no room for a third
-           column, and it is never empty: with nothing selected it
-           answers what the current filters add up to. -->
       <aside class="job-detail board-box" id="job-detail" role="complementary" aria-label="Job detail">
         <div class="col-head pane-head" id="pane-head"></div>
         <div class="pane-body" id="pane-body"></div>
@@ -389,6 +325,7 @@
       <!-- Dims and catches clicks on the board while the pane is a
            sheet. Inert above 1100px, where the pane is a column. -->
       <div id="job-scrim" aria-hidden="true"></div>
+      </div>
     </div>
   </div>
 
