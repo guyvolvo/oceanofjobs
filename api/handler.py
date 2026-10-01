@@ -30,7 +30,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 from aggregates import (scoped_variant_key, company_directory, company_profile, compute_facets,
-                        compute_scoped_stats, compute_stats, has_board_filters, search_companies)
+                        compute_scoped_stats, compute_stats, has_board_filters, place_rows, search_companies)
 from db import get_connection, status as db_status
 from help_page import HELP_HTML
 from openapi import spec as openapi_spec
@@ -512,7 +512,16 @@ def _has_company_column(conn, name: str) -> bool:
 
 def route_jobs(params: dict) -> dict:
     conn = get_connection()
+    # A place filter is found once, into a temp table of row ids, and
+    # the count and the page both read it (aggregates.place_rows, the
+    # same thing the facets do). Without it the page query walked the
+    # posted_at index testing two LIKEs on every row until it had fifty
+    # hits, and two cities in Argentina took 103 seconds (2026-10-01).
+    with place_rows(conn, params):
+        return _route_jobs(conn, params)
 
+
+def _route_jobs(conn, params: dict) -> dict:
     company_name_select = (
         "(SELECT company_name FROM companies WHERE domain = jobs.company_domain) AS company_name"
         if _has_company_name(conn) else "NULL AS company_name"
