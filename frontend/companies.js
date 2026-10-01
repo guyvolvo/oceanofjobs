@@ -11,9 +11,11 @@
     workable: "Workable", comeet: "Comeet", recruitee: "Recruitee", personio: "Personio", teamtailor: "Teamtailor",
     bamboohr: "BambooHR", breezy: "Breezy", jazzhr: "JazzHR", pinpoint: "Pinpoint", oracle: "Oracle", eightfold: "Eightfold",
     hunter: "Hunter" };
-  // A scraper of our own is named for the company it reads; a reader
-  // sees that as "its own careers site".
-  const atsName = (a) => (a ? ATS[a] || "Own careers site" : "Unknown");
+  // A scraper of our own is named for the company it reads (tycowp,
+  // niloosoft, apple...). To a reader those are all one thing, the
+  // company's own website, so they count, filter and read as one.
+  const atsKey = (a) => (a ? (ATS[a] ? a : "custom") : null);
+  const atsName = (a) => (a ? ATS[a] || "Company website" : "Unknown");
 
   // A row's trend: twelve weeks of open roles as one line, 90 by 28.
   // Fewer than two weeks on record draws nothing rather than a dot.
@@ -78,7 +80,7 @@
   function rows() {
     let out = (directory?.companies || []).map((c) => ({ ...c, name: c.name || c.domain }));
     if (state.view === "following") out = out.filter((r) => following.has(r.domain));
-    if (state.ats.size) out = out.filter((r) => r.ats && state.ats.has(r.ats));
+    if (state.ats.size) out = out.filter((r) => r.ats && state.ats.has(atsKey(r.ats)));
     if (state.q) {
       const q = state.q.toLowerCase();
       out = out.filter((r) => r.name.toLowerCase().includes(q) || r.domain.includes(q) || atsName(r.ats).toLowerCase().includes(q));
@@ -92,7 +94,7 @@
 
   function atsCounts() {
     const counts = {};
-    for (const r of (directory?.companies || [])) if (r.ats) counts[r.ats] = (counts[r.ats] || 0) + 1;
+    for (const r of (directory?.companies || [])) if (r.ats) counts[atsKey(r.ats)] = (counts[atsKey(r.ats)] || 0) + 1;
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }
 
