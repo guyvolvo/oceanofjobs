@@ -120,6 +120,7 @@ with tempfile.TemporaryDirectory() as td:
           len(p["history"]) == 17 and hist[0] == 4 and hist[5] == 1 and hist[21] == 1 and hist[28] == 1, repr(sorted(hist.items())))
     days = conn.execute("SELECT COUNT(DISTINCT day) FROM company_daily WHERE domain != ''").fetchone()[0]
     check("the table has the last fourteen days, weeks three to five (monday.com's), and today", days == 18, str(days))
+    aggregates._DIRECTORY_CACHE.clear()  # kept per worker for half an hour; this test changed the data under it
     d = aggregates.company_directory(conn, {"confidence": "verified"})
     t = {c["domain"]: c["trend"] for c in d["companies"]}
     check("the directory carries a seven-day trend per company, oldest first, today last",
