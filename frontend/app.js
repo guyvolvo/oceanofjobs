@@ -4005,8 +4005,8 @@ const RAIL_ACCORDION = [
     icon: RAIL_GLYPH('<path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/>') },
   { key: "employer", title: "Company", parts: ["company"],
     icon: RAIL_GLYPH('<path d="M80-120v-720h400v160h400v560H80Zm80-80h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm320 480h320v-400H480v400Zm80-240v-80h160v80H560Zm0 160v-80h160v80H560Z"/>') },
-  { key: "level", title: "Seniority", parts: ["seniority"],
-    icon: RAIL_ICON('<path d="M4 20v-7M10 20V9M16 20V4M22 20H2"/>') },
+  { key: "level", title: "Experience level", parts: ["seniority"],
+    icon: RAIL_GLYPH('<path d="M200-160v-240h120v240H200Zm240 0v-440h120v440H440Zm240 0v-640h120v640H680Z"/>') },
   { key: "work", title: "Work type", parts: ["workplace"],
     icon: RAIL_ICON('<path d="M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/>') },
   // Drawn in the sidebar by renderSideCategories, from these same rows;
