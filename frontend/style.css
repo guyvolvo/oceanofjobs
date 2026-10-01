@@ -6965,7 +6965,29 @@ table.jobs tbody tr.skeleton-row {
 @media (max-width: 640px) {
   /* Sign-in and the theme switch move into the drawer (wireSideBar). */
   .board-corner { display: none; }
-  .side-account { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 8px; }
+  /* One row: the account at the left, the theme switch at the right.
+     The account menu is a popover hung off the topbar's right edge; in
+     the drawer that put it off the left edge and its height under the
+     foot. Here it opens in the flow, on a row of its own under the
+     pair, the drawer's width. */
+  .side-account {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 8px;
+    padding: 0 8px;
+  }
+  .side-account .auth-area { display: contents; }
+  .side-account .theme-toggle { order: 2; }
+  .side-account .auth-panel {
+    position: static;
+    order: 3;
+    grid-column: 1 / -1;
+    width: auto;
+    max-height: none;
+    transform-origin: top left;
+  }
   .board-list .list-head { height: auto; min-height: 52px; flex-wrap: wrap; padding: 8px 14px; }
   /* Four short lines on a phone: the one-line company and place would
      be an ellipsis each. */
