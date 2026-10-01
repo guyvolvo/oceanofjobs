@@ -3995,13 +3995,16 @@ const RAIL_GROUPS = [
 // with something ticked says what under its name.
 const RAIL_ICON = (d) => `<svg class="rail-acc-icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
   stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+// A Material Symbols path (icons/, exported at 24px, filled): the same
+// 16px box as RAIL_ICON, filled with the text colour rather than stroked.
+const RAIL_GLYPH = (d) => `<svg class="rail-acc-icon" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true">${d}</svg>`;
 const RAIL_ACCORDION = [
   { key: "place", title: "Location", parts: ["location"],
-    icon: RAIL_ICON('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>') },
+    icon: RAIL_GLYPH('<path d="M536.5-503.5Q560-527 560-560t-23.5-56.5Q513-640 480-640t-56.5 23.5Q400-593 400-560t23.5 56.5Q447-480 480-480t56.5-23.5ZM480-186q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z"/>') },
   { key: "pay", title: "Salary", parts: ["salary"],
-    icon: RAIL_ICON('<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6.5 15h4"/>') },
+    icon: RAIL_GLYPH('<path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/>') },
   { key: "employer", title: "Company", parts: ["company"],
-    icon: RAIL_ICON('<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/>') },
+    icon: RAIL_GLYPH('<path d="M80-120v-720h400v160h400v560H80Zm80-80h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm320 480h320v-400H480v400Zm80-240v-80h160v80H560Zm0 160v-80h160v80H560Z"/>') },
   { key: "level", title: "Seniority", parts: ["seniority"],
     icon: RAIL_ICON('<path d="M4 20v-7M10 20V9M16 20V4M22 20H2"/>') },
   { key: "work", title: "Work type", parts: ["workplace"],
