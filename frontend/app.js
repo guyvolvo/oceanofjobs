@@ -695,7 +695,9 @@ function renderScopeLine() {
     return;
   }
   if (mode === "pending") {
-    el.textContent = `${applied}. Counting…`;
+    // The filters, then a bone where the number will be: no word for
+    // waiting anywhere on the board.
+    el.innerHTML = `${escapeHtml(applied)} <span class="skeleton sk-line" style="display:inline-block;width:72px;height:10px;vertical-align:middle"></span>`;
     return;
   }
   if (mode === "unavailable") {
@@ -4435,7 +4437,8 @@ function renderSideCategories() {
   const rows = railVisibleRows(group);
   const total = railRows(group).length;
   if (!rows.length) {
-    host.innerHTML = railFacetsLoaded ? "" : '<div class="side-cat side-hint">Counting</div>';
+    host.innerHTML = railFacetsLoaded ? "" : [62, 48, 70, 55].map((w) =>
+      `<div class="side-cat" aria-hidden="true"><span class="skeleton sk-line" style="display:block;width:${w}%"></span></div>`).join("");
     return;
   }
   host.innerHTML = rows.map((r) => `<button type="button" class="side-cat${picked.has(r.value) ? " on" : ""}"

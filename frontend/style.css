@@ -7068,21 +7068,36 @@ table.jobs tbody tr.skeleton-row {
 /* A company row: star, logo tile, name and line, the count. */
 .dir-row {
   display: grid;
-  grid-template-columns: 28px 44px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr) 90px auto auto;
   align-items: center;
   column-gap: 14px;
   min-height: 72px;
-  padding: 10px 16px 10px 10px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--grey-line);
   cursor: pointer;
 }
 .dir-row:hover { background: var(--row-hover); }
 .dir-row.selected { background: var(--row-open); box-shadow: inset 3px 0 0 var(--green); }
 .dir-row:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
-.dir-star { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 4px; background: none; color: var(--grey); cursor: pointer; }
-.dir-star:hover { background: var(--hover-bg); color: var(--black); }
-.dir-star.on { color: var(--green-text); }
-.dir-star svg { width: 16px; height: 16px; }
+/* The trend: twelve weeks of open roles, one line in ink, with its
+   span said under it. Nothing drawn until two weeks are on record. */
+.dir-trend-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 28px; }
+.dir-trend { display: block; width: 90px; height: 28px; overflow: visible; color: var(--black); }
+.dir-trend-cap { font: 400 10px var(--font); color: var(--grey); }
+.dir-follow {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--black);
+  border-radius: 999px;
+  background: none;
+  color: var(--black);
+  font: 500 12px var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dir-follow:hover { background: var(--hover-bg); }
+.dir-follow.on { background: var(--black); color: var(--white); }
+.dir-follow:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .dir-logo { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 4px; outline: 1px solid var(--grey-line); outline-offset: -1px; overflow: hidden; background: var(--white); }
 .dir-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--white); }
 .dir-logo img[hidden] { display: none; }
@@ -7090,7 +7105,7 @@ table.jobs tbody tr.skeleton-row {
 .dir-name { font: 600 15px var(--font-ui); color: var(--black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dir-row:hover .dir-name { color: var(--green-text); }
 .dir-line { margin-top: 2px; font: 400 13px var(--font); color: var(--black); opacity: 0.75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dir-count { text-align: right; }
+.dir-count { min-width: 96px; text-align: right; }
 .dir-count b { display: block; font: 600 17px var(--font-ui); color: var(--black); font-variant-numeric: tabular-nums; }
 .dir-count span { font: 400 12px var(--font); color: var(--grey); white-space: nowrap; }
 .dir-more { margin: 14px; }
@@ -7127,6 +7142,12 @@ table.jobs tbody tr.skeleton-row {
 .dir-block-head { display: flex; align-items: baseline; justify-content: space-between; }
 .dir-block-head a { font: 400 13px var(--font-ui); color: var(--green-text); }
 .dir-hint { color: var(--grey); font: 400 13px var(--font); }
+/* Bones while the numbers come: the row's own shape, nothing in words. */
+.dir-row-bone { cursor: default; }
+.dir-row-bone:hover { background: none; }
+.side-cat .skeleton, .dir-opt .skeleton, .dir-bar-bone .skeleton { display: block; }
+.dir-bar-bone { min-height: 20px; display: flex; align-items: center; }
+.ov-tile .skeleton { display: block; }
 
 @media (max-width: 800px) {
   .dir-pills { overflow-x: auto; scrollbar-width: none; }
@@ -7145,5 +7166,11 @@ table.jobs tbody tr.skeleton-row {
     padding-bottom: max(20px, env(safe-area-inset-bottom));
     transform-origin: bottom center;
   }
-  .dir-row { padding: 10px 12px 10px 6px; column-gap: 10px; }
+  .dir-row { padding: 10px 12px; column-gap: 10px; }
+}
+@media (max-width: 640px) {
+  /* No room for the trend beside the name on a phone. */
+  .dir-row { grid-template-columns: 44px minmax(0, 1fr) auto auto; }
+  .dir-trend-cell { display: none; }
+  .dir-follow { padding: 0 10px; }
 }

@@ -91,6 +91,28 @@ def record_company_day(db_path: Path) -> bool:
         if conn.execute("SELECT 1 FROM company_daily WHERE day = ? LIMIT 1", (today,)).fetchone():
             return False
         from datetime import timedelta
+        if not conn.execute("SELECT 1 FROM company_daily WHERE day < ? LIMIT 1", (today,)).fetchone():
+            # A table with no past in it (first run, or only today's
+            # rows) fills in the past twelve weeks, one row a week, from
+            # what the jobs table already knows: a role was
+            # open on a day if it had been seen by then and not closed
+            # by then. Closed rows that archive.py has since moved out
+            # make the oldest weeks read a little low; the daily rows
+            # from here on are exact.
+            for k in range(12, 0, -1):
+                day = (now - timedelta(days=7 * k)).date()
+                end = f"{day.isoformat()}T23:59:59"
+                before = f"{(day - timedelta(days=1)).isoformat()}T23:59:59"
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO company_daily (day, domain, open_n, new_n)
+                    SELECT ?, company_domain, COUNT(*), SUM(CASE WHEN first_seen > ? THEN 1 ELSE 0 END)
+                    FROM jobs
+                    WHERE first_seen <= ? AND (closed_at IS NULL OR closed_at > ?)
+                      AND company_domain IS NOT NULL AND company_domain != ''
+                    GROUP BY company_domain
+                    """,
+                    (day.isoformat(), before, end, end))
         day_ago = (now - timedelta(days=1)).isoformat()
         conn.execute(
             """

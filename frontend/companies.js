@@ -14,7 +14,19 @@
   // A scraper of our own is named for the company it reads; a reader
   // sees that as "its own careers site".
   const atsName = (a) => (a ? ATS[a] || "Own careers site" : "Unknown");
-  const STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>';
+
+  // A row's trend: twelve weeks of open roles as one line, 90 by 28.
+  // Fewer than two weeks on record draws nothing rather than a dot.
+  function rowSpark(trend) {
+    const pts = (trend || []).map((v, i) => [i, v]).filter(([, v]) => v != null);
+    if (pts.length < 2) return "";
+    const w = 90, h = 28, n = (trend || []).length - 1;
+    const vals = pts.map(([, v]) => v);
+    const min = Math.min(...vals), max = Math.max(...vals), span = Math.max(1, max - min);
+    const d = pts.map(([i, v], k) => `${k ? "L" : "M"}${(i / n * w).toFixed(1)} ${(h - 3 - ((v - min) / span) * (h - 6)).toFixed(1)}`).join(" ");
+    const up = vals[vals.length - 1] >= vals[0];
+    return `<svg class="dir-trend${up ? " up" : " down"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="Open roles over twelve weeks, ${fmt(vals[0])} to ${fmt(vals[vals.length - 1])}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="dir-trend-cap">12 weeks</span>`;
+  }
 
   const COUNTRY_KEY = "iljobs_dir_country";
   const FOLLOW_KEY = "iljobs_dir_follow";
@@ -35,8 +47,10 @@
       const r = await fetch(`${API}/facets?confidence=all`);
       countries = ((await r.json()).locations || []).map((c) => ({ value: c.value, label: c.label, n: c.n }));
     } catch { countries = []; }
-    // The list may have drawn first with the country's code for a name.
+    // The list and the empty pane may have drawn first with the
+    // country's code for a name.
     if (directory) renderAll(); else renderPills();
+    if (!state.selected) openCompany(null);
   }
 
   async function loadDirectory() {
@@ -51,7 +65,7 @@
       data = await r.json();
     } catch (e) {
       if (seq !== loadSeq) return;
-      // Said plainly, with the status, rather than "Counting" for ever.
+      // Said plainly, with the status, rather than bones for ever.
       $("#dir-count").textContent = "Could not load the list";
       $("#dir-sub").textContent = /^\d+$/.test(e.message) ? `The API answered ${e.message}. Try again in a minute.` : "The API did not answer. Try again in a minute.";
       return;
@@ -88,6 +102,19 @@
     return `<span class="dir-logo">${img}<span class="dir-letter">${letter}</span></span>`;
   }
 
+  // Bones where numbers are still coming: a list says nothing in words
+  // while it loads, it shows the shape of what is coming.
+  const bone = (w, h = 11) => `<span class="skeleton sk-line" style="width:${w};height:${h}px"></span>`;
+  const boneRows = (n, cls) => Array.from({ length: n }, (_, i) => `<div class="${cls}" aria-hidden="true">${bone(`${[62, 48, 70, 55][i % 4]}%`)}</div>`).join("");
+  const boneList = (n) => Array.from({ length: n }, (_, i) => `
+      <div class="dir-row dir-row-bone" aria-hidden="true">
+        <span class="dir-logo skeleton sk-logo"></span>
+        <div class="dir-main">${bone(`${[55, 40, 66, 48][i % 4]}%`, 14)}<div style="margin-top:6px">${bone(`${[70, 58, 76, 62][i % 4]}%`)}</div></div>
+        <div class="dir-trend-cell">${bone("90px", 20)}</div>
+        <span></span>
+        <div class="dir-count">${bone("44px", 14)}</div>
+      </div>`).join("");
+
   function renderSidebar() {
     const hiring = directory ? directory.companies.length : null;
     $("#dir-browse").innerHTML = [["hiring", `Hiring now${where()}`, hiring], ["following", "Following", following.size]].map(([key, label, n]) =>
@@ -95,7 +122,7 @@
     const counts = atsCounts();
     $("#dir-systems").innerHTML = counts.length
       ? counts.slice(0, 8).map(([a, n]) => `<button type="button" class="side-cat${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}" aria-pressed="${state.ats.has(a)}"><span>${esc(atsName(a))}</span><span class="side-cat-n">${fmt(n)}</span></button>`).join("")
-      : `<div class="side-cat side-hint">${directory ? "None" : "Counting"}</div>`;
+      : (directory ? '<div class="side-cat side-hint">None</div>' : boneRows(4, "side-cat"));
   }
 
   function renderPills() {
@@ -104,18 +131,18 @@
     sum("#dir-sum-ats", [...state.ats].map(atsName).join(", "));
     $("#dir-pop-place").innerHTML = [`<button type="button" class="dir-opt${state.country ? "" : " on"}" data-country=""><span>Anywhere</span></button>`]
       .concat(countries.map((c) => `<button type="button" class="dir-opt${state.country === c.value ? " on" : ""}" data-country="${esc(c.value)}"><span>${esc(c.label)}</span><span class="dir-n">${fmt(c.n)}</span></button>`)).join("")
-      || '<div class="dir-opt side-hint">Counting</div>';
+      || boneRows(6, "dir-opt");
     $("#dir-pop-ats").innerHTML = atsCounts().map(([a, n]) =>
-      `<button type="button" class="dir-opt${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}"><span>${esc(atsName(a))}</span><span class="dir-n">${fmt(n)}</span></button>`).join("") || '<div class="dir-opt side-hint">Counting</div>';
+      `<button type="button" class="dir-opt${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}"><span>${esc(atsName(a))}</span><span class="dir-n">${fmt(n)}</span></button>`).join("") || boneRows(6, "dir-opt");
     $("#dir-reset").hidden = !state.country && !state.ats.size && state.view === "hiring" && !state.q;
   }
 
   function renderList() {
     const body = $("#dir-rows");
     if (!directory) {
-      $("#dir-count").textContent = "Counting";
-      $("#dir-sub").textContent = "";
-      body.innerHTML = "";
+      $("#dir-count").innerHTML = bone("240px", 14);
+      $("#dir-sub").innerHTML = bone("200px");
+      body.innerHTML = boneList(10);
       return;
     }
     const list = rows();
@@ -125,12 +152,13 @@
     $("#dir-sub").textContent = list.length ? `1–${Math.min(state.shown, list.length)} · ${fmt(total)} open roles between them, ${fmt(fresh)} new this week` : "";
     body.innerHTML = list.slice(0, state.shown).map((r) => `
       <div class="dir-row${r.domain === state.selected ? " selected" : ""}" data-domain="${esc(r.domain)}" tabindex="0" role="button">
-        <button type="button" class="dir-star${following.has(r.domain) ? " on" : ""}" data-follow="${esc(r.domain)}" aria-pressed="${following.has(r.domain)}" aria-label="Follow ${esc(r.name)}">${STAR}</button>
         ${logoTile(r)}
         <div class="dir-main">
           <div class="dir-name">${esc(r.name)}</div>
           <div class="dir-line">${esc(r.domain)} · ${esc(atsName(r.ats))}</div>
         </div>
+        <div class="dir-trend-cell">${rowSpark(r.trend)}</div>
+        <button type="button" class="dir-follow${following.has(r.domain) ? " on" : ""}" data-follow="${esc(r.domain)}" aria-pressed="${following.has(r.domain)}" aria-label="${following.has(r.domain) ? "Unfollow" : "Follow"} ${esc(r.name)}">${following.has(r.domain) ? "Following" : "Follow"}</button>
         <div class="dir-count"><b>${fmt(r.n)}</b><span>${r.new_7d ? `+${fmt(r.new_7d)} this week` : "open roles"}</span></div>
       </div>`).join("") + (list.length > state.shown
         ? `<div class="dir-more"><button type="button" class="btn ghost" id="dir-more">Show ${Math.min(50, list.length - state.shown)} more</button></div>`
@@ -185,8 +213,8 @@
         <a class="btn ghost" href="https://${esc(domain)}" target="_blank" rel="noopener">Careers page &nearr;</a>
       </div>
       <div class="ov-tiles" id="dir-tiles"></div>
-      <div class="ov-block"><span class="ov-block-title">Open roles, twelve weeks</span><div id="dir-spark"><span class="dir-hint">Counting</span></div></div>
-      <div class="ov-block"><span class="ov-block-title">Hiring for</span><div class="dir-bars" id="dir-bars"><span class="dir-hint">Counting</span></div></div>
+      <div class="ov-block"><span class="ov-block-title">Open roles, twelve weeks</span><div id="dir-spark">${bone("100%", 56)}</div></div>
+      <div class="ov-block"><span class="ov-block-title">Hiring for</span><div class="dir-bars" id="dir-bars">${boneRows(3, "dir-bar-bone")}</div></div>
       <div class="ov-block"><div class="dir-block-head"><span class="ov-block-title">Newest roles</span><a id="dir-all" href="/board?company=${encodeURIComponent(domain)}">All</a></div><div class="dir-jobs" id="dir-jobs"></div></div>
     </div>`;
     const here = state.country ? `&country=${encodeURIComponent(state.country)}` : "";

@@ -112,7 +112,21 @@ with tempfile.TemporaryDirectory() as td:
           set(rows) == {"wiz.io", "monday.com", "acme.com"} and rows["wiz.io"]["open_n"] == 4 and rows["wiz.io"]["new_n"] == 1
           and rows["wiz.io"]["day"] == NOW.date().isoformat(), repr(rows.get("wiz.io")))
     p = aggregates.company_profile(conn, "wiz.io")
-    check("the profile carries the history once it exists", len(p["history"]) == 1 and p["history"][0]["open_n"] == 4, repr(p["history"]))
+    # Backfilled weeks only exist where something was open: wiz.io's
+    # oldest role was seen 30 days ago, so it has four weekly rows and
+    # today's; the fixture's oldest role (41 days) gives the table five
+    # weeks and today.
+    check("the profile carries the history: today's row and the backfilled weeks it was hiring in",
+          [h["open_n"] for h in p["history"]] == [1, 1, 1, 1, 4], repr([h["open_n"] for h in p["history"]]))
+    days = conn.execute("SELECT COUNT(DISTINCT day) FROM company_daily").fetchone()[0]
+    check("the first run backfilled one row a week back to the oldest open role", days == 6, str(days))
+    four_weeks_ago = [h for h in p["history"] if 26 <= (NOW.date() - datetime.strptime(h["day"], "%Y-%m-%d").date()).days <= 29]
+    check("a backfilled week counts what was open then: wiz.io had one role seen 30 days ago",
+          four_weeks_ago and four_weeks_ago[0]["open_n"] == 1, repr(four_weeks_ago))
+    d = aggregates.company_directory(conn, {"confidence": "verified"})
+    t = {c["domain"]: c["trend"] for c in d["companies"]}
+    check("the directory carries a twelve-week trend per company, oldest first, this week last",
+          len(t["wiz.io"]) == 12 and t["wiz.io"][-1] == 4 and t["monday.com"][-1] == 2 and t["wiz.io"][7] == 1, repr(t["wiz.io"]))
     conn.close()
 
 print()

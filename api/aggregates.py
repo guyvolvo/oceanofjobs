@@ -96,12 +96,39 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
         domains = [r["domain"] for r in rows]
         known = {c["domain"]: dict(c) for c in conn.execute(
             f"SELECT {pick} FROM companies WHERE domain IN ({','.join('?' * len(domains))})", domains)}
+        trends = company_trends(conn, domains)
         for r in rows:
             c = known.get(r["domain"], {})
             r["name"] = c.get("company_name") or None
             r["ats"] = c.get("ats")
             r["has_logo"] = bool(c.get("logo_url"))
+            r["trend"] = trends.get(r["domain"], [])
     return {"companies": rows, "capped": len(rows) >= limit, "limit": limit}
+
+
+def company_trends(conn, domains: list[str], weeks: int = 12) -> dict[str, list]:
+    """Each company's open roles over the last `weeks` weeks, one number
+    a week (the latest day recorded in that week, None for a week with
+    nothing), oldest first, from company_daily. Worldwide, whatever the
+    directory is filtered to: the table counts a company's roles, not a
+    country's share of them. Empty before the table exists."""
+    from datetime import datetime, timedelta, timezone
+
+    if not domains or not conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'company_daily'").fetchone():
+        return {}
+    today = datetime.now(timezone.utc).date()
+    since = (today - timedelta(days=7 * weeks - 1)).isoformat()
+    out: dict[str, list] = {d: [None] * weeks for d in domains}
+    for d, day, n in conn.execute(
+            f"SELECT domain, day, open_n FROM company_daily WHERE day >= ? "
+            f"AND domain IN ({','.join('?' * len(domains))}) ORDER BY day",
+            [since, *domains]):
+        age = (today - datetime.strptime(day, "%Y-%m-%d").date()).days
+        bucket = weeks - 1 - age // 7
+        if 0 <= bucket < weeks:
+            out[d][bucket] = n  # ordered by day, so the latest in a week wins
+    return {d: v for d, v in out.items() if any(x is not None for x in v)}
 
 
 def company_profile(conn, domain: str) -> dict | None:
