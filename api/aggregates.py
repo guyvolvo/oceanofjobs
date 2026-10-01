@@ -55,6 +55,69 @@ def _with_logos(conn, rows: list[dict]) -> list[dict]:
     return rows
 
 
+_HISTORY_CACHE: dict = {}
+_HISTORY_TTL_S = 600
+
+
+def skills_history(conn, params: dict, days: int = 90) -> dict:
+    """The account page's market chart: for each of the last `days`
+    days, how many roles carrying at least `min_match` of the reader's
+    skills were open, and how many were first seen that day. A country
+    narrows it the way the board's country filter does.
+
+    Reconstructed from first_seen and closed_at rather than read from a
+    table, since no table keeps a history per skill set: a baseline of
+    what was open before the window, then each day's arrivals less its
+    departures. Three passes over the table, each a LIKE per skill, so
+    the answer is kept per worker for ten minutes.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from job_filters import skills_score_sql, wanted_country_codes, wanted_skills
+
+    wanted = wanted_skills(params)
+    if not wanted:
+        raise ValueError("skills is required")
+    try:
+        min_match = int(params.get("min_match") or 3)
+    except ValueError:
+        min_match = 3
+    min_match = max(1, min(min_match, len(wanted)))
+    countries = wanted_country_codes(params)
+    key = (tuple(wanted), min_match, tuple(countries), days)
+    now = datetime.now(timezone.utc)
+    hit = _HISTORY_CACHE.get(key)
+    if hit and (now - hit[0]).total_seconds() < _HISTORY_TTL_S:
+        return hit[1]
+
+    score_sql, score_args = skills_score_sql(wanted)
+    where = [f"{score_sql} >= ?"]
+    args: list = [*score_args, min_match]
+    if countries:
+        where.append("(" + " OR ".join("(',' || COALESCE(country, '') || ',') LIKE ?" for _ in countries) + ")")
+        args += [f"%,{c},%" for c in countries]
+    scope = " AND ".join(where)
+    start = (now - timedelta(days=days - 1)).date()
+    start_iso = start.isoformat()
+    baseline = conn.execute(
+        f"SELECT COUNT(*) FROM jobs WHERE {scope} AND date(first_seen) < ? "
+        f"AND (closed_at IS NULL OR date(closed_at) >= ?)", [*args, start_iso, start_iso]).fetchone()[0]
+    seen = dict(conn.execute(
+        f"SELECT date(first_seen) AS d, COUNT(*) FROM jobs WHERE {scope} AND date(first_seen) >= ? GROUP BY d",
+        [*args, start_iso]).fetchall())
+    closed = dict(conn.execute(
+        f"SELECT date(closed_at) AS d, COUNT(*) FROM jobs WHERE {scope} AND closed_at IS NOT NULL "
+        f"AND date(closed_at) >= ? GROUP BY d", [*args, start_iso]).fetchall())
+    rows, open_n = [], baseline
+    for i in range(days):
+        day = (start + timedelta(days=i)).isoformat()
+        open_n += seen.get(day, 0) - closed.get(day, 0)
+        rows.append({"day": day, "open": max(0, open_n), "new": seen.get(day, 0)})
+    out = {"skills": wanted, "min_match": min_match, "country": countries, "days": rows}
+    _HISTORY_CACHE[key] = (now, out)
+    return out
+
+
 def _company_columns(conn) -> set[str]:
     return {r[1] for r in conn.execute("PRAGMA table_info(companies)")}
 
