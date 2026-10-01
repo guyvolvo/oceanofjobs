@@ -7234,3 +7234,16 @@ table.jobs tbody tr.skeleton-row {
   .dir-trend-cell, .dir-cols { display: none; }
   .dir-follow { padding: 0 10px; }
 }
+
+/* The controls' outlines at 40% of the ink. A row of six full-ink rings
+   read louder than the list under them; an open pill and a pressed
+   Follow keep the full line, since they are the ones doing something. */
+.board-head .topbar-search,
+.board-pills .rail-acc-head,
+.dir-pill,
+.sort-wrap,
+.list-head .topbar-sorts select,
+.dir-follow { border-color: color-mix(in srgb, var(--black) 40%, transparent); }
+.board-pills .rail-acc.open .rail-acc-head,
+.dir-pill[aria-expanded="true"],
+.dir-follow.on { border-color: var(--black); }
