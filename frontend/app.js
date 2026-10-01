@@ -5778,13 +5778,13 @@ function renderAuthState() {
           <div class="ms" id="alert-ms-workplace"></div>
         </div>
         <div class="alert-form-actions">
-          <button class="btn" id="create-alert-btn" type="button">Create Alert</button>
+          <button class="btn" id="create-alert-btn" type="button">Create alert</button>
           <button class="btn btn-quiet" id="cancel-edit-btn" type="button" hidden>Cancel</button>
         </div>
         <p class="create-alert-feedback" id="create-alert-feedback" hidden></p>
       </div>
 
-      <button class="auth-signout" id="auth-panel-signout" type="button">Sign Out</button>
+      <button class="auth-signout" id="auth-panel-signout" type="button">Sign out</button>
     </div>`;
   area.innerHTML = `
     <button class="hero-account-btn" id="topbar-account-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="topbar-menu">
