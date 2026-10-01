@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Google tag (gtag.js). Google's own instruction is "immediately
+       after <head>"; it sits after the charset instead, because a
+       document's encoding has to be declared inside the first 1024
+       bytes and this snippet is long enough to push it out. async, so
+       it never blocks the theme script below or first paint. -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-GXP63R1JP1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-GXP63R1JP1');
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Companies hiring | Ocean of Jobs</title>
+  <meta name="description" content="Every company with open roles on Ocean of Jobs: how many, how many are new this week, which hiring system they use, and their newest listings." />
+  <!-- A link shared without these falls back to whatever a platform's own
+       crawler screenshots live -- reported live (2026-09-08): that's a
+       JS-rendered page mid-fetch, so the preview showed the loading
+       skeleton ("Loading market panels...") instead of anything real.
+       og.jpg is a static card (the name and the day's counts over a
+       blurred photograph, rendered once a day by og-image.yml), so
+       every platform shows the same correct thing regardless of whether
+       or how well its crawler executes JS. Absolute URLs throughout --
+       a relative image path doesn't resolve for an external crawler. -->
+  <!-- The board is one page; a listing open on it has its own page at
+       /job/<id>, which app.js swaps in here while one is open, so the
+       two never compete in an index. -->
+  <link rel="canonical" href="https://oceanofjobs.com/companies" id="canonical" />
+  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="https://oceanofjobs.com/feed.xml" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://oceanofjobs.com/companies" />
+  <meta property="og:title" content="OceanOfJobs.com" />
+  <meta property="og:description" content="The open-source job board that makes hunting for your next opportunity easy, fast, and transparent." />
+  <meta property="og:image" content="https://oceanofjobs.com/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="OceanOfJobs.com" />
+  <meta name="twitter:description" content="The open-source job board that makes hunting for your next opportunity easy, fast, and transparent." />
+  <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg" />
+  <!-- SVG first (crisp at any size, modern browsers use it over the .ico
+       below); .ico stays for older browsers that don't support rel="icon"
+       type="image/svg+xml" at all. apple-touch-icon is PNG-only -- iOS
+       doesn't accept SVG there. favicon.svg wraps the actual provided
+       mark (favicon-512.png) as a base64 <image>, not a redrawn
+       approximation -- the 16/32/180px PNGs and the .ico are resized
+       directly from that same source file too. -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=3" />
+  <link rel="icon" href="favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png?v=3" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- The default first page, precomputed at merge time and served from
+       CloudFront's edge with no Lambda in the path (loader/bootstrap.py).
+       Preloaded so it downloads alongside app.js rather than after it.
+       app.js ignores it unless it matches the exact query it was about
+       to make, so a mismatched file costs nothing but a normal fetch. -->
+  <script>
+    // Applied before first paint so there's no flash of the wrong theme
+    // on reload. app.js still owns the toggle button/click handling.
+    if (localStorage.getItem("iljobs_theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+    // Same for a Statistics column collapsed on an earlier visit (see
+    // wireStatsToggle in app.js), so it does not open and ease shut.
+    try {
+      if (localStorage.getItem("iljobs_stats_collapsed") === "1") {
+        document.documentElement.classList.add("stats-collapsed");
+      }
+    } catch (e) {}
+  </script>
+</head>
+<body class="board-page companies-page">
+
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+    <symbol id="status-positive" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M7.7 12.3 10.7 15.3 16.4 9" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <!-- Signed-in account. Drawn here rather than shipped as an image
+         for the same reason the status marks are: one stroke weight, one
+         colour that follows the text it sits beside, and it stays sharp
+         at any size. The head sits clear of the shoulders and both stay
+         inside the ring, so it reads at the 18px the topbar gives it. -->
+    <symbol id="account" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle cx="12" cy="9.2" r="2.9" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M6.7 19.1a5.3 5.3 0 0 1 10.6 0" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="status-warning" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M12 7.4v5.4" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round"/>
+      <circle cx="12" cy="16.4" r="1.15" fill="currentColor"/>
+    </symbol>
+    <symbol id="status-negative" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M9 9l6 6M15 9l-6 6" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round"/>
+    </symbol>
+    <!-- Updating: the same ring, faint, with one quarter drawn solid. CSS
+         spins the whole mark (see .status-icon.updating). -->
+    <symbol id="status-updating" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" opacity="0.25"/>
+      <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round"/>
+    </symbol>
+  </svg>
+
+  <!-- The companies directory: the board's frame (board.html, style.css
+       "The board's frame") with its own groups, list and panel. Who has
+       open roles under the chosen filters, busiest first, and one
+       company's own numbers when picked. #<domain> opens with that
+       company selected, so a company has a shareable address. -->
+  <div class="board-shell">
+    <aside class="site-side" id="site-side" aria-label="Site">
+      <div class="side-brand-row">
+        <a class="side-brand" href="/"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /><span>oceanofjobs.com</span></a>
+        <button type="button" class="side-fold" id="side-fold" aria-label="Collapse the sidebar" aria-expanded="true" title="Collapse">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+      </div>
+      <nav class="side-group side-nav" aria-label="Site"><a href="/board">Jobs</a><a href="/companies" class="current" aria-current="page">Companies</a><a href="/stats">Statistics</a><a href="/api/help">API</a></nav>
+      <div class="side-group side-section">
+        <div class="side-title">Browse</div>
+        <div class="side-cats" id="dir-browse"></div>
+      </div>
+      <!-- The one filter only this site can offer: which hiring system a
+           company runs, counted over the list on screen. -->
+      <div class="side-group side-section">
+        <div class="side-title">Hiring system</div>
+        <div class="side-cats" id="dir-systems"></div>
+      </div>
+      <div class="side-foot">
+        <div class="side-account" id="side-account"></div>
+        <a class="side-source" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">Source code</a>
+      </div>
+    </aside>
+    <div class="side-scrim" id="side-scrim" aria-hidden="true"></div>
+
+    <div class="board-main">
+      <div class="board-head">
+        <button type="button" class="side-open" id="side-open" aria-label="Menu" aria-expanded="false" aria-controls="site-side"><span aria-hidden="true"><i></i><i></i><i></i></span></button>
+        <div class="topbar-search" role="search">
+          <svg class="topbar-search-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input type="text" id="dir-search" autocomplete="off" aria-label="Search companies" placeholder="Search companies, domains or hiring systems" />
+        </div>
+        <div class="board-corner">
+          <a class="dir-login" href="/account">Log in</a>
+          <button type="button" class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Dark mode"><span class="theme-knob" aria-hidden="true"></span><svg class="theme-ico theme-ico-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="theme-ico theme-ico-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></button>
+        </div>
+      </div>
+
+      <div class="board-pills dir-pills">
+        <div class="dir-pill-wrap"><button type="button" class="dir-pill" id="dir-pill-place" aria-expanded="false" aria-controls="dir-pop-place"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Location <span class="dir-pill-sum" id="dir-sum-place"></span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="dir-pop" id="dir-pop-place" hidden></div></div>
+        <div class="dir-pill-wrap"><button type="button" class="dir-pill" id="dir-pill-ats" aria-expanded="false" aria-controls="dir-pop-ats"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 4v5"/></svg>Hiring system <span class="dir-pill-sum" id="dir-sum-ats"></span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="dir-pop" id="dir-pop-ats" hidden></div></div>
+        <button type="button" class="rail-reset" id="dir-reset" hidden>Reset</button>
+      </div>
+
+      <div class="board-grid">
+        <div class="board-box board-box-main">
+          <div class="board-list dir-list">
+            <div class="col-head list-head">
+              <div class="list-head-text"><span class="col-head-title" id="dir-count">Counting</span><span class="col-head-sub" id="dir-sub"></span></div>
+              <span class="sort-wrap"><span class="sort-label">Sort</span><select id="dir-sort" aria-label="Sort companies"><option value="roles">Most open roles</option><option value="new">Most new this week</option><option value="name">Name</option></select></span>
+            </div>
+            <div class="dir-scroll" id="dir-rows"></div>
+          </div>
+        </div>
+        <aside class="job-detail board-box" id="job-detail" aria-label="Company">
+          <div class="col-head pane-head" id="dir-pane-head"></div>
+          <div class="pane-body" id="dir-pane-body"></div>
+        </aside>
+        <div id="job-scrim" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="side.js"></script>
+  <script src="companies.js"></script>
+</body>
+</html>

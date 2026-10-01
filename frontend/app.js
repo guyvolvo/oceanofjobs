@@ -4458,54 +4458,6 @@ function wireSideCategories() {
   });
 }
 
-// The sidebar: folds to a strip on a desktop, is a drawer behind the
-// menu button below 1100px, and on a phone also holds the sign-in and
-// theme controls the header has no room for.
-function wireSideBar() {
-  const side = document.getElementById("site-side");
-  if (!side) return;
-  const FOLD_KEY = "iljobs_side_folded";
-  const fold = document.getElementById("side-fold");
-  const setFolded = (on) => {
-    document.body.classList.toggle("side-folded", on);
-    fold?.setAttribute("aria-expanded", String(!on));
-    fold?.setAttribute("aria-label", on ? "Expand the sidebar" : "Collapse the sidebar");
-    if (fold) fold.title = on ? "Expand" : "Collapse";
-    try { localStorage.setItem(FOLD_KEY, on ? "1" : "0"); } catch { /* per-browser nicety only */ }
-  };
-  try { setFolded(localStorage.getItem(FOLD_KEY) === "1"); } catch { /* as above */ }
-  fold?.addEventListener("click", () => setFolded(!document.body.classList.contains("side-folded")));
-
-  const openBtn = document.getElementById("side-open");
-  const setOpen = (on) => {
-    document.body.classList.toggle("side-open", on);
-    openBtn?.setAttribute("aria-expanded", String(on));
-    if (on) side.querySelector("a, button")?.focus({ preventScroll: true });
-    else openBtn?.focus({ preventScroll: true });
-  };
-  openBtn?.addEventListener("click", () => setOpen(!document.body.classList.contains("side-open")));
-  document.getElementById("side-scrim")?.addEventListener("click", () => setOpen(false));
-  // A pick in the drawer is the end of the visit to it.
-  side.addEventListener("click", (e) => {
-    if (e.target.closest(".side-cat, .seg-btn") && document.body.classList.contains("side-open")) setOpen(false);
-  });
-  closeSideDrawer = () => { if (document.body.classList.contains("side-open")) { setOpen(false); return true; } return false; };
-
-  const corner = document.querySelector(".board-corner");
-  const foot = document.getElementById("side-account");
-  const narrow = matchMedia("(max-width: 640px)");
-  const place = () => {
-    const home = narrow.matches ? foot : corner;
-    if (!home) return;
-    for (const id of ["auth-area", "theme-toggle"]) {
-      const el = document.getElementById(id);
-      if (el && el.parentElement !== home) home.append(el);
-    }
-  };
-  place();
-  narrow.addEventListener("change", place);
-}
-let closeSideDrawer = () => false;
 
 // Opens or closes one accordion section in place, height and fade, then
 // hands back to the full redraw. The redraw can't carry the motion: it

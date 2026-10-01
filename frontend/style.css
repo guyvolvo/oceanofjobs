@@ -6975,3 +6975,153 @@ table.jobs tbody tr.skeleton-row {
   table.jobs tbody tr[data-id],
   table.jobs tbody tr.skeleton-row { padding: 12px 12px; }
 }
+
+
+/* The companies directory (/companies, companies.js): the board's frame
+   with its own list and panel. The pills are the board's pills, drawn
+   here as plain buttons because no rail stands behind them. */
+.dir-login { color: var(--black); text-decoration: none; font: 500 14px var(--font-ui); }
+.dir-login:hover { color: var(--green-text); }
+.dir-pill-wrap { position: relative; flex: none; }
+.dir-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 36px;
+  white-space: nowrap;
+  padding: 0 12px 0 14px;
+  border: 1.5px solid var(--black);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--black);
+  font: 500 15px var(--font-ui);
+  cursor: pointer;
+}
+.dir-pill:hover { background: var(--hover-bg); }
+.dir-pill[aria-expanded="true"] { background: var(--black); color: var(--white); }
+.dir-pill-sum { font: 400 14px var(--font-ui); color: var(--green-text); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir-pill-sum[hidden] { display: none; }
+.dir-pill[aria-expanded="true"] .dir-pill-sum { color: var(--green-bright, var(--green)); }
+.dir-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: 300px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: 10px;
+  background: var(--white);
+  transform-origin: top left;
+  transition: opacity 140ms ease-out, transform 220ms var(--pop-ease), display 220ms allow-discrete;
+}
+.dir-pop[hidden] { display: none; opacity: 0; transform: translateY(-6px) scale(0.96); }
+@starting-style { .dir-pop:not([hidden]) { opacity: 0; transform: translateY(-6px) scale(0.96); } }
+.dir-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--black);
+  text-align: left;
+  font: 400 14px var(--font-ui);
+  cursor: pointer;
+}
+.dir-opt:hover { background: var(--row-hover); }
+.dir-opt.on { background: var(--row-selected); font-weight: 600; }
+.dir-opt .dir-n { flex: none; font: 400 12px var(--font); color: var(--grey); }
+
+.dir-list { display: flex; flex-direction: column; min-height: 0; }
+.dir-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--grey-line) transparent; }
+/* A company row: star, logo tile, name and line, the count. */
+.dir-row {
+  display: grid;
+  grid-template-columns: 28px 44px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  min-height: 72px;
+  padding: 10px 16px 10px 10px;
+  border-bottom: 1px solid var(--grey-line);
+  cursor: pointer;
+}
+.dir-row:hover { background: var(--row-hover); }
+.dir-row.selected { background: var(--row-open); box-shadow: inset 3px 0 0 var(--green); }
+.dir-row:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+.dir-star { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 4px; background: none; color: var(--grey); cursor: pointer; }
+.dir-star:hover { background: var(--hover-bg); color: var(--black); }
+.dir-star.on { color: var(--green-text); }
+.dir-star svg { width: 16px; height: 16px; }
+.dir-logo { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 4px; outline: 1px solid var(--grey-line); outline-offset: -1px; overflow: hidden; background: var(--white); }
+.dir-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--white); }
+.dir-logo img[hidden] { display: none; }
+.dir-letter { font: 600 18px var(--font-ui); color: var(--grey); }
+.dir-name { font: 600 15px var(--font-ui); color: var(--black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir-row:hover .dir-name { color: var(--green-text); }
+.dir-line { margin-top: 2px; font: 400 13px var(--font); color: var(--black); opacity: 0.75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir-count { text-align: right; }
+.dir-count b { display: block; font: 600 17px var(--font-ui); color: var(--black); font-variant-numeric: tabular-nums; }
+.dir-count span { font: 400 12px var(--font); color: var(--grey); white-space: nowrap; }
+.dir-more { margin: 14px; }
+.dir-empty { padding: 40px 20px; color: var(--grey); text-align: center; }
+
+/* The company panel. A tile holding words rather than a number is set
+   smaller; the one green number on the page is New this week. */
+.dir-crumb { font: 400 14px var(--font-ui); color: var(--grey); }
+.dir-crumb b { font-weight: 600; color: var(--black); }
+.dir-panel { display: flex; flex-direction: column; gap: 22px; }
+.dir-company { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+.dir-company .dir-logo { width: 56px; height: 56px; }
+.dir-company h2 { margin: 0; font: 500 clamp(22px, 2vw, 28px) var(--font-display); letter-spacing: -0.02em; line-height: 1.05; color: var(--black); }
+.dir-company .dir-line { margin-top: 4px; white-space: normal; }
+.dir-company .dir-line a { color: inherit; }
+.dir-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.dir-actions .btn { height: 38px; }
+.dir-words .ov-value { font-size: 15px; line-height: 1.3; }
+.dir-green .ov-value { color: var(--green-text); }
+.dir-spark { display: block; width: 100%; height: 56px; margin-top: 6px; overflow: visible; }
+.dir-spark-axis { display: flex; justify-content: space-between; margin-top: 4px; font: 400 11px var(--font); color: var(--grey); }
+.dir-bars { display: flex; flex-direction: column; gap: 8px; }
+.dir-bar { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; align-items: center; column-gap: 10px; font: 400 13px var(--font); color: var(--black); }
+.dir-bar-track { height: 6px; border-radius: 2px; background: var(--hover-bg); overflow: hidden; }
+.dir-bar-fill { display: block; height: 100%; background: var(--black); }
+.dir-bar-n { text-align: right; color: var(--grey); font-variant-numeric: tabular-nums; }
+.dir-jobs { display: flex; flex-direction: column; }
+.dir-job { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--grey-line); color: var(--black); text-decoration: none; font: 400 14px var(--font-ui); }
+.dir-job:first-child { border-top: 0; }
+.dir-job:hover .dir-job-title { color: var(--green-text); }
+.dir-job-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir-job-where { color: var(--grey); font-weight: 400; }
+.dir-job-age { flex: none; font: 400 12px var(--font); color: var(--grey); }
+.dir-block-head { display: flex; align-items: baseline; justify-content: space-between; }
+.dir-block-head a { font: 400 13px var(--font-ui); color: var(--green-text); }
+.dir-hint { color: var(--grey); font: 400 13px var(--font); }
+
+@media (max-width: 800px) {
+  .dir-pills { overflow-x: auto; scrollbar-width: none; }
+  .dir-pill-wrap { position: static; }
+  .dir-pop {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: 70dvh;
+    z-index: 32;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 0;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    transform-origin: bottom center;
+  }
+  .dir-row { padding: 10px 12px 10px 6px; column-gap: 10px; }
+}
