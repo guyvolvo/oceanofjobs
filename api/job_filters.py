@@ -232,17 +232,22 @@ class SnapshotCaps:
     claiming to search all of it. Not marked means not used.
     """
 
-    __slots__ = ("fts", "fts_full", "category_col", "posted_at_utc", "board_indexes", "salary_ils")
+    __slots__ = ("fts", "fts_full", "category_col", "posted_at_utc", "board_indexes", "salary_ils", "place_index")
 
     def __init__(self, fts: bool = False, fts_full: bool = False,
                  category_col: str | None = None, posted_at_utc: bool = False,
-                 board_indexes: bool = False, salary_ils: bool = False):
+                 board_indexes: bool = False, salary_ils: bool = False,
+                 place_index: bool = False):
         self.salary_ils = salary_ils
         self.fts = fts
         self.fts_full = fts_full
         self.category_col = category_col
         self.posted_at_utc = posted_at_utc
         self.board_indexes = board_indexes
+        # The board indexes carry city as well as country (meta
+        # board_indexes = 2), so a place filter never reads a row and
+        # aggregates.place_rows has nothing to add.
+        self.place_index = place_index
 
     def __bool__(self) -> bool:
         return self.fts
@@ -304,8 +309,9 @@ def _read_caps(conn) -> SnapshotCaps:
         fts_full=complete and "title" in (fts_sql or ""),
         category_col="category" if category else None,
         posted_at_utc=posted_at_utc == "1",
-        board_indexes=board_indexes == "1",
+        board_indexes=board_indexes in ("1", "2"),
         salary_ils=bool(salary_ils),
+        place_index=board_indexes == "2",
     )
 
 

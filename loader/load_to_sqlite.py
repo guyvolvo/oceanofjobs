@@ -1172,10 +1172,18 @@ def classify_categories(conn: sqlite3.Connection) -> int:
 # Only built where the file lives on a disk (--box). On Lambda the
 # snapshot is re-uploaded whole after every apply, and another 100MB of
 # index in that file is the wrong trade there.
+# The two board indexes carry country AND city, so a place filter is
+# answered from the index alone. With country only, a city test read
+# the row for every entry in the country, random reads across a table
+# bigger than RAM: two cities took 103 seconds (2026-10-01). With both,
+# a rare city is a walk of the index, sequential and about 100MB, and
+# the temp rowset the API built to get round it is not needed. A
+# definition that changes here is rebuilt on the box by
+# ensure_box_indexes, which compares the text SQLite kept.
 BOX_INDEXES = (
-    "CREATE INDEX IF NOT EXISTS idx_jobs_open_role_posted ON jobs(role_class, posted_at, id, country)"
+    "CREATE INDEX IF NOT EXISTS idx_jobs_open_role_posted ON jobs(role_class, posted_at, id, country, city)"
     " WHERE closed_at IS NULL AND confidence = 'verified'",
-    "CREATE INDEX IF NOT EXISTS idx_jobs_open_posted ON jobs(posted_at, id, country)"
+    "CREATE INDEX IF NOT EXISTS idx_jobs_open_posted ON jobs(posted_at, id, country, city)"
     " WHERE closed_at IS NULL AND confidence = 'verified'",
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_category ON jobs(category, role_class, posted_at)"
     " WHERE closed_at IS NULL AND confidence = 'verified'",
@@ -1206,8 +1214,24 @@ BOX_INDEXES = (
 RETIRED_INDEXES = ("idx_jobs_closed_at", "idx_jobs_confidence")
 
 
+# meta board_indexes: '1' the original shape, '2' with city in the two
+# board indexes. The API reads it (job_filters.SnapshotCaps.place_index).
+BOX_INDEXES_VERSION = "2"
+
+
+def _index_name(sql: str) -> str:
+    return re.search(r"INDEX IF NOT EXISTS (\w+)", sql).group(1)
+
+
 def ensure_box_indexes(conn: sqlite3.Connection) -> None:
     for sql in BOX_INDEXES:
+        name = _index_name(sql)
+        kept = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", (name,)).fetchone()
+        # SQLite keeps the CREATE text as written, minus IF NOT EXISTS.
+        wanted = sql.replace("IF NOT EXISTS ", "")
+        if kept and " ".join(kept[0].split()) != " ".join(wanted.split()):
+            print(f"index {name}: definition changed, rebuilding", file=sys.stderr)
+            conn.execute(f"DROP INDEX IF EXISTS {name}")
         conn.execute(sql)
     for name in RETIRED_INDEXES:
         conn.execute(f"DROP INDEX IF EXISTS {name}")
@@ -1216,11 +1240,10 @@ def ensure_box_indexes(conn: sqlite3.Connection) -> None:
         " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         (",".join(RETIRED_INDEXES),),
     )
-    # Says these indexes are here, so the API can name one in a query.
-    # See job_filters.count_index_hint for the one place that does.
     conn.execute(
-        "INSERT INTO meta (key, value) VALUES ('board_indexes', '1')"
-        " ON CONFLICT(key) DO UPDATE SET value = '1'"
+        "INSERT INTO meta (key, value) VALUES ('board_indexes', ?)"
+        " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (BOX_INDEXES_VERSION,),
     )
     # Statistics for the planner. ANALYZE over the whole file is 20s;
     # optimize re-analyzes only what changed enough to matter.

@@ -334,7 +334,9 @@ def place_rows(conn, params: dict):
     places = has_places(conn)
     countries = wanted_country_codes(params) if places else []
     cities = wanted_city_pairs(params) if places else []
-    if not (countries or cities) or bool_param(params, "include_closed"):
+    # With city in the board indexes the place test is answered from the
+    # index on every path, and the rowset would only add a scan.
+    if not (countries or cities) or bool_param(params, "include_closed") or has_fts_index(conn).place_index:
         yield
         return
     where, args = ["closed_at IS NULL"], []

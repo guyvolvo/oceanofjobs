@@ -540,6 +540,8 @@ def route_jobs(params: dict) -> dict:
     # regression of the morning's city fix). A rare country still walks
     # the whole index, as it always did; the side table in the plan is
     # what fixes that.
+    # (And place_rows itself stands down once the box's indexes carry
+    # city, see aggregates.place_rows.)
     if wanted_city_pairs(params):
         with place_rows(conn, params):
             return _route_jobs(conn, params)
