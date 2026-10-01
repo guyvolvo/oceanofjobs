@@ -17,6 +17,7 @@ genuinely needed one -- see PRODUCT.md.
 """
 
 import json
+import traceback
 import math
 import os
 import re
@@ -403,6 +404,7 @@ def lambda_handler(event, context):
     except ValueError as e:
         return _response(400, json.dumps({"error": str(e)}))
     except Exception as e:  # last resort: never leak a raw traceback to callers
+        traceback.print_exc()  # the log gets it; the caller gets one line
         return _response(500, json.dumps({"error": "internal error", "detail": str(e)}))
 
 

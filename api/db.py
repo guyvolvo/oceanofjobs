@@ -314,19 +314,31 @@ def _clear_leftovers() -> None:
                 pass
 
 
+_threads = threading.local()
+
+
 def _local_connection() -> sqlite3.Connection:
-    """The box's own file, opened once per process. Under the lock,
-    unlike the Lambda cold start below: gunicorn threads can arrive
-    together, and two connections to the same file would only waste
-    the second one."""
+    """The box's own file, one connection per thread.
+
+    gunicorn runs requests on threads, and one connection shared between
+    them broke the moment two requests overlapped: SQLite will not DROP
+    a table (the listing's temp rowset, see aggregates.place_rows) while
+    any other statement on the same connection is mid-flight, and
+    answered "database table is locked" for every All roles count with
+    a place set (2026-10-01). Separate connections to one read-only
+    file cost little: the page cache that matters is the kernel's,
+    shared by all of them. The file is checked once per process, on
+    the first open."""
     global _conn, _path, _loaded_at
-    if _conn is None:
+    conn = getattr(_threads, "conn", None)
+    if conn is None:
+        conn = _open_readonly(DATA_PATH)
         with _lock:
             if _conn is None:
-                conn = _open_readonly(DATA_PATH)
                 _check(conn)
                 _conn, _path, _loaded_at = conn, DATA_PATH, time.time()
-    return _conn
+        _threads.conn = conn
+    return conn
 
 
 def get_connection() -> sqlite3.Connection:

@@ -232,13 +232,31 @@ async function syncSavedFromServer() {
 
 // fetch helpers
 
+// A failed call is tried again before anyone hears of it: three more
+// times, waiting longer each time, for the failures that pass on their
+// own (a worker restarting, the box busy, the rate limit). A 4xx is an
+// answer rather than a failure and is not retried; an abort is ours.
+const RETRY_WAITS = [600, 1500, 3500];
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function getJSON(path, { signal } = {}) {
-  const res = await fetch(`${API_BASE}${path}`, signal ? { signal } : undefined);
-  if (!res.ok) {
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(`${API_BASE}${path}`, signal ? { signal } : undefined);
+    } catch (err) {
+      if (err.name === "AbortError" || attempt >= RETRY_WAITS.length) throw err;
+      await wait(RETRY_WAITS[attempt]);
+      continue;
+    }
+    if (res.ok) return res.json();
+    if ((res.status >= 500 || res.status === 429) && attempt < RETRY_WAITS.length) {
+      await wait(RETRY_WAITS[attempt]);
+      if (signal && signal.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      continue;
+    }
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `HTTP ${res.status}`);
   }
-  return res.json();
 }
 
 function qs(params) {
@@ -1819,8 +1837,9 @@ async function loadJobs({ background = false, append: wantAppend = false } = {})
     // it under an error banner over a transient fetch failure.
     if (!cached) {
       const errEl = document.getElementById("jobs-error");
-      errEl.textContent = `Could not load jobs: ${err.message}`;
+      errEl.innerHTML = `Could not load jobs: ${escapeHtml(err.message)}. <button type="button" class="link-inline jobs-retry">Try again</button>`;
       errEl.style.display = "block";
+      errEl.querySelector(".jobs-retry").addEventListener("click", () => { errEl.style.display = "none"; loadJobs(); });
     }
   } finally {
     // Always, never gated on the sequence: a stale request that declined
