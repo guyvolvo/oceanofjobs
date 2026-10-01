@@ -6735,6 +6735,32 @@ body.side-folded .side-fold svg { transform: rotate(180deg); }
 .side-cat-n { flex: none; font: 400 12px var(--font); color: var(--grey); }
 .side-cat.on .side-cat-n { color: var(--black); opacity: 0.75; }
 .side-more, .side-hint { color: var(--grey); font-size: 13px; }
+/* Saved searches: a row is the search and, at its end, the cross that
+   forgets it; a count of new roles is the sidebar's one green, since
+   it is the one thing there that changed since the reader last looked. */
+.side-saved-row { display: flex; align-items: center; gap: 2px; }
+.side-saved { flex: 1; min-width: 0; }
+.side-saved > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-cat-n.fresh { color: var(--green-text); font-weight: 600; }
+.side-saved-x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--grey);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+}
+.side-saved-row:hover .side-saved-x, .side-saved-x:focus-visible { opacity: 1; }
+.side-saved-x:hover { background: var(--row-hover); color: var(--black); }
+@media (pointer: coarse) { .side-saved-x { opacity: 1; } }
+.side-save { color: var(--grey); font-size: 13px; }
+.side-save[hidden] { display: none; }
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
 .side-account { display: none; }
 .side-source { padding: 0 8px; color: var(--grey); font: 400 13px var(--font-ui); text-decoration: none; }

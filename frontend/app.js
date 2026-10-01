@@ -1264,6 +1264,8 @@ function shareUrl() {
 // at each individual call site.
 function syncUrl() {
   history.replaceState(null, "", shareUrl());
+  // Whether the filters now on are already a saved search.
+  renderSavedSearches();
 }
 
 // Populates `state` from a query string -- location.search on boot, or
@@ -4460,6 +4462,112 @@ function renderSideCategories() {
       : "");
 }
 
+// Saved searches: the board's current filters, kept in this browser
+// under a name made from them, each with how many roles were posted
+// since it was last opened. Local, like saved listings signed out: an
+// alert (/account) is the same filters delivered by mail, and the two
+// stay separate things.
+const SAVED_SEARCHES_KEY = "iljobs_saved_searches";
+
+function savedSearches() {
+  try {
+    const list = JSON.parse(localStorage.getItem(SAVED_SEARCHES_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((s) => s && typeof s.query === "string" && s.name) : [];
+  } catch { return []; }
+}
+
+function storeSavedSearches(list) {
+  try { localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(list)); } catch { /* per-browser nicety only */ }
+}
+
+// The current filters as the query a saved search keeps: no listing,
+// no sort, since neither is part of what was searched for.
+function currentSearchQuery() {
+  const p = buildShareParams();
+  p.delete("job");
+  p.delete("sort");
+  p.delete("dir");
+  return p.toString();
+}
+
+function renderSavedSearches() {
+  const host = document.getElementById("side-saved");
+  const save = document.getElementById("side-save");
+  if (!host || !save) return;
+  const list = savedSearches();
+  host.innerHTML = list.map((s) => `
+    <div class="side-saved-row">
+      <button type="button" class="side-cat side-saved" data-saved="${escapeHtml(s.id)}" title="${escapeHtml(s.name)}">
+        <span>${escapeHtml(s.name)}</span>
+        <span class="side-cat-n${s.fresh > 0 ? " fresh" : ""}">${s.fresh == null ? "" : `${fmtInt(s.fresh)} new`}</span>
+      </button>
+      <button type="button" class="side-saved-x" data-forget="${escapeHtml(s.id)}" aria-label="Forget ${escapeHtml(s.name)}">&#10005;</button>
+    </div>`).join("");
+  const q = currentSearchQuery();
+  save.hidden = !q || list.some((s) => s.query === q);
+}
+
+// How many roles each saved search has gained since it was last
+// opened: the same query, bounded to the days since then. The API
+// counts whole days, so a search opened this morning counts today's.
+async function countSavedSearches() {
+  const list = savedSearches();
+  if (!list.length) return;
+  await Promise.all(list.map(async (s) => {
+    const p = new URLSearchParams(s.query);
+    p.set("max_age_days", String(Math.max(1, Math.ceil((Date.now() - Date.parse(s.seen_at || 0)) / 864e5))));
+    p.set("limit", "1");
+    try {
+      const r = await fetch(`${API_BASE}/jobs?${p}`);
+      if (r.ok) s.fresh = (await r.json()).total ?? null;
+    } catch { /* the row keeps its last count */ }
+  }));
+  storeSavedSearches(list);
+  renderSavedSearches();
+}
+
+function wireSavedSearches() {
+  const host = document.getElementById("side-saved");
+  const save = document.getElementById("side-save");
+  if (!host || !save) return;
+  save.addEventListener("click", () => {
+    const q = currentSearchQuery();
+    if (!q) return;
+    const view = state.roles === "tech" && !state.starred_only ? "Tech roles" : "All roles";
+    const name = [...activeFilterSummary(), ...(activeFilterSummary().length ? [] : [view])].join(" · ");
+    const list = savedSearches();
+    list.push({ id: Date.now().toString(36), name, query: q, seen_at: new Date().toISOString(), fresh: 0 });
+    storeSavedSearches(list);
+    renderSavedSearches();
+  });
+  host.addEventListener("click", (e) => {
+    const forget = e.target.closest("[data-forget]");
+    if (forget) {
+      storeSavedSearches(savedSearches().filter((s) => s.id !== forget.dataset.forget));
+      renderSavedSearches();
+      return;
+    }
+    const row = e.target.closest("[data-saved]");
+    if (!row) return;
+    const list = savedSearches();
+    const s = list.find((x) => x.id === row.dataset.saved);
+    if (!s) return;
+    // Opening one is the same step a Back navigation takes: the URL,
+    // then the state from it, then the board.
+    history.pushState(null, "", `/board?${s.query}`);
+    applyStateFromUrl(`?${s.query}`);
+    applyStateToFilterUI();
+    if (selectedJobId) closeJobDetail();
+    loadJobs();
+    s.seen_at = new Date().toISOString();
+    s.fresh = 0;
+    storeSavedSearches(list);
+    renderSavedSearches();
+  });
+  renderSavedSearches();
+  countSavedSearches();
+}
+
 function wireSideCategories() {
   document.getElementById("side-cats")?.addEventListener("click", (e) => {
     if (e.target.closest("[data-more]")) {
@@ -5032,6 +5140,7 @@ function wireFilters() {
 
   wireSideBar();
   wireSideCategories();
+  wireSavedSearches();
   wireInfiniteList();
 }
 
