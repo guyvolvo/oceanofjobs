@@ -68,8 +68,8 @@ def skills_history(conn, params: dict, days: int = 90) -> dict:
     Reconstructed from first_seen and closed_at rather than read from a
     table, since no table keeps a history per skill set: a baseline of
     what was open before the window, then each day's arrivals less its
-    departures. Three passes over the table, each a LIKE per skill, so
-    the answer is kept per worker for ten minutes.
+    departures. One pass over the table, a LIKE per skill, and the
+    answer is kept per worker for ten minutes.
     """
     from datetime import datetime, timedelta, timezone
 
@@ -99,15 +99,21 @@ def skills_history(conn, params: dict, days: int = 90) -> dict:
     scope = " AND ".join(where)
     start = (now - timedelta(days=days - 1)).date()
     start_iso = start.isoformat()
-    baseline = conn.execute(
-        f"SELECT COUNT(*) FROM jobs WHERE {scope} AND date(first_seen) < ? "
-        f"AND (closed_at IS NULL OR date(closed_at) >= ?)", [*args, start_iso, start_iso]).fetchone()[0]
-    seen = dict(conn.execute(
-        f"SELECT date(first_seen) AS d, COUNT(*) FROM jobs WHERE {scope} AND date(first_seen) >= ? GROUP BY d",
-        [*args, start_iso]).fetchall())
-    closed = dict(conn.execute(
-        f"SELECT date(closed_at) AS d, COUNT(*) FROM jobs WHERE {scope} AND closed_at IS NOT NULL "
-        f"AND date(closed_at) >= ? GROUP BY d", [*args, start_iso]).fetchall())
+    # One pass: every matching row that was open at any point in the
+    # window, with the two dates, aggregated here. Three separate
+    # GROUP BYs each scanned the table; this scans it once.
+    baseline, seen, closed = 0, {}, {}
+    for first, last in conn.execute(
+            f"SELECT date(first_seen), date(closed_at) FROM jobs WHERE {scope} "
+            f"AND (closed_at IS NULL OR date(closed_at) >= ?)", [*args, start_iso]):
+        if first is None:
+            continue
+        if first < start_iso:
+            baseline += 1
+        else:
+            seen[first] = seen.get(first, 0) + 1
+        if last is not None:
+            closed[last] = closed.get(last, 0) + 1
     rows, open_n = [], baseline
     for i in range(days):
         day = (start + timedelta(days=i)).isoformat()

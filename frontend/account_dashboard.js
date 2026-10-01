@@ -37,7 +37,8 @@
     if (pts.length < 2) return "";
     const w = 90, h = 28, min = Math.min(...pts), max = Math.max(...pts), span = Math.max(1, max - min);
     const d = values.map((v, i) => `${i ? "L" : "M"}${(i / (values.length - 1) * w).toFixed(1)} ${(h - 3 - ((v - min) / span) * (h - 6)).toFixed(1)}`).join(" ");
-    return `<svg class="acct-spark ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    const area = cls ? `<path class="acct-spark-area" d="${d} L${w} ${h} L0 ${h} Z"/>` : "";
+    return `<svg class="acct-spark ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">${area}<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   }
 
   function tile(label, value, sub, sparkHtml, cls = "") {
@@ -268,16 +269,60 @@
     try { return (await getJSON(`/jobs?${q}`)).jobs || []; } catch { return []; }
   }
 
-  async function paintDashboard() {
+  // The last answer, kept in this browser for half an hour, so the page
+  // paints at once on the next visit and the fresh numbers replace it
+  // quietly when they arrive. The history alone is a pass over the
+  // whole table on the box.
+  const CACHE_KEY = "iljobs_dash_v1";
+  const CACHE_TTL = 30 * 60 * 1000;
+  const cacheKey = () => { const { skills, country, min } = matchScope(); return `${skills.join(",")}|${country}|${min}`; };
+  function readCache() {
+    try {
+      const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+      return c && c.key === cacheKey() && Date.now() - c.at < CACHE_TTL ? c : null;
+    } catch { return null; }
+  }
+  function writeCache(h, matches) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ key: cacheKey(), at: Date.now(), history: h, matches: matches.slice(0, 100) })); } catch { /* per-browser nicety only */ }
+  }
+
+  let inflight = null;
+  let painted = "";
+  function paintAll(matches) {
     const savedRows = (typeof dashSavedRows !== "undefined" ? dashSavedRows : []) || [];
     const savedJobs = (typeof dashSavedJobs !== "undefined" ? dashSavedJobs : []) || [];
-    const [h, matches] = await Promise.all([loadHistory(), loadTopMatches()]);
-    history = h;
     paintStats(savedJobs);
     drawMarket();
     paintActivity(savedRows, savedJobs);
     paintPay(matches);
     paintDemand(matches);
+  }
+
+  // Called when the profile is in (the skills are what everything here
+  // hangs on) and again when the alerts and saved lists are, so the
+  // tiles that read those can fill. The fetches run once per skill
+  // set; a second call while they are in flight only repaints.
+  async function paintDashboard() {
+    const key = cacheKey();
+    const cached = readCache();
+    if (cached && painted !== key) {
+      history = cached.history;
+      painted = key;
+      paintAll(cached.matches || []);
+    }
+    if (inflight && inflight.key === key) {
+      const { matches } = await inflight.promise;
+      paintAll(matches);
+      return;
+    }
+    const promise = Promise.all([loadHistory(), loadTopMatches()]).then(([h, matches]) => ({ h, matches }));
+    inflight = { key, promise };
+    const { h, matches } = await promise;
+    if (cacheKey() !== key) return; // the skills changed meanwhile
+    history = h;
+    painted = key;
+    if (h) writeCache(h, matches);
+    paintAll(matches);
   }
 
   document.getElementById("acct-range")?.addEventListener("click", (e) => {

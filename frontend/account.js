@@ -1074,6 +1074,9 @@ async function bootAccount() {
       wireProfile();
       wirePreferences();
       paintProfile(loaded.profile);
+      // The overview hangs on the skills, so its own fetches start
+      // here rather than behind the alerts and saved lists.
+      if (window.paintDashboard) paintDashboard();
     }),
     block("alerts", "alerts-list", wireAlerts),
     block("saved", "saved-list", loadSaved),
