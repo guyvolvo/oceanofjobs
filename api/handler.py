@@ -46,7 +46,7 @@ from job_filters import (FRESH_CLAUSE, IL_KEYWORDS, MAX_SEARCH_TERMS, bool_param
                          count_index_hint,
                          build_jobs_where, has_fts_index, has_places, has_role_class,
                          is_job_id, relevance_score_sql, salary_source_select, search_mode,
-                         search_terms, skills_score_sql, wanted_skills)
+                         search_terms, skills_score_sql, wanted_city_pairs, wanted_skills)
 
 _alerts_table = boto3.resource("dynamodb").Table(os.environ["ALERTS_TABLE"])
 
@@ -531,8 +531,19 @@ def route_jobs(params: dict) -> dict:
     # same thing the facets do). Without it the page query walked the
     # posted_at index testing two LIKEs on every row until it had fifty
     # hits, and two cities in Argentina took 103 seconds (2026-10-01).
-    with place_rows(conn, params):
-        return _route_jobs(conn, params)
+    #
+    # Only for a request naming cities, though. For a country alone the
+    # page query walks the posted_at index and stops at fifty hits, which
+    # for any common country is milliseconds; building the rowset first
+    # is a scan of every open row on every call, and it made the US page
+    # five seconds idle and twenty under an apply (2026-10-01, the
+    # regression of the morning's city fix). A rare country still walks
+    # the whole index, as it always did; the side table in the plan is
+    # what fixes that.
+    if wanted_city_pairs(params):
+        with place_rows(conn, params):
+            return _route_jobs(conn, params)
+    return _route_jobs(conn, params)
 
 
 def _route_jobs(conn, params: dict) -> dict:
