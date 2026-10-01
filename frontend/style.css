@@ -7428,3 +7428,9 @@ table.jobs tbody tr.skeleton-row {
 .account-shell .hero-theme { border-color: color-mix(in srgb, var(--black) 40%, transparent); }
 /* The directory's corner, signed in: the board's account control as a link to /account. */
 a.hero-account-btn.dir-account { text-decoration: none; }
+
+/* The account overview's bones, shown until the box answers. */
+.acct-market-bones { padding: 12px 0; }
+.acct-market-bones .sk-line { width: 100% !important; max-width: 100%; }
+.acct-bones { padding: 14px 0 4px; line-height: 2; }
+.acct-stat .sk-line { vertical-align: middle; }

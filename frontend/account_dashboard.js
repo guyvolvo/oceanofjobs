@@ -326,6 +326,29 @@
   }
 
   let inflight = null;
+  let historyRetries = 0;
+
+  // The frame at once: greeting, the four tiles and bones in every
+  // panel, before any answer is in. The numbers can take seconds on a
+  // busy box, and a blank page for that long reads as broken.
+  function paintSkeleton() {
+    const g = document.getElementById("acct-greeting");
+    if (g && !/,/.test(g.textContent)) g.textContent = greeting();
+    const bone = (w, h) => `<span class="skeleton sk-line" style="width:${w}px;height:${h}px;display:inline-block"></span>`;
+    const stats = document.getElementById("acct-stats");
+    if (stats && !stats.children.length) {
+      stats.innerHTML = ["New matches this week", "Open roles that fit you", "Alerts", "Saved jobs"]
+        .map((label) => tile(label, bone(64, 26), bone(120, 11), "")).join("");
+    }
+    const market = document.getElementById("acct-market");
+    if (market && !market.children.length) market.innerHTML = `<div class="acct-market-bones">${bone(999, 180)}</div>`;
+    const demand = document.getElementById("acct-demand");
+    if (demand && !demand.children.length) demand.innerHTML = Array.from({ length: 5 }, () => `<div class="acct-demand-row"><span class="acct-demand-name">${bone(90, 12)}</span><span class="acct-demand-track"></span><span class="acct-demand-n">${bone(32, 12)}</span></div>`).join("");
+    for (const id of ["acct-matches", "acct-pay", "acct-activity"]) {
+      const el = document.getElementById(id);
+      if (el && !el.children.length && !el.textContent.trim()) el.innerHTML = `<div class="acct-bones">${bone(220, 12)}<br>${bone(160, 12)}</div>`;
+    }
+  }
   let painted = "";
   function paintAll(matches) {
     const savedRows = (typeof dashSavedRows !== "undefined" ? dashSavedRows : []) || [];
@@ -342,6 +365,7 @@
   // tiles that read those can fill. The fetches run once per skill
   // set; a second call while they are in flight only repaints.
   async function paintDashboard() {
+    paintSkeleton();
     const key = cacheKey();
     const cached = readCache();
     if (cached && painted !== key) {
@@ -358,6 +382,12 @@
     inflight = { key, promise };
     const { h, matches } = await promise;
     if (cacheKey() !== key) return; // the skills changed meanwhile
+    // No history means the box did not answer in time. Ask again in a
+    // little while, twice, rather than leave the page half drawn.
+    if (!h && historyRetries < 2) {
+      historyRetries++;
+      setTimeout(() => { inflight = null; paintDashboard(); }, 20000);
+    }
     history = h;
     painted = key;
     if (h) writeCache(h, matches);
