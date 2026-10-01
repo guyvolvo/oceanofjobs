@@ -4205,20 +4205,26 @@ function railCountryBlocks() {
   const cities = new Set(state.city);
   const blocks = [];
 
+  // Without a search the list is the biggest few countries, and every
+  // country that is on, with a Show all under them: the way the other
+  // groups work, so a reader sees where the roles are before typing.
+  // The facet lists up to sixty.
+  const onAlready = (c) => picked.has(c.value) || (c.cities || []).some((t) => cities.has(t.value));
+  const listed = new Set((railExpanded.has("location") ? countries : countries.slice(0, RAIL_TOP_N)).map((c) => c.value));
   for (const c of countries) {
     const all = c.cities || [];
     const countryHit = !q || (c.label || c.value).toLowerCase().includes(q);
     const cityHits = q ? all.filter((t) => (t.label || t.value).toLowerCase().includes(q)) : all;
     if (q && !countryHit && !cityHits.length) continue;
-    // Only a country that is on, or that the reader is actively looking
-    // for, gets a block. The facet lists sixty and a rail that drew all
-    // sixty would be a page of countries with the filters underneath.
-    if (!q && !picked.has(c.value) && !all.some((t) => cities.has(t.value))) continue;
+    if (!q && !listed.has(c.value) && !onAlready(c)) continue;
 
     const mine = all.filter((t) => cities.has(t.value));
     // A search opens what it found. Closing a country by hand still
     // wins, so typing does not fight a reader who just collapsed one.
-    const open = q ? !railCollapsed.has(c.value) || cityHits.length > 0 : !railCollapsed.has(c.value);
+    // A country that is merely listed starts folded, and the same
+    // caret unfolds it: the set records a toggle away from the default.
+    const open = q ? !railCollapsed.has(c.value) || cityHits.length > 0
+      : onAlready(c) ? !railCollapsed.has(c.value) : railCollapsed.has(c.value);
     const pool = q && cityHits.length ? cityHits : all;
     const top = railExpanded.has(`city:${c.value}`) || q ? pool : pool.slice(0, RAIL_TOP_N);
     const shownValues = new Set(top.map((t) => t.value));
@@ -4270,7 +4276,10 @@ function railCountryBlocks() {
     if (!blocks.length && !offered.length) return '<div class="rail-empty">No matches.</div>';
   }
   if (!blocks.length) return "";
-  return blocks.join("");
+  const more = !q && countries.length > RAIL_TOP_N
+    ? `<button type="button" class="rail-more" data-more="location">${railExpanded.has("location") ? "Show fewer" : `Show all (${fmtInt(countries.length)})`}</button>`
+    : "";
+  return blocks.join("") + more;
 }
 
 // Salary

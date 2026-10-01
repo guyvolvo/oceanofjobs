@@ -127,15 +127,36 @@
       : (directory ? '<div class="side-cat side-hint">None</div>' : boneRows(4, "side-cat"));
   }
 
+  // What is typed into each list's search box. The box is drawn once
+  // and kept, so typing never loses focus; only the list under it is
+  // redrawn.
+  const popQuery = { place: "", ats: "" };
+  function popList(key) {
+    const q = popQuery[key].trim().toLowerCase();
+    const hit = (label) => !q || label.toLowerCase().includes(q);
+    if (key === "place") {
+      const rows = [...(hit("Anywhere") ? [`<button type="button" class="dir-opt${state.country ? "" : " on"}" data-country=""><span>Anywhere</span></button>`] : []),
+        ...countries.filter((c) => hit(c.label) || hit(c.value)).map((c) =>
+          `<button type="button" class="dir-opt${state.country === c.value ? " on" : ""}" data-country="${esc(c.value)}"><span>${esc(c.label)}</span><span class="dir-n">${fmt(c.n)}</span></button>`)];
+      return countries.length ? (rows.join("") || '<div class="dir-opt side-hint">No country matches.</div>') : boneRows(6, "dir-opt");
+    }
+    const counts = atsCounts();
+    const rows = counts.filter(([a]) => hit(atsName(a))).map(([a, n]) =>
+      `<button type="button" class="dir-opt${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}"><span>${esc(atsName(a))}</span><span class="dir-n">${fmt(n)}</span></button>`);
+    return counts.length ? (rows.join("") || '<div class="dir-opt side-hint">No system matches.</div>') : boneRows(6, "dir-opt");
+  }
+
   function renderPills() {
     const sum = (id, text) => { const el = $(id); el.textContent = text; el.hidden = !text; };
     sum("#dir-sum-place", state.country ? countryName(state.country) : "");
     sum("#dir-sum-ats", [...state.ats].map(atsName).join(", "));
-    $("#dir-pop-place").innerHTML = [`<button type="button" class="dir-opt${state.country ? "" : " on"}" data-country=""><span>Anywhere</span></button>`]
-      .concat(countries.map((c) => `<button type="button" class="dir-opt${state.country === c.value ? " on" : ""}" data-country="${esc(c.value)}"><span>${esc(c.label)}</span><span class="dir-n">${fmt(c.n)}</span></button>`)).join("")
-      || boneRows(6, "dir-opt");
-    $("#dir-pop-ats").innerHTML = atsCounts().map(([a, n]) =>
-      `<button type="button" class="dir-opt${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}"><span>${esc(atsName(a))}</span><span class="dir-n">${fmt(n)}</span></button>`).join("") || boneRows(6, "dir-opt");
+    for (const [key, placeholder] of [["place", "Search countries"], ["ats", "Search hiring systems"]]) {
+      const pop = $(`#dir-pop-${key}`);
+      if (!pop.querySelector(".dir-pop-list")) {
+        pop.innerHTML = `<input type="search" class="rail-search dir-pop-search" data-pop="${key}" placeholder="${placeholder}" aria-label="${placeholder}" autocomplete="off" /><div class="dir-pop-list"></div>`;
+      }
+      pop.querySelector(".dir-pop-list").innerHTML = popList(key);
+    }
     $("#dir-reset").hidden = !state.country && !state.ats.size && state.view === "hiring" && !state.q;
   }
 
@@ -279,10 +300,22 @@
       if (pill) {
         const open = pill.getAttribute("aria-expanded") === "true";
         closePills();
-        if (!open) { pill.setAttribute("aria-expanded", "true"); pill.nextElementSibling.hidden = false; document.body.classList.add("pill-open"); }
+        if (!open) {
+          pill.setAttribute("aria-expanded", "true");
+          pill.nextElementSibling.hidden = false;
+          document.body.classList.add("pill-open");
+          // Not on a phone: the keyboard would take half the sheet as it opens.
+          if (!matchMedia("(max-width: 800px)").matches) pill.nextElementSibling.querySelector(".dir-pop-search")?.focus({ preventScroll: true });
+        }
         return;
       }
       if (!e.target.closest(".dir-pop")) closePills();
+    });
+    document.addEventListener("input", (e) => {
+      const box = e.target.closest(".dir-pop-search");
+      if (!box) return;
+      popQuery[box.dataset.pop] = box.value;
+      box.closest(".dir-pop").querySelector(".dir-pop-list").innerHTML = popList(box.dataset.pop);
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;

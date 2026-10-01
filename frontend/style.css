@@ -7042,6 +7042,11 @@ table.jobs tbody tr.skeleton-row {
   transition: opacity 140ms ease-out, transform 220ms var(--pop-ease), display 220ms allow-discrete;
 }
 .dir-pop[hidden] { display: none; opacity: 0; transform: translateY(-6px) scale(0.96); }
+/* The search box at the top of a list stays put while the list under
+   it scrolls. */
+.dir-pop { display: flex; flex-direction: column; max-height: min(78vh, 720px); }
+.dir-pop-search { flex: none; width: 100%; margin-bottom: 6px; }
+.dir-pop-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 @starting-style { .dir-pop:not([hidden]) { opacity: 0; transform: translateY(-6px) scale(0.96); } }
 .dir-opt {
   display: flex;
