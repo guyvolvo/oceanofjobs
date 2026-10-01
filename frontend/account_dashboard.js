@@ -184,7 +184,7 @@
     const max = Math.max(1, ...rows.map((r) => r.n));
     host.innerHTML = rows.map((r) => `
       <div class="acct-demand-row${r.mine ? "" : " suggested"}">
-        <span class="acct-demand-name">${esc(r.sk)}${r.mine ? "" : ` <button type="button" class="acct-add" data-add="${esc(r.sk)}">Add?</button>`}</span>
+        <span class="acct-demand-name">${esc(r.sk)}${r.mine ? "" : ` <button type="button" class="acct-add" data-add="${esc(r.sk)}">Add skill</button>`}</span>
         <span class="acct-demand-track"><span class="acct-demand-fill" style="width:${Math.round(100 * r.n / max)}%"></span></span>
         <span class="acct-demand-n">${fmt(r.n)}</span>
       </div>`).join("");
