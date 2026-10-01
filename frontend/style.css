@@ -6899,12 +6899,13 @@ table.jobs tbody tr.skeleton-row {
 .job-chips:empty { display: none; }
 .job-links, .job-salary-line { display: none; }
 
-/* The overview: trends in plain ink, the company map's top tile a
-   shade and not a green, and the one green is New today. The map is
-   taller than before, since nothing sits under it now. */
+/* The overview: the numbers in ink, the arrows carrying direction, and
+   the company map's top tile a shade and not a green. (New today was
+   drawn green for a while, whichever way its own arrow pointed; a
+   number green while it says down 69% is a lie.) The map is taller
+   than before, since nothing sits under it now. */
 .ov-delta.up, .ov-delta.down { color: var(--grey); }
 .tree-cell.tree-top { background-color: color-mix(in srgb, var(--black) 16%, var(--white)); }
-.ov-tiles .ov-tile:nth-child(2) .ov-value { color: var(--green-text); }
 
 @media (max-width: 1100px) {
   .board-shell { grid-template-columns: minmax(0, 1fr); }
