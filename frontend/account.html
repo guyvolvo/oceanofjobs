@@ -178,18 +178,17 @@
                    nothing here is a placeholder (account_dashboard.js). -->
               <div class="acct-stats" id="acct-stats"></div>
 
-              <div class="acct-dash-row acct-dash-market">
-                <div class="acct-panel acct-chart-panel">
-                  <h3 class="acct-panel-title">
-                    <span class="acct-panel-head"><span>Your market</span><span class="acct-panel-sub" id="acct-market-sub"></span></span>
-                    <span class="acct-range" id="acct-range" role="group" aria-label="Range">
-                      <button type="button" data-range="1">24h</button>
-                      <button type="button" data-range="7" class="on">7d</button>
-                      <button type="button" data-range="30">30d</button>
-                    </span>
-                  </h3>
-                  <div class="acct-chart" id="acct-market"></div>
-                  <div class="acct-legend"><span class="acct-legend-line">Open roles matching your background</span></div>
+              <p class="acct-fresh" id="acct-fresh" hidden></p>
+
+              <div class="acct-dash-row acct-dash-top">
+                <div class="acct-panel">
+                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>New best matches</span><span class="acct-panel-sub" id="acct-matches-sub"></span></span>
+                    <a class="link" id="acct-matches-all" href="/board?view=matches">See all</a></h3>
+                  <div id="acct-matches"></div>
+                </div>
+                <div class="acct-panel">
+                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>Estimated salary for your background</span></span></h3>
+                  <div class="acct-pay" id="acct-pay"></div>
                 </div>
                 <div class="acct-panel">
                   <h3 class="acct-panel-title"><span class="acct-panel-head"><span>Open jobs per skill</span><span class="acct-panel-sub" id="acct-demand-sub"></span></span>
@@ -200,15 +199,6 @@
               </div>
 
               <div class="acct-dash-row acct-dash-bottom">
-                <div class="acct-panel">
-                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>New best matches</span><span class="acct-panel-sub" id="acct-matches-sub"></span></span>
-                    <a class="link" id="acct-matches-all" href="/board?view=matches">See all</a></h3>
-                  <div id="acct-matches"></div>
-                </div>
-                <div class="acct-panel">
-                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>Estimated salary for your background</span></span></h3>
-                  <div class="acct-pay" id="acct-pay"></div>
-                </div>
                 <div class="acct-panel">
                   <h3 class="acct-panel-title"><span class="acct-panel-head"><span>Recent activity</span></span><a class="link" href="#alerts">Alerts</a></h3>
                   <div class="acct-activity" id="acct-activity"></div>

@@ -275,9 +275,13 @@ async function loadMatches() {
     skills: skills.join(","), sort: "match", dir: "asc", limit: "3", count: "skip",
   }).toString();
 
+  // The dashboard (account_dashboard.js) holds the best matches for
+  // the saved skills; only an edit in progress needs a query of its own.
+  const dash = window.dashMatches;
+  if (dash && dash.key === skills.join(",")) return paintMatches(dash.jobs.slice(0, 3), skills);
   const cached = cachedMatches(q);
   if (cached) return paintMatches(cached, skills);
-  host.innerHTML = '<p class="acct-matches-empty">Looking…</p>';
+  host.innerHTML = '<p class="acct-matches-empty"><span class="skeleton sk-line" style="width:60%;display:inline-block"></span></p>';
   try {
     const data = await getJSON(`/jobs?${q}`);
     const jobs = data.jobs || [];

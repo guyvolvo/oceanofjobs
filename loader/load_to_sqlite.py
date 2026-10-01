@@ -1194,6 +1194,14 @@ BOX_INDEXES = (
     " WHERE closed_at IS NULL",
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_category ON jobs(category, role_class, posted_at)"
     " WHERE closed_at IS NULL",
+    # Who is hiring: the companies directory and the rail's company list
+    # both GROUP BY company_domain over the open rows, and each was a
+    # scan of the table, 100 to 118 seconds live (2026-10-02). This
+    # covers that grouping, the role and place tests beside it, and the
+    # directory's "new this week" (first_seen), so it is a walk of about
+    # 70MB of index instead.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_open_company ON jobs(company_domain, role_class, country, first_seen)"
+    " WHERE closed_at IS NULL",
     # A few thousand rows, the only ones with a shekel figure. The salary
     # facet's bounds and median read these and nothing else, so asking
     # "what range does this result set occupy" walks a tiny index rather

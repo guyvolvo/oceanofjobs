@@ -61,84 +61,8 @@
     return `<span class="acct-delta ${dir}" title="${pct > 0 ? "+" : ""}${pct}% against the period before"><span aria-hidden="true">${arrow}</span> ${shown}%</span>`;
   }
 
-  // ---- the market ----
+  // The history behind the tiles; it comes with the dashboard.
   let history = null;
-  let range = 7;
-  async function loadHistory() {
-    const { skills, country, min } = matchScope();
-    if (!skills.length) return null;
-    const q = new URLSearchParams({ skills: skills.join(","), min_match: String(min) });
-    if (country) q.set("country", country);
-    try { return await getJSON(`/jobs/history?${q}`); } catch { return null; }
-  }
-
-  // The card grows when the panel beside it fills in, and shrinks on a
-  // narrower window; the drawing follows its box either way.
-  let marketResize = null, marketDrawn = "", marketWatch = null;
-  function watchMarket(host) {
-    if (marketWatch || typeof ResizeObserver === "undefined") return;
-    marketWatch = new ResizeObserver(() => {
-      const r = host.getBoundingClientRect();
-      if (`${Math.round(r.width)}x${Math.round(r.height)}` === marketDrawn) return;
-      clearTimeout(marketResize);
-      marketResize = setTimeout(() => { if (history) drawMarket(); }, 120);
-    });
-    marketWatch.observe(host);
-  }
-
-  function drawMarket() {
-    const host = document.getElementById("acct-market");
-    if (!host) return;
-    if (!history || !history.days.length) {
-      host.innerHTML = `<p class="acct-matches-empty">${draft.skills.length ? "Could not load the market." : "Add skills to see your market."}</p>`;
-      return;
-    }
-    // 24h is yesterday to today: the record is daily.
-    const days = history.days.slice(-(range === 1 ? 2 : range));
-    const box = host.getBoundingClientRect();
-    const W = Math.max(320, Math.round(box.width || host.clientWidth || 640)), H = Math.max(160, Math.round(box.height || host.clientHeight || 220));
-    const L = 44, R = 12, T = 14, B = 26;
-    marketDrawn = `${W}x${H}`;
-    watchMarket(host);
-    const iw = W - L - R, ih = H - T - B;
-    const maxOpen = Math.max(1, ...days.map((d) => d.open));
-    const minOpen = Math.min(...days.map((d) => d.open));
-    const x = (i) => L + (days.length === 1 ? iw / 2 : i / (days.length - 1) * iw);
-    // The line sits on the range the numbers occupy, the way the tiles'
-    // sparklines do, so a day's move is visible rather than a flat line
-    // over a tall axis.
-    const span = Math.max(1, maxOpen - minOpen);
-    const yOpen = (v) => T + ih - ((v - minOpen) / span) * ih;
-    const line = days.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${yOpen(d.open).toFixed(1)}`).join(" ");
-    const area = `${line} L${x(days.length - 1).toFixed(1)} ${T + ih} L${x(0).toFixed(1)} ${T + ih} Z`;
-    const ticks = [0, 0.5, 1].map((f) => `<text class="acct-axis" x="${L - 6}" y="${(T + ih - f * ih + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(minOpen + span * f))}</text>`).join("");
-    const first = days[0].day, last = days[days.length - 1].day;
-    host.innerHTML = `<svg class="acct-market-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Open roles matching your background over ${days.length} days, ${fmt(days[0].open)} to ${fmt(days[days.length - 1].open)}">
-      <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih}" y2="${T + ih}"/>
-      <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih / 2}" y2="${T + ih / 2}"/>
-      ${ticks}
-      <path class="acct-area" d="${area}"/>
-      <path class="acct-line" d="${line}" fill="none"/>
-      <text class="acct-axis" x="${L}" y="${H - 8}">${dayLabel(first)}</text><text class="acct-axis" x="${W - R}" y="${H - 8}" text-anchor="end">${dayLabel(last)}</text>
-      <g class="acct-cursor" hidden><line x1="0" x2="0" y1="${T}" y2="${T + ih}"/><circle r="3.5"/></g>
-    </svg><div class="acct-tip" hidden></div>`;
-    // The tooltip: the nearest day under the pointer, said in words.
-    const svg = host.querySelector("svg"), tip = host.querySelector(".acct-tip"), cur = host.querySelector(".acct-cursor");
-    svg.addEventListener("mousemove", (e) => {
-      const r = svg.getBoundingClientRect();
-      const px = (e.clientX - r.left) / r.width * W;
-      const i = Math.max(0, Math.min(days.length - 1, Math.round((px - L) / iw * (days.length - 1))));
-      const d = days[i];
-      cur.hidden = false;
-      cur.querySelector("line").setAttribute("x1", x(i)); cur.querySelector("line").setAttribute("x2", x(i));
-      cur.querySelector("circle").setAttribute("cx", x(i)); cur.querySelector("circle").setAttribute("cy", yOpen(d.open));
-      tip.hidden = false;
-      tip.textContent = `${dayLabel(d.day)} · ${fmt(d.open)} open, ${fmt(d.new)} new that day`;
-      const left = (x(i) / W) * r.width;
-      tip.style.left = `${Math.min(r.width - 170, Math.max(0, left - 80))}px`;
-    });
-    svg.addEventListener("mouseleave", () => { cur.hidden = true; tip.hidden = true; });
-  }
 
   // ---- the tiles and the greeting line ----
   function paintStats(savedJobs) {
@@ -192,7 +116,7 @@
   }
 
   // ---- the skills against demand ----
-  async function paintDemand(matches) {
+  async function paintDemand(matches, counts = {}) {
     const host = document.getElementById("acct-demand");
     if (!host) return;
     const { skills, country } = matchScope();
@@ -206,14 +130,7 @@
     const seen = new Map();
     for (const j of matches) for (const sk of (j.skills || "").split(",").filter(Boolean)) if (!have.has(sk)) seen.set(sk, (seen.get(sk) || 0) + 1);
     const suggested = [...seen.entries()].filter(([, n]) => matches.length && n / matches.length >= 0.2).sort((a, b) => b[1] - a[1]).slice(0, 2);
-    // One request for every count: the API sums them in one pass, where
-    // a count per skill was a scan of the whole table each.
-    let counts = {};
-    try {
-      const q = new URLSearchParams({ skills: [...shown, ...suggested.map(([sk]) => sk)].join(","), confidence: "all" });
-      if (country) q.set("country", country);
-      counts = (await getJSON(`/jobs/skill_counts?${q}`)).counts || {};
-    } catch { counts = {}; }
+    // The counts came with the dashboard, computed with the matches.
     const rows = shown.map((sk) => ({ sk, n: counts[sk], mine: true }))
       .concat(suggested.map(([sk, share]) => ({ sk, n: counts[sk], mine: false, share: share / matches.length })))
       .filter((r) => r.n != null).sort((a, b) => b.n - a.n);
@@ -297,12 +214,28 @@
   }
 
   // ---- the matches, 100 of them, read once for three panels ----
-  async function loadTopMatches() {
-    const { skills, country } = matchScope();
-    if (!skills.length) return [];
-    const q = new URLSearchParams({ skills: skills.join(","), sort: "match", dir: "asc", limit: "60", count: "skip" });
-    if (country) q.set("country", country);
-    try { return (await getJSON(`/jobs?${q}`)).jobs || []; } catch { return []; }
+  // One call: the overview's numbers, computed on the box on the first
+  // visit of the day and stored with the profile (api/dashboard.py).
+  let forceNext = false;
+  async function loadDashboard() {
+    const { skills } = matchScope();
+    if (!skills.length) return null;
+    const force = forceNext;
+    forceNext = false;
+    try { return await authedFetch(`/me/dashboard${force ? "?refresh=1" : ""}`); } catch { return null; }
+  }
+
+  function paintFresh(at) {
+    const el = document.getElementById("acct-fresh");
+    if (!el) return;
+    if (!at) { el.hidden = true; return; }
+    const d = new Date(at);
+    const when = d.toDateString() === new Date().toDateString()
+      ? `today at ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+      : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    el.innerHTML = `Numbers from ${when}, refreshed daily. <button type="button" class="link-inline" id="acct-refresh">Refresh now</button>`;
+    el.hidden = false;
+    el.querySelector("#acct-refresh").addEventListener("click", () => { forceNext = true; inflight = null; paintDashboard(); });
   }
 
   // The last answer, kept in this browser for half an hour, so the page
@@ -321,8 +254,8 @@
       return c && c.key === cacheKey() && Date.now() - c.at < CACHE_TTL ? c : null;
     } catch { return null; }
   }
-  function writeCache(h, matches) {
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ key: cacheKey(), at: Date.now(), history: h, matches: matches.slice(0, 100) })); } catch { /* per-browser nicety only */ }
+  function writeCache(h, matches, counts, computedAt) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ key: cacheKey(), at: Date.now(), history: h, matches: matches.slice(0, 100), counts, computedAt })); } catch { /* per-browser nicety only */ }
   }
 
   let inflight = null;
@@ -350,14 +283,18 @@
     }
   }
   let painted = "";
-  function paintAll(matches) {
+  function paintAll(matches, counts = {}, computedAt = null) {
     const savedRows = (typeof dashSavedRows !== "undefined" ? dashSavedRows : []) || [];
     const savedJobs = (typeof dashSavedJobs !== "undefined" ? dashSavedJobs : []) || [];
     paintStats(savedJobs);
-    drawMarket();
     paintActivity(savedRows, savedJobs);
     paintPay(matches);
-    paintDemand(matches);
+    paintDemand(matches, counts);
+    paintFresh(computedAt);
+    // The best-matches list reads the same answer, so the page does not
+    // ask the box for three rows it already has sixty of.
+    window.dashMatches = { key: (draft.skills || []).join(","), jobs: matches };
+    if (typeof paintMatches === "function") paintMatches(matches.slice(0, 3), draft.skills || []);
   }
 
   // Called when the profile is in (the skills are what everything here
@@ -371,16 +308,16 @@
     if (cached && painted !== key) {
       history = cached.history;
       painted = key;
-      paintAll(cached.matches || []);
+      paintAll(cached.matches || [], cached.counts || {}, cached.computedAt || null);
     }
     if (inflight && inflight.key === key) {
-      const { matches } = await inflight.promise;
-      paintAll(matches);
+      const { matches, counts, at } = await inflight.promise;
+      paintAll(matches, counts, at);
       return;
     }
-    const promise = Promise.all([loadHistory(), loadTopMatches()]).then(([h, matches]) => ({ h, matches }));
+    const promise = loadDashboard().then((d) => ({ h: d?.history || null, matches: d?.matches || [], counts: d?.counts || {}, at: d?.computed_at || null }));
     inflight = { key, promise };
-    const { h, matches } = await promise;
+    const { h, matches, counts, at } = await promise;
     if (cacheKey() !== key) return; // the skills changed meanwhile
     // No history means the box did not answer in time. Ask again in a
     // little while, twice, rather than leave the page half drawn.
@@ -390,17 +327,9 @@
     }
     history = h;
     painted = key;
-    if (h) writeCache(h, matches);
-    paintAll(matches);
+    if (h) writeCache(h, matches, counts, at);
+    paintAll(matches, counts, at);
   }
-
-  document.getElementById("acct-range")?.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-range]");
-    if (!b) return;
-    range = Number(b.dataset.range);
-    document.querySelectorAll("#acct-range button").forEach((x) => x.classList.toggle("on", x === b));
-    drawMarket();
-  });
 
   window.paintDashboard = paintDashboard;
 })();

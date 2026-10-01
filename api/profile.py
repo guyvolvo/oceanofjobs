@@ -40,6 +40,8 @@ import re
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 PROFILE_ID = "#profile"
+# The overview's computed numbers, beside the profile (see dashboard.py).
+DASHBOARD_ID = "#dashboard"
 
 # One definition, in skills.py, compiled into regexes by probe.py and
 # used as a closed list here. These were briefly two hand-maintained

@@ -7344,7 +7344,10 @@ table.jobs tbody tr.skeleton-row {
 .acct-dash-row { display: grid; gap: 14px; margin-top: 14px; align-items: stretch; }
 .acct-dash-row .acct-panel { padding: 16px 18px 18px; background: var(--white); border: 1px solid var(--panel-line); border-radius: 10px; }
 .acct-dash-market { grid-template-columns: 1.7fr 1fr; }
-.acct-dash-bottom { grid-template-columns: 1.3fr 1fr 1fr; }
+.acct-dash-top { grid-template-columns: 1.3fr 1fr 1fr; }
+.acct-dash-bottom { grid-template-columns: minmax(0, 1fr); }
+.acct-fresh { margin: 8px 2px 0; font: 12px var(--font-ui); color: var(--grey); }
+.acct-fresh .link-inline { color: var(--green-text); font: inherit; }
 .acct-panel-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .acct-panel-sub { font: 400 12px var(--font); color: var(--grey); }
 .acct-range { display: inline-flex; border: 1px solid var(--grey-line); border-radius: 6px; overflow: hidden; }
@@ -7406,7 +7409,7 @@ table.jobs tbody tr.skeleton-row {
   .acct-stat:nth-child(2) { border-right: 0; }
   .acct-stat:nth-child(-n+2) { border-bottom: 1px solid var(--grey-line); }
   .account-nav.acct-tabs { gap: 16px; overflow-x: auto; scrollbar-width: none; }
-  .acct-dash-market, .acct-dash-bottom { grid-template-columns: minmax(0, 1fr); }
+  .acct-dash-top, .acct-dash-bottom { grid-template-columns: minmax(0, 1fr); }
   .acct-hero { grid-template-columns: 40px minmax(0, 1fr); }
   .acct-hero .acct-id-mark { width: 40px; height: 40px; font-size: 16px; }
   .acct-hero-actions { grid-column: 1 / -1; justify-content: flex-start; }

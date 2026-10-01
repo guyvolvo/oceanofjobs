@@ -38,8 +38,9 @@ from help_page import HELP_HTML
 from openapi import spec as openapi_spec
 import company_page
 import job_page
-from profile import (CADENCE, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
+from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
                      empty_profile)
+import dashboard
 from saved import is_saved_id, job_id_of, saved_id
 from skills import spec as skill_spec
 from job_filters import (FRESH_CLAUSE, IL_KEYWORDS, MAX_SEARCH_TERMS, bool_param, category_sql,
@@ -361,6 +362,11 @@ def lambda_handler(event, context):
                 body = json.loads(event.get("body") or "{}")
                 return _response(200, json.dumps(route_put_profile(claims["sub"], body), default=str))
             return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/me/dashboard":
+            claims = _authenticated_claims(event)
+            if method != "GET":
+                return _response(405, json.dumps({"error": "method not allowed"}))
+            return _response(200, json.dumps(route_dashboard(claims["sub"], bool_param(params, "refresh")), default=str))
         if path == "/me/alerts":
             claims = _authenticated_claims(event)
             if method == "GET":
@@ -1501,7 +1507,7 @@ def route_list_alerts(user_id: str) -> dict:
     # filter; a saved job would put one row in the reader's alert list
     # per star, which for anyone who uses the Saved view is most of it.
     items = [i for i in resp.get("Items", [])
-             if i.get("alert_id") != PROFILE_ID and not is_saved_id(i.get("alert_id"))]
+             if i.get("alert_id") not in (PROFILE_ID, DASHBOARD_ID) and not is_saved_id(i.get("alert_id"))]
     return {"alerts": items}
 
 
@@ -1537,6 +1543,37 @@ def route_get_profile(user_id: str) -> dict:
         # response, with nothing in the frontend reading it.
         "skill_spec": skill_spec(),
     }
+
+
+# A day. The numbers are about open roles over weeks; a day's drift is
+# nothing, and computing them is three passes over the table.
+DASHBOARD_TTL_S = 24 * 3600
+
+
+def route_dashboard(user_id: str, refresh: bool = False) -> dict:
+    """The overview's numbers (dashboard.py), from the stored copy when
+    it is for the same skills and under a day old, else computed now
+    and stored. refresh=1 computes regardless."""
+    from datetime import datetime, timezone
+
+    profile = route_get_profile(user_id)["profile"]
+    key = dashboard.scope_key(profile)
+    if not refresh:
+        item = _alerts_table.get_item(Key={"user_id": user_id, "alert_id": DASHBOARD_ID}).get("Item") or {}
+        if item.get("key") == key and item.get("blob"):
+            try:
+                stored = json.loads(item["blob"])
+                at = datetime.fromisoformat(stored["computed_at"])
+                if (datetime.now(timezone.utc) - at).total_seconds() < DASHBOARD_TTL_S:
+                    return stored
+            except (ValueError, KeyError, TypeError):
+                pass
+    conn = get_connection()
+    computed = dashboard.compute(conn, profile, lambda p: _route_jobs(conn, p))
+    _alerts_table.put_item(Item={"user_id": user_id, "alert_id": DASHBOARD_ID, "key": key,
+                                 "computed_at": computed["computed_at"],
+                                 "blob": json.dumps(computed, default=str)})
+    return computed
 
 
 def route_put_profile(user_id: str, body: dict) -> dict:
