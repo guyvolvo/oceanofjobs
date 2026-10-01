@@ -173,15 +173,6 @@
     if (!skills.length) { host.innerHTML = '<p class="acct-matches-empty">Add skills to see demand for them.</p>'; return; }
     host.innerHTML = Array.from({ length: Math.min(skills.length, 6) }, () => '<div class="acct-demand-row"><span class="skeleton sk-line" style="width:40%"></span></div>').join("");
     const shown = skills.slice(0, 10);
-    const count = async (sk) => {
-      const q = new URLSearchParams({ skills: sk, limit: "1" });
-      if (country) q.set("country", country);
-      try { return (await getJSON(`/jobs?${q}`)).total || 0; } catch { return null; }
-    };
-    // Five at a time: the API allows sixty requests in ten seconds per
-    // address, and this page is already asking for several other things.
-    const counts = [];
-    for (let i = 0; i < shown.length; i += 5) counts.push(...await Promise.all(shown.slice(i, i + 5).map(count)));
     // Skills the matches ask for that the reader does not list, with
     // the share of matches naming each; the one most asked for gets
     // the note, with what adding it would open up.
@@ -189,9 +180,16 @@
     const seen = new Map();
     for (const j of matches) for (const sk of (j.skills || "").split(",").filter(Boolean)) if (!have.has(sk)) seen.set(sk, (seen.get(sk) || 0) + 1);
     const suggested = [...seen.entries()].filter(([, n]) => matches.length && n / matches.length >= 0.2).sort((a, b) => b[1] - a[1]).slice(0, 2);
-    const sugCounts = await Promise.all(suggested.map(([sk]) => count(sk)));
-    const rows = shown.map((sk, i) => ({ sk, n: counts[i], mine: true }))
-      .concat(suggested.map(([sk, share], i) => ({ sk, n: sugCounts[i], mine: false, share: share / matches.length })))
+    // One request for every count: the API sums them in one pass, where
+    // a count per skill was a scan of the whole table each.
+    let counts = {};
+    try {
+      const q = new URLSearchParams({ skills: [...shown, ...suggested.map(([sk]) => sk)].join(","), confidence: "all" });
+      if (country) q.set("country", country);
+      counts = (await getJSON(`/jobs/skill_counts?${q}`)).counts || {};
+    } catch { counts = {}; }
+    const rows = shown.map((sk) => ({ sk, n: counts[sk], mine: true }))
+      .concat(suggested.map(([sk, share]) => ({ sk, n: counts[sk], mine: false, share: share / matches.length })))
       .filter((r) => r.n != null).sort((a, b) => b.n - a.n);
     const max = Math.max(1, ...rows.map((r) => r.n));
     host.innerHTML = rows.map((r) => `
@@ -204,13 +202,8 @@
     if (note) {
       const top = rows.find((r) => !r.mine);
       if (top) {
-        const q = new URLSearchParams({ skills: [...skills, top.sk].join(","), limit: "1" });
-        if (country) q.set("country", country);
-        let more = null;
-        try { more = (await getJSON(`/jobs?${q}`)).total; } catch { /* the note says the share alone */ }
-        const now = history?.days?.length ? history.days[history.days.length - 1].open : null;
-        const gain = more != null && now != null ? Math.max(0, more - now) : null;
-        note.innerHTML = `<b>${esc(top.sk)}</b> appears in ${Math.round(top.share * 100)}% of your matches. Add it if you have it${gain ? ` and about ${fmt(gain)} more roles open up` : ""}.`;
+        // The share alone: what adding it would open up cost a scan of its own.
+        note.innerHTML = `<b>${esc(top.sk)}</b> appears in ${Math.round(top.share * 100)}% of your matches. Add it if you have it, and ${fmt(top.n)} open roles ask for it.`;
         note.hidden = false;
       } else note.hidden = true;
     }
@@ -276,7 +269,7 @@
   async function loadTopMatches() {
     const { skills, country } = matchScope();
     if (!skills.length) return [];
-    const q = new URLSearchParams({ skills: skills.join(","), sort: "match", dir: "asc", limit: "100", count: "skip" });
+    const q = new URLSearchParams({ skills: skills.join(","), sort: "match", dir: "asc", limit: "60", count: "skip" });
     if (country) q.set("country", country);
     try { return (await getJSON(`/jobs?${q}`)).jobs || []; } catch { return []; }
   }

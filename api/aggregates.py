@@ -124,6 +124,36 @@ def skills_history(conn, params: dict, days: int = 90) -> dict:
     return out
 
 
+_SKILL_COUNTS_CACHE: dict = {}
+
+
+def skill_counts(conn, params: dict) -> dict:
+    """How many open roles ask for each of the skills named, in one pass:
+    one SUM of a LIKE per skill over the rows the board's own filters
+    (country, confidence) leave, rather than a count query per skill.
+    The account page asks for a dozen at once; a scan each put the box
+    on its knees (2026-10-01). Kept per worker for ten minutes."""
+    from datetime import datetime, timezone
+
+    from job_filters import build_jobs_where, has_fts_index, has_places, wanted_skills
+
+    wanted = wanted_skills(params)
+    if not wanted:
+        raise ValueError("skills is required")
+    scoped = {k: v for k, v in params.items() if k != "skills"}
+    where_sql, args = build_jobs_where(scoped, has_fts_index(conn), has_places(conn))
+    key = (tuple(wanted), where_sql, tuple(args))
+    now = datetime.now(timezone.utc)
+    hit = _SKILL_COUNTS_CACHE.get(key)
+    if hit and (now - hit[0]).total_seconds() < _HISTORY_TTL_S:
+        return hit[1]
+    sums = ", ".join("SUM((',' || COALESCE(skills, '') || ',') LIKE ?)" for _ in wanted)
+    row = conn.execute(f"SELECT {sums} FROM jobs WHERE {where_sql}", [*[f"%,{s},%" for s in wanted], *args]).fetchone()
+    out = {"counts": {s: int(row[i] or 0) for i, s in enumerate(wanted)}}
+    _SKILL_COUNTS_CACHE[key] = (now, out)
+    return out
+
+
 def _company_columns(conn) -> set[str]:
     return {r[1] for r in conn.execute("PRAGMA table_info(companies)")}
 

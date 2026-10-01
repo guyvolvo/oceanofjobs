@@ -31,7 +31,7 @@ from boto3.dynamodb.conditions import Key
 
 from aggregates import (scoped_variant_key, company_directory, company_profile, compute_facets,
                         compute_scoped_stats, compute_stats, has_board_filters, place_rows, search_companies,
-                        skills_history)
+                        skill_counts, skills_history)
 from db import get_connection, status as db_status
 from help_page import HELP_HTML
 from openapi import spec as openapi_spec
@@ -282,6 +282,11 @@ def lambda_handler(event, context):
             return _response(200, json.dumps(openapi_spec()), cache_seconds=300)
         if path == "/jobs":
             return _response(200, json.dumps(route_jobs(params), default=str), cache_seconds=60)
+        if path == "/jobs/skill_counts":
+            try:
+                return _response(200, json.dumps(skill_counts(get_connection(), params)), cache_seconds=600)
+            except ValueError as e:
+                return _response(400, json.dumps({"error": str(e)}))
         if path == "/jobs/history":
             # Before /jobs/<id>, which would read "history" as an id.
             try:

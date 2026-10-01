@@ -76,6 +76,9 @@ try:
 except ValueError:
     check("no skills is an error", True)
 
+c = aggregates.skill_counts(conn, {"skills": "Python,AWS,Go,Rust", "country": "IL", "confidence": "all"})["counts"]
+check("one pass counts every skill named, in the country", c == {"Python": 3, "AWS": 2, "Go": 2, "Rust": 0}, repr(c))
+
 print()
 if failures:
     print("%d failed:" % len(failures))
