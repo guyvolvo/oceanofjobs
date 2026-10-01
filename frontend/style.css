@@ -6650,7 +6650,6 @@ body.side-folded .side-nav { padding: 4px; }
 body.side-folded .side-nav a { justify-content: center; width: 32px; height: 32px; padding: 0; }
 body.side-folded .side-nav a span { display: none; }
 body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
-body.side-folded .side-fold svg { transform: rotate(180deg); }
 
 .site-side {
   display: flex;
@@ -6784,8 +6783,6 @@ body.side-folded .side-fold svg { transform: rotate(180deg); }
    and its body a popover under it; the category section is drawn in
    the sidebar instead and stays hidden here. */
 .board-pills { display: flex; align-items: center; gap: 8px; }
-/* The funnel at the row's head: what the row is, in the muted ink. */
-.pills-mark { flex: none; display: grid; place-items: center; width: 20px; color: var(--grey); }
 .board-pills .filter-rail { flex: none; display: flex; flex-direction: row; align-items: center; min-height: 0; border: 0; background: none; overflow: visible; }
 .board-pills .rail-groups,
 .board-pills .rail-groups:has(.rail-acc) {
