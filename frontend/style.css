@@ -7331,7 +7331,10 @@ table.jobs tbody tr.skeleton-row {
 :root[data-theme="dark"] .acct-delta.down { color: #e8866b; }
 .acct-delta.flat { color: var(--grey); }
 .acct-stat-sub { font: 400 12px var(--font); color: var(--grey); }
-.acct-stat-sub a { color: var(--green-text); }
+/* Links on the overview are set, not the browser's: green, no rule
+   under them until the pointer is on them. */
+#overview a:not(.btn):not(.acct-match), .acct-hero-sub a { color: var(--green-text); font-weight: 500; text-decoration: none; }
+#overview a:not(.btn):not(.acct-match):hover, .acct-hero-sub a:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* The one green tile: what is new. */
 .acct-stat-green .acct-stat-value { color: var(--green-text); }
 .acct-spark { position: absolute; right: 14px; bottom: 14px; width: 90px; height: 28px; color: var(--grey); overflow: visible; }
