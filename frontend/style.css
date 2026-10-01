@@ -6986,14 +6986,24 @@ table.jobs tbody tr.skeleton-row {
   }
   .side-account .auth-area { display: contents; }
   .side-account .theme-toggle { order: 2; }
-  .side-account .auth-panel {
+  .side-account .auth-panel,
+  .side-account .hero-menu {
     position: static;
     order: 3;
     grid-column: 1 / -1;
     width: auto;
     max-height: none;
+    box-shadow: none;
+    transform: none;
     transform-origin: top left;
   }
+  /* The menu's hidden state keeps display for its slide; in the flow
+     that would hold its height open under the row. */
+  .side-account .hero-menu[hidden] { display: none; }
+  /* The list's phone "box with a lid" (the 640px rules above): on this
+     frame the boxes already run edge to edge, so the lid is a stray
+     outline. */
+  .board-list { margin: 0; border: 0; border-radius: 0; }
   .board-list .list-head { height: auto; min-height: 52px; flex-wrap: wrap; padding: 8px 14px; }
   /* Four short lines on a phone: the one-line company and place would
      be an ellipsis each. */
