@@ -1011,6 +1011,33 @@ The showcase and the features are the one part of the site that keeps
 its own colours whatever the theme, for the reason given under Dark
 grounds: they are photographs.
 
+### The board's frame (October 2026)
+The board and the companies directory share one frame: a 236px sidebar
+on the page ground and a main column. Each group in the sidebar (the
+site's pages, the view switch, the categories; on the directory the
+browse list and the hiring systems) is a box in the boards' own style,
+1px panel line and 10px corners, with 32px rows; the row that is on
+sits on an 18% wash of the ink, bold, so the sidebar spends no green
+and New today stays the one green number. A chevron folds the sidebar
+to a 56px strip, remembered per browser. The main column is one header
+row (the search box, sign-in, the theme switch), the filters as a row
+of pills (36px, the search box's 1.5px ink line, an open pill filled
+with ink and its list a 320px popover under it), and the two boxes,
+which run off the bottom of the window with no edge: a list that
+scrolls inside its box has no end to draw a border under. The count
+and the date and sort controls sit at the top of the list. Rows are
+three lines (title and level with the age at the right; company, team,
+place and workplace; salary and skills) at 84px, nine to a screen. A
+listing open widens the pane from 29vw to 42vw.
+
+Below 1100px the sidebar is a drawer behind a menu button and the pane
+is the sheet it was; below 800px a pill's list is a bottom sheet over
+the same scrim and the boxes run edge to edge; below 640px sign-in and
+the theme switch move into the drawer's foot and a row's company and
+place take a line each. Every company mark on the site is one tile:
+44px in a row, 56px in a pane, served from /logo/<domain>.png, with
+the company's letter outlined where there is no mark.
+
 ### Feature tiles and the alert mail (dark components)
 - **Feature tile:** Dark Tile ground, Display / Feature Card title in
   Dark Ink over a 25% black veil on the photograph, a 14px line under it
