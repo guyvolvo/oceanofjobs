@@ -52,7 +52,9 @@ from job_filters import FRESH_CLAUSE  # noqa: E402
 SITE = "https://oceanofjobs.com"
 SHARD = 40_000
 FEED_ITEMS = 100
-MAX_AGE_S = 3600
+# Six hours. Crawlers fetch a sitemap daily at best; hourly rebuilds
+# were a minute of disk each for nothing (2026-10-01).
+MAX_AGE_S = 6 * 3600
 
 # (path, lastmod follows the snapshot?)
 PAGES = [("/", False), ("/board", True), ("/stats", True), ("/api/help", False), ("/contact", False), ("/privacy", False)]

@@ -57,7 +57,10 @@ KEEP = 3   # builds left in the bucket: the current one and two hours of open ta
 # who is mid-analysis stays on the copy they opened. Fifteen-minute
 # freshness on a file people run ad-hoc analysis against buys nothing
 # they would notice.
-MAX_AGE_S = 3600
+# Three hours. A rebuild is a four-minute pass over the table and a
+# 1.3GB upload; hourly, that was a quarter of the box's disk time for
+# a page whose numbers move slowly (2026-10-01).
+MAX_AGE_S = 3 * 3600
 
 # Matches the runtime's requestChunkSize. A query touching an index
 # reads a handful of these; a full scan reads all of them, which is slow

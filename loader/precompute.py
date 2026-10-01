@@ -67,7 +67,12 @@ PREFIX = os.environ.get("PRECOMPUTED_PREFIX", "precomputed/")
 # an apply. The argument above still holds at thirty: a dropdown count
 # and a 14-day trend do not know the difference, and it halves the
 # cost.
-MAX_AGE_S = 1800
+# An hour. It was thirty minutes, and each run is six to nine minutes of
+# reading the whole table on a box whose disk the applier also needs
+# (2026-10-01: the publisher and the applier together held the disk
+# busy most of the day). Stats an hour old are not a thing a reader
+# notices; a board that answers in a second is.
+MAX_AGE_S = 3600
 
 
 def record_company_day(db_path: Path) -> bool:

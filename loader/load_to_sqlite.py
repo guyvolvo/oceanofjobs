@@ -2034,15 +2034,30 @@ def main() -> int:
 
         demoted: list[str] = []
         conn = open_db(args.out)
+        # Where a run's time goes, one line per step that took a second or
+        # more. A box run was 830 to 880 seconds with nothing in its log
+        # to say why (2026-10-01).
+        laps = [time.monotonic()]
+
+        def lap(label: str) -> None:
+            now = time.monotonic()
+            took = now - laps[-1]
+            laps.append(now)
+            if took >= 1:
+                print(f"step {label}: {took:.0f}s", file=sys.stderr)
+
         with conn:
             current_domains = load_resolved(conn, args.resolved, args.drop_description)
+            lap("merge")
             sweep_due = (not args.box) or _box_sweep_due(conn)
             n_roles = classify_roles(conn)
             if n_roles:
                 print(f"role verdicts for {n_roles} rows", file=sys.stderr)
+            lap("roles")
             n_sal = derive_salary_ranges(conn, current_domains)
             if n_sal:
                 print(f"shekel ranges for {n_sal} rows", file=sys.stderr)
+            lap("salary")
             if args.box:
                 n_cat = classify_categories(conn)
                 if n_cat:
@@ -2050,7 +2065,9 @@ def main() -> int:
                 n_dates = normalize_posted_at(conn)
                 if n_dates:
                     print(f"posted_at normalized on {n_dates} rows", file=sys.stderr)
+                lap("categories+posted_at")
                 ensure_box_indexes(conn)
+                lap("indexes")
             if args.deep:
                 load_deep(conn, args.deep)
             if args.prune_stale:
@@ -2079,6 +2096,7 @@ def main() -> int:
                                            args.archive_closed_days,
                                            _fts_supports_rowid_delete(conn))
                     print(f"archive: {json.dumps(result, default=str)}", file=sys.stderr)
+            lap("archive")
             if args.logos and sweep_due:
                 n_logos = apply_company_logos(conn, args.logos)
                 print(f"logos: {n_logos} companies carry one", file=sys.stderr)
@@ -2094,14 +2112,18 @@ def main() -> int:
                     print(f"places: filled {n_places} rows from their location text", file=sys.stderr)
             except Exception as e:
                 print(f"places backfill failed (non-fatal): {e!r}", file=sys.stderr)
+            lap("logos+places")
             update_meta(conn, clustering=sweep_due)
+            lap("meta")
             if args.box and sweep_due:
                 _meta_set(conn, "box_sweep_at", str(time.time()))
 
+        lap("commit")
         known_out = args.known_out or args.out.with_name("known.json")
         n_known = None if args.skip_known else export_known(conn, known_out)
         if not args.skip_vacuum or _mostly_free_pages(conn):
             conn.execute("VACUUM")
+        lap("known+vacuum")
         conn.close()
 
         print(f"wrote {args.out} ({args.out.stat().st_size} bytes)", file=sys.stderr)
