@@ -76,7 +76,7 @@
     const line = days.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${yOpen(d.open).toFixed(1)}`).join(" ");
     const ticks = [0, 0.5, 1].map((f) => `<text class="acct-axis" x="${L - 6}" y="${(T + ih - f * ih + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(maxOpen * f))}</text>`).join("");
     const first = days[0].day, last = days[days.length - 1].day;
-    host.innerHTML = `<svg class="acct-market-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Open roles matching you over ${days.length} days, ${fmt(days[0].open)} to ${fmt(days[days.length - 1].open)}">
+    host.innerHTML = `<svg class="acct-market-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Open roles matching your background over ${days.length} days, ${fmt(days[0].open)} to ${fmt(days[days.length - 1].open)}">
       <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih}" y2="${T + ih}"/>
       <line class="acct-grid" x1="${L}" x2="${W - R}" y1="${T + ih / 2}" y2="${T + ih / 2}"/>
       ${ticks}${bars}
@@ -122,12 +122,12 @@
       tile("Alerts", fmt(alerts.length), alerts.length ? `${on} on, ${alerts.length - on} paused${sent ? ` · last sent ${ago(sent)}` : ""}` : '<a href="#alerts">Create one</a>', ""),
       tile("Saved jobs", fmt(savedJobs.length), savedJobs.length ? `${stillOpen} still open` : '<a href="/board">Save one from the board</a>', ""),
     ].join("");
-    const since = weekdayOf(new Date(Date.now() - 7 * DAY));
+    const since = `last ${weekdayOf(new Date(Date.now() - 7 * DAY))}`;
     const summary = document.getElementById("acct-summary");
     if (summary) {
       summary.innerHTML = noSkills
         ? 'Read a CV in <a href="#skills">Skills</a> and this page fills with the roles that fit you.'
-        : `<b>${fmt(week)}</b> new ${week === 1 ? "job matches" : "jobs match"} your skills since ${since}${open != null ? `, out of <b>${fmt(open)}</b> open roles that fit you` : ""}.`;
+        : `<b>${fmt(week)}</b> new ${week === 1 ? "job matches" : "jobs match"} your background since ${since}${open != null ? `, out of <b>${fmt(open)}</b> open roles that fit you` : ""}.`;
     }
     const all = document.getElementById("acct-matches-all");
     if (all) all.textContent = week ? `See all ${fmt(week)}` : "See all";
