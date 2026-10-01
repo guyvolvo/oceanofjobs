@@ -93,9 +93,10 @@ def main() -> int:
         metrics.publish(DB, BUCKET)
     except Exception as e:  # noqa: BLE001
         print(f"metrics failed: {e!r}", file=sys.stderr)
-    # Up to ten minutes, within a fifteen-minute cadence: the applier
-    # holds the disk often, and leaving at once meant never publishing.
-    with exclusive("publish", wait=600) as got:
+    # Up to fourteen minutes, within a fifteen-minute cadence: the
+    # applier holds the disk often, and leaving at once meant never
+    # publishing. While this waits, the applier sits out (lock.someone_waiting).
+    with exclusive("publish", wait=840) as got:
         if not got:
             # An apply or a snapshot has the disk. Everything here is
             # paced in minutes and the next tick is in fifteen.

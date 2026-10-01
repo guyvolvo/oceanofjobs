@@ -27,6 +27,30 @@ from pathlib import Path
 LOCK_PATH = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db")).with_name("heavy-io.lock")
 
 
+WANT_MAX_AGE_S = 15 * 60
+
+
+def _want_path(who: str) -> Path:
+    return LOCK_PATH.with_name(f"heavy-io.want-{who}")
+
+
+def someone_waiting(but: str = "") -> str | None:
+    """The name of a job that is waiting for the disk, or None. A waiter
+    leaves a marker while it waits; a marker older than a cadence is a
+    job that died waiting and is ignored."""
+    now = time.time()
+    for p in LOCK_PATH.parent.glob("heavy-io.want-*"):
+        who = p.name[len("heavy-io.want-"):]
+        if who == but:
+            continue
+        try:
+            if now - p.stat().st_mtime < WANT_MAX_AGE_S:
+                return who
+        except OSError:
+            pass
+    return None
+
+
 @contextmanager
 def exclusive(who: str, wait: float = 0):
     """Yields True when this process has the lock, False when another
@@ -40,6 +64,14 @@ def exclusive(who: str, wait: float = 0):
         return
 
     fd = os.open(LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o644)
+    want = _want_path(who) if wait > 0 else None
+    if want:
+        # Says "I am waiting", so the applier, which otherwise runs back
+        # to back, sits out one tick and the lock comes free.
+        try:
+            want.write_text(str(os.getpid()), encoding="utf-8")
+        except OSError:
+            want = None
     try:
         deadline = time.monotonic() + wait
         while True:
@@ -64,4 +96,6 @@ def exclusive(who: str, wait: float = 0):
         os.write(fd, f"{who} pid {os.getpid()}".encode("utf-8"))
         yield True
     finally:
+        if want:
+            want.unlink(missing_ok=True)
         os.close(fd)

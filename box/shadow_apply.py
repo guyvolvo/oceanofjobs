@@ -199,6 +199,14 @@ def _read(paths: list[Path]) -> list[dict]:
 
 
 def main() -> int:
+    # The publisher is waiting for the disk: let it have the next gap.
+    # Applies run back to back and used to starve it (no precomputed
+    # stats for five hours, 2026-10-01); one tick's delay here costs
+    # nothing, the spool keeps.
+    waiting = someone_waiting(but="apply")
+    if waiting:
+        print(f"apply: yielding the disk to {waiting}")
+        return 0
     with exclusive("apply") as got:
         if not got:
             # The snapshot job has the disk. The spool keeps filling and
