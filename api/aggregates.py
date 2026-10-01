@@ -182,7 +182,7 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
     # every open row by company, a walk of the whole company index, 10s
     # idle and 100s under an apply (2026-10-02); the list barely moves
     # in that time and every visitor asks the same question first.
-    ckey = tuple(sorted((k, v) for k, v in scoped.items() if v not in (None, "")))
+    ckey = (limit, tuple(sorted((k, v) for k, v in scoped.items() if v not in (None, ""))))
     now = datetime.now(timezone.utc)
     hit = _DIRECTORY_CACHE.get(ckey)
     if hit and (now - hit[0]).total_seconds() < _DIRECTORY_TTL_S:
