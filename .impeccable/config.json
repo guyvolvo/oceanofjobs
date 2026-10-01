@@ -14,6 +14,12 @@
         "value": "4px",
         "createdAt": "2026-09-05T09:49:24.415Z",
         "reason": "User explicitly requested 4px rounding twice: the filter bar inputs/toggles/Reset, and the Market Stats box's outer corners"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-10-01T07:44:30.872Z",
+        "reason": "User chose Geist for the dark grounds (feature tiles, preview card, alert mail); documented in DESIGN.md as the scoped second display face"
       }
     ]
   }

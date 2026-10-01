@@ -1,6 +1,6 @@
 ---
 name: Ocean of Jobs
-description: Swiss-grid job board for the Israeli tech market, ground-truthed data, zero decoration, forest-green ink on neutral paper.
+description: Swiss-grid job board for the Israeli tech market, ground-truthed data, zero decoration, forest-green ink on neutral paper; on the landing page and in mail, photographs and words on near-black.
 colors:
   paper: "#f2f0ef"
   ink: "#40513b"
@@ -15,6 +15,28 @@ colors:
   green-text: "#3f6f45"
   logo-band: "#edf0ec"
   logo-band-rule: "#d6ded6"
+  dark-ground: "#050505"
+  dark-tile: "#030303"
+  dark-ink: "#f4f1ee"
+  dark-ink-2: "#9a9ca3"
+  dark-muted: "#8a8c93"
+  dark-link: "#c9cacf"
+  dark-line: "#222328"
+  dark-logo-tile: "#1c1d22"
+  dark-logo-tile-line: "#2a2b31"
+  mail-page: "#0a0a0b"
+  mail-card: "#111214"
+  mail-green: "#2fb36a"
+  on-mail-green: "#0b1a10"
+  signal-green-dark: "#2fae60"
+  green-soft: "#7fd49b"
+  green-tint: "rgba(47, 174, 96, 0.14)"
+  dark-hairline-7: "rgba(255, 255, 255, 0.07)"
+  dark-hairline-8: "rgba(255, 255, 255, 0.08)"
+  dark-hairline-12: "rgba(255, 255, 255, 0.12)"
+  trend-down: "#b0452f"
+  trend-down-dark: "#e8866b"
+  showcase-sky: "#b9a3bd"
 typography:
   display-wordmark:
     fontFamily: "Overused Grotesk, \"Helvetica Neue\", Helvetica, Arial, sans-serif"
@@ -128,10 +150,77 @@ typography:
     fontWeight: 400
     lineHeight: 1.2
     letterSpacing: "normal"
+  display-feature-card:
+    fontFamily: "Geist, \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    fontSize: "clamp(34px, 4.6vw, 64px)"
+    fontWeight: 500
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
+  display-preview-card:
+    fontFamily: "Geist, system-ui, sans-serif"
+    fontSize: "112px"
+    fontWeight: 500
+    lineHeight: 0.95
+    letterSpacing: "-0.035em"
+  preview-card-site:
+    fontFamily: "Geist, system-ui, sans-serif"
+    fontSize: "22px"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.02em"
+  preview-card-counts:
+    fontFamily: "Geist, system-ui, sans-serif"
+    fontSize: "26px"
+    fontWeight: 400
+    lineHeight: 1
+    letterSpacing: "normal"
+  preview-label:
+    fontFamily: "\"Source Sans 3\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    fontSize: "18px"
+    fontWeight: 500
+    lineHeight: 1.3
+    letterSpacing: "normal"
+  logo-band-name:
+    fontFamily: "Geist, \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    fontSize: "21px"
+    fontWeight: 500
+    lineHeight: 1
+    letterSpacing: "-0.01em"
+  mail-headline:
+    fontFamily: "Geist, -apple-system, \"Segoe UI\", Helvetica, Arial, sans-serif"
+    fontSize: "40px"
+    fontWeight: 500
+    lineHeight: 1.05
+    letterSpacing: "-0.03em"
+  mail-title:
+    fontFamily: "Geist, -apple-system, \"Segoe UI\", Helvetica, Arial, sans-serif"
+    fontSize: "17px"
+    fontWeight: 500
+    lineHeight: 1.3
+    letterSpacing: "normal"
+  mail-body:
+    fontFamily: "Geist, -apple-system, \"Segoe UI\", Helvetica, Arial, sans-serif"
+    fontSize: "14px"
+    fontWeight: 400
+    lineHeight: 1.4
+    letterSpacing: "normal"
 rounded:
   none: "0px"
   default: "4px"
   card-preview: "24px"
+  tile-feature: "48px"
+  tile-logo: "12px"
+  card-mail: "20px"
+  button-mail: "12px"
+  button-mail-apply: "8px"
+  micro: "2px"
+  mark-small: "5px"
+  tight: "6px"
+  menu: "10px"
+  card-soft: "14px"
+  note: "18px"
+  tile-feature-phone: "32px"
+  pill: "999px"
 spacing:
   gutter: "clamp(20px, 4vw, 64px)"
   rule: "2px"
@@ -156,6 +245,28 @@ components:
     textColor: "{colors.paper}"
     rounded: "{rounded.default}"
     padding: "6px 10px"
+  feature-tile:
+    backgroundColor: "{colors.dark-tile}"
+    textColor: "{colors.dark-ink}"
+    typography: "{typography.display-feature-card}"
+    rounded: "{rounded.tile-feature}"
+    padding: "24px 48px"
+    height: "200px"
+  logo-tile-dark:
+    backgroundColor: "{colors.dark-logo-tile}"
+    textColor: "{colors.dark-link}"
+    rounded: "{rounded.tile-logo}"
+    size: "48px"
+  button-mail-primary:
+    backgroundColor: "{colors.mail-green}"
+    textColor: "{colors.on-mail-green}"
+    rounded: "{rounded.button-mail}"
+    padding: "14px 24px"
+  button-mail-apply:
+    backgroundColor: "{colors.mail-green}"
+    textColor: "{colors.on-mail-green}"
+    rounded: "{rounded.button-mail-apply}"
+    padding: "11px 18px"
 ---
 
 # Design System: Ocean of Jobs
@@ -270,7 +381,52 @@ anything. Dark mode is a plain near-black/white inversion.
   marks a surface as inert, not as raised. It is not elevation and it is
   not a shadow.
 
+### Dark grounds (the landing page's black sections and the alert mail)
+Added 2026-09-28 to 30, when the landing page's feature section, the
+link preview card and the alert mail were rebuilt from design files
+("Tulips - Blur", "OG image", "Job alert email"). These are the one
+place the system is dark in the light theme too, on purpose: they hold
+photographs and a few large words, and a photograph on paper read as a
+picture pasted on, where on black it reads as the page itself.
+
+- **Dark Ground** (`#050505`, `--dark-ground` in spirit; literal in the
+  files, see below): the features block and the preview card.
+- **Dark Tile** (`#030303`): a feature row's own ground. Measured, not
+  chosen: it is the tulip photograph's black under its 25% veil, so a
+  tile's fade from picture to ground has no step to cross.
+- **Dark Ink** (`#f4f1ee`) for words on any of these, **Dark Ink 2**
+  (`#9a9ca3`) for a second line, **Dark Muted** (`#8a8c93`) for an
+  aside, **Dark Link** (`#c9cacf`) for a link or a lettered logo tile.
+- **Dark Line** (`#222328`): the 1px hairline a dark card or its header
+  keeps; the feature tiles use the same idea at 7% white, as an
+  outline so the row stays exactly 200px.
+- **Logo tile** (`#1c1d22` on a `#2a2b31` hairline): a 48px company mark
+  or its first letter, 12px corners, on any dark ground.
+- **Mail Page** (`#0a0a0b`) and **Mail Card** (`#111214`): the alert
+  mail's two surfaces, its header plain black.
+- **Mail Green** (`#2fb36a`, text on it `#0b1a10`): the dark theme's own
+  Signal Green, carried into the mail and the preview card as the one
+  accent. The One Voice Rule holds on black exactly as on paper: the
+  count in a headline, "Just posted", a button. Never two at once in
+  the same tile.
+
+These are literal values in the places they appear: the mail has no
+`:root`, the preview card is rendered once a day by a script, and the
+landing page's tiles are the one surface whose colours do not follow the
+theme toggle (a photograph does not have a light mode). That is the
+documented exception to "every colour is a `var(--token)`".
+
 ### Alert Red (reserved, not decorative)
+- **Trend Down** (`#b0452f`, dark mode `#e8866b`): the overview tiles'
+  falling-arrow colour, a muted red that is not Alert Red because a
+  number going down is information, not an error.
+- **Signal Green, dark** (`#2fae60`) appears as a literal where a dark
+  ground is dark in both themes (the feature previews, the treemap's
+  top tile in the dark theme); **Green Soft** (`#7fd49b`) is an icon on
+  a **Green Tint** (`rgba(47, 174, 96, 0.14)`) tile there. The three
+  **dark hairlines** (white at 7, 8 and 12%) are the lines dark
+  components keep. **Showcase Sky** (`#b9a3bd`) is the lilac under the
+  waterfall photograph while it loads.
 - **Alert Red** (`#b8362c`, `--red`; dark mode `#ff6b5e`): errors and the
   controls that undo or remove something. Error messages and banners,
   the offline wordmark, sign-out and delete hovers, the danger button,
@@ -319,6 +475,15 @@ blocks. A hardcoded `#fff`/`#000` anywhere breaks that.
 **Display Font:** Overused Grotesk, weight 400 (self-hosted, variable font spanning 300–900), falling back to Helvetica Neue / Helvetica / Arial
 **Body Font:** Helvetica Neue, falling back to Helvetica, Arial, sans-serif
 **UI Font:** Source Sans 3 (self-hosted, variable 200–900) for controls: buttons, inputs, selects, the view switch, chips and badges
+**Second display face:** Geist, weights 400 and 500 (self-hosted, two
+static latin files, 13KB each; licence beside them), added 2026-09-28.
+Scoped to the dark grounds above: the feature tiles' titles, the
+preview card, the alert mail, and a company's name in the landing
+page's logo band when it has no wordmark. It is the face the three
+design files were drawn in, and on black at 40 to 112px its wider
+counters read better than Overused Grotesk's. Nowhere on paper, and
+never at a data-dense size: the board, the filters, the account and
+statistics pages stay in the three faces above.
 
 **Character:** A dense, no-serif system voice everywhere text-heavy
 (tables, filters, panels), broken only at brand moments by one bold,
@@ -394,6 +559,25 @@ Uppercase with wide tracking read as shouting across a dense page, and
 at 10 to 11px it was the smallest text on it. Where other sections of
 this file still describe a label as uppercase or tracked, they predate
 this rule.
+
+- **Display / Feature Card** (500, clamp(34px, 4.6vw, 64px), 1.05,
+  -0.02em, Geist): the four feature tiles' titles. One line at desktop
+  (`white-space: nowrap` above 720px); the longest, "CV keyword
+  matching", is 631px of a 620px column and edges into the padding
+  rather than wrapping its tile past 200px.
+- **Display / Preview Card** (500, 112px, 0.95, -0.035em, Geist): the
+  name on the 1200x630 link preview, rendered once a day. 32px for the
+  tagline under it, 26px for the counts along the foot, the figures in
+  Mail Green.
+- **Logo Band / Name** (500, 21px, Geist): a company's name in the
+  landing page's logo rows when no wordmark file exists for it, sized
+  to sit beside the wordmarks at the same visual weight.
+- **Mail / Headline** (500, 40px, 1.05, -0.03em, Geist; 30px under
+  480px): the alert mail's "N new jobs for ...", the count in Mail
+  Green. **Mail / Title** (500, 17px, 1.3) is a listing's title, a link
+  in Dark Ink with no underline; **Mail / Body** (400, 14px, 1.4) the
+  line under it in Dark Ink 2. The stack falls back to -apple-system,
+  Segoe UI, Helvetica, Arial: a mail client loads no web font.
 
 ### Open inconsistency (flagged, not fixed here)
 `.api-path` and `.param` in the footer's API Reference (added this
@@ -528,6 +712,15 @@ black. This is the one colour in the file picked for a dark background,
 and it is deliberately the colour a terminal uses, because the block is
 pretending to be one.
 
+The landing page's dark sections add two more, both from the design
+files and both kept on purpose. The board capture on the showcase card
+carries a `drop-shadow` (0 30px 60px at 55% black) so it stands off the
+waterfall photograph behind it; on a photograph a shadow is light, not
+decoration, and nothing else on the site may borrow it. And each
+feature tile wears a 1px outline at 7% white rather than a border, so
+four rows stay exactly 200px with 50px between them, the file's own
+measures, and their slices of the one tulip photograph line up.
+
 ### Named Rules
 **The No-Shadow Rule.** The black rules between cards are the only depth
 cue this design uses. A shadow anywhere is a bug, not a style choice.
@@ -642,6 +835,23 @@ panel says "Ranked by relevance" and explains the rule in its tooltip.
 - **Shadow strategy:** none. See Elevation & Depth
 - **Internal padding:** 18px/16–20px depending on card type (metric tile
   vs. market panel)
+- **The radius scale, as built:** 0 for grid tiles; 2px (micro) for
+  focus rings and skeleton lines; 4px for every bordered box on paper;
+  5px for a mark under 24px; 6px (tight) for treemap tiles and select
+  options; 8px the mail's Apply; 10px (menu) for dropdown panels, the
+  account menu's items and the board's three boxes; 12px logo tiles and
+  the mail's primary button; 14px (card-soft) for the account menu and
+  the feature previews' rows; 18px a mail-style note; 20px the mail
+  card; 24px the showcase card and the features block; 32px a feature
+  tile on a phone; 48px a feature tile; 999px (pill) for chips, the
+  topbar's selects and every pill-shaped control.
+- **Dark cards** (landing page and mail) round further, as their design
+  files do, and that is their whole shape language: a feature tile is
+  716x200 with 48px corners, 48px of side padding; the showcase card
+  and the features block 24px; the alert mail's card 20px on a 1px Dark
+  Line hairline, its primary button 12px, Apply 8px, a logo tile 12px.
+  The 4px rule above is for bordered boxes on paper; a dark card is a
+  photograph's frame or a mail's panel, and shares nothing with them.
 
 ### Inputs / Fields
 - **Style** (`.filters input`, `.ms-toggle`): 1.5px solid ink border
@@ -756,85 +966,71 @@ button whose top edge and height match the filter row's controls, with a
 before first paint, so a returning visit does not animate. Below 960px
 the column stacks under the board and has no toggle.
 
-### Hero page (/hero, draft)
-A landing page in five beats, in the order a visitor asks the questions:
-what is this, can I trust it, what do I do, why is it better, and what
-else can I build.
+### Landing page (/)
+Rebuilt through September 2026. Five beats, in the order a visitor asks
+the questions: what is this, who is on it, what does it look like, what
+does it do, what else can I build.
 
-1. A utility row (name, comma-separated nav, GitHub), then the wordmark
-   in Display / Hero. It ran the full width for a while and read as a
-   poster: the name arrived before the promise, so it is now a brand
-   line above the claim rather than the page's headline.
-2. The claim, "Straight from the source.", in Display / Hero Claim under
-   the wordmark in Display / Hero Brand, with a lede (Hero Lede, 16-19px,
-   1.45) wide enough to hold one line on a desktop, carrying the
-   live count: "177,871 open jobs, read directly from company hiring
-   systems and career sites. Never reposted from another board." Two
-   doors follow, an ink button to the board and a plain link to the API,
-   and nothing else. A pair of bullets about CV matching and salary
-   estimates lived here and said what the feature rows below already
-   say.
-3. Proof of scale, on the page's own paper: a ticker of live numbers in
-   Display / Hero Ticker drifting right over 60 seconds, its figures in
-   Green Text, and under it a row of company logos running left over 38.
-   Both run the full width and fade out at the window's edges rather than
-   being cut by them. The marks stand on a light band (Logo Band, under a
-   hairline of Logo Band Rule), the same in either theme, and carry one
-   filter: greyscale with a contrast lift, never a fade. Measured on the
-   live row they fall into two families, a third of them white on
-   transparent and the rest dark, and no single filter serves both: on a
-   dark page the dark marks read 1.00 against the ground, on paper the
-   white ones read 1.15. One light band is the only ground that suits
-   both, and it is why there is no theme-specific filter. The white
-   family still reads faintly even on the band and wants its own
-   treatment. Greyscale, not colour: a row of grey marks says who is
-   hiring, where a wall of colour says who paid.
-   It was a green band for a while and read as a second headline. Both
-   rows can be grabbed and thrown (see below).
-4. The product itself, in a card rounded to 24px (Card / Preview), with
-   the board on a device the card cuts off at its foot. On a desktop the
-   card is one finished picture at 5:2 (`img/showcase-desktop.webp`: sky,
-   hills and the board on a dark-framed screen), held a little closer to
-   the window edges than the page gutter, with no veil because nothing is
-   written on it. The share card, `og-card.jpg`, is its own picture: the
-   mark and the headline over the same hills. On a phone the card is the photograph and its veil,
-   held off the edges by the gutter, with an iPhone. The board inside is
-   always the light one, in either theme: this is a picture of the
-   product, not a mirror of the reader's settings, and the photograph
-   behind it is a sunlit field. No caption: the picture is the sentence.
-   The phone is one image: a mockup of the owner's own making, with the
-   board composited into its screen and exported as a single WebP
-   (`img/device-iphone.webp`). Two
-   drawn versions came before it, one in flat CSS and one rendered with
-   gradients and reflections, and neither stopped looking drawn; a
-   photograph of a device is a photograph. The frame is one element with
-   one background image and an aspect ratio matching the file, so nothing
-   in the page knows about bezels, notches or islands any more. To change
-   the device, re-composite and swap the file. None of Apple's own artwork
-   ships: their licence grants mock-ups of software running only on Apple
-   systems and excludes website content.
-5. Four features as full-width rows, each rising into place as it
-   scrolls in: Sources first and largest, because where the listings come
-   from is the reason the board exists, then CV keyword matching, salary
-   estimation and smart alerts. The copy is the owner's own words. Then
-   the API in a ruled block of its own, since the people who want it are
-   not the people reading the four above, and a closing link to the
-   board. (Two claims used to carry a Row Selected chip mid-sentence,
-   `.feature-badge`; the copy that needed them is gone and so is the
-   rule.)
+1. The island header: the lighthouse and name at the left, Jobs /
+   Resources / About / theme / Log in at the right, the menus opening on
+   click with the shared dropdown ease (see Motion in the sidecar). The
+   name appears here only on this page; every other page's bar carries
+   the mark alone.
+2. The claim, "Find your next opportunity.", centred in Display / Hero
+   Claim, with one ink button ("Search 1,027,465 open jobs", the count
+   live from stats.json) and a plain link to the API under it. Nothing
+   else: the lede, the second wordmark and the stat tickers that stood
+   here at various points all said what the beats below say.
+3. The logo band: two rows of the thirty busiest companies' wordmarks
+   (img/wordmarks/, 27 found online and flattened to one light grey,
+   16 to 30px tall so each covers about the same area; a company with
+   none shows its name in Logo Band / Name), drifting in opposite
+   directions and fading in over the outer 30% of the band on an eased
+   curve. The band is the claim's own text width plus 85%, measured by
+   the page script, centred under it. On paper the marks are ink at 50%,
+   in the dark theme light at 70%. Either row can be grabbed and thrown.
+4. The showcase: a 24px card at 5:2 holding a photograph of a waterfall
+   at dusk (img/showcase-waterfall.webp) with the board's own dark
+   capture standing in front of it, its foot cut off by the card so the
+   listings run out of frame. Phones get the hills photograph and the
+   phone capture instead.
+5. The features block, from the "Tulips - Blur" file: a `#050505` block
+   holding four 716x200 tiles, 50px apart and in from the edge, each a
+   window onto one blurred photograph of tulips so the flowers run on
+   behind the gaps, the title in Display / Feature Card over a 25%
+   veil. On a wide screen each row is one tile the width of the page,
+   the photograph fading out over its last 460px into a preview of the
+   feature: the hiring systems' logos in two drifting rows, a listing
+   whose skills light up where a CV has them, a salary estimate on its
+   range, two alerts arriving. Rows rise in as they scroll into view
+   and the photograph drifts up to 48px against them; a tile under the
+   pointer lifts its veil.
+6. The API block, dark in both themes, then the footer.
 
-Either ticker row can be grabbed and thrown, with a mouse or a finger:
-it takes the speed and direction of the throw, holds close to it, and
-eases back into its drift over 2.6 seconds. Vertical swipes still scroll
-the page.
+The showcase and the features are the one part of the site that keeps
+its own colours whatever the theme, for the reason given under Dark
+grounds: they are photographs.
 
-Claims on this page are load-bearing and were each checked against the
-code before being written: every fetcher reads an ATS or a company
-career site, nothing is reposted; `cv_skills.js` makes no network call,
-so the file never leaves the browser and only the skill list is saved,
-and only when signed in; the API needs no key and is throttled at 20
-requests a second, which the page says rather than implying no limit;
-and nothing in the ranking can be bought.
+### Feature tiles and the alert mail (dark components)
+- **Feature tile:** Dark Tile ground, Display / Feature Card title in
+  Dark Ink over a 25% black veil on the photograph, a 14px line under it
+  at 74% ink. Hover lifts the veil to 10% and eases the photograph to
+  104% over 700ms. The preview beside it (wide screens only) sits on the
+  same ground with no edge of its own, in Source Sans 3 at 14 to 18px.
+- **Logo tile:** 48px, 12px corners, `#1c1d22` on a `#2a2b31` hairline;
+  the company's mark when one exists, else its first letter at 20px/600
+  in Dark Link. In the mail, the mark only when this site serves it
+  (`/api/logo/{domain}`), never hot-linked from the company's own host.
+- **Alert mail:** a 600px Mail Card on the Mail Page, its header black
+  with the lighthouse and "oceanofjobs.com" at 16px/600, the headline
+  and "Since your last alert on {date}" at the foot of the header; rows
+  of logo tile, title and meta line, and an Apply button straight to
+  the employer; "See all N jobs" and "Edit this alert"; the reason and
+  three links under the card at 13px in Dark Muted. Tables and inline
+  styles only, VML for the buttons in Outlook, the dark scheme declared
+  in the head, a hidden preheader, Apply stacked under the words on a
+  phone. The file that renders it is alerts.py; a fixture render is
+  scripts/alert_email/render_fixture.py.
 
 ### Not found
 Any address the site does not have gets `404.html` with a real 404
@@ -876,10 +1072,15 @@ more than it does.
 - **Don't** use Alert Red for anything but an error or a control that
   undoes or removes (Reset, delete, sign out). Not for emphasis, not for a
   status (that is the status palette).
-- **Don't** introduce a third typeface without folding it into the
-  Two-Voice Rule as a named, scoped exception (see the flagged
-  `.api-path`/`.param` monospace usage in Typography above), an
-  unscoped one-off is exactly how "two voices" quietly becomes three.
+- **Don't** introduce another typeface without folding it into the
+  Two-Voice Rule as a named, scoped exception. Geist is one (the dark
+  grounds only, see Typography), the `.api-path`/`.param` monospace is
+  the flagged other; an unscoped one-off is exactly how "two voices"
+  quietly becomes four.
+- **Don't** let the dark grounds leak: no black section, Geist title or
+  Mail Green on the board, the filters, the account or the statistics
+  pages. They belong to the landing page's photographs, the preview card
+  and the mail, and to nothing that shows data.
 - **Don't** reach for `box-shadow` for elevation, ever, even subtly. The
   one prior violation (a glowing, smoothly-pulsing status dot) was
   treated as a bug and corrected, not kept as a soft exception. The

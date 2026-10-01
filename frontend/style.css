@@ -4384,7 +4384,7 @@ a.hero-account-btn { text-decoration: none; }
 .contact-way-in {
   display: grid;
   place-items: center;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--black);
   color: var(--white);
   font: 700 11px var(--font-ui);
@@ -5060,7 +5060,7 @@ a.hero-account-btn { text-decoration: none; }
 .rail-caret svg { width: 9px; height: 6px; }
 .rail-country:not(.open) .rail-caret { transform: rotate(-90deg); }
 .rail-caret:hover { color: var(--black); }
-.rail-caret:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; border-radius: 3px; }
+.rail-caret:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; border-radius: 2px; }
 
 /* The connector lines. A vertical run down the left with a short tick
    into each row, and the last row ends the run at its own middle, so
@@ -5268,7 +5268,7 @@ table.jobs tbody tr.selected::before {
 .star-btn.on { opacity: 1; color: var(--green-text); }
 .star-btn.on .star-mark { fill: currentColor; }
 .star-mark { width: 16px; height: 16px; }
-.star-btn:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; border-radius: 3px; }
+.star-btn:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; border-radius: 2px; }
 
 /* 56px, the same mark the open listing's pane carries, so the logo does
    not shrink between the row and the thing the row opens. */
@@ -5621,7 +5621,7 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
-.ov-value .sk-line { display: block; width: 70%; height: 22px; border-radius: 3px; }
+.ov-value .sk-line { display: block; width: 70%; height: 22px; border-radius: 2px; }
 .ov-label { font: 500 13px var(--font); color: var(--black); }
 
 .ov-block { display: flex; flex-direction: column; }
@@ -6897,7 +6897,7 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   color: rgba(244, 241, 238, 0.8);
   white-space: nowrap;
 }
-.fp-ats img { width: 40px; height: 40px; border-radius: 11px; opacity: 0.85; object-fit: contain; }
+.fp-ats img { width: 40px; height: 40px; border-radius: 12px; opacity: 0.85; object-fit: contain; }
 
 /* CV matching: a listing, and the skills it asks for lighting up where
    the CV has them. */

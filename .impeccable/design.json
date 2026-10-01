@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-16T15:35:43Z",
+  "generatedAt": "2026-10-01T07:43:58+00:00",
   "title": "Design System: OpenTechJobs",
   "extensions": {
     "colorMeta": {
@@ -279,6 +279,268 @@
         "displayName": "Scrim",
         "canonical": "rgba(38, 36, 34, 0.32)",
         "note": "Dims the board behind the job sheet and nothing else. Dark mode rgba(0, 0, 0, 0.58). Not elevation."
+      },
+      "dark-ground": {
+        "role": "neutral",
+        "displayName": "Dark Ground",
+        "canonical": "#050505",
+        "tonalRamp": [
+          "#121212",
+          "#2a2a2a",
+          "#494949",
+          "#696969",
+          "#8e8e8e",
+          "#b4b4b4",
+          "#dadada",
+          "#f5f5f5"
+        ],
+        "note": "The features block and the preview card. Literal, theme-independent."
+      },
+      "dark-tile": {
+        "role": "neutral",
+        "displayName": "Dark Tile",
+        "canonical": "#030303",
+        "tonalRamp": [
+          "#101010",
+          "#292929",
+          "#474747",
+          "#686868",
+          "#8e8e8e",
+          "#b3b3b3",
+          "#d9d9d9",
+          "#f5f5f5"
+        ],
+        "note": "A feature row's ground: the tulip photograph's black under its 25% veil, measured."
+      },
+      "dark-ink": {
+        "role": "neutral",
+        "displayName": "Dark Ink",
+        "canonical": "#f4f1ee",
+        "tonalRamp": [
+          "#e8e5e2",
+          "#cfcdca",
+          "#b2b0ae",
+          "#92918f",
+          "#6e6c6b",
+          "#494847",
+          "#252424",
+          "#0a0a0a"
+        ],
+        "note": "Words on any dark ground."
+      },
+      "dark-ink-2": {
+        "role": "neutral",
+        "displayName": "Dark Ink 2",
+        "canonical": "#9a9ca3",
+        "tonalRamp": [
+          "#92949b",
+          "#83858b",
+          "#707277",
+          "#5c5e62",
+          "#454649",
+          "#2e2f31",
+          "#171718",
+          "#060607"
+        ],
+        "note": "A second line on a dark ground."
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Dark Muted",
+        "canonical": "#8a8c93",
+        "tonalRamp": [
+          "#83858c",
+          "#75777d",
+          "#65666b",
+          "#535458",
+          "#3e3f42",
+          "#292a2c",
+          "#151516",
+          "#060606"
+        ],
+        "note": "An aside on a dark ground; a listing's age."
+      },
+      "dark-link": {
+        "role": "neutral",
+        "displayName": "Dark Link",
+        "canonical": "#c9cacf",
+        "tonalRamp": [
+          "#bfc0c5",
+          "#abacb0",
+          "#939397",
+          "#79797c",
+          "#5a5b5d",
+          "#3c3d3e",
+          "#1e1e1f",
+          "#080808"
+        ],
+        "note": "A link, or a lettered logo tile, on a dark ground."
+      },
+      "dark-line": {
+        "role": "neutral",
+        "displayName": "Dark Line",
+        "canonical": "#222328",
+        "tonalRamp": [
+          "#2d2e33",
+          "#434448",
+          "#5e5e62",
+          "#7a7b7e",
+          "#9c9c9e",
+          "#bdbdbe",
+          "#dededf",
+          "#f6f6f6"
+        ],
+        "note": "The hairline a dark card keeps."
+      },
+      "dark-logo-tile": {
+        "role": "neutral",
+        "displayName": "Logo Tile",
+        "canonical": "#1c1d22",
+        "tonalRamp": [
+          "#27282d",
+          "#3e3f43",
+          "#595a5e",
+          "#77777a",
+          "#99999c",
+          "#bbbbbd",
+          "#ddddde",
+          "#f6f6f6"
+        ],
+        "note": "48px company tile on a dark ground, 12px corners."
+      },
+      "dark-logo-tile-line": {
+        "role": "neutral",
+        "displayName": "Logo Tile Line",
+        "canonical": "#2a2b31",
+        "tonalRamp": [
+          "#35363b",
+          "#4a4b50",
+          "#646469",
+          "#7f8083",
+          "#9fa0a2",
+          "#bfbfc1",
+          "#dfdfe0",
+          "#f6f7f7"
+        ],
+        "note": "The logo tile's hairline."
+      },
+      "mail-page": {
+        "role": "neutral",
+        "displayName": "Mail Page",
+        "canonical": "#0a0a0b",
+        "tonalRamp": [
+          "#161617",
+          "#2f2f30",
+          "#4c4c4d",
+          "#6c6c6d",
+          "#919191",
+          "#b6b6b6",
+          "#dadada",
+          "#f5f5f5"
+        ],
+        "note": "The alert mail's page."
+      },
+      "mail-card": {
+        "role": "neutral",
+        "displayName": "Mail Card",
+        "canonical": "#111214",
+        "tonalRamp": [
+          "#1d1e20",
+          "#353637",
+          "#515253",
+          "#707172",
+          "#949495",
+          "#b8b8b8",
+          "#dbdbdc",
+          "#f5f6f6"
+        ],
+        "note": "The alert mail's card."
+      },
+      "mail-green": {
+        "role": "accent",
+        "displayName": "Mail Green",
+        "canonical": "#2fb36a",
+        "tonalRamp": [
+          "#39b771",
+          "#4ebe80",
+          "#67c892",
+          "#82d1a6",
+          "#a1ddbc",
+          "#c1e8d2",
+          "#e0f4e9",
+          "#f7fcf9"
+        ],
+        "note": "Signal Green as the dark theme has it, carried into the mail and the preview card. One Voice applies."
+      },
+      "on-mail-green": {
+        "role": "neutral",
+        "displayName": "On Mail Green",
+        "canonical": "#0b1a10",
+        "tonalRamp": [
+          "#17251c",
+          "#303c34",
+          "#4d5851",
+          "#6d7670",
+          "#919893",
+          "#b6bab7",
+          "#dadddb",
+          "#f5f6f5"
+        ],
+        "note": "Text on a Mail Green button."
+      },
+      "signal-green-dark": {
+        "role": "accent",
+        "displayName": "Signal Green (dark)",
+        "canonical": "#2fae60",
+        "note": "The dark theme's Signal Green, literal where a ground is dark in both themes."
+      },
+      "green-soft": {
+        "role": "accent",
+        "displayName": "Green Soft",
+        "canonical": "#7fd49b",
+        "note": "An icon on a green tint tile in the feature previews."
+      },
+      "trend-down": {
+        "role": "status",
+        "displayName": "Trend Down",
+        "canonical": "#b0452f",
+        "note": "The overview's falling-arrow colour in the light theme."
+      },
+      "trend-down-dark": {
+        "role": "status",
+        "displayName": "Trend Down (dark)",
+        "canonical": "#e8866b",
+        "note": "The overview's falling-arrow colour in the dark theme."
+      },
+      "showcase-sky": {
+        "role": "neutral",
+        "displayName": "Showcase Sky",
+        "canonical": "#b9a3bd",
+        "note": "The lilac under the waterfall photograph while it loads."
+      },
+      "green-tint": {
+        "role": "neutral",
+        "displayName": "Green Tint",
+        "canonical": "rgba(47, 174, 96, 0.14)",
+        "note": "A green tint tile under an icon, dark grounds."
+      },
+      "dark-hairline-7": {
+        "role": "neutral",
+        "displayName": "Dark Hairline 7",
+        "canonical": "rgba(255, 255, 255, 0.07)",
+        "note": "A feature tile's outline."
+      },
+      "dark-hairline-8": {
+        "role": "neutral",
+        "displayName": "Dark Hairline 8",
+        "canonical": "rgba(255, 255, 255, 0.08)",
+        "note": "A note's hairline on a dark ground."
+      },
+      "dark-hairline-12": {
+        "role": "neutral",
+        "displayName": "Dark Hairline 12",
+        "canonical": "rgba(255, 255, 255, 0.12)",
+        "note": "An unmatched chip's hairline on a dark ground."
       }
     },
     "typographyMeta": {
@@ -325,6 +587,42 @@
       "data-mono-tick": {
         "displayName": "Data / Mono Tick",
         "purpose": "Chart axis ticks and the skills-explorer count, at 10.5px. Small by design: these label a chart rather than being read as prose, and they sit under bars that carry the meaning."
+      },
+      "display-feature-card": {
+        "displayName": "Display / Feature Card",
+        "purpose": "The landing page's four feature tiles. Geist, dark grounds only."
+      },
+      "display-preview-card": {
+        "displayName": "Display / Preview Card",
+        "purpose": "The name on the 1200x630 link preview, rendered daily by scripts/og_image."
+      },
+      "logo-band-name": {
+        "displayName": "Logo Band / Name",
+        "purpose": "A company's name in the landing page's logo rows when it has no wordmark file."
+      },
+      "mail-headline": {
+        "displayName": "Mail / Headline",
+        "purpose": "The alert mail's headline; 30px under 480px."
+      },
+      "mail-title": {
+        "displayName": "Mail / Title",
+        "purpose": "A listing's title in the alert mail, a link with no underline."
+      },
+      "mail-body": {
+        "displayName": "Mail / Body",
+        "purpose": "The company, place and age line under a mail title."
+      },
+      "preview-card-site": {
+        "displayName": "Preview Card / Site",
+        "purpose": "\"oceanofjobs.com\" at the top of the link preview, at 75% ink."
+      },
+      "preview-card-counts": {
+        "displayName": "Preview Card / Counts",
+        "purpose": "The three live counts along the preview's foot, figures in Mail Green."
+      },
+      "preview-label": {
+        "displayName": "Preview / Label",
+        "purpose": "18px labels in the landing page's feature previews and the contact page's claim."
       }
     },
     "shadows": [],
@@ -353,6 +651,26 @@
         "name": "menu-chevron",
         "value": "transform 120ms ease",
         "purpose": "Multi-select group chevrons turning to show an expanded country."
+      },
+      {
+        "name": "pop-ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1); 220ms transform, 140ms opacity, from 96% and 6px up",
+        "purpose": "Every dropdown, menu, panel and select picker opens and closes with it (@starting-style + allow-discrete)."
+      },
+      {
+        "name": "accordion-height",
+        "value": "240ms cubic-bezier(0.16, 1, 0.3, 1) on height, padding and opacity, Web Animations",
+        "purpose": "The filter rail's sections, animated in place before the redraw."
+      },
+      {
+        "name": "feature-reveal",
+        "value": "rows rise 48px and fade in over 800-1000ms, 80ms apart; the photograph eases from 118% and 14px blur to rest over 1400ms",
+        "purpose": "The landing page's feature tiles as they scroll into view. Runs regardless of the OS motion setting, by request."
+      },
+      {
+        "name": "logo-band-drift",
+        "value": "two tracks, 46s right and 38s left, linear, each holding its content twice",
+        "purpose": "The landing page's logo rows; either can be grabbed and thrown."
       }
     ],
     "breakpoints": [
@@ -489,6 +807,16 @@
         "name": "The No-Shadow Rule",
         "body": "The black rules between cards are the only depth cue this design uses. A shadow anywhere is a bug, not a style choice.",
         "section": "elevation"
+      },
+      {
+        "name": "The Dark Grounds Rule",
+        "body": "The landing page's showcase and feature tiles, the preview card and the alert mail are near-black in both themes: they hold photographs and a few large words. Their colours are literal and do not follow the theme toggle. Nothing that shows data goes dark.",
+        "section": "colors"
+      },
+      {
+        "name": "The Geist Rule",
+        "body": "Geist (400, 500) is the second display face, scoped to the dark grounds: feature tiles, the preview card, the mail, and names in the logo band. Never on paper, never at a data-dense size.",
+        "section": "typography"
       }
     ],
     "dos": [
@@ -503,8 +831,8 @@
     "donts": [
       "Don't add a second accent color. Signal Green is the only one; a second dilutes what green means everywhere else.",
       "Don't use Alert Red for anything but an error or a control that undoes or removes (Reset, delete, sign out). Not for emphasis, not for a status (that is the status palette).",
-      "Don't introduce a third typeface without folding it into the Two-Voice Rule as a named, scoped exception (see the flagged `.api-path`/`.param` monospace usage in Typography above), an unscoped one-off is exactly how \"two voices\" quietly becomes three.",
-      "Don't reach for `box-shadow` for elevation, ever, even subtly. The one prior violation (a glowing, smoothly-pulsing status dot) was treated as a bug and corrected, not kept as a soft exception. The status glyph is round now and still obeys this: no fill, no shadow, no easing."
+      "Don't reach for `box-shadow` for elevation, ever, even subtly. The one prior violation (a glowing, smoothly-pulsing status dot) was treated as a bug and corrected, not kept as a soft exception. The status glyph is round now and still obeys this: no fill, no shadow, no easing.",
+      "Don't let the dark grounds leak: no black section, Geist title or Mail Green on the board, the filters, the account or the statistics pages."
     ]
   }
 }
