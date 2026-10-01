@@ -252,18 +252,6 @@ function qs(params) {
 
 // formatting
 
-// Google's favicon endpoint, keyed off the domain we already track for
-// every job/company. Clearbit's free logo API (the previous go-to for
-// this) shut down in December 2025 -- this is the zero-setup
-// fallback: no signup, no key, no per-request cost. It's genuinely low
-// quality though -- most sites' actual favicon.ico is a crude 16x16,
-// and Google just upscales whatever's there (reported live: Overwolf's
-// detailed claw-mark logo turned to mush at display size). See
-// companyLogoImg below for the higher-res attempt this backs up.
-function companyLogoUrl(domain, size = 32) {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
-}
-
 // Generated, not fetched -- a flat ink-on-paper initial in the same
 // square/no-radius language as everything else in DESIGN.md, for when
 // no real icon worth showing exists anywhere. A data: URI, so it's
@@ -278,252 +266,25 @@ function monogramLogoSvg(domain) {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-// Small, hand-verified exceptions to the guess-based cascade below, same
-// shape as probe.py's own KNOWN_FALSE_POSITIVES: the general rule (try
-// apple-touch-icon, then /favicon.ico, then Google) is sound, but a
-// specific domain's own guessable asset can be a real, valid image file
-// that just isn't a logo -- nothing in the HTTP response says so, only
-// looking at the actual pixels does. duda.co/favicon.ico: confirmed
-// live, a genuine 32x32 24-bit ICO, no alpha, every pixel solid white --
-// stage 1/2 "succeed" (200, decodes fine) so onerror never fires and the
-// cascade below never continues past it on its own. Values here are
-// which stage to jump to instead of guessing that domain's own asset at
-// all. Add to this as more turn up; there's no way to detect "loads
-// fine but is blank" automatically without pixel access, which loading
-// these cross-origin (no CORS headers on a random site's favicon.ico)
-// doesn't allow.
-const LOGO_STAGE_OVERRIDES = {
-  "duda.co": 3, // jump straight to Google's favicon service
-  // unframe.com: apple-touch-icon.png and favicon.ico both confirmed
-  // dead (soft-404s), and Google's own favicon service returns a raw
-  // "301 Moved" HTML error page for this domain, not an image or even
-  // its usual 16x16 placeholder -- unreliable enough to skip rather
-  // than keep retrying an inconsistent signal. Straight to the monogram.
-  "unframe.com": 4,
-  // Three where the monogram is the right answer, not a gap to fix.
-  // Checked 2026-09-11: no apple-touch-icon, no favicon.ico, and
-  // Google's service 404s for each. Listed so the cascade stops
-  // guessing rather than issuing three doomed requests per row.
-  "elbitsystems.com": 4,  // elbitsystems.com serves no icon at any of the three
-  "iscar.co.il": 4,       // the site does not answer us at all
-  "referralsuseonly.com": 4,  // a board placeholder, not a company with a logo
-};
-
-// Companies whose stored domain is a wrong guess from discover_companies.py's
-// {token}.com heuristic (confirmed live 2026-09-08: 39 of the 160 companies
-// merged that night had a company_domain that doesn't resolve at all --
-// mostly enterprise ATS tenant slugs like "deloitte6" or "aecom2" that were
-// never meant to be read as a domain). Fixing the icon here rather than
-// renaming company_domain itself: several of these real domains (e.g.
-// deloitte.com) are plausibly ALREADY a separately-tracked company under
-// their own real token, so rewriting jobs.db's own domain key risks
-// conflating two genuinely different job sets under one identity. This map
-// only changes which domain the icon cascade below fetches from -- the
-// underlying company identity, apply links, and everything else stay on the
-// original (wrong) domain, same as before. See discover_companies.py's own
-// verify_candidate() for the matching pipeline-side fix that stops new
-// wrong guesses like these from being accepted in the first place.
-const LOGO_DOMAIN_OVERRIDES = {
-  // Audited 2026-09-11 across the 124 companies with open Israeli
-  // listings: 14 were falling through to the monogram. Most were this
-  // same shape, a tenant slug that discovery's domain guesser turned
-  // into a plausible-looking domain nobody owns. Google has a good
-  // 64x64 for each of the real ones.
-  "sentinellabs.io": "sentinelone.com",  // SentinelOne's research blog, not the company site
-  "doitintl.com": "doit.com",            // was pulling an unrelated 98x53 logo from Google
-  "gongio.com": "gong.io",
-  "pagayais.com": "pagaya.com",
-  "eleoshealth.com": "eleos.health",
-  "chainalysis-careers.com": "chainalysis.com",
-  "zafran-security.com": "zafran.io",
-  "chamelio.com": "chamelio.io",
-  "pointfive.com": "pointfive.ai",
-  "atbayjobs.com": "at-bay.com",
-  "couchbaseinc.com": "couchbase.com",
-  "accenturefederalservices.com": "accenturefederal.com",
-  "alten-mexico-1.com": "alten.com",
-  "avamere-skilled-advisors-llc.com": "avamere.com",
-  "abm-careers.com": "abm.com",
-  "archer56.com": "archer.com",
-  "activate-interactive-pte-ltd.com": "activateinteractive.com",
-  "addepar1.com": "addepar.com",
-  "betatechnologiesinc.com": "beta.team",
-  "asco-equipment.com": "ascoequipment.com",
-  "aecom2.com": "aecom.com",
-  "aboutyougmbh.com": "aboutyou.de",
-  "americanironandmetal.com": "aimetals.com",
-  "apf-entreprises.com": "apf-entreprises.fr",
-  "applusidiada1.com": "applusidiada.com",
-  "artemedse.com": "artemed.de",
-  "asburycommunities.com": "asbury.org",
-  "avaloq1.com": "avaloq.com",
-  "baywaag.com": "baywa.com",
-  "bertelsmann-jobs.com": "bertelsmann.com",
-  "beumergroup1.com": "beumergroup.com",
-  "cityandcountyofsanfrancisco1.com": "sf.gov",
-  "collabera2.com": "collabera.com",
-  "colliers1.com": "colliers.com",
-  "colliersinternationalemea.com": "colliers.com",
-  "contilia1.com": "contilia.com",
-  "culinagroup1.com": "culinagroup.com",
-  "deloitteat.com": "deloitte.com",
-  "deloittenordic.com": "deloitte.com",
-  "deloitte6.com": "deloitte.com",
-  "deutschetelekomitsolutionsslovakia.com": "t-systems.com",
-  "deutschetelekomitsolutions.com": "t-systems.com",
-  // tenableinc.com's own apple-touch-icon.png is a soft-404 (HTTP 200,
-  // Content-Type: text/html, not an image) -- reported live, and it's
-  // the wrong domain anyway. discover_companies.py's own _guess_domain
-  // now strips this exact "inc" shape going forward (see its docstring).
-  "tenableinc.com": "tenable.com",
-  // wix2.com / redwoodmaterials.co: both resolve to 200 OK, but both
-  // are domain-parking pages (confirmed live: identical IP, identical
-  // 114-byte "window.location.href" redirect stub) -- a HEAD-only check
-  // can't tell that from a real site. discover_companies.py's own
-  // _guess_domain now inspects response bodies for exactly this going
-  // forward (see _looks_parked).
-  "wix2.com": "wix.com",
-  "redwoodmaterials.co": "redwoodmaterials.com",
-  // reindeer-ai.com doesn't exist at all (confirmed: DNS NXDOMAIN) --
-  // the real domain is reindeer.ai, the token's own trailing "-ai"
-  // standing in for the TLD dot, not part of the name. Same pattern
-  // now tried automatically going forward (see _HYPHEN_TLD_RE).
-  "reindeer-ai.com": "reindeer.ai",
-  // cermaticom.com: no real domain found -- keeps the monogram fallback.
-};
-
-// Reported live: Overwolf's real favicon.ico is a genuine 16x16 (verified
-// via a direct curl, not assumed) with no apple-touch-icon anywhere on
-// the site either -- Google's service was never the bug there, it was
-// already showing the best real source, just upscaled. Four tiers, each
-// one a same-origin/no-key image request or a local fallback, cheapest
-// and most honest first:
-//   1. apple-touch-icon.png -- the high-res convention, when it exists.
-//   2. the domain's own favicon.ico, fetched directly (not through a
-//      resizing proxy).
-//   3. Google's favicon service -- catches the case a site's icon isn't
-//      at a guessable path at all (declared via a <link> tag instead);
-//      that's the one failure mode a direct path guess can't solve.
-//   4. the generated monogram, unconditionally available.
-// Stage 2 used to reject anything <=32px naturalWidth and drop straight
-// to the monogram rather than show it upscaled -- reported live, that
-// meant real, recognizable marks (Cisco, Mastercard: both genuinely just
-// a small classic .ico, confirmed live) were losing to a flat letter
-// square. A soft, real mark beats a generic initial for a company this
-// recognizable, so stage 2 now renders whatever it gets, same as stage 3
-// always has.
-// Once ONE <img> for a domain settles on a final stage (a real icon
-// found, or every stage exhausted down to the monogram), remember it --
-// so the next occurrence of the same domain skips straight to the
-// known-good stage instead of re-running the whole apple-touch-icon ->
-// favicon.ico -> Google fallback from scratch. Reported live: a
-// company-filtered search with 50 rows of the same domain made up to
-// 150 redundant network requests (a failed stage's own 404 isn't
-// cached by the browser by default), serialized by the browser's
-// per-host connection limit -- visibly slow for exactly that shape of
-// page, and for the Fastest Growing Companies panel + that same
-// company's own rows both resolving the same domain independently.
-// Stores only the STAGE, not a fully-built src -- callers ask for
-// different sizes (the Top Hiring panel uses 16px, job rows something
-// larger), and a cached src would freeze whichever size resolved it
-// first. Persisted to localStorage too, not just this page's in-memory
-// session, so a repeat VISIT benefits, not just repeated occurrences on
-// one page -- wrapped in try/catch since localStorage can throw
-// (private browsing, blocked site data), same as every other
-// try/catch around it in this file.
-// Bumped to v2 on 2026-09-11 with the override additions above. The
-// cached value short-circuits the cascade, so a visitor who already
-// resolved sentinellabs.io to the monogram would keep seeing it forever
-// no matter what the override table says. Any future change to
-// LOGO_DOMAIN_OVERRIDES or LOGO_STAGE_OVERRIDES has to bump this too.
-const LOGO_RESOLVED_KEY = "iljobs-logo-resolved-v2";
-let logoResolvedCache = new Map();
-try {
-  logoResolvedCache = new Map(Object.entries(JSON.parse(localStorage.getItem(LOGO_RESOLVED_KEY) || "{}")));
-} catch { /* private browsing or blocked storage -- fall back to in-memory only */ }
-
-function rememberLogoStage(domain, stage) {
-  logoResolvedCache.set(domain, stage);
-  try {
-    localStorage.setItem(LOGO_RESOLVED_KEY, JSON.stringify(Object.fromEntries(logoResolvedCache)));
-  } catch { /* same as above */ }
-}
-window.rememberLogoStage = rememberLogoStage;
-
-// A logo the server already resolved and verified (company_logo.py: the
-// company's own upload to its ATS, else whatever its site declares, else
-// Google's favicon service). Passed straight through, because it was
-// fetched and checked once rather than guessed here on every page view.
-// The cascade below remains for rows loaded before the column existed,
-// and for the panels that have a domain but no job record to read from.
+// Every company mark comes through this site: /logo/<domain>.png
+// (api/handler.py route_company_logo) fetches it once from wherever the
+// resolver found it and keeps it, and the edge keeps it a week. Not from
+// the company's own host: a page that loads fifty icons from fifty hosts
+// tells each of them who looked, half refuse hot-links, and ad blockers
+// refuse the rest. A domain the resolver found nothing for is the
+// letter; "" from the server says so outright (a parked domain's or a
+// site builder's placeholder, see loader/placeholder_logos.py), so that
+// case skips the request. The guess cascade this replaces, apple-touch-
+// icon then favicon.ico then Google's favicon service, with its tables
+// of per-domain exceptions, is gone with it: the resolver
+// (resolve_company_logos.py, company_aliases.REAL_DOMAIN) is the one
+// place that knows where a company's mark is.
 function companyLogoImg(domain, size, extraClass = "", resolved = null) {
-  // "" is the server saying there is no logo: the one it had was a
-  // parked domain's or a site builder's placeholder (see
-  // loader/placeholder_logos.py). Guessing from the domain would fetch
-  // that same placeholder, so it is the letter straight away.
-  if (resolved === "") {
-    const cls = extraClass ? `company-logo ${extraClass}` : "company-logo";
-    return `<img class="${cls}" src="${escapeHtml(monogramLogoSvg(domain))}" alt="" />`;
-  }
-  if (resolved) {
-    const cls = extraClass ? `company-logo ${extraClass}` : "company-logo";
-    // Two fallbacks, not one. A resolved URL can fail for reasons the
-    // server cannot see: a CDN 404s a logo that verified weeks ago, and
-    // an ad blocker refuses anything served from an ad network's own
-    // domain. Reported live: Taboola's logo is a valid 300x300 PNG on
-    // taboola.com, which Brave blocks outright, so a company that used
-    // to show an icon started showing a letter. Google's favicon service
-    // is a neutral host and survives both, so it goes between the
-    // resolved URL and giving up.
-    const logoDomain = LOGO_DOMAIN_OVERRIDES[domain] || domain;
-    return `<img class="${cls}" src="${escapeHtml(resolved)}" alt="" loading="lazy"
-      data-google="${escapeHtml(companyLogoUrl(logoDomain, size))}"
-      data-monogram="${escapeHtml(monogramLogoSvg(domain))}"
-      onerror="if(this.dataset.google&&this.src!==this.dataset.google){this.src=this.dataset.google;}else{this.onerror=null;this.src=this.dataset.monogram;}" />`;
-  }
-  return companyLogoGuess(domain, size, extraClass);
-}
-
-function companyLogoGuess(domain, size, extraClass = "") {
-  // LOGO_DOMAIN_OVERRIDES only affects where the icon itself is fetched
-  // from -- domain (used below for the monogram initial, and by every
-  // caller for the actual company identity/apply link) stays as-is.
-  const logoDomain = LOGO_DOMAIN_OVERRIDES[domain] || domain;
-  const touchIcon = escapeHtml(`https://${logoDomain}/apple-touch-icon.png`);
-  const directFavicon = escapeHtml(`https://${logoDomain}/favicon.ico`);
-  const googleFavicon = escapeHtml(companyLogoUrl(logoDomain, size));
-  const monogram = escapeHtml(monogramLogoSvg(domain));
   const cls = extraClass ? `company-logo ${extraClass}` : "company-logo";
-  const startStage = logoResolvedCache.get(domain) || LOGO_STAGE_OVERRIDES[logoDomain] || 1;
-  const startSrc = { 1: touchIcon, 2: directFavicon, 3: googleFavicon, 4: monogram }[startStage];
-  // Reported live (tomorrow.io): neither its favicon.ico nor its
-  // apple-touch-icon exist, and Google's own favicon service can't find
-  // one for it either -- but Google still answers 200 with an image
-  // (its own generic default-globe placeholder), not a load failure, so
-  // onerror alone never advances past it to the monogram. Confirmed
-  // live: that generic placeholder always comes back a fixed 16x16, at
-  // ANY requested sz -- but so can a real, found icon (reported live:
-  // salesforce.com's own real favicon is genuinely only cached at 32x32
-  // on Google's end even at sz=64, and a first version of this check
-  // treated "smaller than requested" as "Google has nothing," wrongly
-  // sending Salesforce's real icon to the monogram too). 16x16 exactly
-  // is Google's own specific "nothing found" size -- but ONLY a
-  // meaningful signal when we actually asked for more than that: the
-  // Companies with most open roles panel calls this with size=16 itself (a real,
-  // correctly-found 16x16 icon there is indistinguishable from the
-  // placeholder by dimensions alone), and a second version of this
-  // check missed that, wrongly monogram-ing real icons for every
-  // company on that panel. Gated on size > 16 now, not just the pixel
-  // dimensions matching.
-  // rememberLogoStage calls below are what make logoResolvedCache above
-  // actually useful: the FIRST <img> for a domain to settle (success or
-  // exhausted to the monogram) is what every later occurrence on this
-  // page, or a future visit, gets to skip straight to.
-  return `<img class="${cls}" src="${startSrc}" alt="" loading="lazy"
-    data-domain="${escapeHtml(domain)}" data-stage="${startStage}" data-size="${size}"
-    data-direct-favicon="${directFavicon}" data-google-favicon="${googleFavicon}" data-monogram="${monogram}"
-    onerror="if(this.dataset.stage==='1'){this.dataset.stage='2';this.src=this.dataset.directFavicon;}else if(this.dataset.stage==='2'){this.dataset.stage='3';this.src=this.dataset.googleFavicon;}else{this.onerror=null;this.onload=null;this.src=this.dataset.monogram;rememberLogoStage(this.dataset.domain,4);}"
-    onload="if(this.dataset.stage==='3'&&Number(this.dataset.size)>16&&this.naturalWidth===16&&this.naturalHeight===16){this.onerror=null;this.onload=null;this.src=this.dataset.monogram;rememberLogoStage(this.dataset.domain,4);}else{rememberLogoStage(this.dataset.domain,Number(this.dataset.stage));}" />`;
+  const monogram = escapeHtml(monogramLogoSvg(domain));
+  if (resolved === "" || !domain) return `<img class="${cls}" src="${monogram}" alt="" />`;
+  return `<img class="${cls}" src="/logo/${encodeURIComponent(domain)}.png" alt="" loading="lazy"
+    data-monogram="${monogram}" onerror="this.onerror=null;this.src=this.dataset.monogram;" />`;
 }
 
 function fmtInt(n) {

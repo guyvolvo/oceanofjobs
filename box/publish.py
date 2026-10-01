@@ -113,6 +113,16 @@ def _publish() -> int:
     if written:
         done.append(f"precomputed {len(written)} in {time.monotonic() - t:.0f}s")
 
+    # The companies directory's daily row per company. Here rather than
+    # in precompute.publish because that returns early while its
+    # artifacts are fresh, and this is about the day, not the artifacts.
+    t = time.monotonic()
+    try:
+        if precompute.record_company_day(DB):
+            done.append(f"company_daily in {time.monotonic() - t:.0f}s")
+    except Exception as e:  # noqa: BLE001
+        print(f"company_daily failed: {e!r}", file=sys.stderr)
+
     if FRONTEND_BUCKET:
         t = time.monotonic()
         names = _bootstrap(s3)

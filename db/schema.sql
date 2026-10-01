@@ -156,6 +156,18 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_domain);
+
+-- One row per company per day: open roles, and how many were first seen
+-- in the last day. Written by the box's publish run
+-- (loader/precompute.py record_company_day); read by the companies
+-- directory for its sparklines (api/aggregates.py company_profile).
+CREATE TABLE IF NOT EXISTS company_daily (
+    day     TEXT NOT NULL,                -- ISO date, UTC
+    domain  TEXT NOT NULL,
+    open_n  INTEGER NOT NULL,
+    new_n   INTEGER NOT NULL,
+    PRIMARY KEY (day, domain)
+);
 CREATE INDEX IF NOT EXISTS idx_jobs_posted_at ON jobs(posted_at);
 CREATE INDEX IF NOT EXISTS idx_jobs_confidence ON jobs(confidence);
 CREATE INDEX IF NOT EXISTS idx_jobs_closed_at ON jobs(closed_at);
