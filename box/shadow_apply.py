@@ -78,7 +78,7 @@ WORK = DB.with_name("delta-resolved.json")
 # what the program actually allocates. The cgroup limit is still the
 # backstop against a runaway batch; it is just not a reading of this
 # program's own appetite.
-MAX_APPLY_BYTES = 48 * 1024 * 1024
+MAX_APPLY_BYTES = 96 * 1024 * 1024
 # Whether this box is the only applier. See the module docstring.
 PRIMARY = os.environ.get("OTJ_PRIMARY") == "1"
 # Listings closed longer ago than this leave the snapshot for S3. Same

@@ -27,6 +27,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1575,13 +1576,13 @@ def backfill_places(conn: sqlite3.Connection) -> int:
     return total
 
 
-def update_meta(conn: sqlite3.Connection) -> None:
+def update_meta(conn: sqlite3.Connection, clustering: bool = True) -> None:
     counts = conn.execute(
         "SELECT confidence, COUNT(*) FROM jobs WHERE closed_at IS NULL GROUP BY confidence"
     ).fetchall()
     total_companies = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
     hit_companies = conn.execute("SELECT COUNT(*) FROM companies WHERE ats IS NOT NULL").fetchone()[0]
-    clustering_warnings = check_timestamp_clustering(conn)
+    clustering_warnings = check_timestamp_clustering(conn) if clustering else []
     if clustering_warnings:
         print("TIMESTAMP CLUSTERING WARNING (see check_timestamp_clustering's own docstring):", file=sys.stderr)
         for w in clustering_warnings:
@@ -1873,6 +1874,28 @@ def _mostly_free_pages(conn: sqlite3.Connection) -> bool:
     return True
 
 
+# The box applies a few fragments every minute or so, and four of the
+# passes after the merge read the whole table regardless of how little
+# was merged: the timestamp clustering check (a GROUP BY over every
+# job), the logo pass over every company, the placeholder sweep, and
+# the places backfill's scan for rows missing a country. The file is
+# bigger than the box's RAM, so each of those is a read of the whole
+# file from disk. Measured 2026-10-01: 133 applies in eight hours, 40
+# to 320 seconds each, a run that merged two companies taking 38 to 190
+# seconds, and the API queuing behind the disk for the whole of it.
+# They answer nothing that changes minute to minute, so on the box they
+# run once an hour. Every other caller still runs them every time.
+BOX_SWEEP_SECONDS = 3600
+
+
+def _box_sweep_due(conn: sqlite3.Connection) -> bool:
+    last = _meta_get(conn, "box_sweep_at")
+    try:
+        return not last or time.time() - float(last) >= BOX_SWEEP_SECONDS
+    except ValueError:
+        return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--resolved", required=True, type=Path,
@@ -1974,6 +1997,7 @@ def main() -> int:
         conn = open_db(args.out)
         with conn:
             current_domains = load_resolved(conn, args.resolved, args.drop_description)
+            sweep_due = (not args.box) or _box_sweep_due(conn)
             n_roles = classify_roles(conn)
             if n_roles:
                 print(f"role verdicts for {n_roles} rows", file=sys.stderr)
@@ -2016,22 +2040,24 @@ def main() -> int:
                                            args.archive_closed_days,
                                            _fts_supports_rowid_delete(conn))
                     print(f"archive: {json.dumps(result, default=str)}", file=sys.stderr)
-            if args.logos:
+            if args.logos and sweep_due:
                 n_logos = apply_company_logos(conn, args.logos)
                 print(f"logos: {n_logos} companies carry one", file=sys.stderr)
-            n_ph = clear_placeholder_logos(conn)
+            n_ph = clear_placeholder_logos(conn) if sweep_due else 0
             if n_ph:
                 print(f"logos: {n_ph} placeholders cleared", file=sys.stderr)
             # Never fatal. Filling a derived column is a nicety; the
             # merge publishing at all is not, and the first version of
             # this took the merge down with it.
             try:
-                n_places = backfill_places(conn)
+                n_places = backfill_places(conn) if sweep_due else 0
                 if n_places:
                     print(f"places: filled {n_places} rows from their location text", file=sys.stderr)
             except Exception as e:
                 print(f"places backfill failed (non-fatal): {e!r}", file=sys.stderr)
-            update_meta(conn)
+            update_meta(conn, clustering=sweep_due)
+            if args.box and sweep_due:
+                _meta_set(conn, "box_sweep_at", str(time.time()))
 
         known_out = args.known_out or args.out.with_name("known.json")
         n_known = None if args.skip_known else export_known(conn, known_out)
