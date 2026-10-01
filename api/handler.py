@@ -696,6 +696,13 @@ def _route_jobs(conn, params: dict) -> dict:
             return {"jobs": [], "total": total, "limit": 0, "offset": 0,
                     "matched_skills": [], "count_only": True}
 
+    # The same hint the count takes, for the same reason: with no
+    # selective filter and a place, the planner scanned the table and
+    # sorted it (All roles in Israel, 33s under an apply, 2026-10-01)
+    # rather than walk the open-rows index newest-first and stop at
+    # fifty hits. Only on the newest-first orders the index provides;
+    # another sort would be a sort either way.
+    page_index_hint = count_index_hint(params, caps) if sort_key in ("age",) else ""
     rows = conn.execute(
         f"""
         SELECT id, company_domain, ats, title, location, department,
@@ -719,7 +726,7 @@ def _route_jobs(conn, params: dict) -> dict:
                {company_name_select},
                {logo_select},
                {score_sql} AS match_score
-        FROM jobs
+        FROM jobs{page_index_hint}
         WHERE {where_sql}
         -- See sort_expr above for why the date column is wrapped and the
         -- text ones are not.
