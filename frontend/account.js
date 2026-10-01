@@ -412,6 +412,15 @@ function wirePreferences() {
   document.querySelectorAll("#preferences .pref-cancel").forEach((btn) => {
     btn.addEventListener("click", () => closePrefItem(btn.closest(".pref-item"), true));
   });
+  // Clear empties the row's choice in the draft; Save makes it so,
+  // Cancel puts it back, the same as any other edit.
+  document.querySelectorAll("#preferences .pref-clear").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.pref === "workplace") draft.workplace = [];
+      else { draft.country = []; draft.city = []; }
+      paintPreferences();
+    });
+  });
   document.querySelectorAll("#preferences .pref-save").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       // Held before the await: currentTarget is null once dispatch ends.

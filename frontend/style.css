@@ -2754,8 +2754,8 @@ body.explore-busy .explore-metric { color: var(--green-text); }
    the same product and were drawn as if they were not. */
 .account-shell {
   background: var(--hover-bg);
-  height: calc(100vh - 57px);
-  height: calc(100dvh - 57px);
+  min-height: calc(100vh - 57px);
+  min-height: calc(100dvh - 57px);
   display: flex;
   flex-direction: column;
 }
@@ -7354,8 +7354,10 @@ table.jobs tbody tr.skeleton-row {
 
 /* The market chart. The bars are the arrivals, the line what is open;
    today's bar is the one green. */
-.acct-chart { position: relative; }
-.acct-market-svg { display: block; width: 100%; height: 220px; }
+/* The chart fills its card to the height of the card beside it. */
+.acct-chart-panel { display: flex; flex-direction: column; }
+.acct-chart { position: relative; flex: 1; min-height: 220px; display: flex; }
+.acct-market-svg { display: block; width: 100%; height: 100%; min-height: 220px; flex: 1; }
 .acct-grid { stroke: var(--grey-line); stroke-width: 1; }
 .acct-axis { font: 400 10px var(--font); fill: var(--grey); }
 .acct-area { fill: var(--black); opacity: 0.12; }
@@ -7415,3 +7417,14 @@ table.jobs tbody tr.skeleton-row {
   .acct-stat:last-child { border-bottom: 0; }
   .acct-market-svg { height: 180px; }
 }
+
+/* The account page's controls on the frame's rounder scale: 8px for a
+   button or a field, where paper's default is 4px. A field takes the
+   40% outline the frame's controls wear, one pixel, not two. */
+.account-shell .btn, .account-shell .ms-toggle, .account-shell input[type="text"], .account-shell input[type="search"], .account-shell input[type="email"], .account-shell input[type="time"], .account-shell select, .account-shell textarea, .account-shell .cv-chip, .account-shell .alert-toggle { border-radius: 8px; }
+.account-shell .ms-toggle, .account-shell input[type="text"], .account-shell input[type="search"], .account-shell input[type="email"], .account-shell input[type="time"], .account-shell select, .account-shell textarea { border-width: 1px; border-color: color-mix(in srgb, var(--black) 40%, transparent); }
+.account-shell .ms-toggle.active { border-color: var(--green-text); }
+.account-shell .ms-toggle:focus-visible, .account-shell input:focus-visible, .account-shell select:focus-visible, .account-shell textarea:focus-visible { border-color: var(--black); }
+.account-shell .hero-theme { border-color: color-mix(in srgb, var(--black) 40%, transparent); }
+/* The directory's corner, signed in: the board's account control as a link to /account. */
+a.hero-account-btn.dir-account { text-decoration: none; }

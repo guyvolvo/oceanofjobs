@@ -269,8 +269,21 @@
     $("#dir-jobs").innerHTML = (newest?.jobs || []).map((j) => `<a class="dir-job" href="/job/${esc(j.id)}"><span class="dir-job-title">${esc(j.title)}${j.location ? ` <span class="dir-job-where">· ${esc(String(j.location).split(";")[0])}</span>` : ""}</span><span class="dir-job-age">${age(j.posted_at)}</span></a>`).join("") || `<span class="dir-hint">No open roles here.</span>`;
   }
 
+  // The corner says who is signed in, the way the board's does. The
+  // session is the one localStorage entry auth.js keeps, so this page
+  // only has to read it; signing in happens on the board or /account.
+  function paintCorner() {
+    const login = $(".dir-login");
+    if (!login || typeof getAuthTokens !== "function") return;
+    const tokens = getAuthTokens();
+    if (!tokens) return;
+    const email = decodeJwtEmail(tokens.id_token) || "";
+    login.outerHTML = `<a class="hero-account-btn dir-account" href="/account">${avatarHtml(email, tokens.id_token)}My Account</a>`;
+  }
+
   function wire() {
     wireSideBar();
+    paintCorner();
     $("#theme-toggle")?.addEventListener("click", () => {
       const dark = document.documentElement.getAttribute("data-theme") !== "dark";
       if (dark) document.documentElement.setAttribute("data-theme", "dark");

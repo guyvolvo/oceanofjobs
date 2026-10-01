@@ -50,6 +50,10 @@
   // nothing before to measure against.
   function delta(now, prev) {
     if (now == null || prev == null || !prev) return "";
+    // The record only reaches back as far as the scrapers' first sight
+    // of each role, so a month-ago figure a fraction of today's means
+    // the record was thin then, not that the market grew tenfold.
+    if (prev < now / 4) return "";
     const pct = Math.round(((now - prev) / prev) * 100);
     const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
     const arrow = dir === "up" ? "&#8599;" : dir === "down" ? "&#8600;" : "&#8594;";
@@ -156,7 +160,7 @@
     const ms = document.getElementById("acct-market-sub");
     if (ms) ms.textContent = draft.skills.length ? `Open roles${where} that share at least ${min} of your skills` : "";
     const ds = document.getElementById("acct-demand-sub");
-    if (ds) ds.textContent = `Open roles${where} asking for each skill`;
+    if (ds) ds.textContent = typeof placeSummary === "function" ? placeSummary() : (country ? countryLabel(country) : "Anywhere");
     const open_link = document.getElementById("acct-open-matches");
     if (open_link && draft.skills.length) open_link.href = `/board?view=matches&skills=${encodeURIComponent(draft.skills.join(","))}${country ? `&country=${country}` : ""}`;
   }
@@ -212,6 +216,11 @@
       } else note.hidden = true;
     }
     host.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", async () => {
+      if (draft.skills.length >= MAX_SKILLS) {
+        note.hidden = false;
+        note.innerHTML = `Your profile holds its full ${MAX_SKILLS} skills. Take one out in <a href="#skills">Skills</a> to add <b>${esc(b.dataset.add)}</b>.`;
+        return;
+      }
       b.disabled = true;
       draft.skills = [...new Set([...draft.skills, b.dataset.add])];
       try {
@@ -234,7 +243,7 @@
     const host = document.getElementById("acct-pay");
     if (!host) return;
     const pays = matches.map((j) => parseShekels(j.salary_text)).filter((n) => n).sort((a, b) => a - b);
-    if (pays.length < 5) { host.innerHTML = `<p class="acct-matches-empty">${draft.skills.length ? "Not enough salary figures among your matches yet." : "Add skills to see pay."}</p>`; return; }
+    if (pays.length < 5) { host.innerHTML = `<p class="acct-matches-empty">${draft.skills.length ? "Not enough salary estimates yet among the roles matching your background." : "Add skills to see what roles matching your background pay."}</p>`; return; }
     const q = (f) => pays[Math.min(pays.length - 1, Math.floor(f * (pays.length - 1)))];
     const med = q(0.5), lo = q(0.25), hi = q(0.75);
     const k = (n) => `₪${Math.round(n / 1000)}K`;
@@ -245,8 +254,8 @@
     const W = 280, H = 70;
     const bars = hist.map((n, i) => { const x0 = min + i * step, x1 = x0 + step; const mid = x0 <= hi && x1 >= lo; return `<rect class="acct-pay-bar${mid ? " mid" : ""}" x="${(i / bins * W).toFixed(1)}" y="${(H - 10 - (n / top) * (H - 14)).toFixed(1)}" width="${(W / bins - 2).toFixed(1)}" height="${((n / top) * (H - 14)).toFixed(1)}" rx="1"/>`; }).join("");
     const mx = ((med - min) / (max - min || 1)) * W;
-    host.innerHTML = `<div class="acct-pay-head"><span class="acct-pay-value">${k(med)}</span><span class="acct-pay-sub">median /mo, estimated · ${pays.length} of your matches</span></div>
-      <svg class="acct-pay-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Pay across your matches, median ${k(med)}">${bars}<line class="acct-pay-median" x1="${mx.toFixed(1)}" x2="${mx.toFixed(1)}" y1="2" y2="${H - 8}"/></svg>
+    host.innerHTML = `<div class="acct-pay-head"><span class="acct-pay-value">${k(med)}</span><span class="acct-pay-sub">median /mo, estimated from ${pays.length} roles matching your background</span></div>
+      <svg class="acct-pay-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Estimated salary across roles matching your background, median ${k(med)}">${bars}<line class="acct-pay-median" x1="${mx.toFixed(1)}" x2="${mx.toFixed(1)}" y1="2" y2="${H - 8}"/></svg>
       <div class="acct-pay-foot"><span>${k(min)}</span><span>Middle half pays ${k(lo)}–${k(hi)}</span><span>${k(max)}</span></div>`;
   }
 
@@ -282,6 +291,9 @@
   // paints at once on the next visit and the fresh numbers replace it
   // quietly when they arrive. The history alone is a pass over the
   // whole table on the box.
+  // The same cap the API applies (api/profile.py MAX_SKILLS): it keeps
+  // the first forty and drops the rest without a word.
+  const MAX_SKILLS = 40;
   const CACHE_KEY = "iljobs_dash_v1";
   const CACHE_TTL = 30 * 60 * 1000;
   const cacheKey = () => { const { skills, country, min } = matchScope(); return `${skills.join(",")}|${country}|${min}`; };
