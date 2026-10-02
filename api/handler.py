@@ -18,7 +18,10 @@ genuinely needed one -- see PRODUCT.md.
 
 import json
 from collections import Counter
+import sqlite3
 import traceback
+
+import expensive
 import math
 import os
 import re
@@ -345,6 +348,7 @@ def lambda_handler(event, context):
         return _response(204, "")
 
     path = event.get("rawPath") or "/"
+    expensive.start_request()
     # The one route this Lambda serves outside /api: a listing's own HTML
     # page. Before the prefix strip, since it has no prefix.
     if path.startswith("/job/") and len(path) > len("/job/"):
@@ -355,7 +359,10 @@ def lambda_handler(event, context):
             return _html_response(500, job_page.render_missing(404, ""), extra_headers={"X-Robots-Tag": "noindex"})
     if path.startswith("/company/") and len(path) > len("/company/"):
         try:
-            return route_company_page(path[len("/company/"):].split("?")[0])
+            with expensive.guard("company_page"):
+                return route_company_page(path[len("/company/"):].split("?")[0])
+        except expensive.Busy:
+            return _busy_response("text/html; charset=utf-8")
         except Exception as e:  # noqa: BLE001
             print(f"company page failed: {e!r}")
             return _html_response(500, company_page.render_missing(""), extra_headers={"X-Robots-Tag": "noindex"})
@@ -396,6 +403,9 @@ def lambda_handler(event, context):
             # copy is an hour of documenting an API that has moved.
             return _response(200, json.dumps(openapi_spec()), cache_seconds=300)
         if path == "/jobs":
+            if (params.get("search") or "").strip() or (params.get("keywords") or "").strip():
+                with expensive.guard("search"):
+                    return _response(200, json.dumps(route_jobs(params), default=str), cache_seconds=60)
             return _response(200, json.dumps(route_jobs(params), default=str), cache_seconds=60)
         if path == "/jobs/skill_counts":
             try:
@@ -416,8 +426,9 @@ def lambda_handler(event, context):
         if path == "/companies/search":
             # Before /companies. Cached at the edge like the facets: the
             # same question from the next visitor gets the same answer.
-            return _response(200, json.dumps(search_companies(get_connection(), params), default=str),
-                             cache_seconds=60)
+            with expensive.guard("directory"):
+                return _response(200, json.dumps(search_companies(get_connection(), params), default=str),
+                                 cache_seconds=60)
         if path == "/companies/directory":
             # The /companies page's list: cached at the edge like the
             # facets, since every visitor's first question is the same.
@@ -522,9 +533,32 @@ def lambda_handler(event, context):
         return _response(404, json.dumps({"error": f"no route for {path}"}))
     except ValueError as e:
         return _response(400, json.dumps({"error": str(e)}))
+    except expensive.Busy:
+        return _busy_response("application/json")
+    except sqlite3.OperationalError as e:
+        if "interrupted" not in str(e):
+            traceback.print_exc()
+            return _response(500, json.dumps({"error": "internal error", "detail": str(e)}))
+        # expensive.STATEMENT_DEADLINE_S passed: the server did fail to
+        # answer this one, so 503, and the client may try again.
+        print(f"statement interrupted at the deadline: {path}")
+        resp = _response(503, json.dumps({"error": "took too long, try again"}))
+        resp["headers"]["Retry-After"] = str(expensive.RETRY_AFTER_S)
+        resp["headers"]["Cache-Control"] = "no-store"
+        return resp
     except Exception as e:  # last resort: never leak a raw traceback to callers
         traceback.print_exc()  # the log gets it; the caller gets one line
         return _response(500, json.dumps({"error": "internal error", "detail": str(e)}))
+
+
+def _busy_response(content_type: str) -> dict:
+    """429 for a request that found every expensive permit taken (see
+    expensive.py). Never cached: the next try may well get through."""
+    body = (json.dumps({"error": "busy, try again in a moment"}) if content_type.startswith("application/json")
+            else "<!doctype html><title>Busy</title><p>Busy for a moment. Reload the page.</p>")
+    return {"statusCode": 429, "body": body,
+            "headers": {"Content-Type": content_type, "Retry-After": str(expensive.RETRY_AFTER_S),
+                        "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"}}
 
 
 def _authenticated_claims(event) -> dict:
@@ -1335,7 +1369,8 @@ def route_facets(params: dict) -> dict:
         phit = _scoped_cache.get(pk)
         if phit and phit[0] > _t.monotonic():
             locations = phit[1]
-    out = compute_facets(get_connection(), params, locations=locations)
+    with expensive.guard("live_aggregate"):
+        out = compute_facets(get_connection(), params, locations=locations)
     if len(_scoped_cache) >= _SCOPED_MAX:
         _scoped_cache.clear()
     _scoped_cache[ck] = (_t.monotonic() + _SCOPED_TTL_S, out)
@@ -1362,7 +1397,8 @@ def _scoped_stats(params: dict, ready: dict | None) -> dict:
     hit = _scoped_cache.get(ck)
     if hit and hit[0] > _t.monotonic():
         return hit[1]
-    out = compute_scoped_stats(get_connection(), params)
+    with expensive.guard("live_aggregate"):
+        out = compute_scoped_stats(get_connection(), params)
     if len(_scoped_cache) >= _SCOPED_MAX:
         _scoped_cache.clear()
     _scoped_cache[ck] = (_t.monotonic() + _SCOPED_TTL_S, out)
@@ -1399,7 +1435,10 @@ def route_stats(params: dict | None = None) -> dict:
             # The default view: narrowed by roles alone, whose scoped
             # block the merge precomputes as scoped_tech. Missing only
             # on a snapshot from before it existed.
-            out["scoped"] = ready.get("scoped_tech") or compute_scoped_stats(get_connection(), params)
+            out["scoped"] = ready.get("scoped_tech")
+            if not out["scoped"]:
+                with expensive.guard("live_aggregate"):
+                    out["scoped"] = compute_scoped_stats(get_connection(), params)
         # Two fields in here are clocks, not aggregates, and freezing a
         # clock for fifteen minutes makes it wrong rather than stale.
         # Reported live: the Data Health tile read "19M old" while the
@@ -1424,7 +1463,8 @@ def route_stats(params: dict | None = None) -> dict:
     hit = _scoped_cache.get(ck)
     if hit and hit[0] > _t.monotonic():
         return hit[1]
-    out = compute_stats(get_connection(), params)
+    with expensive.guard("live_aggregate"):
+        out = compute_stats(get_connection(), params)
     if len(_scoped_cache) >= _SCOPED_MAX:
         _scoped_cache.clear()
     _scoped_cache[ck] = (_t.monotonic() + _SCOPED_TTL_S, out)

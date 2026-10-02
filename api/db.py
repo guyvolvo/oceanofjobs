@@ -186,6 +186,12 @@ def _open_readonly(path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     register_functions(conn)
+    # Interrupt a statement that runs past the request's deadline
+    # (expensive.STATEMENT_DEADLINE_S): one runaway query must not hold
+    # a gunicorn slot past CloudFront's 60s origin timeout. Checked every
+    # 20,000 virtual-machine steps, a few milliseconds of work.
+    from expensive import past_deadline
+    conn.set_progress_handler(lambda: 1 if past_deadline() else 0, 20000)
     return conn
 
 

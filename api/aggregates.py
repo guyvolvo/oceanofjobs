@@ -188,7 +188,8 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
     if hit and (now - hit[0]).total_seconds() < _DIRECTORY_TTL_S:
         return hit[1]
     week_ago = (now - timedelta(days=7)).isoformat()
-    with place_rows(conn, scoped):
+    from expensive import guard
+    with guard("directory"), place_rows(conn, scoped):
         where_sql, args = build_jobs_where(scoped, has_fts_index(conn), has_places(conn))
         rows = [dict(r) for r in conn.execute(
             f"""
