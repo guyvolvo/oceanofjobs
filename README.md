@@ -6,7 +6,7 @@ Open-source tech job board. Listings scraped straight from company hiring system
 
 **License:** MIT
 
-![The job board on a monitor, standing in a field at sunset](frontend/img/showcase-field.webp)
+![The job board on a monitor, standing in a field at sunset](frontend/img/showcase-readme.webp)
 
 ## Architecture
 
