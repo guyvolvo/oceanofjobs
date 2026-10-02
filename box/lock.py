@@ -29,7 +29,12 @@ LOCK_PATH = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db")).with_name(
 
 WANT_MAX_AGE_S = 15 * 60
 # How long the applier may wait before a long holder steps aside for it.
-LET_THROUGH_AFTER_S = 5 * 60
+# Five minutes left it about 10 fragments every six or seven minutes
+# during precompute, which is the rate they arrive, so the backlog sat
+# flat at 50 to 70 for the whole run (2026-10-02). Two minutes roughly
+# doubles the applier's share; precompute runs every three hours and
+# can afford to take longer.
+LET_THROUGH_AFTER_S = 2 * 60
 # The lock this process holds, if any, so a long job can hand it over
 # between its own steps (let_through) without unwinding its stack.
 _held: dict = {}
