@@ -27,3 +27,21 @@ resource "aws_ses_domain_mail_from" "main" {
   domain           = aws_ses_domain_identity.main.domain
   mail_from_domain = "mail.${aws_ses_domain_identity.main.domain}"
 }
+
+# The site's own domain, so alert digests and contact replies come from
+# alerts@oceanofjobs.com, the name in the inbox and the name on the site.
+# guyvoloshin.com stays verified until nothing sends from it. The DNS
+# records are in Cloudflare by hand (no Cloudflare provider here); the
+# ses_site_dns_records output lists them.
+resource "aws_ses_domain_identity" "site" {
+  domain = var.domain_name
+}
+
+resource "aws_ses_domain_dkim" "site" {
+  domain = aws_ses_domain_identity.site.domain
+}
+
+resource "aws_ses_domain_mail_from" "site" {
+  domain           = aws_ses_domain_identity.site.domain
+  mail_from_domain = "mail.${aws_ses_domain_identity.site.domain}"
+}

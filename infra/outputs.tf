@@ -134,3 +134,36 @@ output "box_instance_id" {
   value       = var.box_instance_id
   description = "Set as the BOX_INSTANCE_ID repository variable for deploy-box.yml."
 }
+
+output "ses_site_dns_records" {
+  description = "Add these in Cloudflare (DNS only, grey cloud) to verify oceanofjobs.com for SES, plus the DMARC record. Leave in place permanently."
+  value = {
+    domain_verification = {
+      name  = "_amazonses.${var.domain_name}"
+      type  = "TXT"
+      value = aws_ses_domain_identity.site.verification_token
+    }
+    dkim = [for token in aws_ses_domain_dkim.site.dkim_tokens : {
+      name  = "${token}._domainkey.${var.domain_name}"
+      type  = "CNAME"
+      value = "${token}.dkim.amazonses.com"
+    }]
+    mail_from_mx = {
+      name  = aws_ses_domain_mail_from.site.mail_from_domain
+      type  = "MX"
+      value = "10 feedback-smtp.${var.aws_region}.amazonses.com"
+    }
+    mail_from_spf = {
+      name  = aws_ses_domain_mail_from.site.mail_from_domain
+      type  = "TXT"
+      value = "v=spf1 include:amazonses.com ~all"
+    }
+    # Monitoring only to begin with. Raise to quarantine once the reports
+    # show every legitimate sender passing.
+    dmarc = {
+      name  = "_dmarc.${var.domain_name}"
+      type  = "TXT"
+      value = var.alert_email == "" ? "v=DMARC1; p=none" : "v=DMARC1; p=none; rua=mailto:${var.alert_email}"
+    }
+  }
+}
