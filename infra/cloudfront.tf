@@ -233,10 +233,12 @@ resource "aws_cloudfront_cache_policy" "api" {
 
 resource "aws_cloudfront_cache_policy" "job_page" {
   name        = "${var.project_name}-job-page-cache"
-  comment     = "Listing pages: ten minutes, keyed on the path alone"
+  comment     = "Listing and company pages: the origin's s-maxage, up to six hours, keyed on the path alone"
   default_ttl = 600
   min_ttl     = 0
-  max_ttl     = 3600
+  # Six hours, matching api/handler.py PAGE_EDGE_SECONDS. At 3600 the
+  # origin's s-maxage was clamped to an hour.
+  max_ttl = 21600
   parameters_in_cache_key_and_forwarded_to_origin {
     cookies_config { cookie_behavior = "none" }
     headers_config { header_behavior = "none" }

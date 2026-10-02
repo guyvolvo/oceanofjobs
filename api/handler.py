@@ -112,6 +112,15 @@ def _apply_url_select(conn) -> str:
 # snapshot can change, so a reader never sees an answer older than the
 # data could be.
 EDGE_CACHE_SECONDS = 180
+# Listing and company pages at the edge: six hours. A crawler walking the
+# sitemap asked for 70 to 95 of them a minute, each a miss at ten
+# minutes, and the box answered every one (2026-10-02). Nothing clears a
+# page when its listing closes, since CloudFront charges per path and
+# thousands close a day, so a closed listing can look open on its own
+# page for up to six hours. The board, search and alerts stay
+# authoritative; these pages are eventually consistent within that.
+# infra/cloudfront.tf's job_page policy allows up to this.
+PAGE_EDGE_SECONDS = 6 * 3600
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -191,7 +200,7 @@ def route_company_page(domain: str):
     extra = None if jobs else {"X-Robots-Tag": "noindex"}
     # Same ten minutes at the edge as a listing's page: the page changes
     # as roles open and close, and the sitemap carries the lastmod.
-    return _html_response(200, company_page.render(company, jobs, facts), cache_seconds=600, edge_seconds=600,
+    return _html_response(200, company_page.render(company, jobs, facts), cache_seconds=600, edge_seconds=PAGE_EDGE_SECONDS,
                           extra_headers=extra)
 
 
@@ -241,7 +250,7 @@ def route_job_page(job_id: str):
     # Ten minutes at the edge: a listing's page changes when it closes,
     # and the sitemap tells crawlers about new ones, so nothing here
     # needs the API's three-minute window.
-    return _html_response(200, job_page.render(job, extra=sidebar), cache_seconds=600, edge_seconds=600, extra_headers=extra)
+    return _html_response(200, job_page.render(job, extra=sidebar), cache_seconds=600, edge_seconds=PAGE_EDGE_SECONDS, extra_headers=extra)
 
 
 def _job_page_sidebar(conn, job) -> dict:
