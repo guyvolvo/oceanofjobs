@@ -26564,3 +26564,9 @@ faes.com
 famoco.com
 followoz.com
 beautifuldestinations.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+create.com
+detroitlabs.com
+courtclerk.org
+oneplan.ai
