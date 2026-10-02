@@ -4380,7 +4380,7 @@ function railSalaryTrackHtml() {
          other behaviour. Without it, nudging a handle would answer by
          deleting most of the board. -->
     ${railOptionHtml({
-      kind: "salary_known", value: "1", label: "Has an estimate",
+      kind: "salary_known", value: "1", label: "Estimated salary",
       n: s.known, checked: state.salary_known,
     })}`;
 }
@@ -4915,7 +4915,7 @@ function activeChips() {
     const hi = Number(state.salary_max) || s.max;
     chips.push({ kind: "salary", value: "", text: `${fmtShekels(lo)}–${fmtShekels(hi)}` });
   }
-  if (state.salary_known) chips.push({ kind: "salary_known", value: "", text: "Has an estimate" });
+  if (state.salary_known) chips.push({ kind: "salary_known", value: "", text: "Estimated salary" });
   if (state.salary_disclosed) chips.push({ kind: "salary_disclosed", value: "", text: "Disclosed salary" });
   return chips;
 }
