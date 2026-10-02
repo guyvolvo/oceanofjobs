@@ -26526,3 +26526,10 @@ demo.com
 costa-navarino.de
 enerstaff.com
 footprint.co
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+newham.de
+company-shop.de
+floridawindowanddoor.com
+arclight.io
+new-story.de
