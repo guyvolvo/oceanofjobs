@@ -4690,7 +4690,19 @@ function wireFilterRail() {
       const key = acc.dataset.acc;
       const set = railOpenSet();
       const opening = !set.has(key);
-      if (opening) set.clear();
+      if (opening) {
+        set.clear();
+        // The one already open shuts at once. It used to stay on screen
+        // until the new one had finished opening and the rail redrew,
+        // a quarter second with two lists over the board.
+        host.querySelectorAll(".rail-acc.open").forEach((other) => {
+          if (other === acc) return;
+          other.classList.remove("open");
+          other.querySelector(".rail-acc-head")?.setAttribute("aria-expanded", "false");
+          const b = other.querySelector(".rail-acc-body");
+          if (b) { b.getAnimations().forEach((a) => a.cancel()); b.classList.remove("animating"); b.hidden = true; }
+        });
+      }
       opening ? set.add(key) : set.delete(key);
       railAnimateAcc(acc, opening, () => {
         renderFilterRail();
