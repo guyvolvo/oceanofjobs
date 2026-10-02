@@ -26521,3 +26521,8 @@ enfinity-global.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 demo.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+costa-navarino.de
+enerstaff.com
+footprint.co
