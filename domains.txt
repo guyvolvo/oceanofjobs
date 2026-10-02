@@ -26554,3 +26554,13 @@ electrum.io
 executive-title.com
 decisionassociates.net
 flowerbx.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+spektrix.com
+edag.com
+decision.com
+eventogy.com
+faes.com
+famoco.com
+followoz.com
+beautifuldestinations.com
