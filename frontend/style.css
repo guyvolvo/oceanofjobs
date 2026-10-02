@@ -7535,7 +7535,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .job-chips .job-chip { flex: none; }
   .job-chips .job-chip.skill { display: inline-flex !important; flex: none; }
   table.jobs .main-cell { padding-right: 4px; }
-  .job-age-tail { display: block; flex: none; margin-left: auto; padding-left: 8px; color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .job-age-tail { display: block; flex: none; margin-left: auto; padding: 0 3px 0 8px; color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .star-btn { width: 28px; height: 28px; }
 
   /* The alert button floats above the tab bar. */
