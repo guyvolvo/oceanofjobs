@@ -236,7 +236,32 @@ def _read(paths: list[Path]) -> list[dict]:
     return out
 
 
+# The freshness metrics the alarms read, sent from here every five
+# minutes. They used to go out only when a publisher run began, and a
+# publisher run that steps aside for applies can last over an hour: no
+# datapoints, which the alarms treat as breaching, and every per-source
+# staleness alarm fired at once with listings minutes old (2026-10-02).
+METRICS_EVERY_S = 5 * 60
+METRICS_STAMP = DB.with_name("metrics-sent-at")
+
+
+def _send_metrics() -> None:
+    try:
+        if time.time() - METRICS_STAMP.stat().st_mtime < METRICS_EVERY_S:
+            return
+    except OSError:
+        pass
+    try:
+        METRICS_STAMP.touch()
+        import metrics
+        metrics.publish(DB, BUCKET)
+    except Exception as e:  # noqa: BLE001 - a missed metric is the alarm's business, not the apply's
+        print(f"metrics failed: {e!r}", file=sys.stderr)
+
+
 def main() -> int:
+    if PRIMARY:
+        _send_metrics()
     # The publisher is waiting for the disk: let it have the next gap.
     # Applies run back to back and used to starve it (no precomputed
     # stats for five hours, 2026-10-01); one tick's delay here costs
