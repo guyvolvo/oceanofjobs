@@ -353,3 +353,24 @@ A PostgreSQL migration is not justified by any measurement taken here.
 SQLite is not the problem; the amount of disk IO asked of one small
 machine is. Revisit that only if the product needs concurrent writers,
 multiple serving instances or real high availability.
+
+## Consistency of listing pages (2026-10-03)
+
+The board, search and alerts are authoritative. A listing's own page
+(`/job/<id>`) and a company page (`/company/<domain>`) are eventually
+consistent: CloudFront keeps them six hours (`api/handler.py`
+`PAGE_EDGE_SECONDS`, `infra/cloudfront.tf` job_page policy), and nothing
+clears one when its listing closes, because CloudFront charges per
+invalidated path and thousands close a day. A closed listing can look
+open on its own page for up to six hours. That trade took a crawler's
+70 to 95 page requests a minute off the box.
+
+## The lean snapshot's size (open question)
+
+The lean snapshot (`jobs-read.db`, `box/publish_snapshot.py`) was 745MB
+when the Lambda fallback was designed around pulling it inside API
+Gateway's 29 seconds. It was already 1.27GB on 2026-10-02, and after the
+search-index split (`box/STAGE2-FTS.md`) it is the main file, about
+1.2GB. Whether the Lambda rollback can still pull it in time is not
+established; time an S3 download of it from a Lambda-sized environment
+before relying on that path.
