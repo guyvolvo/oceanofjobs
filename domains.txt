@@ -26536,3 +26536,8 @@ new-story.de
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 epplautoscan.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+df.com
+eoiq.com
+destsetters.com
