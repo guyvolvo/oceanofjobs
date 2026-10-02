@@ -26541,3 +26541,10 @@ epplautoscan.com
 df.com
 eoiq.com
 destsetters.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+flats.io
+dekalb.com
+discovery-ranch.com
+eightcap.com
+exerizon.com
