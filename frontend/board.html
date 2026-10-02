@@ -174,6 +174,7 @@
       <h1 class="visually-hidden">Job board</h1>
       <div class="board-head">
         <button type="button" class="side-open" id="side-open" aria-label="Menu" aria-expanded="false" aria-controls="site-side"><span aria-hidden="true"><i></i><i></i><i></i></span></button>
+  <a class="m-logo" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="28" height="28" alt="" /></a>
   <div class="topbar-search" id="topbar-search" role="search">
     <svg class="topbar-search-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
       <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -192,6 +193,37 @@
           <button type="button" class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Dark mode"><span class="theme-knob" aria-hidden="true"></span><svg class="theme-ico theme-ico-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="theme-ico theme-ico-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></button>
         </div>
       </div>
+
+      <!-- The phone's second row: Filters (with how many are on), the
+           sort, the count; under it the active filters as chips. The
+           sheet below holds every filter section at once (app.js moves
+           #filter-rail into it up to 800px, wireMobileSheet). -->
+      <div class="m-bar" id="m-bar">
+        <button type="button" class="m-filters" id="m-filters" aria-haspopup="dialog" aria-controls="m-sheet" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+          Filters<span class="m-badge" id="m-badge" hidden>0</span>
+        </button>
+        <label class="m-sort"><span class="m-sort-label">Sort</span><select id="m-sort" aria-label="Sort by"></select></label>
+        <span class="m-count" id="m-count" aria-live="polite"></span>
+      </div>
+      <div class="m-chips" id="m-chips"></div>
+      <div class="m-sheet-scrim" id="m-sheet-scrim" hidden></div>
+      <div class="m-sheet" id="m-sheet" role="dialog" aria-modal="true" aria-label="Filters" hidden>
+        <div class="m-sheet-grip" aria-hidden="true"></div>
+        <div class="m-sheet-head">
+          <span class="m-sheet-title">Filters</span>
+          <span class="m-sheet-tools">
+            <button type="button" class="m-sheet-reset" id="m-sheet-reset">Reset</button>
+            <button type="button" class="m-sheet-close" id="m-sheet-close" aria-label="Close filters"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </span>
+        </div>
+        <div class="m-sheet-body" id="m-sheet-body">
+          <section class="m-sec" id="m-sec-cats"><h3 class="m-sec-title">Category</h3><div class="m-opts" id="m-cats"></div></section>
+          <div id="m-rail-host"></div>
+        </div>
+        <div class="m-sheet-foot"><button type="button" class="m-show" id="m-show">Show roles</button></div>
+      </div>
+      <button type="button" class="m-alert" id="m-alert"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me for this search</button>
 
       <!-- Every filter that narrows by a value, with its counts, as a
            row of pills. Each pill is one rail section (renderFilterRail)
@@ -371,6 +403,7 @@
   <script src="signin_dialog.js"></script>
   <script src="side.js"></script>
   <script src="app.js"></script>
+  <script src="tabbar.js"></script>
   <script src="mobile_nav.js"></script>
 </body>
 </html>

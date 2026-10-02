@@ -2556,7 +2556,7 @@ function jobRowsHtml(jobs, starred) {
                Same trick the board used before this layout. -->
           <div class="job-meta"><span class="job-who">${jobWhoLine(j)}</span><span class="meta-age"> · <span class="meta-age-value ${fresh ? "fresh" : ""}">${fmtAgeAgo(age)}</span></span></div>
           <div class="job-where">${jobWhereLine(j)}</div>
-          <div class="job-chips">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</div>
+          <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail">${fmtAgeAgo(age)}</span></div>
           <div class="job-links">
             <a class="apply-link" href="${escapeHtml(j.url || "#")}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
             <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy link</button>
@@ -2748,8 +2748,14 @@ function paneHead(job) {
         <button type="button" class="pane-step" data-step="1" aria-label="Next listing"
                 ${i < 0 || i >= rows.length - 1 ? "disabled" : ""}>&#8250;</button>
       </div>
-      <button type="button" class="pane-close job-detail-close" aria-label="Close listing">&#10005;</button>`;
+      <button type="button" class="pane-share" data-share="${escapeHtml(jobPermalink(job.id))}" data-title="${escapeHtml(job.title)}" aria-label="Share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
+      <button type="button" class="pane-close job-detail-close" aria-label="Close listing"><span class="pane-close-x" aria-hidden="true">&#10005;</span><span class="pane-back" aria-hidden="true">&#8249; Jobs</span></button>`;
     head.querySelector(".pane-close").addEventListener("click", closeJobDetailAndSync);
+    head.querySelector(".pane-share").addEventListener("click", (e) => {
+      const b = e.currentTarget;
+      if (navigator.share) navigator.share({ title: b.dataset.title, url: b.dataset.share }).catch(() => {});
+      else copyToClipboard(b, b.dataset.share);
+    });
     head.querySelectorAll("[data-step]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const next = rows[i + Number(btn.dataset.step)];
@@ -4485,6 +4491,7 @@ function renderFilterRail() {
   }).join("");
   document.body.classList.toggle("pill-open", open.size > 0);
   renderSideCategories();
+  renderMobileCats();
 }
 
 // The sidebar's category list: the same rows, counts and ticks as the
@@ -4950,6 +4957,17 @@ function renderActiveChips() {
   // permanent Reset beside an unfiltered board offers to undo nothing.
   const reset = document.getElementById("f-reset");
   if (reset) reset.hidden = !chips.length && !state.search && state.roles === "tech" && !state.starred_only;
+  // The phone's chip row says the same, plus the role mode, with its
+  // own Reset at the end; the Filters button wears the count.
+  const mobile = document.getElementById("m-chips");
+  if (mobile) {
+    const all = (state.roles === "all" ? [{ kind: "roles", value: "", text: "All roles" }] : []).concat(chips);
+    mobile.innerHTML = all.map((c) => `<button type="button" class="m-chip" data-chip="${escapeHtml(c.kind)}" data-value="${escapeHtml(c.value)}" title="Remove this filter"><span>${escapeHtml(c.text)}</span>${CHIP_X_SVG}</button>`).join("")
+      + (all.length ? '<button type="button" class="m-chip-reset" data-reset>Reset</button>' : "");
+    mobile.hidden = !all.length;
+    const badge = document.getElementById("m-badge");
+    if (badge) { badge.textContent = String(all.length); badge.hidden = !all.length; }
+  }
 }
 
 // Drawn, not typed. ✕ renders as a colour emoji tile inside a button on
@@ -4960,31 +4978,132 @@ const CHIP_X_SVG =
   + '<path d="M2 2l6 6M8 2l-6 6" fill="none" stroke="currentColor" stroke-width="1.6"'
   + ' stroke-linecap="round"/></svg>';
 
+function removeChip(kind, value) {
+  if (kind === "max_age_days") {
+    state.max_age_days = "";
+    document.getElementById("f-date-posted").value = "";
+  } else if (kind === "salary") {
+    state.salary_min = "";
+    state.salary_max = "";
+  } else if (kind === "salary_known") {
+    state.salary_known = false;
+  } else if (kind === "salary_disclosed") {
+    state.salary_disclosed = false;
+  } else if (kind === "country" || kind === "city") {
+    railToggle(kind, value, false);
+    return; // railToggle applies on its own
+  } else {
+    state[kind] = (state[kind] || []).filter((v) => v !== value);
+  }
+  railApply();
+}
+
 function wireActiveChips() {
   const host = document.getElementById("active-chips");
-  if (!host) return;
-  host.addEventListener("click", (e) => {
+  if (host) host.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-chip]");
+    if (chip) removeChip(chip.dataset.chip, chip.dataset.value);
+  });
+  // The phone's chip row takes the same clicks, plus the role mode and
+  // its own Reset.
+  document.getElementById("m-chips")?.addEventListener("click", (e) => {
+    if (e.target.closest("[data-reset]")) return document.getElementById("f-reset")?.click();
     const chip = e.target.closest("[data-chip]");
     if (!chip) return;
-    const { chip: kind, value } = chip.dataset;
-    if (kind === "max_age_days") {
-      state.max_age_days = "";
-      document.getElementById("f-date-posted").value = "";
-    } else if (kind === "salary") {
-      state.salary_min = "";
-      state.salary_max = "";
-    } else if (kind === "salary_known") {
-      state.salary_known = false;
-    } else if (kind === "salary_disclosed") {
-      state.salary_disclosed = false;
-    } else if (kind === "country" || kind === "city") {
-      railToggle(kind, value, false);
-      return; // railToggle applies on its own
-    } else {
-      state[kind] = (state[kind] || []).filter((v) => v !== value);
-    }
-    railApply();
+    if (chip.dataset.chip === "roles") return setView("tech");
+    removeChip(chip.dataset.chip, chip.dataset.value);
   });
+}
+
+// ---- the phone's filters sheet ----
+// Up to 800px the pill row has no room and each pill's list came up as
+// its own sheet. Now there is one sheet with every section at once:
+// Category first (the role mode and the categories the sidebar shows on
+// a desktop), then the rail's own sections, which app.js moves into it
+// and style.css lays out as pills. A Show button at the foot says how
+// many roles the choice leaves.
+const MOBILE_MQ = matchMedia("(max-width: 800px)");
+
+function mobileRailHome() {
+  const rail = document.getElementById("filter-rail");
+  const sheetHost = document.getElementById("m-rail-host");
+  const pills = document.querySelector(".board-pills");
+  if (!rail || !sheetHost || !pills) return;
+  const home = MOBILE_MQ.matches ? sheetHost : pills;
+  if (rail.parentElement === home) return;
+  if (home === pills) pills.prepend(rail); else home.append(rail);
+}
+
+function renderMobileCats() {
+  const host = document.getElementById("m-cats");
+  if (!host) return;
+  const group = RAIL_GROUPS.find((g) => g.key === "department");
+  const rows = group ? railVisibleRows(group) : [];
+  const picked = group ? railSelected(group) : new Set();
+  const roles = state.starred_only ? "" : state.roles;
+  const opt = (attrs, on, text) => `<button type="button" class="m-opt${on ? " on" : ""}" ${attrs} aria-pressed="${on}">${text}</button>`;
+  host.innerHTML = [
+    opt('data-view="tech"', roles === "tech", "Tech roles"),
+    opt('data-view="all"', roles === "all", "All roles"),
+    ...rows.map((r) => opt(`data-cat="${escapeHtml(r.value)}"`, picked.has(r.value),
+      `${escapeHtml(railLabel(group, r))}${r.n == null ? "" : ` <span class="m-opt-n">${fmtInt(r.n)}</span>`}`)),
+  ].join("");
+}
+
+function wireMobileSheet() {
+  const sheet = document.getElementById("m-sheet");
+  const scrim = document.getElementById("m-sheet-scrim");
+  const btn = document.getElementById("m-filters");
+  if (!sheet || !scrim || !btn) return;
+  const setOpen = (on) => {
+    sheet.hidden = !on;
+    scrim.hidden = !on;
+    document.body.classList.toggle("m-sheet-open", on);
+    btn.setAttribute("aria-expanded", String(on));
+    if (on) { renderMobileCats(); sheet.querySelector(".m-sheet-close")?.focus({ preventScroll: true }); }
+    else btn.focus({ preventScroll: true });
+  };
+  btn.addEventListener("click", () => setOpen(sheet.hidden));
+  scrim.addEventListener("click", () => setOpen(false));
+  document.getElementById("m-sheet-close").addEventListener("click", () => setOpen(false));
+  document.getElementById("m-show").addEventListener("click", () => setOpen(false));
+  document.getElementById("m-sheet-reset").addEventListener("click", () => { document.getElementById("f-reset")?.click(); renderMobileCats(); });
+  document.getElementById("m-cats").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-view], [data-cat]");
+    if (!b) return;
+    if (b.dataset.view) setView(b.dataset.view);
+    else railToggle("department", b.dataset.cat, !b.classList.contains("on"));
+    renderMobileCats();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !sheet.hidden) setOpen(false); });
+  // The sort: the list's own choices, mirrored both ways.
+  const src = document.getElementById("f-sort"), mirror = document.getElementById("m-sort");
+  if (src && mirror) {
+    mirror.innerHTML = src.innerHTML;
+    mirror.querySelector('option[value=""]')?.remove(); // the placeholder; the pill always names an order
+    mirror.value = src.value || "age:asc";
+    mirror.addEventListener("change", () => { src.value = mirror.value; src.dispatchEvent(new Event("change", { bubbles: true })); });
+    src.addEventListener("change", () => { mirror.value = src.value; });
+  }
+  // The count, in the bar and on the Show button, follows the list's.
+  const count = document.getElementById("result-count");
+  const paintCount = () => {
+    if (src && mirror) mirror.value = src.value || "age:asc"; // the list's order, after each load
+    const text = count.textContent.trim();
+    const n = (text.match(/^[\d,]+/) || [""])[0];
+    const m = document.getElementById("m-count"), show = document.getElementById("m-show");
+    if (m) m.textContent = !text ? "" : n ? `${n} roles` : text;
+    if (show) show.textContent = n ? `Show ${n} roles` : "Show roles";
+  };
+  if (count) { new MutationObserver(paintCount).observe(count, { childList: true, subtree: true, characterData: true }); paintCount(); }
+  // "Alert me for this search": the account page's alert form, with
+  // these filters already in it (see the prefill at the end of app.js).
+  document.getElementById("m-alert")?.addEventListener("click", () => {
+    try { sessionStorage.setItem("iljobs_alert_prefill", JSON.stringify(currentFilterParams())); } catch { /* the form opens empty */ }
+    location.href = "/account#alerts";
+  });
+  mobileRailHome();
+  MOBILE_MQ.addEventListener("change", () => { mobileRailHome(); if (!MOBILE_MQ.matches) setOpen(false); });
 }
 
 
@@ -5101,6 +5220,7 @@ function wireFilters() {
   renderFilterRail();
   wireFilterRail();
   wireActiveChips();
+  wireMobileSheet();
 
   document.getElementById("f-date-posted").addEventListener("change", (e) => {
     // "Any date" is the first option and carries no value: picking it
@@ -6076,13 +6196,23 @@ function renderAlertsList(alerts) {
     container.innerHTML = `<p class="alerts-empty">No alerts yet. Pick some filters below and create one.</p>`;
     return;
   }
+  // Two alerts with the same filters would mail the same listings
+  // twice; the later one is marked as a duplicate of the first.
+  const seen = new Map();
+  const dupOf = (a) => {
+    const key = JSON.stringify(Object.entries(a.filter || {}).filter(([, v]) => v !== "" && v != null).map(([k, v]) => [k, String(v).toLowerCase()]).sort());
+    if (seen.has(key)) return seen.get(key);
+    seen.set(key, describeAlertFilter(a.filter));
+    return null;
+  };
   container.innerHTML = alerts
+    .map((a) => ({ a, dup: dupOf(a) }))
     .map(
-      (a) => `
-      <div class="alert-row ${a.active ? "" : "paused"} ${a.alert_id === editingAlertId ? "editing" : ""}">
-        <button type="button" class="alert-summary" data-id="${a.alert_id}" title="Edit this alert">${escapeHtml(describeAlertFilter(a.filter))}</button>
+      ({ a, dup }) => `
+      <div class="alert-row ${a.active ? "" : "paused"} ${a.alert_id === editingAlertId ? "editing" : ""}${dup ? " duplicate" : ""}">
+        <button type="button" class="alert-summary" data-id="${a.alert_id}" title="Edit this alert">${escapeHtml(describeAlertFilter(a.filter))}${dup ? `<span class="alert-dup">Duplicate of ${escapeHtml(dup)}</span>` : ""}</button>
         <span class="alert-actions">
-          <button class="alert-toggle" data-id="${a.alert_id}" data-active="${a.active}">${a.active ? "Pause" : "Resume"}</button>
+          <button class="alert-toggle" data-id="${a.alert_id}" data-active="${a.active}" role="switch" aria-checked="${a.active}" aria-label="${a.active ? "On" : "Off"}"><span class="alert-toggle-text">${a.active ? "Pause" : "Resume"}</span></button>
           <button class="alert-delete" data-id="${a.alert_id}" aria-label="Delete alert" title="Delete alert">✕</button>
         </span>
       </div>`
@@ -6784,3 +6914,18 @@ async function boot() {
 }
 
 boot();
+
+// The board's "Alert me for this search" (a phone) lands here with the
+// filters it was showing; they go into the form once its pickers exist.
+if (location.pathname.replace(/\/$/, "") === "/account") {
+  (function prefillAlert(tries) {
+    let raw = null;
+    try { raw = sessionStorage.getItem("iljobs_alert_prefill"); } catch { return; }
+    if (!raw) return;
+    const ready = document.getElementById("alert-f-search") && typeof alertMsDepartment !== "undefined" && alertMsDepartment;
+    if (!ready) { if (tries < 20) setTimeout(() => prefillAlert(tries + 1), 300); return; }
+    try { fillAlertForm(JSON.parse(raw)); } catch { /* an unreadable handoff is dropped */ }
+    try { sessionStorage.removeItem("iljobs_alert_prefill"); } catch { /* as above */ }
+    document.getElementById("alert-create")?.scrollIntoView({ block: "start" });
+  })(0);
+}

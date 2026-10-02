@@ -42,6 +42,8 @@
   }
 
   function tile(label, value, sub, sparkHtml, cls = "", delta = "") {
+    // A phone shows only the tiles with a number in them.
+    if (value === "0" || value === "–" || value === "" || value == null) cls += " acct-stat-empty";
     return `<div class="acct-stat ${cls}"><span class="acct-stat-label">${label}</span><span class="acct-stat-value">${value}${delta}</span><span class="acct-stat-sub">${sub}</span>${sparkHtml}</div>`;
   }
 
@@ -291,6 +293,19 @@
     paintPay(matches);
     paintDemand(matches, counts);
     paintFresh(computedAt);
+    // No matches: one card with the two ways out (style.css shows it on
+    // a phone, where four empty panels were the whole screen).
+    const none = !matches.length;
+    document.getElementById("overview")?.classList.toggle("acct-nomatch", none);
+    const card = document.getElementById("acct-getmatched");
+    if (card) {
+      card.hidden = !none;
+      const text = document.getElementById("acct-getmatched-text");
+      const n = (draft.skills || []).length;
+      if (text) text.textContent = n
+        ? `Your ${n} skill${n === 1 ? "" : "s"} don't match any open roles yet. Upload a newer CV or widen your locations to see matches and salary estimates.`
+        : "Add your skills from a CV, or widen your locations, to see matches and salary estimates.";
+    }
     // The best-matches list reads the same answer, so the page does not
     // ask the box for three rows it already has sixty of.
     window.dashMatches = { key: (draft.skills || []).join(","), jobs: matches };

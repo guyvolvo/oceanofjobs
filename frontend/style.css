@@ -7465,3 +7465,189 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .motion-paused .hero-ticker-track, .motion-paused .fp-track { animation-play-state: paused !important; }
 .motion-toggle { display: block; margin: 10px auto 0; padding: 4px 10px; border: 1px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 999px; background: none; color: var(--grey); font: 500 12px var(--font-ui); cursor: pointer; }
 .motion-toggle:hover, .motion-toggle:focus-visible { color: var(--black); border-color: var(--black); }
+
+/* The phone (October 2026). Up to 800px the app pages are built for a
+   thumb: a tab bar at the bottom in place of the sidebar, the drawer
+   and the hamburger; a full-width search; Filters, Sort and the count
+   on one row with the active filters as chips under it; rows edge to
+   edge; one filters sheet with every section; a listing as its own
+   screen with Apply fixed at the bottom. Everything here is for that
+   width; the desktop rules above stand unchanged, and the phone's own
+   elements are hidden there. */
+.m-bar, .m-chips, .m-sheet, .m-sheet-scrim, .m-alert, .m-logo, .tabbar, .acct-getmatched, .pane-back, .pane-share, .job-age-tail { display: none; }
+.job-chip-run { display: contents; }
+.alert-dup { display: block; margin-top: 2px; font: 400 12px var(--font-ui); color: var(--grey); }
+
+@media (max-width: 800px) {
+  /* Navigation: the tab bar, and nothing else. */
+  .site-side, #side-open, .side-scrim, .board-corner, .hero-nav-toggle, .hero-nav-panel { display: none !important; }
+  body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--grey-line); background: var(--white); }
+  .tabbar-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding-top: 8px; color: var(--grey); font: 400 11px var(--font-ui); text-decoration: none; min-height: 44px; }
+  .tabbar-item.on { color: var(--black); font-weight: 700; }
+  .tabbar-item.on svg { stroke-width: 2.2; }
+  input, select, textarea { font-size: 16px; }
+
+  /* The board's head: logo and search, then Filters, Sort and the count, then the chips. */
+  .board-shell { display: block; }
+  .board-main { padding: 10px 16px 0; gap: 10px; }
+  .board-head { display: flex; align-items: center; gap: 10px; }
+  .m-logo { display: block; flex: none; width: 28px; height: 28px; }
+  .m-logo img { display: block; }
+  .board-head .topbar-search { flex: 1 1 auto; width: auto; height: 44px; }
+  .m-bar { display: flex; align-items: center; gap: 8px; }
+  .m-filters { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1.5px solid var(--black); border-radius: 999px; background: none; color: var(--black); font: 700 13px var(--font-ui); }
+  .m-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--black); color: var(--white); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .m-badge[hidden] { display: none; }
+  .m-sort { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1.5px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 999px; color: var(--black); font: 700 13px var(--font-ui); }
+  .m-sort-label { font-weight: 400; color: var(--grey); }
+  .m-sort select { appearance: none; -webkit-appearance: none; height: 100%; padding: 0 16px 0 0; border: 0; background: none; color: inherit; font: inherit; }
+  .m-sort::after { content: ""; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+  .m-count { margin-left: auto; color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .m-chips { display: flex; gap: 6px; margin: 0 -16px; padding: 0 16px 2px; overflow-x: auto; scrollbar-width: none; }
+  .m-chips[hidden] { display: none; }
+  .m-chips::-webkit-scrollbar { display: none; }
+  .m-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 30px; padding: 0 10px; border: 0; border-radius: 4px; background: var(--hover-bg); color: var(--black); font: 700 12px var(--font-ui); white-space: nowrap; }
+  .m-chip-reset { flex: none; height: 30px; padding: 0 6px; border: 0; background: none; color: var(--red); font: 700 12px var(--font-ui); }
+  .board-pills, #active-chips { display: none; }
+
+  /* The list runs edge to edge, each row a grid of logo, text and star. */
+  .board-grid { margin: 0 -16px; grid-template-columns: minmax(0, 1fr); padding: 0; background: var(--white); border-top: 1px solid var(--grey-line); }
+  .board-grid .board-box, .board-list { margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .board-list .list-head { display: none; }
+  table.jobs thead { display: none; }
+  table.jobs, table.jobs tbody { display: block; width: 100%; }
+  table.jobs tbody tr[data-id], table.jobs tbody tr.skeleton-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) 28px; column-gap: 12px; height: auto; min-height: 0; padding: 14px 16px; border-bottom: 1px solid var(--grey-line); }
+  table.jobs tbody tr[data-id] > td { display: block; height: auto; padding: 0; border: 0; }
+  table.jobs .logo-cell { grid-column: 1; grid-row: 1; }
+  table.jobs .main-cell { grid-column: 2; grid-row: 1; min-width: 0; }
+  table.jobs .star-cell { grid-column: 3; grid-row: 1; display: flex !important; align-items: flex-start; justify-content: center; }
+  table.jobs .age-cell { display: none !important; }
+  .company-logo.listing { width: 40px; height: 40px; margin: 0; border-radius: 4px; }
+  .job-card-title { display: block; }
+  .job-title-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; font: 600 15px/1.3 var(--font-ui); }
+  .job-card-title .badge { margin-left: 4px; vertical-align: 2px; }
+  .job-meta { margin-top: 2px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .job-meta .meta-age { display: none; }
+  .job-where, .job-links, .job-salary-line { display: none !important; }
+  .job-chips { display: flex; align-items: center; gap: 8px; width: auto; max-width: 100%; min-width: 0; margin: 6px 0 0; white-space: nowrap; font-size: 12px; }
+  .job-chip-run { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  .job-chips .job-chip { flex: none; }
+  .job-chips .job-chip.skill { display: inline-flex !important; flex: none; }
+  table.jobs .main-cell { padding-right: 4px; }
+  .job-age-tail { display: block; flex: none; margin-left: auto; padding: 0 3px 0 8px; color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .star-btn { width: 28px; height: 28px; }
+
+  /* The alert button floats above the tab bar. */
+  .m-alert { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 35; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1.5px solid var(--black); border-radius: 999px; background: var(--white); color: var(--black); font: 700 13px var(--font-ui); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); transform: translateX(-50%); }
+  body.m-sheet-open .m-alert, body:has(.job-detail.open) .m-alert { display: none; }
+
+  /* The filters sheet. */
+  .m-sheet-scrim { position: fixed; inset: 0; z-index: 45; display: block; background: rgba(0, 0, 0, 0.58); }
+  .m-sheet-scrim[hidden] { display: none; }
+  .m-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 46; display: flex; flex-direction: column; height: min(90dvh, 760px); background: var(--white); border-top: 1px solid var(--panel-line); border-radius: 14px 14px 0 0; }
+  .m-sheet[hidden] { display: none; }
+  .m-sheet-grip { align-self: center; width: 36px; height: 4px; margin-top: 8px; border-radius: 2px; background: var(--panel-line); }
+  .m-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 10px 16px; border-bottom: 1px solid var(--grey-line); }
+  .m-sheet-title { font: 700 17px var(--font-ui); }
+  .m-sheet-tools { display: flex; align-items: center; gap: 4px; }
+  .m-sheet-reset { height: 36px; padding: 0 10px; border: 0; background: none; color: var(--red); font: 700 13px var(--font-ui); }
+  .m-sheet-close { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; background: none; color: var(--black); }
+  .m-sheet-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .m-sec, .m-sheet .rail-acc { padding: 14px 16px; border-bottom: 1px solid var(--grey-line); }
+  .m-sheet .rail-acc + .rail-acc { border-top: 0; }
+  .m-sheet .rail-acc[data-acc="category"] { display: none; }
+  .m-sec-title { margin: 0 0 10px; font: 700 14px var(--font-ui); color: var(--black); }
+  .m-sheet .rail-acc-head, .m-sheet .rail-acc.open .rail-acc-head { display: flex; width: 100%; height: auto; margin: 0 0 10px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--black); pointer-events: none; }
+  .m-sheet .rail-acc-icon, .m-sheet .rail-acc-chev { display: none; }
+  .m-sheet .rail-acc-text { display: flex; justify-content: space-between; align-items: baseline; width: 100%; }
+  .m-sheet .rail-acc-name { font: 700 14px var(--font-ui); }
+  .m-sheet .rail-acc-sum, .m-sheet .rail-acc.open .rail-acc-sum { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--grey); font: 400 12px var(--font-ui); }
+  .m-sheet .rail-acc-body, .m-sheet .rail-acc-body[hidden] { display: block !important; position: static; width: auto; max-height: none; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; }
+  .m-opts, .m-sheet .rail-body, .m-sheet .rail-group, .m-sheet .rail-country-row, .m-sheet .rail-cities { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .m-sheet .rail-title { width: 100%; margin: 4px 0 0; color: var(--grey); font: 700 12px var(--font-ui); text-transform: none; }
+  .m-sheet .rail-search, .m-sheet .rail-range, .m-sheet .rail-empty { flex-basis: 100%; }
+  .m-opt, .m-sheet .rail-option { display: inline-flex; align-items: center; gap: 6px; height: 40px; max-width: 100%; margin: 0; padding: 0 12px; border: 1.5px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 999px; background: none; color: var(--black); font: 700 13px var(--font-ui); white-space: nowrap; cursor: pointer; }
+  .m-opt.on, .m-sheet .rail-option.on { border-color: var(--green-text); color: var(--green-text); }
+  .m-opt-n, .m-sheet .rail-count { font-weight: 400; opacity: 0.75; }
+  .m-sheet .rail-box, .m-sheet .rail-option input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .m-sheet .rail-option-label { overflow: hidden; text-overflow: ellipsis; }
+  .m-sheet .rail-search, :root[data-theme="dark"] .m-sheet .rail-search { width: 100%; height: 40px; margin: 0 0 10px; padding: 0 12px 0 32px; border: 1.5px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 4px; background-color: transparent; background-repeat: no-repeat; background-position: 10px center; background-size: 14px 14px; color: var(--black); font-size: 16px; }
+  .m-sheet .rail-groups { display: block; padding: 0; }
+  .m-sheet .rail-acc-body, .m-sheet .rail-group, .m-sheet .rail-body, .m-sheet .rail-country { margin: 0; padding: 0; max-width: none; }
+  .m-sheet .rail-group, .m-sheet .rail-body { align-items: stretch; }
+  .m-sheet .rail-body { flex: 1 1 100%; width: 100%; }
+  .m-sheet .rail-country { flex: 1 1 100%; }
+  .m-sheet .rail-caret { order: 2; width: 32px; height: 40px; }
+  .m-sheet .rail-country { width: 100%; }
+  .m-sheet .rail-cities { margin: 0; padding: 8px 0 0 12px; }
+  .m-sheet .rail-cities::before { display: none; }
+  .m-sheet .rail-country-note { width: 100%; color: var(--grey); font: 400 12px var(--font-ui); }
+  .m-sheet .rail-more, .m-sheet .rail-caret { height: 40px; padding: 0 12px; border: 0; background: none; color: var(--green-text); font: 700 13px var(--font-ui); }
+  .m-sheet .rail-range { margin: 6px 0 12px; }
+  .m-sheet-foot { flex: none; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--grey-line); }
+  .m-show { width: 100%; height: 48px; border: 0; border-radius: 4px; background: var(--black); color: var(--white); font: 700 15px var(--font-ui); }
+
+  /* A listing is its own screen. */
+  .job-detail { position: fixed; inset: 0; width: 100%; max-height: none; z-index: 50; border: 0; padding: 0; transform: translateY(100%); transition: transform 0.25s ease; }
+  .job-detail.open { transform: none; }
+  .job-detail:not(.open) { visibility: hidden; }
+  .board-grid:has(.job-detail.open) { grid-template-columns: minmax(0, 1fr); }
+  body:has(.job-detail.open) .tabbar { display: none; }
+  .job-detail .pane-head { display: flex !important; grid-template-columns: none; flex-wrap: nowrap; align-items: center; justify-content: space-between; height: 52px; min-height: 52px; padding: 0 6px; border-bottom: 1px solid var(--grey-line); }
+  .job-detail .pane-nav { order: 2; flex: 1; justify-content: center; }
+  .job-detail .pane-step { display: none; }
+  .job-detail .pane-pos { color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; }
+  .job-detail .pane-close { order: 1; display: inline-flex !important; margin: 0; align-items: center; width: auto; height: 44px; padding: 0 10px; border: 0; border-radius: 0; background: none; color: var(--black); font: 700 15px var(--font-ui); }
+  .pane-close-x { display: none; }
+  .pane-back { display: inline; }
+  .pane-share { order: 3; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: none; color: var(--black); }
+  .job-detail .pane-body { padding: 18px 16px calc(96px + env(safe-area-inset-bottom)); }
+  .job-detail-title { margin: 14px 0 0; font: 400 26px/1.15 var(--font-display); }
+  .job-detail-actions { display: none; }
+  .job-detail-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; margin-top: 14px; padding: 0; border: 0; border-top: 1px solid var(--grey-line); border-radius: 0; background: none; overflow: visible; }
+  .job-detail-facts .fact { flex-direction: column-reverse; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--grey-line); background: none; }
+  .job-detail-facts .fact-label { color: var(--grey); font-size: 12px; }
+  .job-detail-facts .fact-value { font-size: 14px; }
+  .job-detail .pane-sticky, .job-detail .pane-sticky[hidden] { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; display: flex; gap: 10px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--grey-line); background: var(--white); }
+  .pane-sticky [data-copy-permalink] { display: none; }
+  .pane-sticky .pane-act { width: 48px; height: 48px; border: 1.5px solid var(--black); border-radius: 4px; }
+  .pane-sticky .pane-apply { height: 48px; font-size: 15px; }
+
+  /* The account page. */
+  .acct-hero-actions { display: none; }
+  .acct-hero-title { font-size: 22px; }
+  .acct-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .acct-stat-empty { display: none; }
+  .acct-stat { border-right: 1px solid var(--grey-line) !important; border-bottom: 1px solid var(--grey-line); }
+  .acct-stat:nth-child(2n) { border-right: 0 !important; }
+  .acct-getmatched { display: block; margin-top: 14px; padding: 14px; border: 1px solid var(--panel-line); border-radius: 10px; }
+  .acct-getmatched[hidden] { display: none; }
+  .acct-getmatched-title { margin: 0; font: 700 15px var(--font-ui); }
+  .acct-getmatched-text { margin: 4px 0 0; color: var(--grey); font: 400 13px/1.4 var(--font-ui); }
+  .acct-getmatched-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .acct-getmatched-actions .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; }
+  #overview.acct-nomatch .acct-dash-row { display: none; }
+  .account-nav.acct-tabs { flex-wrap: nowrap; gap: 20px; overflow-x: auto; scrollbar-width: none; }
+  body.has-tabbar .topbar .theme-toggle { display: inline-flex !important; }
+  .acct-tabs .account-nav-link { white-space: nowrap; }
+  .alert-row { align-items: center; }
+  .alert-toggle { position: relative; flex: none; width: 36px; height: 20px; padding: 0; border: 1.5px solid var(--grey); border-radius: 999px; background: none; }
+  .alert-toggle-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .alert-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--grey); }
+  .alert-toggle[data-active="true"] { border-color: var(--green); background: var(--green); }
+  .alert-toggle[data-active="true"]::after { left: auto; right: 2px; background: var(--white); }
+
+  /* The contact page: the heading first, the form, then the direct links. */
+  .contact-shell { display: flex; flex-direction: column; gap: 20px; padding: 20px 16px; }
+  .contact-intro { display: contents; }
+  .contact-claim { order: 1; }
+  .contact-panel { order: 2; }
+  .contact-direct { order: 3; }
+  .contact-claim h1 { font-size: 34px; }
+  .contact-topic-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .contact-topic { height: 40px; justify-content: center; }
+  .contact-pair { grid-template-columns: 1fr; }
+  .contact-field input { height: 48px; }
+  .contact-send { width: 100%; height: 48px; }
+}
