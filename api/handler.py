@@ -23,6 +23,7 @@ import math
 import os
 import re
 from pathlib import Path
+import threading
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -262,29 +263,71 @@ def _job_page_sidebar(conn, job) -> dict:
                 if _has_company_name(conn) else "NULL AS company_name")
     logo_sel = ("(SELECT logo_url FROM companies WHERE domain = jobs.company_domain) AS logo_url"
                 if _has_company_column(conn, "logo_url") else "NULL AS logo_url")
-    out = {"company_open": 0, "company_jobs": [], "similar": [], "company_category": None}
+    out = {"company_open": 0, "company_jobs": [], "similar": [], "company_category": job.get("category")}
     try:
-        out["company_open"] = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)).fetchone()[0]
-        out["company_jobs"] = [dict(r) for r in conn.execute(
-            f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE company_domain = ? AND closed_at IS NULL AND id != ? "
-            "ORDER BY first_seen DESC LIMIT 3", (domain, job["id"])).fetchall()]
-        out["company_category"] = job.get("category")
+        # Per company: the open count and its four newest rows, so the
+        # current listing can be left out and three remain.
+        def company_part():
+            n = conn.execute(
+                "SELECT COUNT(*) FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)).fetchone()[0]
+            rows = [dict(r) for r in conn.execute(
+                f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE company_domain = ? AND closed_at IS NULL "
+                "ORDER BY first_seen DESC LIMIT 4", (domain,)).fetchall()]
+            return n, rows
+        n, rows = _sidebar_cached(("company", domain), company_part)
+        out["company_open"] = n
+        out["company_jobs"] = [r for r in rows if r["id"] != job["id"]][:3]
+
         category = job.get("category")
         country = (job.get("country") or "").split(",")[0]
         caps = has_fts_index(conn)
         if category and country and caps.category_col and caps.board_indexes:
-            since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat(timespec="seconds")
-            out["similar"] = [dict(r) for r in conn.execute(
-                f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE id IN ("
-                "  SELECT id FROM jobs INDEXED BY idx_jobs_open_category WHERE closed_at IS NULL AND category = ? "
-                "  AND role_class IS ? AND posted_at >= ? ORDER BY posted_at DESC LIMIT 300) "
-                "AND company_domain != ? AND (',' || COALESCE(country, '') || ',') LIKE ? "
-                "ORDER BY posted_at DESC LIMIT 3",
-                (category, job.get("role_class"), since, domain, f"%,{country},%")).fetchall()]
+            role = job.get("role_class")
+
+            # Per category, role verdict and country: the newest dozen,
+            # from which this company's own are left out per page. A
+            # crawler walks thousands of listings that share a few dozen
+            # of these, and each miss reads up to 300 rows from disk.
+            def similar_part():
+                since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat(timespec="seconds")
+                return [dict(r) for r in conn.execute(
+                    f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE id IN ("
+                    "  SELECT id FROM jobs INDEXED BY idx_jobs_open_category WHERE closed_at IS NULL AND category = ? "
+                    "  AND role_class IS ? AND posted_at >= ? ORDER BY posted_at DESC LIMIT 300) "
+                    "AND (',' || COALESCE(country, '') || ',') LIKE ? "
+                    "ORDER BY posted_at DESC LIMIT 12",
+                    (category, role, since, f"%,{country},%")).fetchall()]
+            pool = _sidebar_cached(("similar", category, role, country), similar_part)
+            out["similar"] = [r for r in pool if r["company_domain"] != domain][:3]
     except Exception as e:  # noqa: BLE001 - the sidebar is a nicety; the page is not
         print(f"job page sidebar: {e!r}")
     return out
+
+
+# The job page sidebar's queries, kept per worker for ten minutes. Since
+# the redesign, a crawler walking the sitemap has asked for 70 to 95
+# listing pages a minute, every one a miss at the edge because each URL
+# is different, and their sidebar reads were competing with the applier
+# for the disk (2026-10-02). The pages share their companies and their
+# category, role and country far more than they share URLs.
+_SIDEBAR_CACHE: dict = {}
+_SIDEBAR_TTL_S = 600
+_SIDEBAR_MAX = 5000
+_sidebar_lock = threading.Lock()
+
+
+def _sidebar_cached(key, compute):
+    now = time.monotonic()
+    with _sidebar_lock:
+        hit = _SIDEBAR_CACHE.get(key)
+        if hit and now - hit[0] < _SIDEBAR_TTL_S:
+            return hit[1]
+    value = compute()
+    with _sidebar_lock:
+        if len(_SIDEBAR_CACHE) >= _SIDEBAR_MAX:
+            _SIDEBAR_CACHE.clear()
+        _SIDEBAR_CACHE[key] = (now, value)
+    return value
 
 
 def lambda_handler(event, context):
