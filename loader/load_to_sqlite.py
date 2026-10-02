@@ -331,9 +331,14 @@ def _fts_supports_rowid_delete(conn: sqlite3.Connection) -> bool:
     # contentless table too, so probing reports support that isn't there
     # and only fails once a row genuinely needs removing, which is the
     # worst possible moment to find out.
+    # In whichever schema holds the index: main, or the attached search
+    # file on the box (job_filters.attach_fts). Read from main alone after
+    # the split, this answered False, index_description skipped the delete
+    # and inserted a rowid that was already there.
     try:
+        from job_filters import fts_schema
         row = conn.execute(
-            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'jobs_fts'"
+            f"SELECT sql FROM {fts_schema(conn)}.sqlite_master WHERE type = 'table' AND name = 'jobs_fts'"
         ).fetchone()
     except sqlite3.Error:
         return False
@@ -2082,6 +2087,13 @@ def main() -> int:
         demoted: list[str] = []
         opened = time.monotonic()
         conn = open_db(args.out)
+        if args.box:
+            # The search index in its own file beside jobs.db, read-write,
+            # so index_description and the archive reach it as `jobs_fts`
+            # (box/STAGE2-FTS.md). Absent before the split: nothing to do.
+            from job_filters import attach_fts
+            if attach_fts(conn, args.out, readonly=False):
+                print("search index: attached jobs-fts.db", file=sys.stderr)
         print(f"step start+imports: {opened - _STARTED:.0f}s, open: {time.monotonic() - opened:.0f}s", file=sys.stderr)
         # Where a run's time goes, one line per step that took a second or
         # more. A box run was 830 to 880 seconds with nothing in its log
@@ -2170,7 +2182,13 @@ def main() -> int:
         lap("commit")
         known_out = args.known_out or args.out.with_name("known.json")
         n_known = None if args.skip_known else export_known(conn, known_out)
-        if not args.skip_vacuum or _mostly_free_pages(conn):
+        # Never on the box. A VACUUM of the live file there is minutes of
+        # disk with the API running, and since the search index moved to
+        # its own file it is also the one event that may renumber jobs'
+        # implicit rowids and silently break search (job_filters, the
+        # fts_rowid_epoch invariant). The box compacts deliberately, with
+        # the epoch bumped and the index rebuilt.
+        if not args.box and (not args.skip_vacuum or _mostly_free_pages(conn)):
             conn.execute("VACUUM")
         lap("known+vacuum")
         conn.close()

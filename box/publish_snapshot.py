@@ -82,11 +82,19 @@ def _publish() -> int:
     # also marks the file, so a loader that opens it does not helpfully
     # recreate the table from db/schema.sql (see its own comment, and
     # the outage that made it necessary).
+    # Since the search index moved to its own file the copy has none,
+    # and VACUUM INTO already wrote it compact, so there is nothing to
+    # drop and no second VACUUM to pay for. VACUUM INTO writes a new
+    # file, so the live jobs.db and its rowids are untouched either way.
     lean = sqlite3.connect(OUT, timeout=60)
     try:
-        freed = retire_fts(lean)
-        lean.commit()
-        lean.execute("VACUUM")
+        has_index = lean.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'jobs_fts'").fetchone()
+        freed = 0
+        if has_index:
+            freed = retire_fts(lean)
+            lean.commit()
+            lean.execute("VACUUM")
     finally:
         lean.close()
     vacuum_s = time.monotonic() - started

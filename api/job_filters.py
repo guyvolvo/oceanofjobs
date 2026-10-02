@@ -291,22 +291,86 @@ def has_fts_index(conn) -> SnapshotCaps:
     return caps
 
 
+# The search index in its own file (box/split_fts.py, box/STAGE2-FTS.md).
+#
+# The invariant: jobs-fts.db is derived from jobs.db. Its rowids are
+# jobs.rowid values, which belong to one generation of the main file, and
+# that generation is named by meta.fts_rowid_epoch, stamped in both files
+# when the index is built. So:
+#   - epochs equal: search uses the index;
+#   - epochs differ, or the file is missing: search falls back to the LIKE
+#     path. Degraded search, never wrong search;
+#   - anything that may change main's rowids (VACUUM, a restore from a
+#     different generation) must bump main's epoch, which turns the index
+#     off, then rebuild jobs-fts.db against the new rowids, stamp the new
+#     epoch in it, and only then swap it in. Bumping alone invalidates the
+#     old index; it does not repair it.
+FTS_FILE = "jobs-fts.db"
+
+
+def fts_file_for(main_path) -> "Path":
+    from pathlib import Path
+    return Path(main_path).with_name(FTS_FILE)
+
+
+def attach_fts(conn, main_path, readonly: bool = True) -> bool:
+    """Attach jobs-fts.db, beside the main file, as schema `fts`.
+
+    Only when the file exists and main has no jobs_fts of its own: name
+    resolution checks main before attached schemas, so a table in main
+    would win and the attached one would never be read. Every query keeps
+    saying `jobs_fts` unqualified and finds it here. A read-only attach
+    needs the connection opened with uri=True."""
+    path = fts_file_for(main_path)
+    if not path.exists():
+        return False
+    if conn.execute("SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = 'jobs_fts'").fetchone():
+        return False
+    target = f"file:{path.as_posix()}?mode=ro" if readonly else str(path)
+    conn.execute("ATTACH DATABASE ? AS fts", (target,))
+    return True
+
+
+def fts_schema(conn) -> str:
+    """Which schema holds jobs_fts: "main", or "fts" when split out."""
+    if conn.execute("SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = 'jobs_fts'").fetchone():
+        return "main"
+    attached = conn.execute("SELECT 1 FROM pragma_database_list WHERE name = 'fts'").fetchone()
+    return "fts" if attached else "main"
+
+
 def _read_caps(conn) -> SnapshotCaps:
     # One statement, not four: test_scoped_stats budgets the schema
     # probes per request, and this is the probe the FTS check always
     # was, just answering more questions. The index's own CREATE text
     # says which columns it carries.
     try:
-        fts_sql, category, fts_complete, posted_at_utc, board_indexes, salary_ils = conn.execute(
-            "SELECT (SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'jobs_fts'),"
+        fts_sql, category, fts_complete, posted_at_utc, board_indexes, salary_ils, split = conn.execute(
+            "SELECT (SELECT sql FROM main.sqlite_master WHERE type = 'table' AND name = 'jobs_fts'),"
             " (SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'category'),"
-            " (SELECT value FROM meta WHERE key = 'fts_complete'),"
-            " (SELECT value FROM meta WHERE key = 'posted_at_utc'),"
-            " (SELECT value FROM meta WHERE key = 'board_indexes'),"
-            " (SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'salary_min_ils')"
+            " (SELECT value FROM main.meta WHERE key = 'fts_complete'),"
+            " (SELECT value FROM main.meta WHERE key = 'posted_at_utc'),"
+            " (SELECT value FROM main.meta WHERE key = 'board_indexes'),"
+            " (SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'salary_min_ils'),"
+            " (SELECT COUNT(*) FROM pragma_database_list WHERE name = 'fts')"
         ).fetchone()
     except Exception:
         return SnapshotCaps()
+    if not fts_sql and split:
+        # The split layout. The index counts only when it is complete and
+        # built for this generation of main (see the invariant above).
+        try:
+            fts_sql, fts_complete, fts_epoch, main_epoch = conn.execute(
+                "SELECT (SELECT sql FROM fts.sqlite_master WHERE type = 'table' AND name = 'jobs_fts'),"
+                " (SELECT value FROM fts.meta WHERE key = 'fts_complete'),"
+                " (SELECT value FROM fts.meta WHERE key = 'fts_rowid_epoch'),"
+                " (SELECT value FROM main.meta WHERE key = 'fts_rowid_epoch')"
+            ).fetchone()
+        except Exception:
+            fts_sql = None
+        else:
+            if not fts_epoch or fts_epoch != main_epoch:
+                fts_complete = None
     complete = bool(fts_sql) and fts_complete == "1"
     return SnapshotCaps(
         fts=complete,
