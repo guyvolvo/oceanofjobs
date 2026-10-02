@@ -67,12 +67,13 @@ PREFIX = os.environ.get("PRECOMPUTED_PREFIX", "precomputed/")
 # an apply. The argument above still holds at thirty: a dropdown count
 # and a 14-day trend do not know the difference, and it halves the
 # cost.
-# An hour. It was thirty minutes, and each run is six to nine minutes of
-# reading the whole table on a box whose disk the applier also needs
-# (2026-10-01: the publisher and the applier together held the disk
-# busy most of the day). Stats an hour old are not a thing a reader
-# notices; a board that answers in a second is.
-MAX_AGE_S = 3600
+# Three hours. It was thirty minutes, then an hour, and each run reads
+# the whole table about fifty times on a box whose disk the applier also
+# needs: six to nine minutes on a good day, 22 to 65 on a cold page
+# cache (2026-10-02), with the fragment backlog growing the whole time.
+# Stats three hours old are not a thing a reader notices; listings an
+# hour late are.
+MAX_AGE_S = 3 * 3600
 
 
 def record_company_day(db_path: Path) -> bool:
@@ -157,13 +158,16 @@ def build(db_path: Path, pause=None) -> dict[str, dict]:
     register_functions(conn)
     try:
         stats = compute_stats(conn, {})
+        pause()
         # The one field israel_only changes. Computed from the same
         # connection rather than a second pass over the whole route.
         stats["top_locations_israel"] = compute_stats(
             conn, {"israel_only": "1"})["top_locations"]
+        pause()
         # For the landing page's row of logos. Only here, not in compute_stats: the page
         # reads the static file, and the live /api/stats has no use for it.
         stats["top_companies_logos"] = top_companies_with_logos(conn)
+        pause()
         # Keyed by confidence, because that is the one filter the page
         # always sends and never leaves empty. The board defaults to
         # "all" (verified plus best-effort, shown with a badge), while
@@ -194,6 +198,7 @@ def build(db_path: Path, pause=None) -> dict[str, dict]:
             facets[f"{c}:tech:IL"] = compute_facets(conn, {"confidence": c, "roles": "tech", "country": "IL"})
             pause()
         stats["scoped_tech"] = compute_scoped_stats(conn, {"confidence": "all", "roles": "tech"})
+        pause()
         # The board's common first clicks, so they answer from the artifact
         # instead of scanning the table live: measured 2026-09-27, a cold
         # scoped block took 57 to 64 seconds on the box (4.5GB database,
