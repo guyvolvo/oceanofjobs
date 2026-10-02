@@ -17,6 +17,7 @@ genuinely needed one -- see PRODUCT.md.
 """
 
 import json
+from collections import Counter
 import traceback
 import math
 import os
@@ -177,14 +178,15 @@ def route_company_page(domain: str):
         "SELECT first_seen FROM jobs WHERE company_domain = ? AND first_seen >= ?",
         (domain, (now - timedelta(days=35)).isoformat())).fetchall()]
     week_ago, two_weeks = (now - timedelta(days=7)).isoformat(), (now - timedelta(days=14)).isoformat()
-    cat_row = conn.execute(
-        f"SELECT {category_sql(conn)} AS c, COUNT(*) n FROM jobs WHERE company_domain = ? AND closed_at IS NULL "
-        "GROUP BY c ORDER BY n DESC LIMIT 1", (domain,)).fetchone()
+    # The most common category among the open rows already fetched: a
+    # GROUP BY over the company's rows would read each one from the
+    # table (Domino's has 26,000), for a line under the name.
+    cats = Counter(j.get("category") for j in jobs if j.get("category"))
     facts = {"total": total or 0, "since": (since or company.get("first_seen") or "")[:10], "last_open": last_open,
              "closed": closed or 0, "new_7d": sum(1 for t in recent if t and t >= week_ago),
              "new_prev_7d": sum(1 for t in recent if t and two_weeks <= t < week_ago),
              "weeks": company_page.week_buckets(recent, now),
-             "category": cat_row["c"] if cat_row and cat_row["c"] else None}
+             "category": cats.most_common(1)[0][0] if cats else None}
     extra = None if jobs else {"X-Robots-Tag": "noindex"}
     # Same ten minutes at the edge as a listing's page: the page changes
     # as roles open and close, and the sitemap carries the lastmod.
@@ -220,7 +222,7 @@ def route_job_page(job_id: str):
                {category_sql(conn)} AS category, seniority, workplace_type,
                {_apply_url_select(conn)}, posted_at, description, first_seen, last_seen, closed_at,
                salary_text, salary_is_estimate, {salary_source_select(conn)}, {place_select},
-               {company_name_select}, {logo_select}
+               {company_name_select}, {logo_select}, {"role_class" if has_role_class(conn) else "NULL AS role_class"}
         FROM jobs WHERE id = ?
         """,
         (job_id,),
@@ -243,8 +245,17 @@ def route_job_page(job_id: str):
 
 def _job_page_sidebar(conn, job) -> dict:
     """What the listing page shows beside the text: how many roles the
-    company has open and three of them, three roles like this one, and
-    the company's main category. Every query is an index walk."""
+    company has open and three of them, and three roles like this one.
+
+    Every query here is bounded, because a job page is served to
+    crawlers at any id, cached or not, while the applier may be writing.
+    The company count and its three newest rows are walks of the open
+    company index (first_seen is in it; posted_at is not). The similar
+    roles come from the newest 300 index entries of the same category
+    and role verdict in the last two weeks, then filtered by country and
+    company in Python-sized numbers: the unbounded form read every open
+    row of the category from the table (134,000 for Software
+    Engineering) and sorted them, 0.4s warm and seconds cold."""
     domain = job.get("company_domain") or ""
     pick = "id, title, company_domain, city, location, posted_at, first_seen"
     name_sel = ("(SELECT company_name FROM companies WHERE domain = jobs.company_domain) AS company_name"
@@ -257,19 +268,20 @@ def _job_page_sidebar(conn, job) -> dict:
             "SELECT COUNT(*) FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)).fetchone()[0]
         out["company_jobs"] = [dict(r) for r in conn.execute(
             f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE company_domain = ? AND closed_at IS NULL AND id != ? "
-            "ORDER BY posted_at IS NULL, posted_at DESC LIMIT 3", (domain, job["id"])).fetchall()]
-        cat = conn.execute(
-            f"SELECT {category_sql(conn)} AS c, COUNT(*) n FROM jobs WHERE company_domain = ? AND closed_at IS NULL "
-            "GROUP BY c ORDER BY n DESC LIMIT 1", (domain,)).fetchone()
-        out["company_category"] = cat["c"] if cat and cat["c"] else None
+            "ORDER BY first_seen DESC LIMIT 3", (domain, job["id"])).fetchall()]
+        out["company_category"] = job.get("category")
         category = job.get("category")
         country = (job.get("country") or "").split(",")[0]
-        if category and country:
+        caps = has_fts_index(conn)
+        if category and country and caps.category_col and caps.board_indexes:
+            since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat(timespec="seconds")
             out["similar"] = [dict(r) for r in conn.execute(
-                f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs "
-                f"WHERE closed_at IS NULL AND category = ? AND company_domain != ? "
-                f"AND (',' || COALESCE(country, '') || ',') LIKE ? ORDER BY posted_at DESC LIMIT 3",
-                (category, domain, f"%,{country},%")).fetchall()]
+                f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE id IN ("
+                "  SELECT id FROM jobs INDEXED BY idx_jobs_open_category WHERE closed_at IS NULL AND category = ? "
+                "  AND role_class IS ? AND posted_at >= ? ORDER BY posted_at DESC LIMIT 300) "
+                "AND company_domain != ? AND (',' || COALESCE(country, '') || ',') LIKE ? "
+                "ORDER BY posted_at DESC LIMIT 3",
+                (category, job.get("role_class"), since, domain, f"%,{country},%")).fetchall()]
     except Exception as e:  # noqa: BLE001 - the sidebar is a nicety; the page is not
         print(f"job page sidebar: {e!r}")
     return out
