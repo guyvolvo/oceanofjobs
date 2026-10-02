@@ -182,7 +182,7 @@ variable "contact_to_email" {
 variable "alerts_from_email" {
   type        = string
   description = "SES sender address for alert digests. Must be on a domain verified in alerts_ses.tf (DNS records added manually in Cloudflare, same pattern as acm.tf)."
-  default     = "alerts@guyvoloshin.com"
+  default     = "alerts@oceanofjobs.com"
 }
 
 variable "box_instance_id" {

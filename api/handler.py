@@ -1105,7 +1105,7 @@ def route_companies(params: dict) -> dict:
 # one click; the mail itself comes from the alerts sender, the one
 # address SES is verified for.
 CONTACT_TO = os.environ.get("CONTACT_TO", "guyvoloshin@gmail.com")
-CONTACT_FROM = os.environ.get("ALERTS_FROM_EMAIL", "alerts@guyvoloshin.com")
+CONTACT_FROM = os.environ.get("ALERTS_FROM_EMAIL", "alerts@oceanofjobs.com")
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[a-z]{2,}$", re.I)
 _ses_client = None
 

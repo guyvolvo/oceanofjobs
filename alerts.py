@@ -33,7 +33,7 @@ import unsubscribe_token as _unsub
 from profile import DIGEST_DAY, DIGEST_TIME, DIGEST_TZ, PROFILE_ID
 
 ALERTS_TABLE = os.environ.get("ALERTS_TABLE")
-FROM_EMAIL = os.environ.get("ALERTS_FROM_EMAIL", "alerts@guyvoloshin.com")
+FROM_EMAIL = os.environ.get("ALERTS_FROM_EMAIL", "alerts@oceanofjobs.com")
 SITE_ORIGIN = os.environ.get("SITE_ORIGIN", "https://oceanofjobs.com")
 
 _dynamodb = boto3.resource("dynamodb")
