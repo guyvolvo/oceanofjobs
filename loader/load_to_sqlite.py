@@ -20,6 +20,10 @@ Usage:
 Dependencies: none beyond stdlib for local use. boto3 only if --bucket is given.
 """
 
+import time as _time
+
+_STARTED = _time.monotonic()  # before the imports: their cost is part of every apply
+
 import argparse
 import hashlib
 import json
@@ -2058,7 +2062,9 @@ def main() -> int:
             print(f"pulled existing jobs.db from s3://{args.bucket}/{args.key}: {existed}", file=sys.stderr)
 
         demoted: list[str] = []
+        opened = time.monotonic()
         conn = open_db(args.out)
+        print(f"step start+imports: {opened - _STARTED:.0f}s, open: {time.monotonic() - opened:.0f}s", file=sys.stderr)
         # Where a run's time goes, one line per step that took a second or
         # more. A box run was 830 to 880 seconds with nothing in its log
         # to say why (2026-10-01).

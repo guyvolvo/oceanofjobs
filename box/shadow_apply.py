@@ -278,7 +278,9 @@ def _apply() -> int:
         # refuses --box with --bucket outright.
         cmd += ["--archive-bucket", BUCKET,
                 "--archive-closed-days", str(ARCHIVE_CLOSED_DAYS)]
+    loader_started = time.monotonic()
     load = subprocess.run(cmd, capture_output=True, text=True, timeout=1500)
+    loader_s = time.monotonic() - loader_started
     if load.stderr:
         print(load.stderr.strip())
     if load.returncode != 0:
@@ -303,7 +305,9 @@ def _apply() -> int:
     # (PRECOMPUTED_PREFIX, see precompute.py) so the Lambda's copies are
     # never touched while the two run side by side. Paced inside
     # publish: it looks at the artifact's age and leaves a fresh one.
+    alerts_started = time.monotonic()
     alerts = _run_alerts()
+    alerts_s = time.monotonic() - alerts_started
     # The artifacts the site reads are built by box/publish.py on its own
     # timer, not here. They are not part of applying deltas, and their
     # memory used to add to this process's: the sitemap build alone is
@@ -311,7 +315,8 @@ def _apply() -> int:
     # reached the cgroup limit and stopped applies finishing at all.
     print(f"applied {companies} companies from {len(take)} of {len(pending)} spooled fragments "
           f"({total / 1048576:.0f}MB): read {read_s:.1f}s, apply {apply_s:.1f}s, "
-          f"cleared {cleared}{alerts}, total {time.monotonic() - started:.1f}s")
+          f"cleared {cleared}{alerts}, total {time.monotonic() - started:.1f}s "
+          f"(loader {loader_s:.0f}s, alerts {alerts_s:.0f}s)")
     _write_status("idle", f"last apply: {companies} companies from {len(take)} fragments")
     return 0
 
