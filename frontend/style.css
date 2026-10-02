@@ -7614,10 +7614,12 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   /* The account page. */
   .acct-hero-actions { display: none; }
   .acct-hero-title { font-size: 22px; }
-  .acct-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  /* Two by two, the hairlines drawn by the gap so a hidden tile does not
+     throw the borders off; a lone tile takes the whole row. */
+  .acct-stats { grid-template-columns: 1fr 1fr; gap: 1px; background: var(--grey-line); }
+  .acct-stat { border: 0 !important; background: var(--white); }
   .acct-stat-empty { display: none; }
-  .acct-stat { border-right: 1px solid var(--grey-line) !important; border-bottom: 1px solid var(--grey-line); }
-  .acct-stat:nth-child(2n) { border-right: 0 !important; }
+  .acct-stats:not(:has(.acct-stat:not(.acct-stat-empty) ~ .acct-stat:not(.acct-stat-empty))) .acct-stat { grid-column: 1 / -1; }
   .acct-getmatched { display: block; margin-top: 14px; padding: 14px; border: 1px solid var(--panel-line); border-radius: 10px; }
   .acct-getmatched[hidden] { display: none; }
   .acct-getmatched-title { margin: 0; font: 700 15px var(--font-ui); }
