@@ -58,7 +58,7 @@ import time
 import boto3
 from boto3.s3.transfer import TransferConfig
 
-from job_filters import register_functions
+from job_filters import attach_fts, register_functions
 
 # A local snapshot to serve instead of one pulled from S3. Set on the
 # box, where the applier writes jobs.db in place and nothing downloads
@@ -186,6 +186,13 @@ def _open_readonly(path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     register_functions(conn)
+    # The search index, when it lives in its own file beside this one
+    # (job_filters.attach_fts). Lambda's downloaded snapshot has none, so
+    # there this is a no-op and search keeps its LIKE path.
+    try:
+        attach_fts(conn, path)
+    except sqlite3.Error as e:
+        print(f"couldn't attach the search index: {e!r}")
     # Interrupt a statement that runs past the request's deadline
     # (expensive.STATEMENT_DEADLINE_S): one runaway query must not hold
     # a gunicorn slot past CloudFront's 60s origin timeout. Checked every

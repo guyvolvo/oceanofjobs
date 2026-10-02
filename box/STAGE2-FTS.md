@@ -107,3 +107,70 @@ while the rollback path still matters.
 The trigger to do it sooner: `EBSIOBalance%` trending to zero under
 ordinary load, which would mean the applier cannot keep up, which is the
 failure that made the Lambda stack unusable in the first place.
+
+## 2026-10-03: built, and how it ships
+
+The problem above arrived. The file is 5.7GB (`jobs_fts` about 2.7GB of
+it, `jobs` carrying 1.4GB of in-page slack) on a 3.8GB box, and on
+2026-10-02 the applier fell behind for hours while precompute, the
+snapshot and a crawler took turns reading the disk. The split leaves
+about 1.2GB for the board, which stays in memory.
+
+### What changed in the code
+- `api/job_filters.py`: `attach_fts()` attaches `jobs-fts.db` beside the
+  main file as schema `fts` (only when main has no `jobs_fts` of its
+  own, which would shadow it). `_read_caps()` reads the index's CREATE
+  text and `fts_complete` from `fts.*` in that layout and compares the
+  epochs. Every query still says `jobs_fts` unqualified.
+- `api/db.py` and `alerts.py` attach on every connection; a missing file
+  is a no-op (Lambda's snapshot has none).
+- `loader/load_to_sqlite.py`: with `--box`, attaches read-write. The
+  rowid-delete probe reads whichever schema holds the index. No
+  automatic VACUUM on the box any more.
+- `box/publish_snapshot.py`: the lean snapshot is a plain `VACUUM INTO`
+  when main has no index.
+- `box/split_fts.py` builds the pair off-box and verifies it;
+  `box/swap_split.sh` swaps the box onto it, or back.
+- Tests: `tests/test_fts_split.py`.
+
+### The invariant
+`jobs-fts.db` is derived from `jobs.db`. Its rowids are `jobs.rowid`
+values of one generation of the main file, named by
+`meta.fts_rowid_epoch`, stamped in both files when the pair is built.
+
+- Epochs equal: search uses the index.
+- Epochs differ, or the file is missing: the index is off and search
+  takes the LIKE path. Degraded search, never wrong search.
+- Anything that may change main's rowids (VACUUM, a restore from a
+  different generation) must bump main's epoch, which turns the index
+  off; rebuild `jobs-fts.db` against the new rowids (`split_fts.py` from
+  a copy, or `loader/fts_full.py` into a fresh file); stamp the new
+  epoch in it; and only then swap it in. Bumping alone invalidates the
+  old index. It does not repair it.
+
+`jobs` has an implicit rowid, which SQLite may renumber on VACUUM, so
+`split_fts.py` hashes the rowid-to-id map before and after and stops on
+any difference.
+
+### Cutover (off-box; the box never copies or VACUUMs the big file)
+1. Worker: a temporary t4g.xlarge in il-central-1 with read access to
+   the bucket and write access to `split/`, reached through SSM.
+2. On the box: `systemctl stop otj-apply.timer otj-publish.timer
+   otj-snapshot.timer`; wait until none of the three services is active.
+   Fragments keep spooling; nothing is lost. Read the final state:
+   `sqlite3 jobs.db "SELECT COUNT(*), MAX(rowid) FROM jobs"`.
+3. Wait 60s for Litestream, then on the worker: `litestream restore` the
+   v5 replica, and `python box/split_fts.py --src restored.db --out-dir
+   split --expect "<rows>,<max_rowid>" --upload s3://<bucket>/split/`.
+4. On the box: `sudo bash box/swap_split.sh <generation>`. It checks both
+   files against the manifest, swaps them in, moves Litestream to the v6
+   paths for both files, checks a search through the API, and starts
+   the timers. API downtime is a restart.
+5. Rollback for 48 hours: `sudo bash box/swap_split.sh --rollback` puts
+   `jobs.db.pre-split` back. After 48 clean hours, delete it.
+
+### Recovery from now on
+A restore needs both files from one generation. The manifest under
+`s3://<bucket>/split/<generation>/` names them with their checksums. If
+only `jobs.db` can be restored, search falls back to LIKE until the
+index is rebuilt against it, as the invariant says.

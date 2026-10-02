@@ -28,7 +28,8 @@ from boto3.dynamodb.conditions import Attr
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from countries import label_for
-from job_filters import build_jobs_where, has_fts_index, has_places, register_functions, salary_source_select
+from job_filters import (attach_fts, build_jobs_where, has_fts_index, has_places, register_functions,
+                         salary_source_select)
 import unsubscribe_token as _unsub
 from profile import DIGEST_DAY, DIGEST_TIME, DIGEST_TZ, PROFILE_ID
 
@@ -56,6 +57,12 @@ def evaluate_alerts(jobs_db_path: Path) -> dict:
     conn = sqlite3.connect(f"file:{jobs_db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     register_functions(conn)
+    # The search index in its own file, as api/db.py attaches it, or
+    # keyword alerts quietly fall back to matching titles only.
+    try:
+        attach_fts(conn, jobs_db_path)
+    except sqlite3.Error as e:
+        print(f"alerts: couldn't attach the search index: {e!r}")
 
     profiles = _profiles(table, {a["user_id"] for a in alerts})
     now = datetime.now(timezone.utc)
