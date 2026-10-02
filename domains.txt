@@ -26570,3 +26570,15 @@ create.com
 detroitlabs.com
 courtclerk.org
 oneplan.ai
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+eoiv.com
+a-more-perfect-union.org
+breakaway.com
+carbon180.com
+controlant.com
+connected.com
+craver.ai
+ellaktor.com
+engender.net
+environment.com
