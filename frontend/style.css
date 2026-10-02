@@ -7475,6 +7475,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
    width; the desktop rules above stand unchanged, and the phone's own
    elements are hidden there. */
 .m-bar, .m-chips, .m-sheet, .m-sheet-scrim, .m-alert, .m-logo, .tabbar, .acct-getmatched, .pane-back, .pane-share, .job-age-tail { display: none; }
+.job-chip-run { display: contents; }
 .alert-dup { display: block; margin-top: 2px; font: 400 12px var(--font-ui); color: var(--grey); }
 
 @media (max-width: 800px) {
@@ -7529,11 +7530,12 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .job-meta { margin-top: 2px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .job-meta .meta-age { display: none; }
   .job-where, .job-links, .job-salary-line { display: none !important; }
-  .job-chips { position: relative; display: flex; align-items: center; gap: 8px; width: auto; max-width: 100%; min-width: 0; margin: 6px 0 0; padding-right: 72px; overflow: hidden; white-space: nowrap; font-size: 12px; }
+  .job-chips { display: flex; align-items: center; gap: 8px; width: auto; max-width: 100%; min-width: 0; margin: 6px 0 0; white-space: nowrap; font-size: 12px; }
+  .job-chip-run { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; overflow: hidden; }
   .job-chips .job-chip { flex: none; }
   .job-chips .job-chip.skill { display: inline-flex !important; flex: none; }
   table.jobs .main-cell { padding-right: 4px; }
-  .job-age-tail { display: block; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); padding-left: 24px; background: linear-gradient(90deg, transparent, var(--white) 22px); color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .job-age-tail { display: block; flex: none; margin-left: auto; padding-left: 8px; color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .star-btn { width: 28px; height: 28px; }
 
   /* The alert button floats above the tab bar. */

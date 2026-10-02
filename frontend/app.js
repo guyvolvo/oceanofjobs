@@ -2556,7 +2556,7 @@ function jobRowsHtml(jobs, starred) {
                Same trick the board used before this layout. -->
           <div class="job-meta"><span class="job-who">${jobWhoLine(j)}</span><span class="meta-age"> · <span class="meta-age-value ${fresh ? "fresh" : ""}">${fmtAgeAgo(age)}</span></span></div>
           <div class="job-where">${jobWhereLine(j)}</div>
-          <div class="job-chips">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}<span class="job-age-tail">${fmtAgeAgo(age)}</span></div>
+          <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail">${fmtAgeAgo(age)}</span></div>
           <div class="job-links">
             <a class="apply-link" href="${escapeHtml(j.url || "#")}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
             <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy link</button>
