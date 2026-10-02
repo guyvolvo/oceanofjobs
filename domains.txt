@@ -26518,3 +26518,6 @@ dean.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 enfinity-global.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+demo.com
