@@ -160,7 +160,6 @@
         <div class="hero-ticker to-right"><div class="hero-ticker-track" id="ticker-logos-a"></div></div>
         <div class="hero-ticker to-left"><div class="hero-ticker-track" id="ticker-logos-b"></div></div>
       </div>
-      <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false">Pause motion</button>
       <p class="sr-only" id="hero-stats-text">Loading board statistics.</p>
     </section>
 
@@ -505,13 +504,6 @@
     // nobody asked for is what the whole sample is here to save you.
     (function () {
       var live = document.getElementById("api-copy-live");
-      var motion = document.getElementById("motion-toggle");
-      if (motion) motion.addEventListener("click", function () {
-        var paused = !document.body.classList.contains("motion-paused");
-        document.body.classList.toggle("motion-paused", paused);
-        motion.setAttribute("aria-pressed", String(paused));
-        motion.textContent = paused ? "Resume motion" : "Pause motion";
-      });
       var btn = document.getElementById("api-copy");
       var cmd = document.querySelector(".hero-api-code .api-cmd");
       if (!btn || !cmd) return;

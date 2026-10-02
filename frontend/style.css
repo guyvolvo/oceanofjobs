@@ -7462,9 +7462,6 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .contact-topic:focus-within { outline: 2px solid var(--green); outline-offset: 2px; }
 .contact-error { margin: 6px 0 0; font: 13px var(--font-ui); color: var(--red); }
 .contact-error:empty { display: none; }
-.motion-paused .hero-ticker-track, .motion-paused .fp-track { animation-play-state: paused !important; }
-.motion-toggle { display: block; margin: 10px auto 0; padding: 4px 10px; border: 1px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 999px; background: none; color: var(--grey); font: 500 12px var(--font-ui); cursor: pointer; }
-.motion-toggle:hover, .motion-toggle:focus-visible { color: var(--black); border-color: var(--black); }
 
 /* The phone (October 2026). Up to 800px the app pages are built for a
    thumb: a tab bar at the bottom in place of the sidebar, the drawer
