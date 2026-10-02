@@ -6782,11 +6782,6 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
 .board-main:has(.job-detail.open) .board-head { grid-template-columns: minmax(0, 1fr) clamp(500px, 42vw, 760px); }
 .board-head .topbar-search { grid-column: 1; width: auto; min-width: 0; }
 .board-corner { grid-column: 2; display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
-/* The shortcut, said inside the box; gone once the box has focus or
-   text, and on a touch screen where there is no key to press. */
-.search-kbd { flex: none; padding: 0 6px; border: 1px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 5px; font: 500 11px var(--font-ui); line-height: 18px; color: var(--grey); }
-.topbar-search:focus-within .search-kbd, .topbar-search:has(input:not(:placeholder-shown)) .search-kbd { display: none; }
-@media (pointer: coarse) { .search-kbd { display: none; } }
 .side-open { display: none; }
 
 /* The filter rail becomes the pill row. Each accordion head is a pill
