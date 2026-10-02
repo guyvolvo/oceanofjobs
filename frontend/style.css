@@ -7472,6 +7472,16 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 
   /* The board's head: logo and search, then Filters, Sort and the count, then the chips. */
   .board-shell { display: block; }
+  /* The phone scrolls as a page, not inside the list panel. The desktop's
+     chain of fixed heights ends at the shell (a block, just above), so the
+     list grew to its content while the body stayed clipped at one
+     viewport, and on Android nothing moved. iOS ignores overflow: hidden
+     on the body, which is why it looked fine on an iPhone. */
+  body.board-page { height: auto; min-height: 100dvh; overflow: visible; display: block; }
+  .board-list { overflow: visible; }
+  /* The sheet and the open listing cover the page; the page holds still
+     underneath them. */
+  body.m-sheet-open, body:has(.job-detail.open) { overflow: hidden; }
   .board-main { padding: 10px 16px 0; gap: 10px; }
   .board-head { display: flex; align-items: center; gap: 10px; }
   .m-logo { display: block; flex: none; width: 28px; height: 28px; }

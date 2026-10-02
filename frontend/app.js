@@ -2508,6 +2508,7 @@ function revealSelectedRow() {
   const list = document.querySelector(".board-list");
   const row = selectedJobId === null ? null : document.querySelector(`tr[data-id="${selectedJobId}"]`);
   if (!list || !row) return;
+  if (matchMedia("(max-width: 800px)").matches) { row.scrollIntoView({ block: "nearest" }); return; }
   const head = list.querySelector(".list-head");
   const top = head ? head.getBoundingClientRect().height : 0;
   const lb = list.getBoundingClientRect();
@@ -2579,6 +2580,7 @@ function renderJobRows(jobs, starred) {
   // view, so the next page appended itself before they saw the first.
   const list = document.querySelector(".board-list");
   if (list) list.scrollTop = 0;
+  if (matchMedia("(max-width: 800px)").matches) window.scrollTo(0, 0);
 }
 
 // Rebinding every handler after an append is cheap and has no state to
@@ -3133,7 +3135,8 @@ function wireInfiniteList() {
   // come into view, rather than after the reader has hit the bottom.
   moreObserver = new IntersectionObserver(
     ([e]) => { if (e.isIntersecting && !wrap.hidden) loadMoreJobs(); },
-    { root: list, rootMargin: "600px 0px" },
+    // On a phone the page scrolls, not the list, so the viewport is the root.
+    { root: matchMedia("(max-width: 800px)").matches ? null : list, rootMargin: "600px 0px" },
   );
   moreObserver.observe(wrap);
 }
@@ -5103,7 +5106,7 @@ function wireMobileSheet() {
     location.href = "/account#alerts";
   });
   mobileRailHome();
-  MOBILE_MQ.addEventListener("change", () => { mobileRailHome(); if (!MOBILE_MQ.matches) setOpen(false); });
+  MOBILE_MQ.addEventListener("change", () => { mobileRailHome(); if (!MOBILE_MQ.matches) setOpen(false); wireInfiniteList(); });
 }
 
 
