@@ -5103,8 +5103,12 @@ function wireFilters() {
   wireActiveChips();
 
   document.getElementById("f-date-posted").addEventListener("change", (e) => {
-    if (!e.target.value) return; // the blank "Date posted" placeholder, not a real choice
-    state.max_age_days = e.target.value === "any" ? "" : e.target.value;
+    // "Any date" is the first option and carries no value: picking it
+    // after a window is a real choice, back to every date. (It used to
+    // be a placeholder that the handler ignored, so there was no way
+    // back once a window was picked.)
+    const v = e.target.value;
+    state.max_age_days = !v || v === "any" ? "" : v;
     state.offset = 0;
     loadJobs();
   });
