@@ -58,14 +58,45 @@ check("title names the job, the company and the city", "<title>Senior Software E
 check("canonical is the job's own page", '<link rel="canonical" href="https://oceanofjobs.com/job/b561172d4d0ff1d6" />' in p)
 check("no robots restriction on an open job", 'name="robots"' not in p)
 check("the visible page has the title, company, place and apply link",
-      all(s in p for s in ("<h1 class=\"job-page-title\">Senior Software Engineer</h1>", ">Wix<", "Tel Aviv, Israel",
-                           'href="https://boards.greenhouse.io/wix/jobs/4599111"')))
+      all(s in p for s in ('<h1 class="job-page-title pg-title">Senior Software Engineer</h1>', ">Wix<", "Tel Aviv, Israel",
+                           'href="https://boards.greenhouse.io/wix/jobs/4599111"')), p[p.find("<h1"):][:200])
+check("the apply button names the company and the ready box names the hiring system",
+      "Apply on Wix" in p and "You'll finish on Wix's own site, via Greenhouse." in p, p[p.find("Ready"):][:200])
+check("the meta line carries the place, the workplace and the posted date",
+      "Hybrid</span>" in p and "Posted Sep 17</span>" in p)
+check("facts with nothing to say are not rows: no dash values, the level is a row",
+      '<span class="pg-fact-v">-</span>' not in p and 'Level</span><span class="pg-fact-v">Senior' in p)
+check("no salary published, first seen and checked, in one line",
+      "No salary published · first seen Sep 17" in p, p[p.find("pg-seen"):][:160])
+check("the breadcrumb goes Jobs, category, company",
+      'href="/board?department=Software Engineering">Software Engineering</a> / <a href="/company/wix.com">Wix</a>' in p)
+check("the footer sits in the page's column", '<footer class="pg-foot">' in p)
+nl = job(description="Het Topklinisch Centrum voor Korsakov en alcoholgerelateerde cognitieve stoornissen van het Vincent van Gogh Instituut diagnosticeert en behandelt complexe stoornissen, waarbij de verslavingsproblematiek veelal therapieresistent is gebleken. Als gevolg van een beperkte voedselinname, vaak in combinatie met ernstig chronisch alcoholgebruik, kunnen er neurocognitieve stoornissen ontstaan.\n\nHeb jij interesse?\nReageer vóór 19 oktober 2026 via de website van Vincent van Gogh. Meer op https://www.korsakov.nl/stages/psychologie.", seniority="intern", posted_at="2026-09-16T10:00:00+00:00")
+d = job_page.render(nl, NOW)
+check("a closing date in the text becomes a tag with the days left, bold in the text, and validThrough",
+      "Closes Oct 19 · 31 days left" in d and "<b>Reageer vóór 19 oktober 2026</b>" in d
+      and ld_of(d)["validThrough"] == "2026-10-19T23:59:59" and 'Closes</span><span class="pg-fact-v">Oct 19, 2026' in d, d[d.find("pg-tags"):][:400])
+check("an internship says so, as the Type, and in the markup",
+      '>Internship</span>' in d and 'Type</span><span class="pg-fact-v">Internship' in d and ld_of(d)["employmentType"] == "INTERN")
+check("a Dutch listing says it is one", "Listing in Dutch" in d)
+check("a bare heading line becomes a heading, a link becomes its host with an arrow",
+      "<h2>Heb jij interesse?</h2>" in d and 'rel="nofollow noopener">korsakov.nl <span aria-hidden="true">↗</span></a>' in d, d[d.find("<h2>"):][:300])
+check("an English listing has no language tag and no closes tag", "Listing in" not in p and "Closes" not in p)
+t = job_page.render(job(title="Ambulant Begeleider Maastricht | regelmatige werktijden | 24-28 uur"), NOW)
+check("a title with separators is split: the first part, a grey subtitle, an hours tag",
+      '<h1 class="job-page-title pg-title">Ambulant Begeleider Maastricht <span class="pg-title-sub">regelmatige werktijden</span></h1>' in t
+      and ">24–28 uur</span>" in t and 'Hours</span><span class="pg-fact-v">24–28 uur' in t, t[t.find("<h1"):][:300])
+x = job_page.render(job(), NOW, extra={"company_open": 14, "company_category": "Software Engineering",
+                                       "company_jobs": [job(id="id02", title="Backend Engineer")], "similar": [job(id="id03", title="Platform Engineer", company_name="Monday")]})
+check("the sidebar lists more at the company and similar roles, each a link to its page",
+      "More at Wix" in x and 'href="/job/id02"' in x and "Similar roles" in x and 'href="/job/id03"' in x and "Alert me for roles like this" in x
+      and "Software Engineering · 14 open roles" in x)
 check("description became paragraphs and a list",
       "<p>Build things.</p><ul><li>Ship</li><li>Measure</li></ul><p>Be kind.</p>" in p, p[p.find("Description"):][:300])
 check("the board link keeps the old deep link working", 'href="/board?job=b561172d4d0ff1d6"' in p)
 h = job_page.render(job(description="Intro.\n\n## What You'll Do:\n- Ship\n\n### Who you are\nYou."), NOW)
 check("markdown headings left in the text become headings, without the trailing colon",
-      "<h3>What You'll Do</h3><ul><li>Ship</li></ul><h3>Who you are</h3><p>You.</p>" in h.replace("&#x27;", "'"), h[h.find("Intro"):][:200])
+      "<h2>What You'll Do</h2><ul><li>Ship</li></ul><h2>Who you are</h2><p>You.</p>" in h.replace("&#x27;", "'"), h[h.find("Intro"):][:200])
 ld = ld_of(p)
 check("JobPosting markup is present and parses", ld is not None and ld.get("@type") == "JobPosting", repr(ld)[:120])
 check("markup says the same title, org, date and url as the page",
@@ -125,7 +156,7 @@ r2 = job_page.json_ld(job(location="Cambridge, Massachusetts", country="US", cit
 r3 = job_page.json_ld(job(location="Tel Aviv-Yafo, Tel Aviv District, Israel", country="IL", city="Tel Aviv"))
 check("a spelled-out state or a non-US listing gets none",
       "addressRegion" not in r2["jobLocation"]["address"] and "addressRegion" not in r3["jobLocation"]["address"])
-check("validThrough is not invented", "validThrough" not in job_page.json_ld(job()))
+check("validThrough is not invented when the text names no date", "validThrough" not in job_page.json_ld(job()))
 old = job_page.render(job(salary_text="₪30K", salary_source=None, salary_is_estimate=1), NOW)
 check("the old boolean still reads as an estimate", ">Estimated salary<" in old)
 
