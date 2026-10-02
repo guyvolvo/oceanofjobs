@@ -26508,3 +26508,10 @@ savencia.de
 egypt.fr
 diebold.de
 enterprise-electrical.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+darwin-ai.ai
+dtid.org
+continuum.com
+elite.com
+dean.com
