@@ -292,6 +292,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
     # urls, not dates), so the rows it already wrote would have kept
     # sorting three hours ahead of the truth. Cheap on every run: the
     # query matches nothing once they are converted.
+    # A one-off repair, recorded as done: probe.py converts RedMatch's
+    # local times as it scrapes, so new rows never need it, and the query
+    # has no index to use. It scanned the whole table on every open, 40
+    # of every apply's seconds on the box (2026-10-02), to find nothing.
+    try:
+        done = conn.execute("SELECT 1 FROM meta WHERE key = 'redmatch_utc'").fetchone()
+    except sqlite3.Error:
+        done = None  # a file without a meta table yet
+    if done:
+        return
     bare = conn.execute(
         "SELECT id, posted_at FROM jobs WHERE ats = 'redmatch' AND posted_at IS NOT NULL"
         " AND posted_at NOT LIKE '%+%' AND posted_at NOT LIKE '%Z'"
@@ -302,6 +312,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
             conn.execute("UPDATE jobs SET posted_at = ? WHERE id = ?", (fixed, row["id"]))
     if bare:
         print(f"converted {len(bare)} bare RedMatch activation times to UTC", file=sys.stderr)
+    try:
+        conn.execute("INSERT INTO meta (key, value) VALUES ('redmatch_utc', '1')"
+                     " ON CONFLICT(key) DO UPDATE SET value = '1'")
+    except sqlite3.Error:
+        pass
 
 
 def _fts_supports_rowid_delete(conn: sqlite3.Connection) -> bool:
@@ -1258,7 +1273,7 @@ def _index_name(sql: str) -> str:
     return re.search(r"INDEX IF NOT EXISTS (\w+)", sql).group(1)
 
 
-def ensure_box_indexes(conn: sqlite3.Connection) -> None:
+def ensure_box_indexes(conn: sqlite3.Connection, optimize: bool = True) -> None:
     for sql in BOX_INDEXES:
         name = _index_name(sql)
         kept = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", (name,)).fetchone()
@@ -1281,8 +1296,11 @@ def ensure_box_indexes(conn: sqlite3.Connection) -> None:
         (BOX_INDEXES_VERSION,),
     )
     # Statistics for the planner. ANALYZE over the whole file is 20s;
-    # optimize re-analyzes only what changed enough to matter.
-    conn.execute("PRAGMA optimize")
+    # optimize re-analyzes only what changed enough to matter, but on the
+    # box that was still 26s of every apply (2026-10-02). The statistics
+    # barely move between applies, so the box runs it with the hourly sweep.
+    if optimize:
+        conn.execute("PRAGMA optimize")
 
 
 def normalize_posted_at(conn: sqlite3.Connection) -> int:
@@ -2097,7 +2115,7 @@ def main() -> int:
                 if n_dates:
                     print(f"posted_at normalized on {n_dates} rows", file=sys.stderr)
                 lap("categories+posted_at")
-                ensure_box_indexes(conn)
+                ensure_box_indexes(conn, optimize=sweep_due)
                 lap("indexes")
             if args.deep:
                 load_deep(conn, args.deep)

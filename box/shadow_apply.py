@@ -86,6 +86,13 @@ PRIMARY = os.environ.get("OTJ_PRIMARY") == "1"
 # of a closed job works inside 14 days. Paced to once a day inside
 # archive.py, not once per apply.
 ARCHIVE_CLOSED_DAYS = 30
+# Alerts are evaluated at most this often. Each alert keeps its own
+# watermark, so a later evaluation sends everything an earlier one would
+# have; the cost was 78 to 100 seconds on every apply (2026-10-02), which
+# is most of a run when the box is behind. An instant alert waits at most
+# this long more.
+ALERTS_EVERY_S = 10 * 60
+ALERTS_STAMP = DB.with_name("alerts-ran-at")
 
 
 def _write_status(phase: str, detail: str = "") -> None:
@@ -110,6 +117,36 @@ def _write_status(phase: str, detail: str = "") -> None:
         print(f"merge-status.json write failed (non-fatal): {e!r}", file=sys.stderr)
 
 
+def _alerts_due() -> bool:
+    try:
+        return time.time() - ALERTS_STAMP.stat().st_mtime >= ALERTS_EVERY_S
+    except OSError:
+        return True
+
+
+def _owed_path() -> Path:
+    return ALERTS_STAMP.with_name("alerts-owed")
+
+
+def _owe_alerts() -> None:
+    try:
+        _owed_path().touch()
+    except OSError:
+        pass
+
+
+def _alerts_owed() -> bool:
+    return _owed_path().exists()
+
+
+def _mark_alerts_ran() -> None:
+    try:
+        ALERTS_STAMP.touch()
+        _owed_path().unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def _run_alerts() -> str:
     """Match new listings against saved filters and send the digests.
 
@@ -130,6 +167,7 @@ def _run_alerts() -> str:
     from alerts import evaluate_alerts
 
     _write_status("sending alerts", "matching new listings against saved filters")
+    _mark_alerts_ran()
     try:
         result = evaluate_alerts(DB)
     except Exception as e:  # noqa: BLE001
@@ -233,6 +271,10 @@ def _apply() -> int:
         return 0
     pending = sorted(SPOOL.glob("*.json"))
     if not pending:
+        # The last apply may have skipped alerts as too soon; when the
+        # queue runs dry, nothing else would ever send those.
+        if _alerts_owed() and _alerts_due():
+            print(f"alerts while idle{_run_alerts()}")
         _write_status("idle", "no pending deltas")
         print("nothing pending")
         return 0
@@ -306,7 +348,11 @@ def _apply() -> int:
     # never touched while the two run side by side. Paced inside
     # publish: it looks at the artifact's age and leaves a fresh one.
     alerts_started = time.monotonic()
-    alerts = _run_alerts()
+    if _alerts_due():
+        alerts = _run_alerts()
+    else:
+        _owe_alerts()
+        alerts = ", alerts next time"
     alerts_s = time.monotonic() - alerts_started
     # The artifacts the site reads are built by box/publish.py on its own
     # timer, not here. They are not part of applying deltas, and their
