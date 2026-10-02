@@ -26548,3 +26548,9 @@ dekalb.com
 discovery-ranch.com
 eightcap.com
 exerizon.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+electrum.io
+executive-title.com
+decisionassociates.net
+flowerbx.com
