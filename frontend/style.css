@@ -4181,14 +4181,13 @@ a.hero-account-btn { text-decoration: none; }
   margin: clamp(24px, 3vw, 48px) clamp(16px, 2.4vw, 36px) 0;
   border-radius: 24px;
   text-align: center;
-  /* Desktop is one finished picture: the sky, the hills and the board on
-     a screen cut off at the foot, at its own 5:2. Nothing is written on
-     it, so it needs no veil. The phone layout below still builds the
-     scene from the hills and the phone photograph. */
+  /* Desktop is one finished picture, exported as one file: the board on
+     a monitor standing in a field at sunset, the sky above it and the
+     grass either side, cropped to the card's 5:2 around its middle.
+     Nothing is written on it, so it needs no veil. The phone layout
+     below still builds its scene from the hills and the phone photograph. */
   aspect-ratio: 5 / 2;
-  /* A waterfall on a green hill at dusk, the sky showing above the
-     board and the grass either side of it. */
-  background: #b9a3bd url("/img/showcase-waterfall.webp") center 38% / cover no-repeat;
+  background: #c9a9b4 url("/img/showcase-field.webp") center / cover no-repeat;
 }
 /* The API block. Dark in both themes, because the thing in it is a
    terminal and a terminal that follows the page theme stops reading as
@@ -4269,20 +4268,7 @@ a.hero-account-btn { text-decoration: none; }
   .hero-api { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 24px; }
   .hero-api h2 { font-size: 30px; }
 }
-/* The photograph fills the card; the board stands in front of it, centred,
-   its foot cut off by the card. The capture carries its own frame and
-   rounded, transparent corners, so the shadow is a drop-shadow that
-   follows them rather than a box. */
-.showcase-pc {
-  position: absolute;
-  top: 20%;
-  left: 50%;
-  width: 82%;
-  transform: translateX(-50%);
-  filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.55));
-}
-.showcase-pc img { display: block; width: 100%; height: auto; }
-/* Phones only: the desktop scene is the waves and the PC. */
+/* Phones only: the desktop scene is the one photograph above. */
 .showcase-device { display: none; }
 @media (max-width: 720px) {
   .hero-showcase {
@@ -4296,7 +4282,6 @@ a.hero-account-btn { text-decoration: none; }
   /* A phone mockup with the board's own phone layout composited into its
      screen, exported as one image. Drawn frames came first and never
      stopped looking drawn. */
-  .showcase-pc { display: none; }
   .showcase-device {
     display: block;
     width: min(300px, 78%);

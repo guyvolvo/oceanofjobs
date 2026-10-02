@@ -989,10 +989,9 @@ does it do, what else can I build.
    curve. The band is the claim's own text width plus 85%, measured by
    the page script, centred under it. On paper the marks are ink at 50%,
    in the dark theme light at 70%. Either row can be grabbed and thrown.
-4. The showcase: a 24px card at 5:2 holding a photograph of a waterfall
-   at dusk (img/showcase-waterfall.webp) with the board's own dark
-   capture standing in front of it, its foot cut off by the card so the
-   listings run out of frame. Phones get the hills photograph and the
+4. The showcase: a 24px card at 5:2 holding one photograph, the board on
+   a monitor standing in a field at sunset (img/showcase-field.webp),
+   cropped around its middle. Phones get the hills photograph and the
    phone capture instead.
 5. The features block, from the "Tulips - Blur" file: a `#050505` block
    holding four 716x200 tiles, 50px apart and in from the edge, each a
