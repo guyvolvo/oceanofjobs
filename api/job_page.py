@@ -8,10 +8,11 @@ with scripts off gets instead: the listing's own title, company, place,
 date, salary, description and apply link in the HTML, a canonical URL,
 and JobPosting structured data that says the same things the page shows.
 
-The rendering is a function of one job row plus the clock, and nothing
-else, so it is testable without a database. handler.py fetches the row
-and picks the status; this module only says what the page looks like
-for a given job, and what the status should be.
+The rendering is a function of one job row plus the clock (and, when
+the handler has them, a few rows about the company and roles like it),
+so it is testable without a database. handler.py fetches the rows and
+picks the status; this module only says what the page looks like for a
+given job, and what the status should be.
 
 Status policy, which the sitemap generator (loader/sitemap.py) mirrors:
   open                  200, indexable, with JobPosting markup
@@ -22,39 +23,38 @@ Status policy, which the sitemap generator (loader/sitemap.py) mirrors:
   closed longer ago     410 Gone
   unknown id            404
 
-Salary is shown but never marked up. Disclosed pay arrives as free text
-("$150K – $200K") that would have to be parsed into a currency and a
-range to fit baseSalary, and a wrong number in structured data is worse
-than none. Estimates are labelled as estimates on the page, in words,
-which is the honest version of the same rule.
+Salary is shown but marked up only when the employer gave the figure.
+An estimate is labelled as one on the page, in words.
 """
 
 import html
-import json
 import re
 from datetime import datetime, timedelta, timezone
 
 from countries import label_for
+from listing_text import deadline_from, description_html, language_of
+from page_chrome import (FOOT, SITE, ago, ago_short, ats_is_site, ats_name, fmt_int, head as _head_shared,
+                         long_date, monogram, parse_ts, plural, short_date, topbar)
+from titles import split_title
 
-SITE = "https://oceanofjobs.com"
-CARD = f"{SITE}/og.jpg"
 EXPIRED_KEEP_DAYS = 30
+CARD = f"{SITE}/og.jpg"
 
 SENIORITY_LABELS = {
-    "intern": "Intern", "junior": "Junior", "mid": "Mid-level", "senior": "Senior", "staff": "Staff",
+    "intern": "Internship", "junior": "Junior", "mid": "Mid-level", "senior": "Senior", "staff": "Staff",
     "principal": "Principal", "lead": "Lead", "manager": "Manager", "director": "Director", "exec": "Executive",
 }
-WORKPLACE_LABELS = {"remote": "Remote", "hybrid": "Hybrid", "onsite": "On-site"}
+WORKPLACE_LABELS = {"remote": "Remote", "hybrid": "Hybrid", "onsite": "Onsite"}
+
+_parse = parse_ts
 
 
-def _parse(ts):
-    if not ts:
-        return None
-    try:
-        d = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+def _head(title, description, canonical, robots=None, ld=None, og_type="article"):
+    """Kept under this name: company_page.py and the tests import it."""
+    return _head_shared(title, description, canonical, robots=robots, ld=ld, og_type=og_type)
+
+
+TOPBAR = topbar("jobs")
 
 
 def status_for(job, now=None) -> int:
@@ -92,42 +92,8 @@ def _salary_line(job):
 
 
 def _description_html(text: str) -> str:
-    """Plain text to paragraphs and lists. The stored description is
-    cleaned plain text; lines that start like bullets become list
-    items, blank lines separate paragraphs."""
-    out, para, items = [], [], []
-
-    def flush():
-        nonlocal para, items
-        if items:
-            out.append("<ul>" + "".join(f"<li>{html.escape(i)}</li>" for i in items) + "</ul>")
-            items = []
-        if para:
-            out.append("<p>" + "<br />".join(html.escape(p) for p in para) + "</p>")
-            para = []
-
-    for raw in (text or "").splitlines():
-        line = raw.strip()
-        if not line:
-            flush()
-            continue
-        heading = re.match(r"^#{1,6}\s+(.*?)\s*:?\s*$", line)
-        if heading:
-            # Some sources keep markdown headings in their plain text.
-            flush()
-            out.append(f"<h3>{html.escape(heading.group(1))}</h3>")
-            continue
-        m = re.match(r"^[-*•·▪]\s+(.*)", line)
-        if m:
-            if para:
-                flush()
-            items.append(m.group(1))
-        else:
-            if items:
-                flush()
-            para.append(line)
-    flush()
-    return "".join(out)
+    """Kept for callers that want the plain conversion."""
+    return description_html(text)
 
 
 def _meta_description(job) -> str:
@@ -238,19 +204,29 @@ def base_salary(job):
     return {"@type": "MonetaryAmount", "currency": currency, "value": value}
 
 
-def json_ld(job) -> dict:
+def deadline(job, now=None):
+    """(date, phrase) when the description names a closing date, else
+    None. The phrase is what the page sets in bold."""
+    now = now or datetime.now(timezone.utc)
+    posted = _parse(job.get("posted_at")) or _parse(job.get("first_seen"))
+    return deadline_from(job.get("description") or "", now, country=(job.get("country") or "").split(",")[0], posted=posted)
+
+
+def json_ld(job, now=None) -> dict:
     """schema.org JobPosting for an open listing. Every value here is
     also visible on the page, which is Google's rule for this markup.
 
-    No validThrough: the listings carry no closing date, and Google's
-    own guidance is to leave the field out rather than invent one. A
-    listing that closes is served 410 with the markup gone, which is
-    the signal that matters."""
+    validThrough only when the description names a closing date, which
+    the page shows as "Closes …". Google's own guidance is to leave the
+    field out rather than invent one; a listing that closes is served
+    410 with the markup gone, which is the signal that matters."""
     posted = _parse(job.get("posted_at")) or _parse(job.get("first_seen"))
     org = {"@type": "Organization", "name": company_label(job)}
     domain = job.get("company_domain") or ""
     if "." in domain and not domain.endswith(".invalid"):
         org["sameAs"] = f"https://{domain}"
+    if job.get("logo_url"):
+        org["logo"] = job["logo_url"]
     data = {
         "@context": "https://schema.org",
         "@type": "JobPosting",
@@ -260,6 +236,9 @@ def json_ld(job) -> dict:
         "hiringOrganization": org,
         "url": canonical_url(job["id"]),
     }
+    closes = deadline(job, now)
+    if closes:
+        data["validThrough"] = f"{closes[0].isoformat()}T23:59:59"
     places = _places(job)
     if places:
         data["jobLocation"] = places if len(places) > 1 else places[0]
@@ -276,81 +255,50 @@ def json_ld(job) -> dict:
         data["identifier"] = {"@type": "PropertyValue", "name": job.get("ats") or "ats", "value": str(job["external_id"])}
     if job.get("department"):
         data["occupationalCategory"] = job["department"]
+    if job.get("seniority") == "intern":
+        data["employmentType"] = "INTERN"
     salary = base_salary(job)
     if salary:
         data["baseSalary"] = salary
     return {k: v for k, v in data.items() if v is not None}
 
 
-def _head(title, description, canonical, robots=None, ld=None, og_type="article"):
-    """The head every server-rendered page shares; company_page.py uses
-    it too. canonical is the page's own absolute URL."""
+def _where_line(job) -> str:
+    """"Venray, Limburg, Netherlands": the listing's own place text, with
+    the country spelled out when only its code is there."""
+    loc = (job.get("location") or "").split(";")[0].strip()
+    codes = [c for c in (job.get("country") or "").split(",") if c]
+    if loc and codes and label_for(codes[0]) and label_for(codes[0]).lower() not in loc.lower() and codes[0] not in loc.split(", "):
+        loc = f"{loc}, {label_for(codes[0])}"
+    return loc
+
+
+def _role_row(j, now, with_company=True) -> str:
     esc = html.escape
-    ld_tag = ""
-    if ld is not None:
-        # "<" inside a script element could open a tag; JSON is happy to
-        # carry it as <, and every parser reads it back as "<".
-        ld_tag = ('  <script type="application/ld+json">'
-                  + json.dumps(ld, ensure_ascii=False).replace("<", "\\u003c")
-                  + "</script>\n")
-    robots_tag = f'  <meta name="robots" content="{robots}" />\n' if robots else ""
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#f2f0ef" />
-  <title>{esc(title)}</title>
-  <meta name="description" content="{esc(description)}" />
-  <link rel="canonical" href="{canonical}" />
-{robots_tag}  <meta property="og:type" content="{og_type}" />
-  <meta property="og:url" content="{canonical}" />
-  <meta property="og:title" content="{esc(title)}" />
-  <meta property="og:description" content="{esc(description)}" />
-  <meta property="og:image" content="{CARD}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{esc(title)}" />
-  <meta name="twitter:description" content="{esc(description)}" />
-  <meta name="twitter:image" content="{CARD}" />
-  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="{SITE}/feed.xml" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
-  <link rel="stylesheet" href="/style.css" />
-{ld_tag}  <script>
-    if (localStorage.getItem("iljobs_theme") === "dark") {{
-      document.querySelector('meta[name="theme-color"]').content = "#17181c";
-      document.documentElement.setAttribute("data-theme", "dark");
-    }}
-  </script>
-</head>
-"""
+    main, sub, _hours = split_title(j.get("title", ""))
+    company = (j.get("company_name") or j.get("company_domain") or "").strip()
+    city = (j.get("city") or "").split(",")[0].strip() or (j.get("location") or "").split(",")[0].strip()
+    bits = [esc(x) for x in ([company] if with_company else []) + [city] if x]
+    when = ago_short(j.get("posted_at") or j.get("first_seen"), now)
+    if when:
+        bits.append(esc(when))
+    return (f'<a class="pg-row" href="/job/{esc(j["id"])}">{monogram(company, 32, j.get("logo_url"))}'
+            f'<span class="pg-row-text"><span class="pg-row-title">{esc(main)}</span>'
+            f'<span class="pg-row-sub">{" · ".join(bits)}</span></span></a>')
 
 
-TOPBAR = """<body class="job-page-body">
-<a class="skip-link" href="#main">Skip to content</a>
-  <div class="topbar">
-    <div class="container">
-      <div class="topbar-left"><a class="topbar-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><nav class="topbar-nav" aria-label="Site"><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a href="/api/help">API</a></nav></div>
-    </div>
-  </div>
-"""
+def render(job, now=None, extra=None) -> str:
+    """The page for a job the database knows. Status is status_for().
 
-FOOT = """  <footer class="job-page-footer container">
-    <a class="link" href="/board">Browse the board</a> · <a class="link" href="/api/help">API</a> · <a class="link" href="/privacy">Privacy</a>
-  </footer>
-</body>
-</html>
-"""
-
-
-def render(job, now=None) -> str:
-    """The page for a job the database knows. Status is status_for()."""
+    extra, when the handler has it: {"company_open": int, "company_jobs":
+    [rows], "similar": [rows], "company_category": str}. Without it the
+    page simply has no sidebar lists."""
     esc = html.escape
     now = now or datetime.now(timezone.utc)
+    extra = extra or {}
     company = company_label(job)
+    domain = job.get("company_domain") or ""
+    main_title, sub_title, hours = split_title(job.get("title", ""))
     # The city goes in the title when there is one: "at Wix, Tel Aviv" is
     # what someone searching for the role types, and the title is the
     # one line of ours a search result shows.
@@ -361,65 +309,177 @@ def render(job, now=None) -> str:
     posted = _parse(job.get("posted_at")) or _parse(job.get("first_seen"))
     open_ = closed is None
     desc = _meta_description(job)
-    head = _head(title, desc, canonical_url(job["id"]), robots=None if open_ else "noindex,follow", ld=json_ld(job) if open_ else None)
+    head = _head(title, desc, canonical_url(job["id"]), robots=None if open_ else "noindex,follow",
+                 ld=json_ld(job, now) if open_ else None)
 
-    badges = []
-    if job.get("seniority"):
-        badges.append(f'<span class="badge seniority">{esc(SENIORITY_LABELS.get(job["seniority"], job["seniority"]))}</span>')
-    if job.get("workplace_type"):
-        badges.append(f'<span class="badge workplace">{esc(WORKPLACE_LABELS.get(job["workplace_type"], job["workplace_type"]))}</span>')
+    closes = deadline(job, now) if open_ else None
+    language = language_of(job.get("description") or "")
+    level = SENIORITY_LABELS.get(job.get("seniority") or "", job.get("seniority"))
+    workplace = WORKPLACE_LABELS.get(job.get("workplace_type") or "", job.get("workplace_type"))
+    system = ats_name(job.get("ats"))
+
+    # The meta line and the tags under the title.
+    meta = []
+    place = _where_line(job)
+    if place:
+        meta.append(f'<span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>{esc(place)}</span>')
+    if workplace:
+        meta.append(f'<span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>{esc(workplace)}</span>')
+    if posted:
+        meta.append(f'<span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Posted {esc(short_date(posted))}</span>')
+    tags = []
+    if closes:
+        days = (closes[0] - now.date()).days
+        left = "closes today" if days == 0 else f"{days} {plural(days, 'day')} left"
+        tags.append(f'<span class="pg-tag pg-tag-green"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Closes {esc(short_date(closes[0]))} · {esc(left)}</span>')
+    if level:
+        tags.append(f'<span class="pg-tag">{esc(level)}</span>')
+    if hours:
+        tags.append(f'<span class="pg-tag">{esc(hours)}</span>')
+    if language != "English":
+        tags.append(f'<span class="pg-tag"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg>Listing in {esc(language)}</span>')
+    if job.get("confidence") == "best_effort":
+        tags.append('<span class="pg-tag" title="Scraped from the company\'s own page, not a live ATS API">Company website</span>')
     if not open_:
-        badges.append('<span class="badge">Closed</span>')
+        tags.append('<span class="pg-tag pg-tag-closed">Closed</span>')
 
-    rows = [("Company", company), ("Location", job.get("location") or "-"), ("Category", job.get("category") or "-")]
+    # The facts, without the rows that have nothing to say.
+    facts = [("Company", esc(company))]
+    if place:
+        facts.append(("Location", esc(place)))
+    if workplace:
+        facts.append(("Workplace", esc(workplace)))
+    if level:
+        facts.append(("Type" if job.get("seniority") == "intern" else "Level", esc(level)))
+    if hours:
+        facts.append(("Hours", esc(hours)))
     if job.get("department"):
-        rows.append(("Department", job["department"]))
-    rows.append(("Seniority", SENIORITY_LABELS.get(job.get("seniority") or "", job.get("seniority")) or "-"))
-    rows.append(("Workplace", WORKPLACE_LABELS.get(job.get("workplace_type") or "", job.get("workplace_type")) or "-"))
-    rows.append(("Posted", _human_date(posted) if posted else "-"))
+        facts.append(("Team", esc(job["department"])))
+    if job.get("category"):
+        facts.append(("Category", esc(job["category"])))
+    if closes:
+        facts.append(("Closes", esc(long_date(closes[0]))))
+    if posted:
+        facts.append(("Posted", esc(long_date(posted))))
     salary = _salary_line(job)
     if salary:
         text, estimate = salary
-        rows.append(("Estimated salary" if estimate else "Salary", text + (" (a market estimate, not the employer's figure)" if estimate else "")))
-    rows.append(("Via", job.get("ats") or "-"))
-    meta = "".join(
-        f'<div class="job-detail-meta-row"><span class="label">{esc(k)}</span><span class="value">{esc(str(v))}</span></div>'
-        for k, v in rows)
+        facts.append(("Estimated salary" if estimate else "Salary",
+                      esc(text) + (' <span class="pg-muted">(a market estimate, not the employer\'s figure)</span>' if estimate else "")))
+    facts.append(("Source", esc(system if not ats_is_site(job.get("ats")) else "Company website")))
+    facts_html = "".join(f'<div class="pg-fact"><span class="pg-fact-k">{k}</span><span class="pg-fact-v">{v}</span></div>' for k, v in facts)
+    seen_bits = []
+    if not salary:
+        seen_bits.append("No salary published")
+    first = _parse(job.get("first_seen"))
+    if first:
+        seen_bits.append(f"first seen {short_date(first)}")
+    if job.get("last_seen") and open_:
+        seen_bits.append(f"checked {ago(job['last_seen'], now)}")
+    seen_line = f'<p class="pg-muted pg-seen">{esc(" · ".join(seen_bits))}</p>' if seen_bits else ""
 
-    logo = ""
-    if job.get("logo_url"):
-        logo = f'<img class="job-page-logo" src="{esc(job["logo_url"])}" alt="" width="48" height="48" fetchpriority="high" />'
+    # The description, with the closing-date phrase in bold.
+    description = description_html(job.get("description") or "", bold=closes[1] if closes else None)
+    if not description:
+        description = '<p class="pg-muted">No description was provided by this listing. The apply link has the full posting.</p>'
 
+    apply_url = esc(job.get("url") or "#")
+    apply_label = f"Apply on {esc(company)} <span aria-hidden=\"true\">↗</span>"
     if open_:
         notice = ""
-        apply = (f'<a class="btn job-detail-apply" href="{esc(job.get("url") or "#")}" target="_blank" rel="noopener nofollow">Apply on the company site <span aria-hidden="true">↗</span></a>'
-                 f' <a class="btn ghost" href="/board?job={esc(job["id"])}">Open on the board</a>')
+        apply_main = f'<a class="pg-apply" href="{apply_url}" target="_blank" rel="noopener nofollow">{apply_label}</a>'
+        ready = (f'<div class="pg-ready"><div><div class="pg-ready-title">Ready to apply?</div>'
+                 f'<div class="pg-muted">You\'ll finish on {esc(company)}\'s own site'
+                 f'{"" if ats_is_site(job.get("ats")) else f", via {esc(system)}"}.</div></div>'
+                 f'<a class="pg-apply pg-apply-inline" href="{apply_url}" target="_blank" rel="noopener nofollow">{apply_label}</a></div>')
     else:
-        notice = (f'<div class="job-page-notice">This listing closed on {_human_date(closed)}. '
-                  f'<a class="link" href="/board?company={esc(job.get("company_domain") or "")}">See what {esc(company)} is hiring for now</a>.</div>')
-        apply = f'<a class="btn ghost" href="/board">Browse open listings</a>'
+        notice = (f'<div class="pg-notice">This listing closed on {_human_date(closed)}. '
+                  f'<a href="/board?company={esc(domain)}">See what {esc(company)} is hiring for now</a>.</div>')
+        apply_main = '<a class="pg-apply pg-apply-off" href="/board">Browse open listings</a>'
+        ready = ""
 
-    description = _description_html(job.get("description") or "")
-    if not description:
-        description = '<p class="job-detail-description empty">No description was provided by this listing. The apply link has the full posting.</p>'
+    # The company line under the logo: what they do, how many roles.
+    about = []
+    if extra.get("company_category"):
+        about.append(esc(extra["company_category"]))
+    n_open = extra.get("company_open")
+    if n_open:
+        about.append(f"{fmt_int(n_open)} open {plural(n_open, 'role')}")
+    about_line = f'<div class="pg-muted">{" · ".join(about)}</div>' if about else ""
 
+    crumbs = ['<a href="/board">Jobs</a>']
+    if job.get("category"):
+        crumbs.append(f'<a href="/board?department={esc(job["category"])}">{esc(job["category"])}</a>')
+    crumbs.append(f'<a href="/company/{esc(domain)}">{esc(company)}</a>')
+
+    more = ""
+    if extra.get("company_jobs"):
+        rows = "".join(_role_row(j, now, with_company=True) for j in extra["company_jobs"][:3])
+        all_n = f'<a class="pg-side-all" href="/company/{esc(domain)}">All {fmt_int(n_open)}</a>' if n_open else ""
+        more = f'<section class="pg-card"><div class="pg-card-head"><span class="pg-card-title">More at {esc(company)}</span>{all_n}</div>{rows}</section>'
+    similar = ""
+    if extra.get("similar"):
+        rows = "".join(_role_row(j, now, with_company=True) for j in extra["similar"][:3])
+        similar = (f'<section class="pg-card"><div class="pg-card-title">Similar roles</div>{rows}'
+                   f'<button type="button" class="pg-btn pg-btn-wide" data-alert-like><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me for roles like this</button></section>')
+
+    alert_filter = {"department": job.get("category") or job.get("department") or "", "country": (job.get("country") or "").split(",")[0]}
     body = f"""{TOPBAR}
-  <main class="workspace" id="main" tabindex="-1">
-    <section class="section">
-      <article class="container job-page">
-        {notice}
-        <div class="job-page-company">{logo}<a class="link" href="/company/{esc(job.get("company_domain") or "")}">{esc(company)}</a></div>
-        <h1 class="job-page-title">{esc(job.get("title", ""))}</h1>
-        <div class="job-detail-badges">{"".join(badges)}</div>
-        <div class="job-page-actions">{apply}</div>
-        <div class="job-detail-meta">{meta}</div>
-        <h2 class="job-detail-description-title">Description</h2>
-        <div class="job-detail-description job-page-description">{description}</div>
+  <main class="pg-main" id="main" tabindex="-1">
+    <nav class="pg-crumbs" aria-label="Breadcrumb">{" / ".join(crumbs)}</nav>
+    {notice}
+    <div class="pg-grid">
+      <article class="pg-article">
+        <div class="pg-company">{monogram(company, 48, job.get("logo_url"))}<div><a class="pg-company-name" href="/company/{esc(domain)}">{esc(company)}</a>{about_line}</div></div>
+        <h1 class="job-page-title pg-title">{esc(main_title)}{f' <span class="pg-title-sub">{esc(sub_title)}</span>' if sub_title else ""}</h1>
+        <div class="pg-meta">{"".join(meta)}</div>
+        <div class="pg-tags">{"".join(tags)}</div>
+        <div class="pg-desc job-page-description">{description}</div>
+        {ready}
       </article>
-    </section>
+      <aside class="pg-side">
+        <section class="pg-card pg-card-main">
+          {apply_main}
+          <div class="pg-side-acts">
+            <button type="button" class="pg-btn" data-save="{esc(job["id"])}" aria-pressed="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span>Save</span></button>
+            <button type="button" class="pg-btn" data-copy="{canonical_url(job["id"])}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Copy link</span></button>
+          </div>
+          <div class="pg-facts">{facts_html}</div>
+          {seen_line}
+          <a class="pg-muted pg-board-link" href="/board?job={esc(job["id"])}">Open on the board</a>
+        </section>
+        {more}
+        {similar}
+      </aside>
+    </div>
   </main>
+  <script>
+    (function () {{
+      var KEY = "iljobs_starred";
+      var save = document.querySelector("[data-save]");
+      var read = function () {{ try {{ return JSON.parse(localStorage.getItem(KEY) || "[]"); }} catch (e) {{ return []; }} }};
+      var paint = function () {{ var on = read().indexOf(save.dataset.save) >= 0; save.setAttribute("aria-pressed", String(on)); save.classList.toggle("on", on); save.querySelector("span").textContent = on ? "Saved" : "Save"; }};
+      if (save) {{ paint(); save.addEventListener("click", function () {{ var ids = read(); var i = ids.indexOf(save.dataset.save); if (i >= 0) ids.splice(i, 1); else ids.push(save.dataset.save); try {{ localStorage.setItem(KEY, JSON.stringify(ids)); }} catch (e) {{}} paint(); }}); }}
+      var copy = document.querySelector("[data-copy]");
+      if (copy) copy.addEventListener("click", function () {{
+        var done = function () {{ copy.querySelector("span").textContent = "Copied"; setTimeout(function () {{ copy.querySelector("span").textContent = "Copy link"; }}, 1500); }};
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(copy.dataset.copy).then(done, function () {{}});
+        else {{ var ta = document.createElement("textarea"); ta.value = copy.dataset.copy; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); }}
+      }});
+      var like = document.querySelector("[data-alert-like]");
+      if (like) like.addEventListener("click", function () {{
+        try {{ sessionStorage.setItem("iljobs_alert_prefill", JSON.stringify({_json_js(alert_filter)})); }} catch (e) {{}}
+        location.href = "/account#alerts";
+      }});
+    }})();
+  </script>
 {FOOT}"""
     return head + body
+
+
+def _json_js(obj) -> str:
+    import json
+    return json.dumps(obj, ensure_ascii=False).replace("<", "\\u003c")
 
 
 def render_missing(status: int, job_id: str) -> str:
@@ -430,13 +490,11 @@ def render_missing(status: int, job_id: str) -> str:
             if gone else "There is no listing with this id. It may have been removed, or the link may be wrong.")
     head = _head(title, what, canonical_url(job_id), robots="noindex", og_type="website")
     return head + f"""{TOPBAR}
-  <main class="workspace" id="main" tabindex="-1">
-    <section class="section">
-      <div class="container job-page">
-        <h1 class="job-page-title">{html.escape(title.split(" | ")[0])}</h1>
-        <p>{html.escape(what)}</p>
-        <p><a class="btn" href="/board">Browse open listings</a></p>
-      </div>
-    </section>
+  <main class="pg-main" id="main" tabindex="-1">
+    <div class="pg-article">
+      <h1 class="job-page-title pg-title">{html.escape(title.split(" | ")[0])}</h1>
+      <p>{html.escape(what)}</p>
+      <p><a class="pg-apply pg-apply-off" href="/board">Browse open listings</a></p>
+    </div>
   </main>
 {FOOT}"""

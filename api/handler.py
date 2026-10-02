@@ -164,13 +164,27 @@ def route_company_page(domain: str):
         ORDER BY posted_at IS NULL, datetime(posted_at) DESC, datetime(first_seen) DESC, id
         LIMIT ?
         """, (domain, company_page.MAX_LISTED + 1)).fetchall()]
-    total, since = conn.execute(
-        "SELECT COUNT(*), MIN(first_seen) FROM jobs WHERE company_domain = ?", (domain,)).fetchone()
+    total, since, closed = conn.execute(
+        "SELECT COUNT(*), MIN(first_seen), SUM(closed_at IS NOT NULL) FROM jobs WHERE company_domain = ?", (domain,)).fetchone()
     last_open = None
     if not jobs:
         last_open = conn.execute(
             "SELECT MAX(closed_at) FROM jobs WHERE company_domain = ?", (domain,)).fetchone()[0]
-    facts = {"total": total or 0, "since": (since or company.get("first_seen") or "")[:10], "last_open": last_open}
+    # The last four weeks of arrivals, open or since closed, for the
+    # tiles and the chart; one read of the company's rows by index.
+    now = datetime.now(timezone.utc)
+    recent = [r[0] for r in conn.execute(
+        "SELECT first_seen FROM jobs WHERE company_domain = ? AND first_seen >= ?",
+        (domain, (now - timedelta(days=35)).isoformat())).fetchall()]
+    week_ago, two_weeks = (now - timedelta(days=7)).isoformat(), (now - timedelta(days=14)).isoformat()
+    cat_row = conn.execute(
+        f"SELECT {category_sql(conn)} AS c, COUNT(*) n FROM jobs WHERE company_domain = ? AND closed_at IS NULL "
+        "GROUP BY c ORDER BY n DESC LIMIT 1", (domain,)).fetchone()
+    facts = {"total": total or 0, "since": (since or company.get("first_seen") or "")[:10], "last_open": last_open,
+             "closed": closed or 0, "new_7d": sum(1 for t in recent if t and t >= week_ago),
+             "new_prev_7d": sum(1 for t in recent if t and two_weeks <= t < week_ago),
+             "weeks": company_page.week_buckets(recent, now),
+             "category": cat_row["c"] if cat_row and cat_row["c"] else None}
     extra = None if jobs else {"X-Robots-Tag": "noindex"}
     # Same ten minutes at the edge as a listing's page: the page changes
     # as roles open and close, and the sitemap carries the lastmod.
@@ -220,10 +234,45 @@ def route_job_page(job_id: str):
     if blob:
         job["description"] = blob
     extra = {"X-Robots-Tag": "noindex"} if job.get("closed_at") else None
+    sidebar = _job_page_sidebar(conn, job) if not job.get("closed_at") else None
     # Ten minutes at the edge: a listing's page changes when it closes,
     # and the sitemap tells crawlers about new ones, so nothing here
     # needs the API's three-minute window.
-    return _html_response(200, job_page.render(job), cache_seconds=600, edge_seconds=600, extra_headers=extra)
+    return _html_response(200, job_page.render(job, extra=sidebar), cache_seconds=600, edge_seconds=600, extra_headers=extra)
+
+
+def _job_page_sidebar(conn, job) -> dict:
+    """What the listing page shows beside the text: how many roles the
+    company has open and three of them, three roles like this one, and
+    the company's main category. Every query is an index walk."""
+    domain = job.get("company_domain") or ""
+    pick = "id, title, company_domain, city, location, posted_at, first_seen"
+    name_sel = ("(SELECT company_name FROM companies WHERE domain = jobs.company_domain) AS company_name"
+                if _has_company_name(conn) else "NULL AS company_name")
+    logo_sel = ("(SELECT logo_url FROM companies WHERE domain = jobs.company_domain) AS logo_url"
+                if _has_company_column(conn, "logo_url") else "NULL AS logo_url")
+    out = {"company_open": 0, "company_jobs": [], "similar": [], "company_category": None}
+    try:
+        out["company_open"] = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)).fetchone()[0]
+        out["company_jobs"] = [dict(r) for r in conn.execute(
+            f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE company_domain = ? AND closed_at IS NULL AND id != ? "
+            "ORDER BY posted_at IS NULL, posted_at DESC LIMIT 3", (domain, job["id"])).fetchall()]
+        cat = conn.execute(
+            f"SELECT {category_sql(conn)} AS c, COUNT(*) n FROM jobs WHERE company_domain = ? AND closed_at IS NULL "
+            "GROUP BY c ORDER BY n DESC LIMIT 1", (domain,)).fetchone()
+        out["company_category"] = cat["c"] if cat and cat["c"] else None
+        category = job.get("category")
+        country = (job.get("country") or "").split(",")[0]
+        if category and country:
+            out["similar"] = [dict(r) for r in conn.execute(
+                f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs "
+                f"WHERE closed_at IS NULL AND category = ? AND company_domain != ? "
+                f"AND (',' || COALESCE(country, '') || ',') LIKE ? ORDER BY posted_at DESC LIMIT 3",
+                (category, domain, f"%,{country},%")).fetchall()]
+    except Exception as e:  # noqa: BLE001 - the sidebar is a nicety; the page is not
+        print(f"job page sidebar: {e!r}")
+    return out
 
 
 def lambda_handler(event, context):
