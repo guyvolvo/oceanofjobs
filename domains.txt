@@ -26501,3 +26501,10 @@ inland.co
 the-spire.com
 californiaonlinepublicschools.com
 essential.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ecareers.co
+savencia.de
+egypt.fr
+diebold.de
+enterprise-electrical.com
