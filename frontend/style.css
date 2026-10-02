@@ -6774,9 +6774,19 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
   min-height: 0;
   padding: 14px 20px 0;
 }
-.board-head { display: flex; align-items: center; gap: 10px; }
-.board-head .topbar-search { flex: 0 1 640px; width: auto; }
-.board-corner { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+/* The head is on the grid's own columns: the search runs the width of
+   the list and ends at the list panel's right edge, the account and
+   the theme switch sit over the right panel. It follows the grid when
+   a listing opens and the panel widens. */
+.board-head { display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 29vw, 480px); gap: 10px; align-items: center; transition: grid-template-columns 220ms var(--pop-ease); }
+.board-main:has(.job-detail.open) .board-head { grid-template-columns: minmax(0, 1fr) clamp(500px, 42vw, 760px); }
+.board-head .topbar-search { grid-column: 1; width: auto; min-width: 0; }
+.board-corner { grid-column: 2; display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
+/* The shortcut, said inside the box; gone once the box has focus or
+   text, and on a touch screen where there is no key to press. */
+.search-kbd { flex: none; padding: 0 6px; border: 1px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 5px; font: 500 11px var(--font-ui); line-height: 18px; color: var(--grey); }
+.topbar-search:focus-within .search-kbd, .topbar-search:has(input:not(:placeholder-shown)) .search-kbd { display: none; }
+@media (pointer: coarse) { .search-kbd { display: none; } }
 .side-open { display: none; }
 
 /* The filter rail becomes the pill row. Each accordion head is a pill
@@ -6959,6 +6969,7 @@ table.jobs tbody tr.skeleton-row {
   .side-open i { display: block; width: 16px; height: 2px; border-radius: 1px; background: currentColor; }
   .side-open:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   .board-main { padding: 12px 16px 0; }
+  .board-head { display: flex; }
   .board-head .topbar-search { flex: 1 1 auto; }
   /* One column, open listing or not: the pane is the sheet here. */
   .board-grid,
