@@ -1320,23 +1320,33 @@ def _classify_slice(conn: sqlite3.Connection, rows: list) -> None:
         _classify_with_company(conn, again)
 
 
-def _company_tech_share(conn: sqlite3.Connection) -> dict[str, float]:
+def _company_tech_share(conn: sqlite3.Connection, domains=None) -> dict[str, float]:
     """Per company, the share of its decided open roles that carries a
     software title (role_class.SOFTWARE_TITLE, tagged "software" in the
     evidence), among companies with at least two such roles. What the
-    company rule promotes is not a software title, so it never counts."""
-    return {
-        domain: software / decided
-        for domain, software, decided in conn.execute(
-            "SELECT company_domain, SUM(role_evidence LIKE '%software%'), COUNT(*)"
-            " FROM jobs WHERE closed_at IS NULL AND role_class IN ('tech', 'adjacent', 'non-tech')"
-            " GROUP BY company_domain HAVING COUNT(*) >= 3 AND SUM(role_evidence LIKE '%software%') >= ?"
-        , (TECH_COMPANY_MIN_SOFTWARE_ROLES,))
-    }
+    company rule promotes is not a software title, so it never counts.
+
+    `domains` limits it to the companies whose rows are about to be
+    read, which is every caller's case. Unscoped, this was a GROUP BY
+    over all 960,000 open rows reading each one's evidence from the
+    table, 50 to 77 seconds of every apply on the box, and the reason
+    the fragment backlog grew on 2026-10-02. Scoped, it walks the open
+    company index for those companies only."""
+    sql = ("SELECT company_domain, SUM(role_evidence LIKE '%software%'), COUNT(*)"
+           " FROM jobs WHERE closed_at IS NULL AND role_class IN ('tech', 'adjacent', 'non-tech')")
+    tail = " GROUP BY company_domain HAVING COUNT(*) >= 3 AND SUM(role_evidence LIKE '%software%') >= ?"
+    if domains is None:
+        chunks = [(sql + tail, [TECH_COMPANY_MIN_SOFTWARE_ROLES])]
+    else:
+        ds = sorted({d for d in domains if d})
+        chunks = [(f"{sql} AND company_domain IN ({','.join('?' * len(ds[i:i + 500]))}){tail}",
+                   ds[i:i + 500] + [TECH_COMPANY_MIN_SOFTWARE_ROLES]) for i in range(0, len(ds), 500)]
+    return {domain: software / decided
+            for q, args in chunks for domain, software, decided in conn.execute(q, args)}
 
 
 def _classify_with_company(conn: sqlite3.Connection, rows: list) -> None:
-    share = _company_tech_share(conn)
+    share = _company_tech_share(conn, {domain for _, domain, _, _, _ in rows})
     second = [(*classify_role(title, department, skills, share.get(domain)), jid)
               for jid, domain, title, department, skills in rows]
     conn.executemany("UPDATE jobs SET role_class = ?, role_score = ?, role_evidence = ? WHERE id = ?", second)
