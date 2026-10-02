@@ -2743,6 +2743,7 @@ function paneHead(job) {
     const label = at === null ? "Listing"
       : `${fmtInt(at)} of ${total == null ? `${fmtInt(rows.length)}+` : fmtInt(total)}`;
     head.innerHTML = `
+      <span class="pane-grip" aria-hidden="true"></span>
       <div class="pane-nav">
         <button type="button" class="pane-step" data-step="-1" aria-label="Previous listing"
                 ${i <= 0 ? "disabled" : ""}>&#8249;</button>
@@ -2751,7 +2752,7 @@ function paneHead(job) {
                 ${i < 0 || i >= rows.length - 1 ? "disabled" : ""}>&#8250;</button>
       </div>
       <button type="button" class="pane-share" data-share="${escapeHtml(jobPermalink(job.id))}" data-title="${escapeHtml(job.title)}" aria-label="Share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
-      <button type="button" class="pane-close job-detail-close" aria-label="Close listing"><span class="pane-close-x" aria-hidden="true">&#10005;</span><span class="pane-back" aria-hidden="true">&#8249; Jobs</span></button>`;
+      <button type="button" class="pane-close job-detail-close" aria-label="Close listing"><span class="pane-close-x" aria-hidden="true">&#10005;</span><span class="pane-back" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></span></button>`;
     head.querySelector(".pane-close").addEventListener("click", closeJobDetailAndSync);
     head.querySelector(".pane-share").addEventListener("click", (e) => {
       const b = e.currentTarget;
@@ -3502,45 +3503,59 @@ function wireJobDetail() {
   wireJobDetailSwipe();
 }
 
-// Requested live: the sheet takes the whole screen on mobile, so
-// closing it should also work as a swipe, not just tapping the small X
-// in the corner. Gated to that full-screen variant, since it drags on
-// translateY and the side sheet above 960px slides on translateX. Only cares about a drag starting on the panel's own
-// header (job-detail-actions and above -- the description/skills area
-// below has its own vertical scroll to preserve, so a swipe starting
-// there would fight it), and only a downward drag by more than a
-// quarter of the panel's own height counts as "close" -- anything
-// short of that snaps back, same as any native bottom-sheet gesture.
+// The listing is a drawer on a phone: drag it down to close it, from
+// the header, or from the text when the text is at its top, the way a
+// native sheet behaves. A drag that starts lower in a scrolled text
+// scrolls the text; a sideways move is not a drag. Past a quarter of the
+// screen, or flicked, it closes; short of that it snaps back. Gated to
+// the full-screen pane under 800px, which slides on translateY; the
+// side sheet above it slides on translateX and has no gesture.
 function wireJobDetailSwipe() {
   const panel = document.getElementById("job-detail");
-  let startY = null;
-  let dragging = false;
+  const phone = window.matchMedia("(max-width: 800px)");
+  let startX = 0, startY = 0, startT = 0, lastY = 0;
+  let state = "idle"; // idle | armed | dragging | off
+  let fromHead = false;
 
   panel.addEventListener("touchstart", (e) => {
-    if (!MOBILE_SHEET_QUERY.matches || !panel.classList.contains("open")) return;
-    if (!e.target.closest(".job-detail-actions, .job-detail-meta")) return;
-    startY = e.touches[0].clientY;
-    dragging = true;
-    panel.style.transition = "none";
+    state = "idle";
+    if (!phone.matches || !panel.classList.contains("open") || e.touches.length !== 1) return;
+    const body = document.getElementById("pane-body");
+    fromHead = !!e.target.closest(".pane-head");
+    if (!fromHead && body && body.scrollTop > 0) return;
+    startX = e.touches[0].clientX; startY = lastY = e.touches[0].clientY; startT = e.timeStamp;
+    state = "armed";
   }, { passive: true });
 
   panel.addEventListener("touchmove", (e) => {
-    if (!dragging) return;
-    const delta = e.touches[0].clientY - startY;
-    if (delta <= 0) return; // upward: not a close gesture, let it sit at rest
-    panel.style.transform = `translateY(${delta}px)`;
-  }, { passive: true });
-
-  panel.addEventListener("touchend", (e) => {
-    if (!dragging) return;
-    dragging = false;
-    panel.style.transition = "";
-    const delta = e.changedTouches[0].clientY - startY;
-    panel.style.transform = "";
-    if (delta > panel.getBoundingClientRect().height * 0.25) {
-      closeJobDetailAndSync();
+    if (state === "idle" || state === "off") return;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
+    const dx = x - startX, dy = y - startY;
+    if (state === "armed") {
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 6) { state = "off"; return; }
+      if (dy < -4) { state = "off"; return; }
+      if (dy < 8) return;
+      state = "dragging";
+      panel.classList.add("dragging");
     }
-  });
+    e.preventDefault();
+    lastY = y;
+    panel.style.transform = `translateY(${Math.max(0, dy)}px)`;
+  }, { passive: false });
+
+  const end = (e) => {
+    if (state !== "dragging") { state = "idle"; return; }
+    state = "idle";
+    panel.classList.remove("dragging");
+    const dy = Math.max(0, lastY - startY);
+    const speed = dy / Math.max(1, e.timeStamp - startT); // px per ms
+    // Clear the inline transform and let the stylesheet's transition carry
+    // the pane the rest of the way, down and out or back to rest.
+    panel.style.transform = "";
+    if (dy > panel.getBoundingClientRect().height * 0.25 || speed > 0.6) closeJobDetailAndSync();
+  };
+  panel.addEventListener("touchend", end);
+  panel.addEventListener("touchcancel", end);
 }
 
 // multi-select filter dropdown (Category / Level / Company)

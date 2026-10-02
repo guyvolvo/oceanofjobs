@@ -7456,7 +7456,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
    screen with Apply fixed at the bottom. Everything here is for that
    width; the desktop rules above stand unchanged, and the phone's own
    elements are hidden there. */
-.m-bar, .m-chips, .m-sheet, .m-sheet-scrim, .m-alert, .m-logo, .tabbar, .acct-getmatched, .pane-back, .pane-share, .job-age-tail { display: none; }
+.m-bar, .m-chips, .m-sheet, .m-sheet-scrim, .m-alert, .m-logo, .tabbar, .acct-getmatched, .pane-back, .pane-share, .pane-grip, .job-age-tail { display: none; }
 .job-chip-run { display: contents; }
 .alert-dup { display: block; margin-top: 2px; font: 400 12px var(--font-ui); color: var(--grey); }
 
@@ -7586,13 +7586,17 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .job-detail:not(.open) { visibility: hidden; }
   .board-grid:has(.job-detail.open) { grid-template-columns: minmax(0, 1fr); }
   body:has(.job-detail.open) .tabbar { display: none; }
-  .job-detail .pane-head { display: flex !important; grid-template-columns: none; flex-wrap: nowrap; align-items: center; justify-content: space-between; height: 52px; min-height: 52px; padding: 0 6px; border-bottom: 1px solid var(--grey-line); }
+  .job-detail .pane-head { position: relative; display: flex !important; grid-template-columns: none; flex-wrap: nowrap; align-items: center; justify-content: space-between; height: 56px; min-height: 56px; padding: 6px 6px 0; border-bottom: 1px solid var(--grey-line); }
   .job-detail .pane-nav { order: 2; flex: 1; justify-content: center; }
   .job-detail .pane-step { display: none; }
   .job-detail .pane-pos { color: var(--grey); font: 400 12px var(--font-ui); font-variant-numeric: tabular-nums; }
-  .job-detail .pane-close { order: 1; display: inline-flex !important; margin: 0; align-items: center; width: auto; height: 44px; padding: 0 10px; border: 0; border-radius: 0; background: none; color: var(--black); font: 700 15px var(--font-ui); }
+  /* The back arrow: a 44px target at the left, the base rule's absolute
+     corner placement undone. The grip above the row says "drag me". */
+  .job-detail .pane-close { position: static; top: auto; right: auto; order: 1; display: inline-flex !important; margin: 0; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--black); font: 700 15px var(--font-ui); }
   .pane-close-x { display: none; }
-  .pane-back { display: inline; }
+  .pane-back { display: inline-flex; }
+  .pane-grip { display: block; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--panel-line); }
+  .job-detail.dragging { transition: none; }
   .pane-share { order: 3; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: none; color: var(--black); }
   .job-detail .pane-body { padding: 18px 16px calc(96px + env(safe-area-inset-bottom)); }
   .job-detail-title { margin: 14px 0 0; font: 400 26px/1.15 var(--font-display); }
