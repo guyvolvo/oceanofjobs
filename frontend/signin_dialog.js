@@ -31,11 +31,13 @@ function openSignIn() {
       </button>
       <div class="auth-divider">or</div>
       <form class="auth-email-form" id="signin-email-form">
-        <input type="email" id="signin-email-input" placeholder="you@example.com" required autocomplete="email" />
+        <label for="signin-email-input" class="visually-hidden">Email address</label>
+        <input type="email" id="signin-email-input" name="email" placeholder="you@example.com" required autocomplete="email" spellcheck="false" autocapitalize="off" />
         <button class="btn" type="submit">Send code</button>
       </form>
       <form class="auth-email-form" id="signin-otp-form" hidden>
-        <input type="text" id="signin-otp-input" placeholder="Verification code" inputmode="numeric" pattern="[0-9]{4,10}" required autocomplete="one-time-code" />
+        <label for="signin-otp-input" class="visually-hidden">Verification code</label>
+        <input type="text" id="signin-otp-input" name="code" placeholder="Verification code" inputmode="numeric" pattern="[0-9]{4,10}" required autocomplete="one-time-code" spellcheck="false" autocapitalize="off" />
         <button class="btn" type="submit">Verify</button>
       </form>
       <p class="auth-error" id="signin-auth-error" hidden></p>

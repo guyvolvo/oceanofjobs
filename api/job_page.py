@@ -76,6 +76,11 @@ def canonical_url(job_id: str) -> str:
     return f"{SITE}/job/{job_id}"
 
 
+def _human_date(d) -> str:
+    """30 Sep 2026 rather than 2026-09-30: a date a reader says."""
+    return f"{d.day} {d.strftime('%b %Y')}"
+
+
 def _salary_line(job):
     """(text, is_estimate) or None. Mirrors the board's own fallback: a
     row written before salary_source existed still carries the flag."""
@@ -294,6 +299,7 @@ def _head(title, description, canonical, robots=None, ld=None, og_type="article"
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f2f0ef" />
   <title>{esc(title)}</title>
   <meta name="description" content="{esc(description)}" />
   <link rel="canonical" href="{canonical}" />
@@ -315,6 +321,7 @@ def _head(title, description, canonical, robots=None, ld=None, og_type="article"
   <link rel="stylesheet" href="/style.css" />
 {ld_tag}  <script>
     if (localStorage.getItem("iljobs_theme") === "dark") {{
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }}
   </script>
@@ -323,6 +330,7 @@ def _head(title, description, canonical, robots=None, ld=None, og_type="article"
 
 
 TOPBAR = """<body class="job-page-body">
+<a class="skip-link" href="#main">Skip to content</a>
   <div class="topbar">
     <div class="container">
       <div class="topbar-left"><a class="topbar-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><nav class="topbar-nav" aria-label="Site"><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a href="/api/help">API</a></nav></div>
@@ -368,7 +376,7 @@ def render(job, now=None) -> str:
         rows.append(("Department", job["department"]))
     rows.append(("Seniority", SENIORITY_LABELS.get(job.get("seniority") or "", job.get("seniority")) or "-"))
     rows.append(("Workplace", WORKPLACE_LABELS.get(job.get("workplace_type") or "", job.get("workplace_type")) or "-"))
-    rows.append(("Posted", posted.date().isoformat() if posted else "-"))
+    rows.append(("Posted", _human_date(posted) if posted else "-"))
     salary = _salary_line(job)
     if salary:
         text, estimate = salary
@@ -380,14 +388,14 @@ def render(job, now=None) -> str:
 
     logo = ""
     if job.get("logo_url"):
-        logo = f'<img class="job-page-logo" src="{esc(job["logo_url"])}" alt="" width="48" height="48" loading="lazy" />'
+        logo = f'<img class="job-page-logo" src="{esc(job["logo_url"])}" alt="" width="48" height="48" fetchpriority="high" />'
 
     if open_:
         notice = ""
-        apply = (f'<a class="btn job-detail-apply" href="{esc(job.get("url") or "#")}" target="_blank" rel="noopener nofollow">Apply on the company site ↗</a>'
+        apply = (f'<a class="btn job-detail-apply" href="{esc(job.get("url") or "#")}" target="_blank" rel="noopener nofollow">Apply on the company site <span aria-hidden="true">↗</span></a>'
                  f' <a class="btn ghost" href="/board?job={esc(job["id"])}">Open on the board</a>')
     else:
-        notice = (f'<div class="job-page-notice">This listing closed on {closed.date().isoformat()}. '
+        notice = (f'<div class="job-page-notice">This listing closed on {_human_date(closed)}. '
                   f'<a class="link" href="/board?company={esc(job.get("company_domain") or "")}">See what {esc(company)} is hiring for now</a>.</div>')
         apply = f'<a class="btn ghost" href="/board">Browse open listings</a>'
 
@@ -396,7 +404,7 @@ def render(job, now=None) -> str:
         description = '<p class="job-detail-description empty">No description was provided by this listing. The apply link has the full posting.</p>'
 
     body = f"""{TOPBAR}
-  <main class="workspace">
+  <main class="workspace" id="main" tabindex="-1">
     <section class="section">
       <article class="container job-page">
         {notice}
@@ -422,7 +430,7 @@ def render_missing(status: int, job_id: str) -> str:
             if gone else "There is no listing with this id. It may have been removed, or the link may be wrong.")
     head = _head(title, what, canonical_url(job_id), robots="noindex", og_type="website")
     return head + f"""{TOPBAR}
-  <main class="workspace">
+  <main class="workspace" id="main" tabindex="-1">
     <section class="section">
       <div class="container job-page">
         <h1 class="job-page-title">{html.escape(title.split(" | ")[0])}</h1>

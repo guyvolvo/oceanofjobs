@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="#f2f0ef" />
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-GXP63R1JP1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -36,11 +40,13 @@
   <link rel="stylesheet" href="/style.css" />
   <script>
     if (localStorage.getItem("iljobs_theme") === "dark") {
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
   <div class="topbar">
     <div class="container">
@@ -48,15 +54,15 @@
     </div>
   </div>
 
-  <div class="workspace">
+  <div class="workspace" id="main" role="main" tabindex="-1">
     <section class="section not-found">
       <div class="container">
         <p class="not-found-code">404</p>
-        <h2 class="section-title" id="nf-title">Page not found</h2>
+        <h1 class="section-title" id="nf-title">Page not found</h1>
         <p class="not-found-lede" id="nf-lede">This page does not exist. The link may be mistyped or out of date.</p>
 
         <form class="not-found-search" action="/board" method="get" role="search">
-          <input type="text" name="search" id="nf-search" placeholder="Search listings" aria-label="Search listings" />
+          <input type="text" name="search" id="nf-search" placeholder="e.g. backend engineer Tel Aviv…" aria-label="Search listings" autocomplete="off" />
           <button class="btn" type="submit">Search</button>
         </form>
 

@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="#f2f0ef" />
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  <link rel="preconnect" href="https://cdnjs.buymeacoffee.com" crossorigin />
+  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- Google tag (gtag.js). Google's own instruction is "immediately
        after <head>"; it sits after the charset instead, because a
        document's encoding has to be declared inside the first 1024
@@ -65,6 +70,7 @@
     // Applied before first paint so there's no flash of the wrong theme
     // on reload. app.js still owns the toggle button/click handling.
     if (localStorage.getItem("iljobs_theme") === "dark") {
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }
     // Same for a Statistics column collapsed on an earlier visit (see
@@ -77,6 +83,7 @@
   </script>
 </head>
 <body class="board-page">
+<a class="skip-link" href="#main">Skip to content</a>
 
   <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
     <symbol id="status-positive" viewBox="0 0 24 24">
@@ -126,12 +133,12 @@
   <div class="board-shell">
     <aside class="site-side" id="site-side" aria-label="Site">
       <div class="side-brand-row">
-        <a class="side-brand" href="/"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /><span>oceanofjobs.com</span></a>
+        <a class="side-brand" href="/"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /><span translate="no">oceanofjobs.com</span></a>
         <button type="button" class="side-fold" id="side-fold" aria-label="Collapse the sidebar" aria-expanded="true" title="Collapse">
           <svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M440-160q-17 0-28.5-11.5T400-200v-240L168-736q-15-20-4.5-42t36.5-22h560q26 0 36.5 22t-4.5 42L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-308 198-252H282l198 252Zm0 0Z"/></svg>
         </button>
       </div>
-      <nav class="side-group side-nav" aria-label="Site"><a href="/board" class="current" aria-current="page" title="Jobs"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M160-120q-33 0-56.5-23.5T80-200v-440q0-33 23.5-56.5T160-720h160v-80q0-33 23.5-56.5T400-880h160q33 0 56.5 23.5T640-800v80h160q33 0 56.5 23.5T880-640v440q0 33-23.5 56.5T800-120H160Zm0-80h640v-440H160v440Zm240-520h160v-80H400v80ZM160-200v-440 440Z"/></svg><span>Jobs</span></a><a href="/companies" title="Companies"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M80-120v-720h400v160h400v560H80Zm80-80h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm320 480h320v-400H480v400Zm80-240v-80h160v80H560Zm0 160v-80h160v80H560Z"/></svg><span>Companies</span></a><a href="/stats" title="Statistics"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg><span>Statistics</span></a><a href="/api/help" title="API"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z"/></svg><span>API</span></a></nav>
+      <nav class="side-group side-nav" aria-label="Primary"><a href="/board" class="current" aria-current="page" title="Jobs"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M160-120q-33 0-56.5-23.5T80-200v-440q0-33 23.5-56.5T160-720h160v-80q0-33 23.5-56.5T400-880h160q33 0 56.5 23.5T640-800v80h160q33 0 56.5 23.5T880-640v440q0 33-23.5 56.5T800-120H160Zm0-80h640v-440H160v440Zm240-520h160v-80H400v80ZM160-200v-440 440Z"/></svg><span>Jobs</span></a><a href="/companies" title="Companies"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M80-120v-720h400v160h400v560H80Zm80-80h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm320 480h320v-400H480v400Zm80-240v-80h160v80H560Zm0 160v-80h160v80H560Z"/></svg><span>Companies</span></a><a href="/stats" title="Statistics"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg><span>Statistics</span></a><a href="/api/help" title="API"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z"/></svg><span>API</span></a></nav>
       <!-- Which listings the board shows. Filters apply in every view:
            Best matches orders what they leave, it does not replace them. -->
       <div class="side-group view-switch" id="view-switch" role="tablist" aria-label="Which listings to show">
@@ -163,7 +170,8 @@
     </aside>
     <div class="side-scrim" id="side-scrim" aria-hidden="true"></div>
 
-    <div class="board-main">
+    <div class="board-main" id="main" role="main" tabindex="-1">
+      <h1 class="visually-hidden">Job board</h1>
       <div class="board-head">
         <button type="button" class="side-open" id="side-open" aria-label="Menu" aria-expanded="false" aria-controls="site-side"><span aria-hidden="true"><i></i><i></i><i></i></span></button>
   <div class="topbar-search" id="topbar-search" role="search">
@@ -171,7 +179,7 @@
       <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
       <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </svg>
-    <input type="text" id="f-search" autocomplete="off" aria-label="Search jobs" placeholder="Search jobs, companies, skills, or locations" title="Every word must appear somewhere in the listing: title, company, location, category or description. &quot;Quote a phrase&quot; to keep it together." />
+    <input type="text" id="f-search" name="search" autocomplete="off" aria-label="Search jobs" placeholder="Search jobs, companies, skills or locations…" title="Every word must appear somewhere in the listing: title, company, location, category or description. &quot;Quote a phrase&quot; to keep it together." />
       <button type="button" class="topbar-search-clear" id="f-search-clear" aria-label="Clear search" hidden>
       <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
         <path d="M2 2l6 6M8 2l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -210,14 +218,14 @@
         <div class="board-box board-box-main">
       <div class="board-list">
         <div class="col-head list-head">
-          <div class="list-head-text">
+          <div class="list-head-text" aria-live="polite">
             <span class="col-head-title" id="result-count"></span>
             <span class="col-head-sub" id="result-sub"></span>
           </div>
           <!-- The two controls that bound and order the whole result
                set, at the right of the count they change. -->
           <div class="topbar-sorts">
-            <select id="f-date-posted" title="Date posted">
+            <select id="f-date-posted" title="Date posted" aria-label="Date posted">
             <option value="">Any date</option>
             <option value="any" hidden>Any time</option>
             <option value="1">Past 24 hours</option>
@@ -226,7 +234,7 @@
             <option value="14">Past 14 days</option>
             <option value="30">Past 30 days</option>
           </select>
-            <span class="sort-wrap"><span class="sort-label">Sort</span><select id="f-sort" title="Sort">
+            <span class="sort-wrap"><span class="sort-label">Sort</span><select id="f-sort" title="Sort" aria-label="Sort by">
             <option value="">Sort</option>
             <option value="match:asc" hidden>Best match</option>
             <!-- Relevance ranks by where the search words appear
@@ -248,7 +256,7 @@
              in app.js); this stays as the screen-reader half of that,
              since the bones themselves are aria-hidden. -->
         <div id="jobs-loading" class="visually-hidden" role="status"></div>
-        <div id="jobs-error" class="error-state" style="display:none"></div>
+        <div id="jobs-error" class="error-state" style="display:none" role="status" aria-live="polite"></div>
         <div id="jobs-empty" class="empty-state" style="display:none"><strong>No results</strong><span>No listings match these filters.</span></div>
 
         <!-- The head moved out of the table and into the column head

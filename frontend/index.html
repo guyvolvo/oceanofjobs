@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="#f2f0ef" />
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-GXP63R1JP1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -92,11 +96,13 @@
        as it is in both: it is a picture, not a surface. -->
   <script>
     if (localStorage.getItem("iljobs_theme") === "dark") {
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
 <body class="hero-page">
+<a class="skip-link" href="#main">Skip to content</a>
 
   <header class="hero-bar hero-bar-head hero-bar-bare">
     <!-- Island's shape: the brand at the left, a row of plain text
@@ -106,7 +112,7 @@
          and the brand stays. -->
     <a class="hero-brand" href="/" aria-label="Ocean of Jobs home">
       <img src="/favicon.svg?v=3" width="28" height="28" alt="" />
-      <span>Ocean of Jobs</span>
+      <span translate="no">Ocean of Jobs</span>
     </a>
     <div class="hero-bar-right" id="hero-bar-right">
       <nav class="site-menus" aria-label="Site">
@@ -134,7 +140,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main" tabindex="-1">
     <section class="hero">
       <h1 class="hero-claim">Find your next opportunity.</h1>
       <!-- The count lives in the door now rather than in a sentence above
@@ -154,6 +160,7 @@
         <div class="hero-ticker to-right"><div class="hero-ticker-track" id="ticker-logos-a"></div></div>
         <div class="hero-ticker to-left"><div class="hero-ticker-track" id="ticker-logos-b"></div></div>
       </div>
+      <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false">Pause motion</button>
       <p class="sr-only" id="hero-stats-text">Loading board statistics.</p>
     </section>
 
@@ -255,12 +262,13 @@
     <section class="hero-api" aria-labelledby="api-title">
       <div class="hero-api-text">
         <h2 id="api-title">Build on the same data.</h2>
-        <p>Free public JSON API, rate limited to 20 requests per second.</p>
+        <p>Free public JSON API, rate limited to 20&nbsp;requests per second.</p>
         <a class="hero-api-link" href="/api/help">Read the API reference</a>
       </div>
 
       <div class="hero-api-code">
         <button type="button" class="hero-api-copy" id="api-copy">Copy</button>
+        <span class="visually-hidden" id="api-copy-live" role="status" aria-live="polite"></span>
 <pre><code><span class="api-cmd">$ curl "oceanofjobs.com/api/jobs?q=golang&amp;limit=1"</span>
 {
   <span class="api-key">"total"</span>: 176,
@@ -496,6 +504,14 @@
     // The curl line only, not the response. Copying a block of JSON
     // nobody asked for is what the whole sample is here to save you.
     (function () {
+      var live = document.getElementById("api-copy-live");
+      var motion = document.getElementById("motion-toggle");
+      if (motion) motion.addEventListener("click", function () {
+        var paused = !document.body.classList.contains("motion-paused");
+        document.body.classList.toggle("motion-paused", paused);
+        motion.setAttribute("aria-pressed", String(paused));
+        motion.textContent = paused ? "Resume motion" : "Pause motion";
+      });
       var btn = document.getElementById("api-copy");
       var cmd = document.querySelector(".hero-api-code .api-cmd");
       if (!btn || !cmd) return;
@@ -503,6 +519,7 @@
         var text = cmd.textContent.replace(/^\$\s*/, "");
         var done = function () {
           btn.textContent = "Copied";
+          if (live) { live.textContent = ""; setTimeout(function () { live.textContent = "Command copied"; }, 50); }
           setTimeout(function () { btn.textContent = "Copy"; }, 1600);
         };
         // Clipboard needs a secure context, and this page is also served

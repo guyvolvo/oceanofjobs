@@ -7,7 +7,7 @@
 // once the profile, alerts and saved lists are in.
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+  const fmt = (n) => Number(n || 0).toLocaleString();
   const DAY = 864e5;
   const MIN_MATCH = 3;
 
@@ -28,8 +28,8 @@
     return name ? `${part}, ${name}` : part;
   }
 
-  const dayLabel = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const weekdayOf = (d) => d.toLocaleDateString("en-US", { weekday: "long" });
+  const dayLabel = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const weekdayOf = (d) => d.toLocaleDateString(undefined, { weekday: "long" });
 
   // One line as a polyline, in a 90x28 box, for the tiles.
   function spark(values, cls = "") {
@@ -231,8 +231,8 @@
     if (!at) { el.hidden = true; return; }
     const d = new Date(at);
     const when = d.toDateString() === new Date().toDateString()
-      ? `today at ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-      : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      ? `today at ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+      : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     el.innerHTML = `Numbers from ${when}, refreshed daily. <button type="button" class="link-inline" id="acct-refresh">Refresh now</button>`;
     el.hidden = false;
     el.querySelector("#acct-refresh").addEventListener("click", () => { forceNext = true; inflight = null; paintDashboard(); });

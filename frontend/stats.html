@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="#f2f0ef" />
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- Google tag (gtag.js). Google's own instruction is "immediately
        after <head>"; it sits after the charset instead, because a
        document's encoding has to be declared inside the first 1024
@@ -37,11 +41,13 @@
   <link rel="stylesheet" href="style.css" />
   <script>
     if (localStorage.getItem("iljobs_theme") === "dark") {
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
   <div class="topbar">
     <div class="container">
@@ -52,10 +58,10 @@
     </div>
   </div>
 
-  <div class="workspace explore-page">
+  <div class="workspace explore-page" id="main" role="main" tabindex="-1">
     <section class="section">
       <div class="container">
-        <h2 class="section-title">DB Explorer</h2>
+        <h1 class="section-title">DB Explorer</h1>
         <!-- The database is a static file on the CDN and the query runs
              in this tab, inside SQLite compiled to WebAssembly. Only the
              pages a query touches are fetched, by HTTP range request.
@@ -72,7 +78,7 @@
                 <span class="panel-title">Schema</span>
               </div>
               <div class="panel-body panel-body-flush">
-                <input type="search" id="schema-search" class="qb-input schema-search" placeholder="Find a column" aria-label="Find a column" autocomplete="off" />
+                <input type="search" id="schema-search" name="column" class="qb-input schema-search" placeholder="Find a column, e.g. salary…" aria-label="Find a column" autocomplete="off" />
                 <div id="explore-schema" class="sx"></div>
               </div>
             </section>
@@ -115,7 +121,7 @@
                   </label>
                   <label class="qb-field qb-field-limit">
                     <span class="qb-label">Rows</span>
-                    <input type="text" id="qb-limit" class="qb-input" inputmode="numeric" value="25" />
+                    <input type="number" id="qb-limit" name="limit" class="qb-input" inputmode="numeric" min="1" max="10000" value="25" />
                   </label>
                 </div>
                 <div class="qb-where">
@@ -126,7 +132,7 @@
               </div>
 
               <div id="sqlmode" class="sqlmode panel-body panel-body-flush" hidden>
-                <textarea id="explore-sql" class="explore-editor" spellcheck="false" autocomplete="off" autocapitalize="off" rows="8" aria-label="SQL query"></textarea>
+                <textarea id="explore-sql" name="sql" class="explore-editor" spellcheck="false" autocomplete="off" autocapitalize="off" rows="8" aria-label="SQL query"></textarea>
               </div>
 
               <div class="panel-foot">

@@ -15,6 +15,16 @@ await ctx.route("**/api/me/alerts", (r) => r.fulfill({ json: { alerts: [
   { alert_id: "a2", active: false, filter: { search: "sre", country: "IL" }, created_at: "2026-09-01T09:00:00Z", last_notified_at: "2026-09-29T09:00:00Z" },
 ] } }));
 await ctx.route("**/api/me/saved", (r) => r.fulfill({ json: { saved: [] } }));
+// The overview's numbers come from /api/me/dashboard (computed once a day
+// on the box, stored with the profile); that needs a real session, so it
+// is stubbed with the same shape the box returns.
+await ctx.route("**/api/me/dashboard*", (r) => {
+  const days = Array.from({ length: 90 }, (_, i) => ({ day: new Date(Date.now() - (89 - i) * 864e5).toISOString().slice(0, 10), open: 240 + Math.round(30 * Math.sin(i / 9)) + Math.round(i / 3), new: 5 + Math.round(8 * Math.abs(Math.sin(i / 2))) }));
+  r.fulfill({ json: { key: "k", computed_at: new Date().toISOString(), history: { skills: SKILLS, min_match: 3, country: ["IL"], days },
+    counts: { Python: 1400, AWS: 880, Kubernetes: 541, Terraform: 158, Docker: 256, Linux: 527, Go: 265, GCP: 559 },
+    matches: [{ id: "a", title: "SRE", company_domain: "x.com", location: "Tel Aviv", skills: "Python,AWS,GCP", first_seen: new Date().toISOString(), salary_text: "₪30K–40K" }, { id: "b", title: "DevOps", company_domain: "y.com", location: "Haifa", skills: "Python,GCP,Linux", first_seen: new Date().toISOString(), salary_text: "₪35K" }],
+    suggested: [{ skill: "GCP", share: 1 }] } });
+});
 if (process.env.MOCK_HISTORY === "1") {
   await ctx.route("**/api/jobs/history*", (r) => {
     const days = Array.from({ length: 90 }, (_, i) => ({ day: new Date(Date.now() - (89 - i) * 864e5).toISOString().slice(0, 10), open: 240 + Math.round(30 * Math.sin(i / 9)) + Math.round(i / 3), new: 5 + Math.round(8 * Math.abs(Math.sin(i / 2))) }));

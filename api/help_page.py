@@ -28,7 +28,9 @@ HELP_HTML = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f2f0ef" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <title>API reference | Ocean of Jobs</title>
 <link rel="canonical" href="https://oceanofjobs.com/api/help" />
 <meta name="description" content="Public JSON API for every job, company and market figure on Ocean of Jobs: search, filter, statistics and account routes." />
@@ -42,6 +44,8 @@ HELP_HTML = """<!doctype html>
      colours and layout inside are left as they are. */
   @font-face { font-family: "Overused Grotesk"; src: url("/fonts/OverusedGrotesk-VF.woff2") format("woff2-variations"); font-weight: 300 900; font-display: swap; }
   body { margin: 0; background: #f2f0ef; }
+  .skip-link { position: absolute; left: 16px; top: -60px; z-index: 1000; padding: 8px 12px; border-radius: 8px; background: #17181c; color: #fff; font: 600 13px system-ui, sans-serif; text-decoration: none; }
+  .skip-link:focus-visible { top: 12px; outline: 2px solid #2fae60; outline-offset: 2px; }
   .swagger-ui, .swagger-ui .info .title, .swagger-ui .opblock-tag, .swagger-ui .btn,
   .swagger-ui select, .swagger-ui .opblock .opblock-summary-description, .swagger-ui table,
   .swagger-ui .markdown p, .swagger-ui .renderedMarkdown p, .swagger-ui .info p, .swagger-ui .info li,
@@ -67,6 +71,7 @@ HELP_HTML = """<!doctype html>
 </style>
 </head>
 <body>
+<a class="skip-link" href="#swagger-ui">Skip to the reference</a>
 <nav class="api-bar" aria-label="Site"><a class="api-brand" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a class="current" href="/api/help" aria-current="page">API</a></nav>
 <div id="swagger-ui"><noscript><div class="api-fallback">
   This reference is rendered from an OpenAPI document. With JavaScript off,

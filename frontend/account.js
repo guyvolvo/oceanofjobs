@@ -208,7 +208,7 @@ async function readCv(file) {
 function paintChips() {
   const host = $("cv-chips");
   host.innerHTML = draft.skills.map((s) => `
-    <button type="button" class="cv-chip" data-skill="${escapeHtml(s)}" title="Remove">
+    <button type="button" class="cv-chip" data-skill="${escapeHtml(s)}" title="Remove" aria-label="Remove ${escapeHtml(s)}">
       ${escapeHtml(s)}<span aria-hidden="true">&times;</span>
     </button>`).join("");
 
@@ -794,9 +794,18 @@ function wireLeaving() {
   // here leaves a signed-out reader looking at an account. Everywhere
   // else redraws in place, which is right, because everywhere else is
   // public.
-  $("account-signout").addEventListener("click", () => {
-    signOut();
-    location.href = "/";
+  for (const id of ["account-signout", "acct-hero-signout"]) {
+    $(id)?.addEventListener("click", () => {
+      signOut();
+      location.href = "/";
+    });
+  }
+  // An edit in progress (a preference row open, an alert half written)
+  // is not lost to a stray click on a link.
+  window.addEventListener("beforeunload", (e) => {
+    const editing = document.querySelector("#preferences .pref-item.open")
+      || (document.getElementById("alert-f-search")?.value || "").trim();
+    if (editing) { e.preventDefault(); e.returnValue = ""; }
   });
 
   // A separate Confirm button rather than the same button changing its
@@ -906,13 +915,14 @@ function paintSaved(jobs) {
           ${j.closed_at ? '<span class="badge closed" title="This listing is no longer open">Closed</span>' : ""}
           <div class="saved-meta">${escapeHtml(where)}</div>
         </div>
-        <button class="alert-delete" type="button" data-unsave="${escapeHtml(j.id)}" title="Remove from saved">✕</button>
+        <button class="alert-delete" type="button" data-unsave="${escapeHtml(j.id)}" title="Remove from saved" aria-label="Remove ${escapeHtml(j.title)} from saved">✕</button>
       </div>`;
   }).join("");
 
   host.querySelectorAll("[data-unsave]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.unsave;
+      if (!confirm("Remove this job from your saved list?")) return;
       btn.disabled = true;
       try {
         await authedFetch(`/me/saved/${encodeURIComponent(id)}`, { method: "DELETE" });

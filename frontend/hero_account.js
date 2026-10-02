@@ -26,6 +26,7 @@
     if (isDark()) document.documentElement.removeAttribute("data-theme");
     else document.documentElement.setAttribute("data-theme", "dark");
     try { localStorage.setItem("iljobs_theme", isDark() ? "dark" : "light"); } catch {}
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", isDark() ? "#17181c" : "#f2f0ef");
   }
 
   const icons = {

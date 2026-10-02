@@ -134,7 +134,7 @@ recent = job(closed_at=(NOW - timedelta(days=3)).isoformat())
 c = job_page.render(recent, NOW)
 check("a job closed three days ago is still a page", job_page.status_for(recent, NOW) == 200)
 check("but says so, and asks not to be indexed",
-      "This listing closed on 2026-09-15" in c and 'name="robots" content="noindex,follow"' in c)
+      "This listing closed on 15 Sep 2026" in c and 'name="robots" content="noindex,follow"' in c)
 check("with no JobPosting markup and no apply link", ld_of(c) is None and "greenhouse.io" not in c)
 check("and points at the company's open roles", 'href="/board?company=wix.com"' in c)
 check("a job closed six weeks ago is gone", job_page.status_for(job(closed_at=(NOW - timedelta(days=45)).isoformat()), NOW) == 410)

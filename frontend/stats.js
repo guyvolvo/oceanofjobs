@@ -595,6 +595,7 @@ function wireThemeToggle() {
     const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
     if (next === "dark") root.setAttribute("data-theme", "dark"); else root.removeAttribute("data-theme");
     localStorage.setItem("iljobs_theme", next);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next === "dark" ? "#17181c" : "#f2f0ef");
     sync();
   });
 }

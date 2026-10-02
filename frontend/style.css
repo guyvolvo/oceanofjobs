@@ -1205,7 +1205,7 @@ table.jobs tbody tr[data-id] { cursor: pointer; }
   text-overflow: ellipsis;
 }
 .ms-toggle.active { border-color: var(--green-text); color: var(--green-text); font-weight: 700; }
-.ms-toggle:focus { outline: 2px solid var(--green); outline-offset: -2px; }
+.ms-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 
 /* 4px radius -- same scoped exception as .job-detail above. */
 .ms-menu {
@@ -7437,3 +7437,24 @@ a.hero-account-btn.dir-account { text-decoration: none; }
 .acct-market-bones .sk-line { width: 100% !important; max-width: 100%; }
 .acct-bones { padding: 14px 0 4px; line-height: 2; }
 .acct-stat .sk-line { vertical-align: middle; }
+
+/* From the interface audit of 2026-10-02. */
+.skip-link { position: absolute; left: 16px; top: -60px; z-index: 1000; padding: 8px 12px; border-radius: 8px; background: var(--black); color: var(--white); font: 600 13px var(--font-ui); text-decoration: none; }
+.skip-link:focus-visible { top: 12px; outline: 2px solid var(--green); outline-offset: 2px; }
+#main:focus { outline: none; }
+a, button, input, select, textarea, [role="button"] { touch-action: manipulation; }
+a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
+.section-title, .hero-claim, .acct-hero-title, .dir-company h2 { text-wrap: balance; }
+h3.alerts-header { margin: 0 0 10px; }
+.job-title-link { color: inherit; text-decoration: none; }
+.job-title-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 2px; }
+button.dir-name { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 2px; }
+.contact-topic { cursor: pointer; }
+.contact-topic input { position: absolute; width: 1px; height: 1px; margin: -1px; opacity: 0; pointer-events: none; }
+.contact-topic:focus-within { outline: 2px solid var(--green); outline-offset: 2px; }
+.contact-error { margin: 6px 0 0; font: 13px var(--font-ui); color: var(--red); }
+.contact-error:empty { display: none; }
+.motion-paused .hero-ticker-track, .motion-paused .fp-track { animation-play-state: paused !important; }
+.motion-toggle { display: block; margin: 10px auto 0; padding: 4px 10px; border: 1px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 999px; background: none; color: var(--grey); font: 500 12px var(--font-ui); cursor: pointer; }
+.motion-toggle:hover, .motion-toggle:focus-visible { color: var(--black); border-color: var(--black); }

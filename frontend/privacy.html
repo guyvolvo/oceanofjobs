@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="#f2f0ef" />
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- Google tag (gtag.js). Google's own instruction is "immediately
        after <head>"; it sits after the charset instead, because a
        document's encoding has to be declared inside the first 1024
@@ -39,11 +43,13 @@
   <link rel="stylesheet" href="style.css" />
   <script>
     if (localStorage.getItem("iljobs_theme") === "dark") {
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
   <div class="topbar">
     <div class="container">
@@ -51,10 +57,10 @@
     </div>
   </div>
 
-  <div class="workspace">
+  <div class="workspace" id="main" role="main" tabindex="-1">
     <section class="section legal">
       <div class="container">
-        <h2 class="section-title">Privacy Policy</h2>
+        <h1 class="section-title">Privacy Policy</h1>
         <p class="legal-updated">Last updated September 2026.</p>
 
         <p>Ocean of Jobs is an open-source job board. Browsing, searching, and filtering listings does not require an account. The only personal data collected is what you voluntarily provide when setting up job alerts.</p>

@@ -6,7 +6,7 @@
   const API = "/api";
   const $ = (s, r = document) => r.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+  const fmt = (n) => Number(n || 0).toLocaleString();
   const ATS = { greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", workday: "Workday", smartrecruiters: "SmartRecruiters",
     workable: "Workable", comeet: "Comeet", recruitee: "Recruitee", personio: "Personio", teamtailor: "Teamtailor",
     bamboohr: "BambooHR", breezy: "Breezy", jazzhr: "JazzHR", pinpoint: "Pinpoint", oracle: "Oracle", eightfold: "Eightfold",
@@ -101,7 +101,7 @@
 
   function logoTile(r) {
     const letter = esc((r.name || r.domain || "?").trim()[0].toUpperCase());
-    const img = r.has_logo === false ? "" : `<img src="/logo/${encodeURIComponent(r.domain)}.png" alt="" loading="lazy" onerror="this.hidden=true" />`;
+    const img = r.has_logo === false ? "" : `<img src="/logo/${encodeURIComponent(r.domain)}.png" alt="" width="44" height="44" loading="lazy" onerror="this.hidden=true" />`;
     return `<span class="dir-logo">${img}<span class="dir-letter">${letter}</span></span>`;
   }
 
@@ -177,10 +177,10 @@
       : `Top ${fmt(list.length)} companies by open jobs${where()}`;
     $("#dir-sub").textContent = "";
     body.innerHTML = list.slice(0, state.shown).map((r) => `
-      <div class="dir-row${r.domain === state.selected ? " selected" : ""}" data-domain="${esc(r.domain)}" tabindex="0" role="button">
+      <div class="dir-row${r.domain === state.selected ? " selected" : ""}" data-domain="${esc(r.domain)}" role="listitem">
         ${logoTile(r)}
         <div class="dir-main">
-          <div class="dir-name">${esc(r.name)}</div>
+          <button type="button" class="dir-name dir-open" aria-expanded="${r.domain === state.selected ? "true" : "false"}">${esc(r.name)}</button>
           <div class="dir-line">${esc(r.domain)} · ${esc(atsName(r.ats))}</div>
         </div>
         <div class="dir-trend-cell">${rowSpark(r.trend)}</div>
@@ -219,7 +219,10 @@
     $("#job-detail").classList.toggle("open", !!domain);
     $("#job-scrim").classList.toggle("open", !!domain);
     document.querySelectorAll(".dir-row").forEach((r) => r.classList.toggle("selected", r.dataset.domain === domain));
-    history.replaceState(null, "", domain ? `#${domain}` : location.pathname + location.search);
+    const url = new URL(location.href);
+    if (domain) url.searchParams.set("company", domain); else url.searchParams.delete("company");
+    url.hash = "";
+    history.replaceState(null, "", url.pathname + url.search);
     const head = $("#dir-pane-head");
     const body = $("#dir-pane-body");
     if (!domain) {
@@ -290,6 +293,7 @@
       else document.documentElement.removeAttribute("data-theme");
       $("#theme-toggle").setAttribute("aria-checked", String(dark));
       try { localStorage.setItem("iljobs_theme", dark ? "dark" : "light"); } catch { /* as above */ }
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#17181c" : "#f2f0ef");
     });
     $("#dir-browse").addEventListener("click", (e) => {
       const b = e.target.closest("[data-view]"); if (!b) return;
@@ -370,10 +374,6 @@
       const row = e.target.closest(".dir-row");
       if (row) openCompany(row.dataset.domain === state.selected ? null : row.dataset.domain);
     });
-    $("#dir-rows").addEventListener("keydown", (e) => {
-      const row = e.target.closest(".dir-row");
-      if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCompany(row.dataset.domain); }
-    });
     $("#dir-pane-head").addEventListener("click", (e) => { if (e.target.closest("#dir-close")) openCompany(null); });
     $("#job-scrim").addEventListener("click", () => openCompany(null));
   }
@@ -383,7 +383,7 @@
     openCompany(null);
     loadCountries();
     await loadDirectory();
-    const want = decodeURIComponent(location.hash.slice(1));
+    const want = new URLSearchParams(location.search).get("company") || decodeURIComponent(location.hash.slice(1));
     if (want) openCompany(want);
   }
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", start) : start();

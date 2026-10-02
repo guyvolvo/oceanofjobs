@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="#f2f0ef" />
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- Google tag (gtag.js). Google's own instruction is "immediately
        after <head>"; it sits after the charset instead, because a
        document's encoding has to be declared inside the first 1024
@@ -41,11 +45,13 @@
   <link rel="stylesheet" href="style.css" />
   <script>
     if (localStorage.getItem("iljobs_theme") === "dark") {
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
   <!-- The landing page's bar, not the board's. Every link this used to
        carry (Job board, Explore, API) is already in the phone menu and
@@ -103,11 +109,13 @@
           </button>
           <div class="auth-divider">or</div>
           <form class="auth-email-form" id="acct-email-form">
-            <input type="email" id="acct-email-input" placeholder="you@example.com" required autocomplete="email" />
+            <label for="acct-email-input" class="visually-hidden">Email address</label>
+            <input type="email" id="acct-email-input" name="email" placeholder="you@example.com" required autocomplete="email" spellcheck="false" autocapitalize="off" />
             <button class="btn" type="submit">Send code</button>
           </form>
           <form class="auth-email-form" id="acct-otp-form" hidden>
-            <input type="text" id="acct-otp-input" placeholder="Verification code" inputmode="numeric" pattern="[0-9]{4,10}" required autocomplete="one-time-code" />
+            <label for="acct-otp-input" class="visually-hidden">Verification code</label>
+            <input type="text" id="acct-otp-input" name="code" placeholder="Verification code" inputmode="numeric" pattern="[0-9]{4,10}" required autocomplete="one-time-code" spellcheck="false" autocapitalize="off" />
             <button class="btn" type="submit">Verify</button>
           </form>
           <p class="auth-error" id="acct-error" hidden></p>
@@ -136,7 +144,7 @@
             <div class="acct-hero-actions">
               <a class="btn primary" id="acct-open-matches" href="/board?view=matches">Open best matches</a>
               <span class="acct-provider" id="account-provider" hidden></span>
-              <button type="button" class="link acct-signout" id="account-signout">Sign out</button>
+              <button type="button" class="link acct-signout" id="acct-hero-signout">Sign out</button>
             </div>
           </header>
           <!-- Hash targets, not paths: a hash is already shareable,
@@ -150,7 +158,7 @@
             <a class="account-nav-link" href="#settings">Settings</a>
           </nav>
 
-          <main class="account-main acct-box">
+          <main class="account-main acct-box" id="main" tabindex="-1">
             <!-- One head for every section, filled by wireAccountNav.
                  The sections used to carry their own, which meant five
                  headings that had to be kept level with each other by
@@ -234,9 +242,10 @@
               <div id="alerts-list"><p class="alerts-empty">Loading…</p></div>
 
               <div class="alert-create" id="alert-create">
-                <div class="alerts-header" id="alert-form-title">New Alert</div>
+                <h3 class="alerts-header" id="alert-form-title">New alert</h3>
                 <div class="alert-create-fields">
-                  <input type="text" id="alert-f-search" placeholder="SEARCH" />
+                  <label for="alert-f-search" class="visually-hidden">Words the listing must contain</label>
+                  <input type="text" id="alert-f-search" name="search" autocomplete="off" placeholder="Words the listing must contain, e.g. devops…" />
                   <div class="ms" id="alert-ms-department"></div>
                   <div class="ms" id="alert-ms-seniority"></div>
                   <div class="ms" id="alert-ms-company"></div>

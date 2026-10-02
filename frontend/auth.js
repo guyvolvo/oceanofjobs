@@ -215,7 +215,7 @@ function avatarHtml(email, idToken) {
   const letter = String((email || "?").charAt(0) || "?").toUpperCase().replace(/[&<>"']/g, "");
   const url = idToken ? decodeJwtPicture(idToken) : null;
   const img = url
-    ? `<img class="hero-avatar-img" src="${url.replace(/[&<>"']/g, encodeURIComponent)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()" />`
+    ? `<img class="hero-avatar-img" src="${url.replace(/[&<>"']/g, encodeURIComponent)}" alt="" width="24" height="24" referrerpolicy="no-referrer" onerror="this.remove()" />`
     : "";
   return `<span class="hero-avatar" aria-hidden="true">${letter}${img}</span>`;
 }

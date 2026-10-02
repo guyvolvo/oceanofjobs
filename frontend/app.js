@@ -297,16 +297,32 @@ function monogramLogoSvg(domain) {
 // of per-domain exceptions, is gone with it: the resolver
 // (resolve_company_logos.py, company_aliases.REAL_DOMAIN) is the one
 // place that knows where a company's mark is.
+// One live region for the small confirmations (a link copied, a job
+// saved) that a screen reader would otherwise never hear.
+function announce(text) {
+  let el = document.getElementById("live-announce");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "live-announce";
+    el.className = "visually-hidden";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    document.body.appendChild(el);
+  }
+  el.textContent = "";
+  setTimeout(() => { el.textContent = text; }, 50);
+}
+
 function companyLogoImg(domain, size, extraClass = "", resolved = null) {
   const cls = extraClass ? `company-logo ${extraClass}` : "company-logo";
   const monogram = escapeHtml(monogramLogoSvg(domain));
-  if (resolved === "" || !domain) return `<img class="${cls}" src="${monogram}" alt="" />`;
-  return `<img class="${cls}" src="/logo/${encodeURIComponent(domain)}.png" alt="" loading="lazy"
+  if (resolved === "" || !domain) return `<img class="${cls}" src="${monogram}" alt="" width="${size}" height="${size}" />`;
+  return `<img class="${cls}" src="/logo/${encodeURIComponent(domain)}.png" alt="" width="${size}" height="${size}" loading="lazy"
     data-monogram="${monogram}" onerror="this.onerror=null;this.src=this.dataset.monogram;" />`;
 }
 
 function fmtInt(n) {
-  return (n ?? 0).toLocaleString("en-US");
+  return (n ?? 0).toLocaleString();
 }
 
 function fmtPct(n) {
@@ -2529,7 +2545,7 @@ function jobRowsHtml(jobs, starred) {
                  ellipsised. escapeHtml, not highlight(): the visible
                  span keeps the search highlighting, an attribute cannot
                  hold markup. -->
-            <span class="job-title-text" title="${escapeHtml(j.title)}">${highlight(j.title)}</span>
+            <a class="job-title-text job-title-link" href="/job/${encodeURIComponent(j.id)}" title="${escapeHtml(j.title)}">${highlight(j.title)}</a>
             ${j.seniority ? `<span class="badge seniority">${escapeHtml(SENIORITY_LABELS[j.seniority] || j.seniority)}</span>` : ""}
             ${j.confidence === "best_effort" ? '<span class="badge best-effort" title="Scraped from the company\'s own page, not a live ATS API">best_effort</span>' : ""}
             ${j.closed_at ? '<span class="badge closed" title="This listing is no longer open">Closed</span>' : ""}
@@ -3026,6 +3042,7 @@ async function copyToClipboard(btn, url) {
   const original = btn.innerHTML;
   btn.textContent = "Copied";
   btn.classList.add("copied");
+  announce("Link copied");
   setTimeout(() => {
     btn.innerHTML = original;
     btn.classList.remove("copied");
@@ -3423,14 +3440,17 @@ function closeJobDetailAndSync() {
 
 function wireJobDetail() {
   document.getElementById("jobs-body").addEventListener("click", (e) => {
-    if (e.target.closest("a, button")) return; // Apply/Copy link/star handle their own click
+    const titleLink = e.target.closest(".job-title-link");
+    if (titleLink && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)) {
+      e.preventDefault(); // a plain click opens the pane; a modified one follows the link
+    } else if (e.target.closest("a, button")) return; // Apply/Copy link/star handle their own click
     const row = e.target.closest("tr[data-id]");
     if (row) openJobDetailAndPush(row.dataset.id);
   });
-  // The rows are focusable now, so Enter has to do what a click does.
-  // Space is left alone: on a focused row it should still scroll.
+  // The rows are focusable and say they are buttons, so Enter and Space
+  // both do what a click does.
   document.getElementById("jobs-body").addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
+    if (e.key !== "Enter" && e.key !== " ") return;
     if (e.target.closest("a, button")) return;
     const row = e.target.closest("tr[data-id]");
     if (!row) return;
@@ -3549,7 +3569,7 @@ function createMultiSelect(containerId, { placeholder, options = [], searchable 
              <div class="ms-pinned-divider"></div>`
           : ""
       }
-      ${searchable ? '<input type="text" class="ms-search" placeholder="Filter…" />' : ""}
+      ${searchable ? '<input type="text" class="ms-search" name="filter" aria-label="Filter the options" autocomplete="off" placeholder="Filter…" />' : ""}
       <div class="ms-options" role="listbox"></div>
       <button type="button" class="ms-clear">Clear</button>
     </div>
@@ -3758,7 +3778,7 @@ function createLocationSelect(containerId, { placeholder, onChange }) {
   container.innerHTML = `
     <button type="button" class="ms-toggle" aria-haspopup="listbox" aria-expanded="false">${escapeHtml(placeholder)}</button>
     <div class="ms-menu" hidden>
-      <input type="text" class="ms-search" placeholder="Filter…" />
+      <input type="text" class="ms-search" name="filter" aria-label="Filter the options" autocomplete="off" placeholder="Filter…" />
       <div class="ms-options" role="listbox"></div>
       <button type="button" class="ms-clear">Clear</button>
     </div>
@@ -5381,6 +5401,8 @@ function wireThemeToggle() {
       // Private browsing or a full quota. The theme still switches; it
       // just will not be remembered, which is not worth failing over.
     }
+    // The browser's own chrome follows the page's ground.
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next === "dark" ? "#17181c" : "#f2f0ef");
     sync();
   }
 
@@ -5768,9 +5790,10 @@ function renderAuthState() {
       <div id="alerts-list"><p class="alerts-empty">Loading…</p></div>
 
       <div class="alert-create" id="alert-create">
-        <div class="alerts-header" id="alert-form-title">New Alert</div>
+        <h3 class="alerts-header" id="alert-form-title">New alert</h3>
         <div class="alert-create-fields">
-          <input type="text" id="alert-f-search" placeholder="SEARCH" />
+          <label for="alert-f-search" class="visually-hidden">Words the listing must contain</label>
+          <input type="text" id="alert-f-search" name="search" autocomplete="off" placeholder="Words the listing must contain, e.g. devops…" />
           <div class="ms" id="alert-ms-department"></div>
           <div class="ms" id="alert-ms-seniority"></div>
           <div class="ms" id="alert-ms-company"></div>
@@ -6069,6 +6092,7 @@ function renderAlertsList(alerts) {
   });
   container.querySelectorAll(".alert-delete").forEach((btn) => {
     btn.addEventListener("click", async () => {
+      if (!confirm("Delete this alert? Its emails stop at once.")) return;
       btn.disabled = true;
       try {
         await authedFetch(`/me/alerts/${btn.dataset.id}`, { method: "DELETE" });

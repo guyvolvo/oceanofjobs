@@ -136,6 +136,10 @@
     host.classList.toggle("nav-open", on);
     toggle.setAttribute("aria-expanded", String(on));
     open = on;
+    // Focus follows: into the first item on open, back to the button
+    // on close, so a keyboard is never left behind the menu.
+    if (on) panel.querySelector("a, button")?.focus();
+    else if (document.activeElement && panel.contains(document.activeElement)) toggle.focus();
   }
 
   toggle.addEventListener("click", () => setOpen(!open));
