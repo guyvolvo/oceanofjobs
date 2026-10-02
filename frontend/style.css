@@ -7680,7 +7680,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .pg-notice { margin: 0 0 18px; padding: 12px 16px; border: 1px solid var(--panel-line); border-radius: 10px; font: 400 14px var(--font-ui); }
 .pg-notice a { color: var(--green-text); }
 
-.pg-logo { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--s); height: var(--s); border: 1px solid var(--grey-line); border-radius: 4px; background: var(--hover-bg); overflow: hidden; }
+.pg-logo { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--s); height: var(--s); border: 1px solid var(--grey-line); border-radius: 6px; background: var(--hover-bg); overflow: hidden; }
 .pg-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--white); }
 .pg-letter { font: 700 calc(var(--s) * 0.42) var(--font-ui); color: var(--black); }
 
@@ -7693,7 +7693,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .pg-meta { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; font: 400 14px var(--font-ui); }
 .pg-meta span { display: inline-flex; align-items: center; gap: 6px; }
 .pg-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.pg-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--panel-line); border-radius: 4px; font: 700 12px var(--font-ui); }
+.pg-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--panel-line); border-radius: 6px; font: 700 12px var(--font-ui); }
 .pg-tag-green { border: 1.5px solid var(--green-text); color: var(--green-text); }
 .pg-tag-closed { background: var(--black); color: var(--white); border-color: var(--black); }
 .pg-tag-small { padding: 0 6px; font-size: 11px; }
@@ -7709,19 +7709,22 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .pg-ready-title { font: 700 15px var(--font-ui); }
 .pg-ready .pg-muted { font: 400 13px var(--font-ui); }
 
-.pg-side { display: flex; flex-direction: column; gap: 16px; }
+/* Sticky as one piece. When it is taller than the window, the script in
+   the foot gives it a negative top, so it scrolls with the page until its
+   bottom is in view and holds there; no card ever slides under another. */
+.pg-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
 .pg-card { padding: 16px 18px; border: 1px solid var(--panel-line); border-radius: 10px; background: var(--white); }
-.pg-card-main { padding: 18px; position: sticky; top: 16px; }
+.pg-card-main { padding: 18px; }
 .pg-card-head { display: flex; justify-content: space-between; align-items: baseline; }
 .pg-card-title { font: 700 14px var(--font-ui); }
 .pg-side-all { color: var(--black); font: 700 12px var(--font-ui); text-decoration: none; }
 .pg-side-all:hover { color: var(--green-text); }
-.pg-apply { display: flex; align-items: center; justify-content: center; gap: 6px; height: 46px; border-radius: 4px; background: var(--green-text); color: #fff; font: 700 15px var(--font-ui); text-decoration: none; }
+.pg-apply { display: flex; align-items: center; justify-content: center; gap: 6px; height: 46px; border-radius: 8px; background: var(--green-text); color: #fff; font: 700 15px var(--font-ui); text-decoration: none; }
 .pg-apply:hover { filter: brightness(1.08); }
 .pg-apply-inline { display: inline-flex; flex: none; height: 42px; padding: 0 18px; }
 .pg-apply-off { background: var(--black); color: var(--white); }
 .pg-side-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-.pg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border: 1.5px solid var(--black); border-radius: 4px; background: none; color: var(--black); font: 700 13px var(--font-ui); text-decoration: none; cursor: pointer; }
+.pg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border: 1.5px solid var(--black); border-radius: 8px; background: none; color: var(--black); font: 700 13px var(--font-ui); text-decoration: none; cursor: pointer; }
 .pg-btn:hover { background: var(--hover-bg); }
 .pg-btn.on { color: var(--green-text); border-color: var(--green-text); }
 .pg-btn-fill { background: var(--black); color: var(--white); }
@@ -7748,7 +7751,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .pg-co-about a { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
 .pg-co-acts { display: flex; gap: 8px; }
 .pg-co-acts .pg-btn { height: 40px; }
-.pg-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-top: 22px; border: 2px solid var(--grey-line); border-radius: 4px; background: var(--grey-line); overflow: hidden; }
+.pg-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-top: 22px; border: 2px solid var(--grey-line); border-radius: 10px; background: var(--grey-line); overflow: hidden; }
 .pg-tile { padding: 16px 18px; background: var(--white); }
 .pg-tile-n { display: block; font: 800 30px/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .pg-tile-text { font-size: 22px; line-height: 30px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -7799,7 +7802,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .pg-nav { display: none; }
   .pg-main, .pg-foot { max-width: calc(100% - 32px); }
   .pg-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .pg-card-main { position: static; }
+  .pg-side { position: static; }
   .pg-title { font-size: 32px; }
   .pg-title-sub { font-size: 18px; }
   .pg-co-head { flex-wrap: wrap; align-items: center; }

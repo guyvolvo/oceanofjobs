@@ -175,7 +175,15 @@ def topbar(current: str = "") -> str:
 """
 
 
-FOOT = """  <footer class="pg-foot">
+FOOT = """  <script>
+    (function () {
+      var side = document.querySelector(".pg-side");
+      if (!side) return;
+      var fit = function () { side.style.top = Math.min(16, window.innerHeight - side.offsetHeight - 16) + "px"; };
+      fit(); window.addEventListener("resize", fit); window.addEventListener("load", fit);
+    })();
+  </script>
+  <footer class="pg-foot">
     <span>oceanofjobs.com · listings scraped from company hiring systems</span>
     <span><a href="/board">Browse the board</a> · <a href="/api/help">API</a> · <a href="/privacy">Privacy</a></span>
   </footer>
