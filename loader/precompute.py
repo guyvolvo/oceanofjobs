@@ -146,8 +146,12 @@ def record_company_day(db_path: Path) -> bool:
         conn.close()
 
 
-def build(db_path: Path) -> dict[str, dict]:
-    """{filename: payload} for everything worth precomputing."""
+def build(db_path: Path, pause=None) -> dict[str, dict]:
+    """{filename: payload} for everything worth precomputing.
+
+    `pause`, when given, is called between passes: the box's publisher
+    uses it to step aside for a waiting apply (box/lock.py let_through)."""
+    pause = pause or (lambda: None)
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     register_functions(conn)
@@ -167,12 +171,17 @@ def build(db_path: Path) -> dict[str, dict]:
         # those meant the artifact existed and the page never used it:
         # /facets?x=1 answered in 0.34s while the request the browser
         # actually makes still took 7.18s.
-        facets = {c: compute_facets(conn, {"confidence": c}) for c in ("verified", "all")}
+        pause()
+        facets = {}
+        for c in ("verified", "all"):
+            facets[c] = compute_facets(conn, {"confidence": c})
+            pause()
         # The tech view (roles=tech, the board's default since
         # 2026-09-21) is a second variant of each, and a scoped stats
         # block of its own, so the plain page load never computes live.
         for c in ("verified", "all"):
             facets[f"{c}:tech"] = compute_facets(conn, {"confidence": c, "roles": "tech"})
+            pause()
             # The Israeli board, which is the product's first audience
             # and the one view a place filter cannot be precomputed
             # away from: its location tree drops the country filter and
@@ -181,7 +190,9 @@ def build(db_path: Path) -> dict[str, dict]:
             # visitor. route_facets serves these when country=IL is the
             # only thing narrowing the board.
             facets[f"{c}:IL"] = compute_facets(conn, {"confidence": c, "country": "IL"})
+            pause()
             facets[f"{c}:tech:IL"] = compute_facets(conn, {"confidence": c, "roles": "tech", "country": "IL"})
+            pause()
         stats["scoped_tech"] = compute_scoped_stats(conn, {"confidence": "all", "roles": "tech"})
         # The board's common first clicks, so they answer from the artifact
         # instead of scanning the table live: measured 2026-09-27, a cold
@@ -203,6 +214,7 @@ def build(db_path: Path) -> dict[str, dict]:
                 for v in values:
                     p = {"confidence": "all", key: v, **({"roles": roles} if roles else {})}
                     variants[scoped_variant_key(p)] = compute_scoped_stats(conn, p)
+                    pause()
         stats["scoped_variants"] = variants
     finally:
         conn.close()
@@ -239,7 +251,7 @@ def _fresh_enough(s3, bucket: str) -> bool:
     return False
 
 
-def publish(bucket: str, db_path: Path, frontend_bucket: str = "") -> list[str]:
+def publish(bucket: str, db_path: Path, frontend_bucket: str = "", pause=None) -> list[str]:
     """Write them to S3. Returns the keys written, [] on any failure.
 
     Two destinations, for two different readers.
@@ -267,7 +279,7 @@ def publish(bucket: str, db_path: Path, frontend_bucket: str = "") -> list[str]:
         s3 = boto3.client("s3")
         if _fresh_enough(s3, bucket):
             return []
-        payloads = build(db_path)
+        payloads = build(db_path, pause)
     except Exception as e:
         print(f"precompute failed, API will keep computing live: {e!r}", file=sys.stderr)
         return []

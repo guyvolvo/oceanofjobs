@@ -42,7 +42,7 @@ import build_explore  # noqa: E402
 import metrics  # noqa: E402
 import precompute  # noqa: E402
 import sitemap  # noqa: E402
-from lock import exclusive  # noqa: E402
+from lock import exclusive, let_through  # noqa: E402
 
 DB = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db"))
 BUCKET = os.environ["DATA_BUCKET"]
@@ -112,7 +112,7 @@ def _publish() -> int:
     done: list[str] = []
 
     t = time.monotonic()
-    written = precompute.publish(BUCKET, DB, FRONTEND_BUCKET)
+    written = precompute.publish(BUCKET, DB, FRONTEND_BUCKET, pause=let_through)
     if written:
         done.append(f"precomputed {len(written)} in {time.monotonic() - t:.0f}s")
 

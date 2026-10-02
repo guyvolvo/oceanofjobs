@@ -48,7 +48,7 @@ for _p in (ROOT, ROOT / "api", ROOT / "loader"):
 from deltas import PREFIX as DELTA_PREFIX, delete_fragments  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lock import exclusive, someone_waiting  # noqa: E402
+from lock import clear_waiting, exclusive, note_waiting, someone_waiting  # noqa: E402
 
 DB = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db"))
 BUCKET = os.environ["DATA_BUCKET"]
@@ -203,16 +203,27 @@ def main() -> int:
     # Applies run back to back and used to starve it (no precomputed
     # stats for five hours, 2026-10-01); one tick's delay here costs
     # nothing, the spool keeps.
+    # Either way it leaves a marker while fragments are queued, so a long
+    # holder can step aside for it (lock.let_through) instead of keeping
+    # the disk for the whole of a slow precompute.
+    queued = SPOOL.is_dir() and any(SPOOL.glob("*.json"))
     waiting = someone_waiting(but="apply")
     if waiting:
+        if queued:
+            note_waiting("apply")
         print(f"apply: yielding the disk to {waiting}")
         return 0
     with exclusive("apply") as got:
         if not got:
-            # The snapshot job has the disk. The spool keeps filling and
-            # the next tick, a minute from now, picks this up.
+            # The snapshot job or the publisher has the disk. The spool
+            # keeps filling and the next tick picks this up.
+            if queued:
+                note_waiting("apply")
             return 0
-        return _apply()
+        try:
+            return _apply()
+        finally:
+            clear_waiting("apply")
 
 
 def _apply() -> int:
