@@ -188,6 +188,17 @@
 
               <p class="acct-fresh" id="acct-fresh" hidden></p>
 
+              <!-- A phone with no matches yet: one card with the two ways
+                   out, in place of four panels saying nothing. -->
+              <section class="acct-getmatched" id="acct-getmatched" hidden>
+                <h3 class="acct-getmatched-title">Get matched to jobs</h3>
+                <p class="acct-getmatched-text" id="acct-getmatched-text">Add your skills or widen your locations to see matches and salary estimates.</p>
+                <div class="acct-getmatched-actions">
+                  <a class="btn" href="#skills"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>Upload CV</a>
+                  <a class="btn ghost" href="#preferences">Edit locations</a>
+                </div>
+              </section>
+
               <div class="acct-dash-row acct-dash-top">
                 <div class="acct-panel">
                   <h3 class="acct-panel-title"><span class="acct-panel-head"><span>New best matches</span><span class="acct-panel-sub" id="acct-matches-sub"></span></span>
@@ -416,6 +427,7 @@
   <script src="cv_skills.js"></script>
   <script src="account.js"></script>
   <script src="account_dashboard.js"></script>
+  <script src="/tabbar.js"></script>
   <script src="mobile_nav.js"></script>
 </body>
 </html>
