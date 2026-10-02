@@ -6762,7 +6762,8 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
 .side-save[hidden] { display: none; }
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
 .side-account { display: none; }
-.side-source { padding: 0 8px; color: var(--grey); font: 400 13px var(--font-ui); text-decoration: none; }
+.side-source { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: 0 4px; border-radius: 8px; color: var(--grey); text-decoration: none; }
+.side-source svg { width: 16px; height: 16px; }
 .side-source:hover { color: var(--green-text); }
 .side-scrim { display: none; }
 
