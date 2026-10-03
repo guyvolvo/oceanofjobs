@@ -26691,3 +26691,10 @@ lanternaeducation.com
 madkaffe.com
 mdpithailand.com
 mhpgroup.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ordermesh.com
+opus2.com
+mobilexpense.com
+damas.co
+incubator-lab.com
