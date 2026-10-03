@@ -26633,3 +26633,12 @@ medtanken.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 mintos.com
 larosee.fr
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+jiliti.com
+ketju.com
+ppjo.de
+optisigns.com
+keskosenukaiestonia.com
+mous.com
+orquest.com
