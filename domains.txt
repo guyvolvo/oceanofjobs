@@ -26703,3 +26703,7 @@ incubator-lab.com
 sans.com
 minjonoy.com
 mwm.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ukagritechcentre.com
+albrings-mueller.de
