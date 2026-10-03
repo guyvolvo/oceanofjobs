@@ -26729,3 +26729,21 @@ solugen.com
 noah.io
 usboell.com
 soley.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+kolsquareteamblue.com
+latelierentrecotevolaille.com
+lindemaskiner.com
+lindvallenrestaurangeraktiebolag.com
+lestra.com
+mecenat.com
+lacompagniedesdesserts.com
+mioomsorg.com
+lajeas.com
+montel.com
+memobank.fr
+lumenradio.com
+koyfin.com
+optix.com
+ordr.io
+orlando.ai
