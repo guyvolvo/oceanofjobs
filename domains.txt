@@ -26646,3 +26646,8 @@ orquest.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 my-burger.de
 landauheadhunting.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+mendoai-1730204279.com
+vias-infrastructure.com
+mks.com
