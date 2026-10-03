@@ -26606,3 +26606,8 @@ lrgcareers.com
 justergroupab.com
 lianerh.com
 luminorbank.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+kuraomsorg.com
+optimiza-4.com
+japaneseheadspa.com
