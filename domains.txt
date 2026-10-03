@@ -26775,3 +26775,9 @@ studioscience.com
 cuberm.com
 orgmento.com
 villagechurch.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+dimebeautyco.com
+eaglesnestfoundation.org
+stevensonschool.com
+breakthroughtech.org
