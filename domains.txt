@@ -26597,3 +26597,12 @@ drhouse.fr
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 osa.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+knightecgroup.com
+lacotelarete.com
+multitempo.com
+lrgcareers.com
+justergroupab.com
+lianerh.com
+luminorbank.com
