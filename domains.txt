@@ -26723,3 +26723,9 @@ vianex.com
 loyaltykey.com
 illfonic.com
 native-network.de
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+solugen.com
+noah.io
+usboell.com
+soley.com
