@@ -26781,3 +26781,11 @@ dimebeautyco.com
 eaglesnestfoundation.org
 stevensonschool.com
 breakthroughtech.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+digidoc.de
+fractal.ai
+linqd.com
+mobilion.de
+reliant.com
+reach-out.net
