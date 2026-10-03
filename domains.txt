@@ -26668,3 +26668,11 @@ optimile.ai
 marsstrandshavshotell.com
 multiversecomputing.com
 multisparestruckparts.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+orfium.com
+talk-recruitment-limited.com
+lfgconstruction.com
+mediaplanet.com
+medpro.com
+mytraffic.io
