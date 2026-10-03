@@ -26611,3 +26611,8 @@ luminorbank.com
 kuraomsorg.com
 optimiza-4.com
 japaneseheadspa.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+origin.com
+leroymerlinromania.com
+lifenorge.com
