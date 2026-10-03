@@ -26769,3 +26769,9 @@ motorica.com
 montessoriforderkreisnurnbergev.com
 metanet.io
 logmycare-1732894388.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+studioscience.com
+cuberm.com
+orgmento.com
+villagechurch.com

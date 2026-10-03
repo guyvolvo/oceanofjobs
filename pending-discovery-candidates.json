@@ -1,645 +1,5 @@
 [
   {
-    "ats": "lever",
-    "token": "atavistik-bio",
-    "domain": "atavistik.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "lever",
-    "token": "autonomous",
-    "domain": "autonomous.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "egky.fa.us6.oraclecloud.com:CX_5001",
-    "domain": "grupo.ai",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "egoh-dev4.fa.us2.oraclecloud.com:CX_1001",
-    "domain": "choctaw.org",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "ehkp.fa.em2.oraclecloud.com:CX",
-    "domain": "cenomi.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "eiht.fa.em2.oraclecloud.com:CX_1",
-    "domain": "visitscotland.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "eism-dev3.fa.em2.oraclecloud.com:CX_1",
-    "domain": "nottingham.ai",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "ehuk.fa.us2.oraclecloud.com:CX_1",
-    "domain": "banco.de",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "ejff.fa.us6.oraclecloud.com:CX_1",
-    "domain": "neenah.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "ekjd.fa.em2.oraclecloud.com:CX",
-    "domain": "agra.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "ekfu.fa.ap1.oraclecloud.com:CX_1001",
-    "domain": "inland.ai",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "ekkz.fa.em2.oraclecloud.com:CX_5001",
-    "domain": "imdaad.org",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "eobe.fa.em2.oraclecloud.com:CX_1001",
-    "domain": "stats.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "eocn.fa.em3.oraclecloud.com:CX_3001",
-    "domain": "alkhorayef.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "evml.fa.us6.oraclecloud.com:CX_1001",
-    "domain": "seapeak.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-emza-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
-    "domain": "poste.io",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "eoiv.fa.ap1.oraclecloud.com:CX_2001",
-    "domain": "first.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-eocc-test-saasfaprod1.fa.ocs.oraclecloud.com:CX",
-    "domain": "candidate.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-epec-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
-    "domain": "halifax.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-eozq-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
-    "domain": "page-not-found.de",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-epxe-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "king.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-ercy-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "victoria.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-esgr-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "qia.ai",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-esiu-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "safe.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-esco-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "orascom.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-esti-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "saudi.com",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-etnq-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "fa.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-esmc-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "gnzs.de",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-etna-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "at.org",
-    "domain_verified": false,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-euok-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "thc.com",
-    "domain_verified": true,
-    "job_count": 2,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "greenhouse",
-    "token": "kayak",
-    "domain": "kayak.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "greenhouse",
-    "token": "nansen",
-    "domain": "nansen.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "greenhouse",
-    "token": "nearspacelabs",
-    "domain": "nearspacelabs.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "greenhouse",
-    "token": "newsrevenuehub",
-    "domain": "newsrevenuehub.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "greenhouse",
-    "token": "studioscience",
-    "domain": "studioscience.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "greenhouse",
-    "token": "readysettechnologyinc",
-    "domain": "readysettechnologyinc.com",
-    "domain_verified": false,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "greenhouse",
-    "token": "revel",
-    "domain": "revel.io",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "ghost",
-    "domain": "ghost.io",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "hamilton-ai",
-    "domain": "hamilton.ai",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "learn-bedford",
-    "domain": "learn.co",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "life-space-digital",
-    "domain": "life.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "maxima-consulting",
-    "domain": "maxima.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "noise-labs",
-    "domain": "noise.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "parallel-fluidics",
-    "domain": "parallel.ai",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "pytho-ai",
-    "domain": "pytho.ai",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "revive",
-    "domain": "revive.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "rebel-space-technologies",
-    "domain": "rebel-space.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "rutter",
-    "domain": "rutter.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "revv-hq",
-    "domain": "revv.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "reinforce-labs-inc",
-    "domain": "reinforce.ai",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "sharedcontextlab",
-    "domain": "sharedcontextlab.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "subzero",
-    "domain": "subzero.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "slope",
-    "domain": "slope.io",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "tonicai",
-    "domain": "tonicai.com",
-    "domain_verified": false,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "twosteptx",
-    "domain": "twosteptx.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "risklabs",
-    "domain": "risklabs.io",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "sigp",
-    "domain": "sigp.io",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "access-business-technologies",
-    "domain": "access.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "a-more-perfect-union-the-jewish-partnership-for-democracy",
-    "domain": "a-more-perfect-union.org",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "amcon-industrial",
-    "domain": "amcon.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "alliance-for-clinical-trial-in-oncology-foundation",
-    "domain": "alliance.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "apt-2026",
-    "domain": "apt.co",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "asi-student-government",
-    "domain": "asi.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "atak-interactive",
-    "domain": "atak.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "binagora-1",
-    "domain": "binagora.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "clearwaters-dot-i-t",
-    "domain": "clearwaters.co",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "connected-kerb",
-    "domain": "connected.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "convergent-careers",
-    "domain": "convergent.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "coons-franklin-lodge",
-    "domain": "coons.de",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "cosy-hauz",
-    "domain": "cosy.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "covalent-networks",
-    "domain": "covalent.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "createq-space",
-    "domain": "createq.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "cuberm",
-    "domain": "cuberm.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "crown-equipment-pte-ltd-singapore",
-    "domain": "crown-equipment.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "daniels-solutions",
-    "domain": "daniels.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "craver-1",
-    "domain": "craver.ai",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "craft-gin-club",
-    "domain": "craft.io",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "orgmento",
-    "domain": "orgmento.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "villagechurch",
-    "domain": "villagechurch.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "workable",
-    "token": "videray-technologies-inc",
-    "domain": "videray.com",
-    "domain_verified": true,
-    "job_count": 1,
-    "israel_job_count": 0
-  },
-  {
     "ats": "recruitee",
     "token": "meiarchitectsplanners",
     "domain": "meiarchitectsplanners.com",
@@ -3965,6 +3325,166 @@
     "domain": "quilter.com",
     "domain_verified": true,
     "job_count": 5,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "lever",
+    "token": "atavistik-bio",
+    "domain": "atavistik.com",
+    "domain_verified": true,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "lever",
+    "token": "autonomous",
+    "domain": "autonomous.com",
+    "domain_verified": true,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "egky.fa.us6.oraclecloud.com:CX_5001",
+    "domain": "grupo.ai",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "egoh-dev4.fa.us2.oraclecloud.com:CX_1001",
+    "domain": "choctaw.org",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "ehkp.fa.em2.oraclecloud.com:CX",
+    "domain": "cenomi.com",
+    "domain_verified": true,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "eiht.fa.em2.oraclecloud.com:CX_1",
+    "domain": "visitscotland.com",
+    "domain_verified": true,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "eism-dev3.fa.em2.oraclecloud.com:CX_1",
+    "domain": "nottingham.ai",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "ehuk.fa.us2.oraclecloud.com:CX_1",
+    "domain": "banco.de",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "ejff.fa.us6.oraclecloud.com:CX_1",
+    "domain": "neenah.com",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "ekjd.fa.em2.oraclecloud.com:CX",
+    "domain": "agra.com",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "ekfu.fa.ap1.oraclecloud.com:CX_1001",
+    "domain": "inland.ai",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "ekkz.fa.em2.oraclecloud.com:CX_5001",
+    "domain": "imdaad.org",
+    "domain_verified": true,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "eobe.fa.em2.oraclecloud.com:CX_1001",
+    "domain": "stats.com",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "eocn.fa.em3.oraclecloud.com:CX_3001",
+    "domain": "alkhorayef.com",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "evml.fa.us6.oraclecloud.com:CX_1001",
+    "domain": "seapeak.com",
+    "domain_verified": true,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "fa-emza-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
+    "domain": "poste.io",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "eoiv.fa.ap1.oraclecloud.com:CX_2001",
+    "domain": "first.com",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "fa-eocc-test-saasfaprod1.fa.ocs.oraclecloud.com:CX",
+    "domain": "candidate.com",
+    "domain_verified": false,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "fa-epec-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
+    "domain": "halifax.com",
+    "domain_verified": true,
+    "job_count": 2,
+    "israel_job_count": 0
+  },
+  {
+    "ats": "oracle",
+    "token": "fa-eozq-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
+    "domain": "page-not-found.de",
+    "domain_verified": true,
+    "job_count": 2,
     "israel_job_count": 0
   }
 ]
