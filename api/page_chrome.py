@@ -109,6 +109,11 @@ def head(title, description, canonical, robots=None, ld=None, og_type="article")
     page's own absolute URL; ld is one JSON-LD object or a list of
     them, each in its own script."""
     esc = html.escape
+    # Escaped like every other attribute here. The 404 pages passed the
+    # requested path through canonical_url, and an unescaped quote in it
+    # put attacker markup straight into the page (security review,
+    # 2026-10-03).
+    canonical = esc(canonical, quote=True)
     blocks = [] if ld is None else (ld if isinstance(ld, list) else [ld])
     ld_tag = "".join(
         # "<" inside a script element could open a tag; JSON is happy to

@@ -380,7 +380,9 @@ def render_redirect(target: str) -> str:
 def render_missing(domain: str) -> str:
     title = "Company not found | Ocean of Jobs"
     what = "The board does not track a company at this address. It may be spelled differently, or it may not have a careers page we can read."
-    head = _head(title, what, canonical_url(domain), robots="noindex", og_type="website")
+    # Only a well-formed domain goes back into the page.
+    canonical = canonical_url(domain) if is_domain(domain) else f"{SITE}/companies"
+    head = _head(title, what, canonical, robots="noindex", og_type="website")
     return head + f"""{TOPBAR}
   <main class="pg-main" id="main" tabindex="-1">
     <div class="pg-article">

@@ -1509,24 +1509,80 @@ def _real_icon(got: tuple[str, bytes] | None) -> tuple[str, bytes] | None:
     return got
 
 
+# What a logo may be, by declared type and by its own first bytes. The
+# type alone was trusted before, and a company site that served HTML or
+# script under an image/* label had it served back from this origin
+# (security review, 2026-10-03). SVG stays: dozens of real logos are SVG,
+# and _logo_response's sandbox CSP stops one opened as a page from
+# running anything.
+_LOGO_SIGNATURES = {
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "image/jpg": (b"\xff\xd8\xff",),
+    "image/gif": (b"GIF87a", b"GIF89a"),
+    "image/x-icon": (b"\x00\x00\x01\x00", b"\x89PNG\r\n\x1a\n"),
+    "image/vnd.microsoft.icon": (b"\x00\x00\x01\x00", b"\x89PNG\r\n\x1a\n"),
+}
+# Each fetch gets this long in all, however the remote host paces its
+# bytes: requests' timeout restarts on every read, so a host that dripped
+# a byte every few seconds held a gunicorn thread indefinitely.
+_LOGO_FETCH_DEADLINE_S = 6.0
+# New fetches at once, per worker. A logo that is not cached costs a
+# thread for up to the deadline; past this many the request is answered
+# 503 (the page falls back to the company's initial) and nothing is
+# cached, so the next view tries again.
+_logo_fetch_permits = threading.BoundedSemaphore(2)
+
+
+def _logo_bytes_ok(ct: str, body: bytes) -> bool:
+    if ct in _LOGO_SIGNATURES:
+        return body.startswith(_LOGO_SIGNATURES[ct])
+    if ct == "image/webp":
+        return body[:4] == b"RIFF" and body[8:12] == b"WEBP"
+    if ct == "image/avif":
+        return body[4:12] in (b"ftypavif", b"ftypavis")
+    if ct == "image/svg+xml":
+        head = body[:2048].lstrip(b"\xef\xbb\xbf \t\r\n").lower()
+        return head.startswith((b"<svg", b"<?xml", b"<!--", b"<!doctype svg")) and b"<svg" in body[:4096].lower()
+    return False
+
+
 def _fetch_logo(url: str) -> tuple[str, bytes] | None:
-    """The image behind a resolved logo URL, or None. Only an image, only
-    up to 2MB, and only from the URL the resolver stored, never from a
-    caller's own."""
+    """The image behind a resolved logo URL, or None. Only an image whose
+    bytes match its declared type, only up to 2MB, only within
+    _LOGO_FETCH_DEADLINE_S, and only from the URL the resolver stored,
+    never from a caller's own."""
     import requests
 
+    started = time.monotonic()
     try:
-        r = requests.get(url, timeout=8, stream=True,
+        r = requests.get(url, timeout=(3, 3), stream=True,
                          headers={"User-Agent": "Mozilla/5.0 (compatible; oceanofjobs.com logo cache)"})
         ct = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         if r.status_code != 200 or not ct.startswith("image/"):
             return None
-        body = r.raw.read(_LOGO_MAX_BYTES + 1, decode_content=True)
-        if not body or len(body) > _LOGO_MAX_BYTES:
+        chunks, size = [], 0
+        while True:
+            if time.monotonic() - started > _LOGO_FETCH_DEADLINE_S:
+                return None
+            chunk = r.raw.read(64 * 1024, decode_content=True)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > _LOGO_MAX_BYTES:
+                return None
+            chunks.append(chunk)
+        body = b"".join(chunks)
+        if not body or not _logo_bytes_ok(ct, body):
             return None
         return ct, body
     except Exception:  # noqa: BLE001
         return None
+    finally:
+        try:
+            r.close()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def route_company_logo(domain: str, conn=None, fetch=None, cache_dir: Path | None = None) -> dict:
@@ -1559,7 +1615,9 @@ def route_company_logo(domain: str, conn=None, fetch=None, cache_dir: Path | Non
             if ct == _LOGO_MISS and age < _LOGO_MISS_TTL_S:
                 return _response(404, json.dumps({"error": "no logo"}))
             if not ct.startswith("miss") and age < _LOGO_TTL_S and blob.exists():
-                return _logo_response(ct, blob.read_bytes())
+                cached = blob.read_bytes()
+                if _logo_bytes_ok(ct, cached):
+                    return _logo_response(ct, cached)
     except OSError:
         pass
 
@@ -1569,6 +1627,18 @@ def route_company_logo(domain: str, conn=None, fetch=None, cache_dir: Path | Non
         return _response(404, json.dumps({"error": "no such company"}))
     url = row[0] or ""
     get = fetch or _fetch_logo
+    if not _logo_fetch_permits.acquire(timeout=1.0):
+        resp = _response(503, json.dumps({"error": "busy"}))
+        resp["headers"]["Retry-After"] = "5"
+        resp["headers"]["Cache-Control"] = "no-store"
+        return resp
+    try:
+        return _fetch_and_cache_logo(domain, url, get, blob, meta, cache_dir)
+    finally:
+        _logo_fetch_permits.release()
+
+
+def _fetch_and_cache_logo(domain, url, get, blob, meta, cache_dir) -> dict:
     got = get(url) if url.startswith(("http://", "https://")) else None
     # The resolved URL can refuse a server: HelloFresh's icon answers 403
     # to anything that is not a browser (2026-10-01), and the board used
@@ -1594,9 +1664,14 @@ def route_company_logo(domain: str, conn=None, fetch=None, cache_dir: Path | Non
 def _logo_response(content_type: str, body: bytes) -> dict:
     import base64
 
+    # Sandboxed and unsniffable: a logo opened as a page (an SVG, say)
+    # runs no script and loads nothing, and no browser reads the bytes as
+    # anything but the declared image type.
     return {"statusCode": 200,
             "headers": {"Content-Type": content_type, "Cache-Control": f"public, max-age={_LOGO_TTL_S}",
-                        "X-Robots-Tag": "noindex", **CORS_HEADERS},
+                        "X-Robots-Tag": "noindex", "X-Content-Type-Options": "nosniff",
+                        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+                        **CORS_HEADERS},
             "body": base64.b64encode(body).decode("ascii"), "isBase64Encoded": True}
 
 
@@ -1813,6 +1888,30 @@ def route_put_profile(user_id: str, body: dict) -> dict:
     return {"profile": cleaned}
 
 
+def email_is_verified(claims: dict) -> bool:
+    """Whether alert mail may go to the token's email address.
+
+    A user can change the email on their own account, and until they
+    confirm it Cognito carries the new address with email_verified false.
+    Taking that address for alerts would let anyone point digests at a
+    stranger's inbox (security review, 2026-10-03). So: verified true is
+    yes, verified false is no, and a missing claim is yes only for a
+    federated sign-in, whose address the identity provider supplies on
+    every sign-in (Google, mapped in infra/cognito.tf). The authorizer on
+    Lambda hands claims over as strings, the box's own check as JSON
+    values, so both spellings are read."""
+    v = claims.get("email_verified")
+    if v is not None:
+        return v is True or str(v).lower() == "true"
+    ids = claims.get("identities")
+    if isinstance(ids, str):
+        try:
+            ids = json.loads(ids)
+        except ValueError:
+            ids = None
+    return bool(isinstance(ids, list) and ids and isinstance(ids[0], dict) and ids[0].get("providerName"))
+
+
 def route_create_alert(claims: dict, body: dict) -> dict:
     filter_params = body.get("filter")
     if not isinstance(filter_params, dict):
@@ -1823,6 +1922,8 @@ def route_create_alert(claims: dict, body: dict) -> dict:
     email = claims.get("email")
     if not email:
         raise ValueError("account has no email on file")
+    if not email_is_verified(claims):
+        raise ValueError("confirm your email address before creating an alert")
 
     now = datetime.now(timezone.utc).isoformat()
     item = {

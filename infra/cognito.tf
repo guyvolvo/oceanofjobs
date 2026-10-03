@@ -101,10 +101,11 @@ resource "aws_cognito_identity_provider" "google" {
   # Cognito rewrites these on every federated sign-in, so a reader who
   # changes their Google photo gets the new one on their next visit.
   attribute_mapping = {
-    email    = "email"
-    username = "sub"
-    picture  = "picture"
-    name     = "name"
+    email          = "email"
+    email_verified = "email_verified" # alerts only mail a confirmed address (api/handler.py email_is_verified)
+    username       = "sub"
+    picture        = "picture"
+    name           = "name"
   }
 }
 

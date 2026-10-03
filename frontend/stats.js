@@ -318,7 +318,11 @@ function setMode(next, sql) {
   else { readBuilder(); syncSqlFromBuilder(); }
 }
 
+// The views there are. A link's ?v= picks one of these or nothing.
+const VIZ_KINDS = ["auto", "table", "bar", "line"];
+
 function setViz(next) {
+  if (!VIZ_KINDS.includes(next)) next = "auto";
   viz = next;
   document.querySelectorAll(".seg [data-viz]").forEach((b) => {
     const on = b.dataset.viz === next;
@@ -426,7 +430,9 @@ function render(result, ms, read) {
 // Auto picks the shape the data is already in: a label and a number is
 // bars, a date and a number is a line, anything else a table.
 function pickViz(columns, rows) {
-  if (viz !== "auto") return viz;
+  // A chart needs a numeric column whatever was asked for: forced onto
+  // text, the bars printed the text as their value.
+  if (viz !== "auto") return viz === "table" || valueColumn(columns, rows) >= 0 ? viz : "table";
   if (columns.length < 2 || rows.length < 2 || rows.length > 60) return "table";
   const firstIsDate = rows.every((r) => /^\d{4}-(\d{2}|W\d{2})(-\d{2})?/.test(String(r[0] ?? "")));
   if (valueColumn(columns, rows) < 0) return "table";
@@ -470,7 +476,7 @@ function renderBars(columns, rows) {
     <div class="xbar">
       <div class="xbar-name" title="${escapeHtml(r[0])}">${escapeHtml(r[0] ?? "NULL")}</div>
       <div class="xbar-track"><div class="xbar-fill" style="width:${((Number(v(r)) || 0) / max) * 100}%"></div></div>
-      <div class="xbar-n">${Number.isInteger(v(r)) ? fmtInt(v(r)) : v(r)}</div>
+      <div class="xbar-n">${Number.isInteger(v(r)) ? fmtInt(v(r)) : escapeHtml(String(v(r) ?? ""))}</div>
     </div>`).join("")}
     <div class="xbar xbar-axis">
       <div class="xbar-name">${escapeHtml(columns[0])}</div>

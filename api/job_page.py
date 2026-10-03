@@ -488,7 +488,10 @@ def render_missing(status: int, job_id: str) -> str:
     title = "Listing no longer available | Ocean of Jobs" if gone else "Listing not found | Ocean of Jobs"
     what = ("This listing closed a while ago and the page has been retired."
             if gone else "There is no listing with this id. It may have been removed, or the link may be wrong.")
-    head = _head(title, what, canonical_url(job_id), robots="noindex", og_type="website")
+    # Only a real id goes back into the page; anything else was never ours.
+    from job_filters import is_job_id
+    canonical = canonical_url(job_id) if is_job_id(job_id) else f"{SITE}/board"
+    head = _head(title, what, canonical, robots="noindex", og_type="website")
     return head + f"""{TOPBAR}
   <main class="pg-main" id="main" tabindex="-1">
     <div class="pg-article">
