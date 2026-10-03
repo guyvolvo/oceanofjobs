@@ -26629,3 +26629,7 @@ organox.com
 loft.com
 maslow.io
 medtanken.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+mintos.com
+larosee.fr
