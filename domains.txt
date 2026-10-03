@@ -26676,3 +26676,9 @@ lfgconstruction.com
 mediaplanet.com
 medpro.com
 mytraffic.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ornata.com
+klara.com
+mdpicanada.com
+mondaymedianl.com
