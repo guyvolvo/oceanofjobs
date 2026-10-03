@@ -26824,3 +26824,20 @@ synergylearning.net
 theottawafoodbank.com
 therowenpartnership.com
 trentvineyard.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+westendstrategy.com
+wishpond.com
+advisensedenmark.com
+amffastigheter.com
+dormy.com
+frodinge.com
+karanovicpartners.com
+kurppahosk.com
+lufthavnsvikar.com
+macsadventure.com
+metricool.com
+mobysoft.com
+moldenaeringsforum.com
+falkenbergssparbank.com
+15five.com
