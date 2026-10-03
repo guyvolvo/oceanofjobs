@@ -6750,6 +6750,10 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
 .side-source { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: 0 4px; border-radius: 8px; color: var(--grey); text-decoration: none; }
 .side-source svg { width: 16px; height: 16px; }
 .side-source:hover { color: var(--green-text); }
+/* The GitHub mark and Contact share the foot's last row. */
+.side-links { display: flex; align-items: center; gap: 4px; }
+.side-contact { display: inline-flex; align-items: center; height: 32px; padding: 0 8px; border-radius: 8px; color: var(--grey); font: 400 13px var(--font-ui); text-decoration: none; }
+.side-contact:hover { color: var(--green-text); }
 .side-scrim { display: none; }
 
 /* The main column: the header row, the pills, the grid. */
