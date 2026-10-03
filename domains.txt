@@ -26707,3 +26707,12 @@ mwm.io
 # Common Crawl discovery batch (merge_discovered_batch.py)
 ukagritechcentre.com
 albrings-mueller.de
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+fairtradefoundation.com
+kustom.com
+ktu.com
+kvarterskliniken.com
+mentorpartner.com
+montessori-erlangen.de
+mylaboy.com
