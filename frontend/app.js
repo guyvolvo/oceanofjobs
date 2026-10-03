@@ -5150,7 +5150,12 @@ function wireMobileSheet() {
   // The count, in the bar and on the Show button, follows the list's.
   const count = document.getElementById("result-count");
   const paintCount = () => {
-    if (src && mirror) mirror.value = src.value || "age:asc"; // the list's order, after each load
+    // The sort pill names the list's order, after each load.
+    const sortLabel = document.getElementById("m-sort-value");
+    if (src && sortLabel) {
+      const o = [...src.options].find((x) => x.value === (src.value || "age:asc"));
+      if (o) sortLabel.textContent = o.textContent.trim();
+    }
     const text = count.textContent.trim();
     const n = (text.match(/^[\d,]+/) || [""])[0];
     const m = document.getElementById("m-count"), show = document.getElementById("m-show");
