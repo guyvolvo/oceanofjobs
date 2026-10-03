@@ -23,6 +23,13 @@ resource "aws_cognito_user_pool" "main" {
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
 
+  # A changed email stays pending until its code is confirmed, and the
+  # confirmed one stays in the token meanwhile, so nobody can switch
+  # their account, and its alert mail, to an address they don't own.
+  user_attribute_update_settings {
+    attributes_require_verification_before_update = ["email"]
+  }
+
   sign_in_policy {
     # Cognito's CreateUserPool API rejects a sign_in_policy that omits
     # PASSWORD ("Password should be configured as one of the allowed
