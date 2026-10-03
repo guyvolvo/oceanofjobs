@@ -233,6 +233,7 @@ function paintChips() {
 // Removing a chip repaints, and a match query is the board's ranking
 // sort: 1.8s of real work. Removing four skills should cost one.
 let matchesTimer = 0;
+let savedSkillsKey = null; // the skills as last loaded from or saved to the profile
 function scheduleMatches() {
   clearTimeout(matchesTimer);
   matchesTimer = setTimeout(loadMatches, 500);
@@ -279,6 +280,15 @@ async function loadMatches() {
   // the saved skills; only an edit in progress needs a query of its own.
   const dash = window.dashMatches;
   if (dash && dash.key === skills.join(",")) return paintMatches(dash.jobs.slice(0, 3), skills);
+  // The saved skills: the overview (account_dashboard.js) brings these
+  // matches from its stored copy and paints them itself. Asking /jobs for
+  // them is a ranking over every open row, about 20 seconds for forty
+  // skills, and it was cut off at the request deadline on every visit
+  // (2026-10-03). Only skills being edited, not yet saved, ask on their own.
+  if (skills.join(",") === savedSkillsKey) {
+    if (!host.querySelector(".acct-match")) host.innerHTML = '<p class="acct-matches-empty"><span class="skeleton sk-line" style="width:60%;display:inline-block"></span></p>';
+    return;
+  }
   const cached = cachedMatches(q);
   if (cached) return paintMatches(cached, skills);
   host.innerHTML = '<p class="acct-matches-empty"><span class="skeleton sk-line" style="width:60%;display:inline-block"></span></p>';
@@ -324,6 +334,7 @@ function paintMatches(jobs, skills) {
 
 function paintProfile(profile) {
   draft.skills = [...(profile.skills || [])];
+  savedSkillsKey = draft.skills.join(",");
   draft.seniority = profile.seniority || "";
   draft.workplace = [...(profile.workplace || [])];
   draft.israel_only = profile.israel_only !== false;
