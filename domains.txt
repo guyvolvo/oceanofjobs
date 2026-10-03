@@ -26682,3 +26682,12 @@ ornata.com
 klara.com
 mdpicanada.com
 mondaymedianl.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+oredata.com
+amxtrucking.com
+fit.com
+lanternaeducation.com
+madkaffe.com
+mdpithailand.com
+mhpgroup.com
