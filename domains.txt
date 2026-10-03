@@ -26651,3 +26651,10 @@ landauheadhunting.com
 mendoai-1730204279.com
 vias-infrastructure.com
 mks.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+keithandrews.com
+kosmos.com
+modjo.com
+villagereachcareers.com
+missionedge.org
