@@ -26594,3 +26594,6 @@ family-resource.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 drhouse.fr
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+osa.io
