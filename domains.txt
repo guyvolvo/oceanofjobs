@@ -26616,3 +26616,8 @@ japaneseheadspa.com
 origin.com
 leroymerlinromania.com
 lifenorge.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+leitmotiv.com
+mandsopticians.com
+kuokmaritimegroup.com
