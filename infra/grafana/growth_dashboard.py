@@ -8,8 +8,21 @@ GRAFANA_TOKEN (a service account token with the Editor role) from the
 environment or .env. Without them, import growth-dashboard.json by hand
 under Dashboards > New > Import.
 
-Everything here reads CloudWatch through the data source that
-infra/grafana_cloudwatch.tf's role serves. Where the numbers come from:
+Styled after Cloudflare's analytics: a row of cards per section, each a
+week's total with a sparkline and the change on the week before, then
+thin line charts with the period's total in the legend, and stacked bars
+where a total splits into kinds.
+
+How a card gets its week-on-week change. Grafana's percent change is the
+last point of a series against its first, and a time-shifted comparison
+is still behind a feature flag. So a card asks for fourteen days of
+hourly sums (empty hours filled with zero), turns them into a rolling
+seven-day total, and keeps the last week of that: the first point is the
+total as it stood seven days ago, the last is the total now, and the
+sparkline is how the weekly total moved in between.
+
+Everything reads CloudWatch through the data source that
+infra/grafana_cloudwatch.tf's role serves:
 
   Events{event=...}       api/events.py, counted by frontend/count.js and
                           the API itself, summed per minute
@@ -36,29 +49,54 @@ UID = "oceanofjobs-growth"
 REGION = "il-central-1"
 DISTRIBUTION = "E3UCZ5WT5SLUVY"
 DS = {"type": "cloudwatch", "uid": "${ds}"}
-DAY, HOUR = "86400", "3600"
+HOUR, WEEK_HOURS = "3600", 168
+
+# Cloudflare's own series colours, in its order: blue first, then the
+# amber, pink and purple its status-code bars use.
+BLUE, AMBER, PINK, PURPLE, TEAL = "#3d8bf2", "#f5b726", "#e5609a", "#9b6cf0", "#2fc4b2"
+SERIES = [BLUE, AMBER, PINK, PURPLE, TEAL]
 
 
-def q(ref, metric, label, stat="Sum", period=DAY, dims=None, ns="OceanOfJobs", region=REGION, hide=False, exact=True):
-    return {"datasource": DS, "refId": ref, "region": region, "namespace": ns, "metricName": metric,
+def metric(ref, name, label="", stat="Sum", period=HOUR, dims=None, ns="OceanOfJobs", region=REGION,
+           hide=False, exact=True):
+    return {"datasource": DS, "refId": ref, "region": region, "namespace": ns, "metricName": name,
             "dimensions": dims or {}, "statistic": stat, "period": period, "matchExact": exact,
             "queryMode": "Metrics", "metricQueryType": 0, "metricEditorMode": 0, "id": ref.lower(),
-            "expression": "", "label": label, "hide": hide}
+            "expression": "", "label": label or name, "hide": hide}
 
 
-def event(ref, name, label, **kw):
-    return q(ref, "Events", label, dims={"event": name}, **kw)
+def expr(ref, expression, label, period=HOUR, region=REGION):
+    return {"datasource": DS, "refId": ref, "region": region, "queryMode": "Metrics", "metricQueryType": 0,
+            "metricEditorMode": 1, "id": ref.lower(), "expression": expression, "label": label,
+            "period": period, "namespace": "", "metricName": "", "dimensions": {}, "statistic": "Sum",
+            "hide": False}
 
 
-def math(ref, expr, label, period=DAY):
-    return {"datasource": DS, "refId": ref, "region": REGION, "queryMode": "Metrics", "metricQueryType": 0,
-            "metricEditorMode": 1, "id": ref.lower(), "expression": expr, "label": label, "period": period,
-            "namespace": "", "metricName": "", "dimensions": {}, "statistic": "Sum", "hide": False}
+def event(ref, name, **kw):
+    return metric(ref, "Events", dims={"event": name}, **kw)
 
 
-def edge(ref, metric, label, stat="Sum"):
-    return q(ref, metric, label, stat=stat, ns="AWS/CloudFront", region="us-east-1",
-             dims={"DistributionId": DISTRIBUTION, "Region": "Global"})
+def search(source, period=None) -> str:
+    """A metric as a SEARCH inside one expression, summed to a single
+    series. Each formula on this dashboard is one self-contained query:
+    a formula that pointed at a hidden query by id failed now and then
+    with "ID not found", depending on how Grafana's CloudWatch plugin
+    batched the panel's queries (seen 2026-10-03, Grafana 13.2)."""
+    dims = source.get("dimensions") or {}
+    schema = ",".join([source["namespace"], *dims])
+    terms = " ".join([f'MetricName="{source["metricName"]}"', *(f'{k}="{v}"' for k, v in dims.items())])
+    return f"SUM(SEARCH('{{{schema}}} {terms}', '{source['statistic']}', {period or source['period']}))"
+
+
+def filled(ref, source, label, period=HOUR, region=REGION):
+    """A metric with its empty periods as zero: a quiet hour is a count
+    of nothing, not a gap in the line."""
+    return [expr(ref, f"FILL({search(source, period)}, 0)", label, period=period, region=region)]
+
+
+def edge(ref, name, stat="Sum", **kw):
+    return metric(ref, name, ns="AWS/CloudFront", region="us-east-1", stat=stat,
+                  dims={"DistributionId": DISTRIBUTION, "Region": "Global"}, **kw)
 
 
 class Layout:
@@ -93,100 +131,179 @@ class Layout:
         self.row_h = max(self.row_h, h)
 
 
-def stat(title, targets, desc, calc="sum", window="7d", unit="short", decimals=0):
-    p = {"type": "stat", "title": title, "description": desc, "targets": targets,
-         "options": {"reduceOptions": {"calcs": [calc], "fields": "", "values": False},
-                     "graphMode": "area", "colorMode": "none", "textMode": "value",
-                     "justifyMode": "auto", "orientation": "auto", "wideLayout": True},
-         "fieldConfig": {"defaults": {"unit": unit, "decimals": decimals, "color": {"mode": "thresholds"},
-                                      "thresholds": {"mode": "absolute", "steps": [{"color": "text", "value": None}]}},
-                         "overrides": []}}
-    if window:
-        p["timeFrom"] = window
-    return p
+def _defaults(unit, decimals, **rest):
+    """Field defaults. No decimals means Grafana picks: 3.02 Mil, 14.1 GiB, 2."""
+    out = {"unit": unit, **rest}
+    if decimals is not None:
+        out["decimals"] = decimals
+    return out
 
 
-def series(title, targets, desc, bars=True, unit="short", decimals=0):
-    return {"type": "timeseries", "title": title, "description": desc, "targets": targets,
-            "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": True},
-                        "tooltip": {"mode": "multi", "sort": "none"}},
-            "fieldConfig": {"defaults": {"unit": unit, "decimals": decimals, "color": {"mode": "palette-classic"},
-                                         "custom": {"drawStyle": "bars" if bars else "line",
-                                                    "fillOpacity": 70 if bars else 10, "lineWidth": 2,
-                                                    "barAlignment": 0, "showPoints": "never",
-                                                    "spanNulls": not bars, "axisSoftMin": 0}},
-                            "overrides": []}}
+def _card(title, targets, desc, unit, decimals, transformations, calc, change_colors, window):
+    return {
+        "type": "stat", "title": title, "description": desc, "targets": targets,
+        "timeFrom": window, "hideTimeOverride": True, "transformations": transformations,
+        "options": {"reduceOptions": {"calcs": [calc], "fields": "", "values": False},
+                    "graphMode": "area", "colorMode": "none", "textMode": "value",
+                    "justifyMode": "auto", "orientation": "auto", "wideLayout": False,
+                    "showPercentChange": True,
+                    "percentChangeColorMode": change_colors,
+                    "text": {"titleSize": 13, "valueSize": 26}},
+        "fieldConfig": {"defaults": _defaults(unit, decimals, noValue="0",
+                                              color={"mode": "fixed", "fixedColor": BLUE}),
+                        "overrides": []},
+    }
+
+
+def rolling_card(title, source, desc, unit="short", decimals=None, mean=False, inverted=False, region=REGION):
+    """A week's total (or mean, for a rate), its sparkline, and the change
+    on the week before. See the module docstring for how."""
+    reducer_label = "7-day"
+    transformations = [
+        {"id": "calculateField", "options": {
+            "mode": "windowFunctions", "alias": reducer_label, "replaceFields": False,
+            "window": {"field": title, "reducer": "mean", "windowAlignment": "trailing",
+                       "windowSizeMode": "fixed", "windowSize": WEEK_HOURS}}},
+    ]
+    if not mean:
+        transformations.append({"id": "calculateField", "options": {
+            "mode": "binary", "alias": title + " total", "replaceFields": True,
+            "binary": {"left": {"matcher": {"id": "byName", "options": reducer_label}},
+                       "operator": "*", "right": {"fixed": str(WEEK_HOURS)}}}})
+    else:
+        transformations.append({"id": "organize", "options": {"excludeByName": {title: True}}})
+    transformations += [
+        {"id": "sortBy", "options": {"sort": [{"field": "Time", "desc": True}]}},
+        {"id": "limit", "options": {"limitField": WEEK_HOURS + 1}},
+        {"id": "sortBy", "options": {"sort": [{"field": "Time", "desc": False}]}},
+    ]
+    return _card(title, filled("A", source, title, region=region), desc, unit, decimals, transformations,
+                 "lastNotNull", "inverted" if inverted else "standard", "14d")
+
+
+def gauge_card(title, source, desc, unit="short", decimals=None):
+    """A level read hourly (accounts, listings): where it stands now, its
+    last seven days as the sparkline, and the change across them. The
+    change takes the value's colour: a level that held still is not bad
+    news, and Grafana paints an unchanged 0% red."""
+    return _card(title, [dict(source, label=title)], desc, unit, decimals, [], "lastNotNull", "same_as_value", "7d")
+
+
+def chart(title, targets, desc, unit="short", decimals=None, bars=False, stacked=False, colors=None,
+          legend_calc="sum", soft_max=None, palette=False):
+    custom = {"drawStyle": "bars" if bars else "line", "lineWidth": 0 if bars else 2,
+              "fillOpacity": 100 if bars else 0, "gradientMode": "none", "showPoints": "never",
+              "spanNulls": True, "lineInterpolation": "linear", "barAlignment": 0, "barWidthFactor": 0.7,
+              "axisBorderShow": False, "axisSoftMin": 0, "axisLabel": "", "axisPlacement": "auto",
+              "stacking": {"mode": "normal" if stacked else "none", "group": "A"},
+              "hideFrom": {"legend": False, "tooltip": False, "viz": False}}
+    if soft_max is not None:
+        custom["axisSoftMax"] = soft_max
+    overrides = []
+    for i, t in enumerate(x for x in targets if not x.get("hide") and not palette):
+        color = (colors or SERIES)[i % len(colors or SERIES)]
+        overrides.append({"matcher": {"id": "byName", "options": t["label"]},
+                          "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": color}}]})
+    return {
+        "type": "timeseries", "title": title, "description": desc, "targets": targets,
+        "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": True,
+                               "calcs": [legend_calc] if legend_calc else []},
+                    "tooltip": {"mode": "multi", "sort": "desc"}},
+        "fieldConfig": {"defaults": _defaults(unit, decimals, custom=custom,
+                                              color={"mode": "palette-classic"} if palette
+                                              else {"mode": "fixed", "fixedColor": BLUE}),
+                        "overrides": overrides},
+    }
 
 
 def build() -> dict:
     L = Layout()
-    page = "Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out."
+    page = " Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out."
+
+    L.row("Visitors")
+    for title, name, desc in [
+        ("Visits", "visit", "Browser sessions that loaded any page, this week, against the week before." + page),
+        ("New visitors", "new_visitor", "Visits from a browser never seen before." + page),
+        ("Searches", "search", "Searches someone typed or picked on the board."),
+        ("Job views", "job_view", "Listings opened on the board, or their own page loaded."),
+        ("Apply clicks", "apply", "Clicks out to the employer's posting. The value the site delivers."),
+        ("Sign-ins", "signin", "Completed sign-ins, any method."),
+    ]:
+        L.add(rolling_card(title, event("A", name), desc), 4, 5)
+    L.add(chart("Visits over time", filled("A", event("A", "visit"), "Visits")
+                + filled("B", event("B", "new_visitor"), "New visitors"),
+                "Visits per hour, and how many came from a browser seen for the first time."), 12, 8)
+    L.add(chart("Job views and apply clicks", filled("A", event("A", "job_view"), "Job views")
+                + filled("B", event("B", "apply"), "Apply clicks"),
+                "Listings opened, and clicks out to the employer, per hour."), 12, 8)
+    L.add(chart("Searches", filled("A", event("A", "search"), "Searches"), "Board searches per hour.", bars=True), 12, 7)
+    day = "86400"
+    visits, applies = search(event("V", "visit"), day), search(event("P", "apply"), day)
+    L.add(chart("Apply clicks per 100 visits",
+                [expr("C", f"IF({visits} > 0, 100 * FILL({applies}, 0) / {visits}, 0)",
+                      "Apply clicks per 100 visits", period=day)],
+                "Of every hundred visits in a day, how many ended in a click out to an employer.",
+                decimals=1, legend_calc="mean"), 12, 7)
+
+    L.row("Accounts and alerts")
     hourly = {"stat": "Maximum", "period": HOUR}
+    L.add(gauge_card("Accounts", metric("A", "Accounts", **hourly), "Every account in the user pool, read hourly."), 4, 5)
+    L.add(gauge_card("New accounts this week", metric("A", "NewAccounts7d", **hourly), "Accounts created in the last seven days."), 4, 5)
+    L.add(gauge_card("Active alerts", metric("A", "ActiveAlerts", **hourly), "Alerts switched on."), 4, 5)
+    L.add(gauge_card("People with alerts", metric("A", "UsersWithAlerts", **hourly), "Accounts with at least one alert on."), 4, 5)
+    L.add(rolling_card("Alerts created", event("A", "alert_created"), "New alerts saved this week."), 4, 5)
+    L.add(rolling_card("Digests sent", event("A", "digest_sent"),
+                       "Alert emails sent this week. SES is still in its sandbox, so only verified addresses get them."), 4, 5)
 
-    L.row("Last 7 days")
-    L.add(stat("Visits", [event("A", "visit", "Visits")], "Browser sessions that loaded any page. " + page), 4, 4)
-    L.add(stat("New visitors", [event("A", "new_visitor", "New visitors")], "First visit from this browser. " + page), 4, 4)
-    L.add(stat("Searches", [event("A", "search", "Searches")], "Text searches run on the board, one per search asked for."), 4, 4)
-    L.add(stat("Job views", [event("A", "job_view", "Job views")], "A listing opened on the board, or its own page loaded."), 4, 4)
-    L.add(stat("Apply clicks", [event("A", "apply", "Apply clicks")],
-               "Clicks out to the employer's posting. The value the site delivers."), 4, 4)
-    L.add(stat("Sign-ins", [event("A", "signin", "Sign-ins")], "Completed sign-ins, any method."), 4, 4)
-
-    L.add(stat("Accounts", [q("A", "Accounts", "Accounts", **hourly)],
-               "Every account in the user pool (box/growth.py, hourly).", calc="lastNotNull", window=None), 4, 4)
-    L.add(stat("New accounts this week", [q("A", "NewAccounts7d", "New accounts", **hourly)],
-               "Accounts created in the last 7 days.", calc="lastNotNull", window=None), 4, 4)
-    L.add(stat("Active alerts", [q("A", "ActiveAlerts", "Active alerts", **hourly)],
-               "Alerts switched on.", calc="lastNotNull", window=None), 4, 4)
-    L.add(stat("People with alerts", [q("A", "UsersWithAlerts", "People with alerts", **hourly)],
-               "Accounts with at least one alert on.", calc="lastNotNull", window=None), 4, 4)
-    L.add(stat("Alerts created", [event("A", "alert_created", "Alerts created")], "New alerts saved."), 4, 4)
-    L.add(stat("Digests sent", [event("A", "digest_sent", "Digests sent")],
-               "Alert emails sent. SES is still in its sandbox, so only verified addresses receive them."), 4, 4)
-
-    L.row("Daily")
-    L.add(series("Visits", [event("A", "visit", "Visits"), event("B", "new_visitor", "New visitors")],
-                 "Sessions per day, and how many came from a browser seen for the first time."), 12, 8)
-    L.add(series("Job views and apply clicks", [event("A", "job_view", "Job views"), event("B", "apply", "Apply clicks")],
-                 "Listings opened, and clicks out to the employer."), 12, 8)
-    L.add(series("Searches", [event("A", "search", "Searches")], "Board searches per day."), 12, 8)
-    L.add(series("Apply clicks per 100 visits",
-                 [event("A", "apply", "Apply", hide=True), event("B", "visit", "Visits", hide=True),
-                  math("C", "IF(b > 0, 100 * a / b, 0)", "Apply clicks per 100 visits")],
-                 "Of every hundred visits, how many end in a click out to an employer.", bars=False, decimals=1), 12, 8)
-    L.add(series("Accounts", [q("A", "Accounts", "Accounts", **hourly)],
-                 "The user pool's size over time.", bars=False), 12, 8)
-    L.add(series("Alerts", [q("A", "ActiveAlerts", "Active alerts", **hourly),
-                            q("B", "UsersWithAlerts", "People with alerts", **hourly)],
-                 "Alerts switched on, and the people they belong to.", bars=False), 12, 8)
+    L.row("Traffic at the edge, crawlers included")
+    L.add(rolling_card("Total requests", edge("A", "Requests"), "Every request CloudFront answered this week.",
+                       region="us-east-1"), 6, 5)
+    L.add(rolling_card("Data transfer", edge("A", "BytesDownloaded"), "Bytes sent to viewers this week.",
+                       unit="bytes", decimals=2, region="us-east-1"), 6, 5)
+    L.add(rolling_card("4xx error rate", edge("A", "4xxErrorRate", stat="Average"),
+                       "Share of requests answered 4xx, averaged over the week.", unit="percent", decimals=2,
+                       mean=True, inverted=True, region="us-east-1"), 6, 5)
+    L.add(rolling_card("5xx error rate", edge("A", "5xxErrorRate", stat="Average"),
+                       "Share of requests that failed on our side, averaged over the week.", unit="percent",
+                       decimals=2, mean=True, inverted=True, region="us-east-1"), 6, 5)
+    L.add(chart("Requests over time", [edge("A", "Requests", label="Requests")],
+                "Requests per hour, people and crawlers alike."), 12, 8)
+    L.add(chart("Data transfer", [edge("A", "BytesDownloaded", label="Data transfer")],
+                "Bytes sent per hour.", unit="bytes", decimals=1), 12, 8)
+    six = "21600"
+    req = search(edge("R", "Requests"), six)
+    e4 = f'FILL({search(edge("F", "4xxErrorRate", stat="Average"), six)}, 0)'
+    e5 = f'FILL({search(edge("G", "5xxErrorRate", stat="Average"), six)}, 0)'
+    L.add(chart("Requests by status code",
+                [expr("A", f"{req} * (100 - {e4} - {e5}) / 100", "2xx and 3xx", period=six, region="us-east-1"),
+                 expr("B", f"{req} * {e4} / 100", "4xx", period=six, region="us-east-1"),
+                 expr("C", f"{req} * {e5} / 100", "5xx", period=six, region="us-east-1")],
+                "Requests per six hours, split by CloudFront's 4xx and 5xx rates.",
+                bars=True, stacked=True, colors=[BLUE, PINK, PURPLE]), 12, 8)
+    L.add(chart("Error rates", [edge("A", "4xxErrorRate", stat="Average", label="4xx"),
+                                edge("B", "5xxErrorRate", stat="Average", label="5xx")],
+                "Share of requests that failed, per hour.", unit="percent", decimals=2,
+                colors=[PINK, PURPLE], legend_calc="mean"), 12, 8)
 
     L.row("The board")
-    L.add(series("Open listings", [q("A", "OpenListings", "Open listings", **hourly)],
-                 "Listings on the board, from the hourly precomputed stats.", bars=False), 12, 7)
-    L.add(series("Companies hiring", [q("A", "CompaniesHiring", "Companies hiring", **hourly)],
-                 "Companies with at least one open listing.", bars=False), 12, 7)
-
-    L.row("Edge traffic, crawlers included")
-    L.add(series("Requests", [edge("A", "Requests", "Requests")],
-                 "Every request CloudFront answered, people and crawlers alike."), 8, 7)
-    L.add(series("Data out", [edge("A", "BytesDownloaded", "Bytes")], "Bytes sent to viewers.", unit="bytes"), 8, 7)
-    L.add(series("Error rates", [edge("A", "4xxErrorRate", "4xx", stat="Average"),
-                                 edge("B", "5xxErrorRate", "5xx", stat="Average")],
-                 "Share of requests that failed, in percent.", bars=False, unit="percent", decimals=2), 8, 7)
+    L.add(gauge_card("Open listings", metric("A", "OpenListings", **hourly),
+                     "Listings on the board, from the hourly precomputed stats."), 12, 5)
+    L.add(gauge_card("Companies hiring", metric("A", "CompaniesHiring", **hourly),
+                     "Companies with at least one open listing."), 12, 5)
 
     L.row("Pipeline health")
-    L.add(series("Pending fragments", [q("A", "PendingFragments", "Pending fragments", stat="Maximum", period="300")],
-                 "Scraped changes waiting for the applier. Under 20 is normal.", bars=False), 12, 7)
-    L.add(series("Minutes since each source's newest listing",
-                 [q("A", "SourceFreshnessMinutes", "{{ats}}", stat="Maximum", period="300",
-                    dims={"ats": "*"}, exact=False)],
-                 "Hours of silence from a source means a stalled scraper, not a quiet market.",
-                 bars=False, unit="m"), 12, 7)
+    L.add(chart("Pending fragments", [metric("A", "PendingFragments", "Pending fragments", stat="Maximum", period="300")],
+                "Scraped changes waiting for the applier. Under 20 is normal.", legend_calc="max"), 12, 7)
+    L.add(chart("Minutes since each source's newest listing",
+                [metric("A", "SourceFreshnessMinutes", "${PROP('Dim.ats')}", stat="Maximum", period="300",
+                        dims={"ats": "*"}, exact=False)],
+                "Hours of silence from a source means a stalled scraper, not a quiet market.",
+                unit="m", legend_calc="max", palette=True), 12, 7)
 
     return {
         "uid": UID, "title": "Ocean of Jobs: growth", "tags": ["oceanofjobs"], "timezone": "browser",
         "editable": True, "graphTooltip": 1, "refresh": "", "schemaVersion": 39, "version": 1,
-        "time": {"from": "now-30d", "to": "now"},
+        "time": {"from": "now-7d", "to": "now"},
         "templating": {"list": [{"name": "ds", "label": "CloudWatch", "type": "datasource", "query": "cloudwatch",
                                  "current": {}, "hide": 0, "refresh": 1, "regex": "", "options": []}]},
         "annotations": {"list": []}, "links": [], "panels": L.panels,
@@ -210,8 +327,8 @@ def push(dashboard: dict) -> str:
     url, token = _env("GRAFANA_URL").rstrip("/"), _env("GRAFANA_TOKEN")
     if not (url and token):
         raise SystemExit("GRAFANA_URL and GRAFANA_TOKEN are not set; import growth-dashboard.json by hand instead")
-    r = requests.post(f"{url}/api/dashboards/db", timeout=30,
-                      headers={"Authorization": f"Bearer {token}"},
+    headers = {"Authorization": f"Bearer {token}"} if token != "anonymous" else {}
+    r = requests.post(f"{url}/api/dashboards/db", timeout=30, headers=headers,
                       json={"dashboard": dashboard, "overwrite": True, "message": "growth_dashboard.py"})
     r.raise_for_status()
     return url + r.json().get("url", "")

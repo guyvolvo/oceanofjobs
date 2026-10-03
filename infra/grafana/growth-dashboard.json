@@ -11,7 +11,7 @@
   "schemaVersion": 39,
   "version": 1,
   "time": {
-    "from": "now-30d",
+    "from": "now-7d",
     "to": "now"
   },
   "templating": {
@@ -36,7 +36,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Last 7 days",
+      "title": "Visitors",
       "collapsed": false,
       "id": 1,
       "gridPos": {
@@ -50,7 +50,7 @@
     {
       "type": "stat",
       "title": "Visits",
-      "description": "Browser sessions that loaded any page. Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out.",
+      "description": "Browser sessions that loaded any page, this week, against the week before. Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out.",
       "targets": [
         {
           "datasource": {
@@ -59,27 +59,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "visit"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"visit\"', 'Sum', 3600)), 0)",
           "label": "Visits",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Visits",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Visits total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -89,31 +153,28 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
       "id": 2,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 0,
         "y": 1
@@ -126,7 +187,7 @@
     {
       "type": "stat",
       "title": "New visitors",
-      "description": "First visit from this browser. Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out.",
+      "description": "Visits from a browser never seen before. Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out.",
       "targets": [
         {
           "datasource": {
@@ -135,27 +196,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "new_visitor"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"new_visitor\"', 'Sum', 3600)), 0)",
           "label": "New visitors",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "New visitors",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "New visitors total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -165,31 +290,28 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
       "id": 3,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 4,
         "y": 1
@@ -202,7 +324,7 @@
     {
       "type": "stat",
       "title": "Searches",
-      "description": "Text searches run on the board, one per search asked for.",
+      "description": "Searches someone typed or picked on the board.",
       "targets": [
         {
           "datasource": {
@@ -211,27 +333,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "search"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"search\"', 'Sum', 3600)), 0)",
           "label": "Searches",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Searches",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Searches total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -241,31 +427,28 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
       "id": 4,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 8,
         "y": 1
@@ -278,7 +461,7 @@
     {
       "type": "stat",
       "title": "Job views",
-      "description": "A listing opened on the board, or its own page loaded.",
+      "description": "Listings opened on the board, or their own page loaded.",
       "targets": [
         {
           "datasource": {
@@ -287,27 +470,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "job_view"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"job_view\"', 'Sum', 3600)), 0)",
           "label": "Job views",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Job views",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Job views total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -317,31 +564,28 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
       "id": 5,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 12,
         "y": 1
@@ -363,27 +607,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "apply"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"apply\"', 'Sum', 3600)), 0)",
           "label": "Apply clicks",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Apply clicks",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Apply clicks total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -393,31 +701,28 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
       "id": 6,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 16,
         "y": 1
@@ -439,27 +744,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "signin"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"signin\"', 'Sum', 3600)), 0)",
           "label": "Sign-ins",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Sign-ins",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Sign-ins total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -469,31 +838,28 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
       "id": 7,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 20,
         "y": 1
@@ -504,9 +870,501 @@
       }
     },
     {
+      "type": "timeseries",
+      "title": "Visits over time",
+      "description": "Visits per hour, and how many came from a browser seen for the first time.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "a",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"visit\"', 'Sum', 3600)), 0)",
+          "label": "Visits",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "B",
+          "region": "il-central-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "b",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"new_visitor\"', 'Sum', 3600)), 0)",
+          "label": "New visitors",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Visits"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "New visitors"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f5b726"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "id": 8,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Job views and apply clicks",
+      "description": "Listings opened, and clicks out to the employer, per hour.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "a",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"job_view\"', 'Sum', 3600)), 0)",
+          "label": "Job views",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "B",
+          "region": "il-central-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "b",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"apply\"', 'Sum', 3600)), 0)",
+          "label": "Apply clicks",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Job views"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Apply clicks"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f5b726"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "id": 9,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Searches",
+      "description": "Board searches per hour.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "a",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"search\"', 'Sum', 3600)), 0)",
+          "label": "Searches",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 0,
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Searches"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "id": 10,
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Apply clicks per 100 visits",
+      "description": "Of every hundred visits in a day, how many ended in a click out to an employer.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "C",
+          "region": "il-central-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "c",
+          "expression": "IF(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"visit\"', 'Sum', 86400)) > 0, 100 * FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"apply\"', 'Sum', 86400)), 0) / SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"visit\"', 'Sum', 86400)), 0)",
+          "label": "Apply clicks per 100 visits",
+          "period": "86400",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          },
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Apply clicks per 100 visits"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "id": 11,
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Accounts and alerts",
+      "collapsed": false,
+      "id": 12,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "panels": []
+    },
+    {
       "type": "stat",
       "title": "Accounts",
-      "description": "Every account in the user pool (box/growth.py, hourly).",
+      "description": "Every account in the user pool, read hourly.",
       "targets": [
         {
           "datasource": {
@@ -530,6 +1388,9 @@
           "hide": false
         }
       ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -543,33 +1404,31 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "id": 8,
+      "id": 13,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 0,
-        "y": 5
+        "y": 22
       },
       "datasource": {
         "type": "cloudwatch",
@@ -579,7 +1438,7 @@
     {
       "type": "stat",
       "title": "New accounts this week",
-      "description": "Accounts created in the last 7 days.",
+      "description": "Accounts created in the last seven days.",
       "targets": [
         {
           "datasource": {
@@ -599,10 +1458,13 @@
           "metricEditorMode": 0,
           "id": "a",
           "expression": "",
-          "label": "New accounts",
+          "label": "New accounts this week",
           "hide": false
         }
       ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -616,33 +1478,31 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "id": 9,
+      "id": 14,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 4,
-        "y": 5
+        "y": 22
       },
       "datasource": {
         "type": "cloudwatch",
@@ -676,6 +1536,9 @@
           "hide": false
         }
       ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -689,33 +1552,31 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "id": 10,
+      "id": 15,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 8,
-        "y": 5
+        "y": 22
       },
       "datasource": {
         "type": "cloudwatch",
@@ -749,6 +1610,9 @@
           "hide": false
         }
       ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
       "options": {
         "reduceOptions": {
           "calcs": [
@@ -762,33 +1626,31 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "id": 11,
+      "id": 16,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 12,
-        "y": 5
+        "y": 22
       },
       "datasource": {
         "type": "cloudwatch",
@@ -798,7 +1660,7 @@
     {
       "type": "stat",
       "title": "Alerts created",
-      "description": "New alerts saved.",
+      "description": "New alerts saved this week.",
       "targets": [
         {
           "datasource": {
@@ -807,27 +1669,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "alert_created"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"alert_created\"', 'Sum', 3600)), 0)",
           "label": "Alerts created",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Alerts created",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Alerts created total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -837,34 +1763,31 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
-      "id": 12,
+      "id": 17,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 16,
-        "y": 5
+        "y": 22
       },
       "datasource": {
         "type": "cloudwatch",
@@ -874,7 +1797,7 @@
     {
       "type": "stat",
       "title": "Digests sent",
-      "description": "Alert emails sent. SES is still in its sandbox, so only verified addresses receive them.",
+      "description": "Alert emails sent this week. SES is still in its sandbox, so only verified addresses get them.",
       "targets": [
         {
           "datasource": {
@@ -883,27 +1806,91 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "digest_sent"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
+          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"digest_sent\"', 'Sum', 3600)), 0)",
           "label": "Digests sent",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Digests sent",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Digests sent total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
         }
       ],
       "options": {
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -913,34 +1900,31 @@
         "textMode": "value",
         "justifyMode": "auto",
         "orientation": "auto",
-        "wideLayout": true
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "timeFrom": "7d",
-      "id": 13,
+      "id": 18,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 4,
         "x": 20,
-        "y": 5
+        "y": 22
       },
       "datasource": {
         "type": "cloudwatch",
@@ -949,21 +1933,21 @@
     },
     {
       "type": "row",
-      "title": "Daily",
+      "title": "Traffic at the edge, crawlers included",
       "collapsed": false,
-      "id": 14,
+      "id": 19,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 27
       },
       "panels": []
     },
     {
-      "type": "timeseries",
-      "title": "Visits",
-      "description": "Sessions per day, and how many came from a browser seen for the first time.",
+      "type": "stat",
+      "title": "Total requests",
+      "description": "Every request CloudFront answered this week.",
       "targets": [
         {
           "datasource": {
@@ -971,83 +1955,516 @@
             "uid": "${ds}"
           },
           "refId": "A",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "visit"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
+          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
-          "label": "Visits",
-          "hide": false
-        },
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "B",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "new_visitor"
-          },
+          "expression": "FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"Requests\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Sum', 3600)), 0)",
+          "label": "Total requests",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
           "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "b",
-          "expression": "",
-          "label": "New visitors",
           "hide": false
         }
       ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Total requests",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Total requests total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 70,
-            "lineWidth": 2,
-            "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisSoftMin": 0
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "id": 15,
+      "id": 20,
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 5,
+        "w": 6,
         "x": 0,
-        "y": 10
+        "y": 28
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Data transfer",
+      "description": "Bytes sent to viewers this week.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "us-east-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "a",
+          "expression": "FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"BytesDownloaded\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Sum', 3600)), 0)",
+          "label": "Data transfer",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "Data transfer",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "alias": "Data transfer total",
+            "replaceFields": true,
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "7-day"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "168"
+              }
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "standard",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "id": 21,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 28
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "4xx error rate",
+      "description": "Share of requests answered 4xx, averaged over the week.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "us-east-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "a",
+          "expression": "FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"4xxErrorRate\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Average', 3600)), 0)",
+          "label": "4xx error rate",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "4xx error rate",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "4xx error rate": true
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "id": 22,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 28
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "5xx error rate",
+      "description": "Share of requests that failed on our side, averaged over the week.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "us-east-1",
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 1,
+          "id": "a",
+          "expression": "FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"5xxErrorRate\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Average', 3600)), 0)",
+          "label": "5xx error rate",
+          "period": "3600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
+        }
+      ],
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "windowFunctions",
+            "alias": "7-day",
+            "replaceFields": false,
+            "window": {
+              "field": "5xx error rate",
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSizeMode": "fixed",
+              "windowSize": 168
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "5xx error rate": true
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 169
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Time",
+                "desc": false
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "inverted",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "id": 23,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 28
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1056,8 +2473,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Job views and apply clicks",
-      "description": "Listings opened, and clicks out to the employer.",
+      "title": "Requests over time",
+      "description": "Requests per hour, people and crawlers alike.",
       "targets": [
         {
           "datasource": {
@@ -1065,44 +2482,22 @@
             "uid": "${ds}"
           },
           "refId": "A",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
+          "region": "us-east-1",
+          "namespace": "AWS/CloudFront",
+          "metricName": "Requests",
           "dimensions": {
-            "event": "job_view"
+            "DistributionId": "E3UCZ5WT5SLUVY",
+            "Region": "Global"
           },
           "statistic": "Sum",
-          "period": "86400",
+          "period": "3600",
           "matchExact": true,
           "queryMode": "Metrics",
           "metricQueryType": 0,
           "metricEditorMode": 0,
           "id": "a",
           "expression": "",
-          "label": "Job views",
-          "hide": false
-        },
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "B",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "apply"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "b",
-          "expression": "",
-          "label": "Apply clicks",
+          "label": "Requests",
           "hide": false
         }
       ],
@@ -1110,38 +2505,179 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 70,
+            "drawStyle": "line",
             "lineWidth": 2,
-            "barAlignment": 0,
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "showPoints": "never",
-            "spanNulls": false,
-            "axisSoftMin": 0
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Requests"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "id": 16,
+      "id": 24,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Data transfer",
+      "description": "Bytes sent per hour.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "us-east-1",
+          "namespace": "AWS/CloudFront",
+          "metricName": "BytesDownloaded",
+          "dimensions": {
+            "DistributionId": "E3UCZ5WT5SLUVY",
+            "Region": "Global"
+          },
+          "statistic": "Sum",
+          "period": "3600",
+          "matchExact": true,
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "id": "a",
+          "expression": "",
+          "label": "Data transfer",
+          "hide": false
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          },
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Data transfer"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "id": 25,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 33
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1150,8 +2686,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Searches",
-      "description": "Board searches per day.",
+      "title": "Requests by status code",
+      "description": "Requests per six hours, split by CloudFront's 4xx and 5xx rates.",
       "targets": [
         {
           "datasource": {
@@ -1159,93 +2695,19 @@
             "uid": "${ds}"
           },
           "refId": "A",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "search"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
+          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "a",
-          "expression": "",
-          "label": "Searches",
+          "expression": "SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"Requests\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Sum', 21600)) * (100 - FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"4xxErrorRate\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Average', 21600)), 0) - FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"5xxErrorRate\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Average', 21600)), 0)) / 100",
+          "label": "2xx and 3xx",
+          "period": "21600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
           "hide": false
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 70,
-            "lineWidth": 2,
-            "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisSoftMin": 0
-          }
-        },
-        "overrides": []
-      },
-      "id": 17,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 18
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Apply clicks per 100 visits",
-      "description": "Of every hundred visits, how many end in a click out to an employer.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "apply"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Apply",
-          "hide": true
         },
         {
           "datasource": {
@@ -1253,22 +2715,19 @@
             "uid": "${ds}"
           },
           "refId": "B",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Events",
-          "dimensions": {
-            "event": "visit"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
+          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
-          "metricEditorMode": 0,
+          "metricEditorMode": 1,
           "id": "b",
-          "expression": "",
-          "label": "Visits",
-          "hide": true
+          "expression": "SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"Requests\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Sum', 21600)) * FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"4xxErrorRate\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Average', 21600)), 0) / 100",
+          "label": "4xx",
+          "period": "21600",
+          "namespace": "",
+          "metricName": "",
+          "dimensions": {},
+          "statistic": "Sum",
+          "hide": false
         },
         {
           "datasource": {
@@ -1276,14 +2735,14 @@
             "uid": "${ds}"
           },
           "refId": "C",
-          "region": "il-central-1",
+          "region": "us-east-1",
           "queryMode": "Metrics",
           "metricQueryType": 0,
           "metricEditorMode": 1,
           "id": "c",
-          "expression": "IF(b > 0, 100 * a / b, 0)",
-          "label": "Apply clicks per 100 visits",
-          "period": "86400",
+          "expression": "SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"Requests\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Sum', 21600)) * FILL(SUM(SEARCH('{AWS/CloudFront,DistributionId,Region} MetricName=\"5xxErrorRate\" DistributionId=\"E3UCZ5WT5SLUVY\" Region=\"Global\"', 'Average', 21600)), 0) / 100",
+          "label": "5xx",
+          "period": "21600",
           "namespace": "",
           "metricName": "",
           "dimensions": {},
@@ -1295,107 +2754,102 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 1,
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "barAlignment": 0,
+            "drawStyle": "bars",
+            "lineWidth": 0,
+            "fillOpacity": 100,
+            "gradientMode": "none",
             "showPoints": "never",
             "spanNulls": true,
-            "axisSoftMin": 0
-          }
-        },
-        "overrides": []
-      },
-      "id": 18,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 18
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Accounts",
-      "description": "The user pool's size over time.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Accounts",
-          "dimensions": {},
-          "statistic": "Maximum",
-          "period": "3600",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Accounts",
-          "hide": false
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
+            "lineInterpolation": "linear",
             "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": true,
-            "axisSoftMin": 0
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "2xx and 3xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "4xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#e5609a"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9b6cf0"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "id": 19,
+      "id": 26,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 41
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1404,8 +2858,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Alerts",
-      "description": "Alerts switched on, and the people they belong to.",
+      "title": "Error rates",
+      "description": "Share of requests that failed, per hour.",
       "targets": [
         {
           "datasource": {
@@ -1413,11 +2867,14 @@
             "uid": "${ds}"
           },
           "refId": "A",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "ActiveAlerts",
-          "dimensions": {},
-          "statistic": "Maximum",
+          "region": "us-east-1",
+          "namespace": "AWS/CloudFront",
+          "metricName": "4xxErrorRate",
+          "dimensions": {
+            "DistributionId": "E3UCZ5WT5SLUVY",
+            "Region": "Global"
+          },
+          "statistic": "Average",
           "period": "3600",
           "matchExact": true,
           "queryMode": "Metrics",
@@ -1425,7 +2882,7 @@
           "metricEditorMode": 0,
           "id": "a",
           "expression": "",
-          "label": "Active alerts",
+          "label": "4xx",
           "hide": false
         },
         {
@@ -1434,11 +2891,14 @@
             "uid": "${ds}"
           },
           "refId": "B",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "UsersWithAlerts",
-          "dimensions": {},
-          "statistic": "Maximum",
+          "region": "us-east-1",
+          "namespace": "AWS/CloudFront",
+          "metricName": "5xxErrorRate",
+          "dimensions": {
+            "DistributionId": "E3UCZ5WT5SLUVY",
+            "Region": "Global"
+          },
+          "statistic": "Average",
           "period": "3600",
           "matchExact": true,
           "queryMode": "Metrics",
@@ -1446,7 +2906,7 @@
           "metricEditorMode": 0,
           "id": "b",
           "expression": "",
-          "label": "People with alerts",
+          "label": "5xx",
           "hide": false
         }
       ],
@@ -1454,38 +2914,88 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": [
+            "mean"
+          ]
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
+          "unit": "percent",
           "custom": {
             "drawStyle": "line",
-            "fillOpacity": 10,
             "lineWidth": 2,
-            "barAlignment": 0,
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "showPoints": "never",
             "spanNulls": true,
-            "axisSoftMin": 0
-          }
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          },
+          "decimals": 2
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "4xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#e5609a"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#9b6cf0"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "id": 20,
+      "id": 27,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 41
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1496,17 +3006,17 @@
       "type": "row",
       "title": "The board",
       "collapsed": false,
-      "id": 21,
+      "id": 28,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 49
       },
       "panels": []
     },
     {
-      "type": "timeseries",
+      "type": "stat",
       "title": "Open listings",
       "description": "Listings on the board, from the hourly precomputed stats.",
       "targets": [
@@ -1532,42 +3042,47 @@
           "hide": false
         }
       ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": true,
-            "axisSoftMin": 0
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "id": 22,
+      "id": 29,
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 50
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1575,7 +3090,7 @@
       }
     },
     {
-      "type": "timeseries",
+      "type": "stat",
       "title": "Companies hiring",
       "description": "Companies with at least one open listing.",
       "targets": [
@@ -1601,295 +3116,47 @@
           "hide": false
         }
       ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": true,
-            "axisSoftMin": 0
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
         "overrides": []
       },
-      "id": 23,
+      "id": 30,
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 12,
         "x": 12,
-        "y": 35
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "row",
-      "title": "Edge traffic, crawlers included",
-      "collapsed": false,
-      "id": 24,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 42
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "Requests",
-      "description": "Every request CloudFront answered, people and crawlers alike.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "us-east-1",
-          "namespace": "AWS/CloudFront",
-          "metricName": "Requests",
-          "dimensions": {
-            "DistributionId": "E3UCZ5WT5SLUVY",
-            "Region": "Global"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Requests",
-          "hide": false
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 70,
-            "lineWidth": 2,
-            "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisSoftMin": 0
-          }
-        },
-        "overrides": []
-      },
-      "id": 25,
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 0,
-        "y": 43
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Data out",
-      "description": "Bytes sent to viewers.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "us-east-1",
-          "namespace": "AWS/CloudFront",
-          "metricName": "BytesDownloaded",
-          "dimensions": {
-            "DistributionId": "E3UCZ5WT5SLUVY",
-            "Region": "Global"
-          },
-          "statistic": "Sum",
-          "period": "86400",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Bytes",
-          "hide": false
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 70,
-            "lineWidth": 2,
-            "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisSoftMin": 0
-          }
-        },
-        "overrides": []
-      },
-      "id": 26,
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 43
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Error rates",
-      "description": "Share of requests that failed, in percent.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "us-east-1",
-          "namespace": "AWS/CloudFront",
-          "metricName": "4xxErrorRate",
-          "dimensions": {
-            "DistributionId": "E3UCZ5WT5SLUVY",
-            "Region": "Global"
-          },
-          "statistic": "Average",
-          "period": "86400",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "4xx",
-          "hide": false
-        },
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "B",
-          "region": "us-east-1",
-          "namespace": "AWS/CloudFront",
-          "metricName": "5xxErrorRate",
-          "dimensions": {
-            "DistributionId": "E3UCZ5WT5SLUVY",
-            "Region": "Global"
-          },
-          "statistic": "Average",
-          "period": "86400",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "b",
-          "expression": "",
-          "label": "5xx",
-          "hide": false
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 2,
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "barAlignment": 0,
-            "showPoints": "never",
-            "spanNulls": true,
-            "axisSoftMin": 0
-          }
-        },
-        "overrides": []
-      },
-      "id": 27,
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 43
+        "y": 50
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1900,12 +3167,12 @@
       "type": "row",
       "title": "Pipeline health",
       "collapsed": false,
-      "id": 28,
+      "id": 31,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 55
       },
       "panels": []
     },
@@ -1940,38 +3207,72 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": [
+            "max"
+          ]
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
             "drawStyle": "line",
-            "fillOpacity": 10,
             "lineWidth": 2,
-            "barAlignment": 0,
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "showPoints": "never",
             "spanNulls": true,
-            "axisSoftMin": 0
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pending fragments"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "id": 29,
+      "id": 32,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 51
+        "y": 56
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2003,7 +3304,7 @@
           "metricEditorMode": 0,
           "id": "a",
           "expression": "",
-          "label": "{{ats}}",
+          "label": "${PROP('Dim.ats')}",
           "hide": false
         }
       ],
@@ -2011,38 +3312,55 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": [
+            "max"
+          ]
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "m",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
             "drawStyle": "line",
-            "fillOpacity": 10,
             "lineWidth": 2,
-            "barAlignment": 0,
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "showPoints": "never",
             "spanNulls": true,
-            "axisSoftMin": 0
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
           }
         },
         "overrides": []
       },
-      "id": 30,
+      "id": 33,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 51
+        "y": 56
       },
       "datasource": {
         "type": "cloudwatch",

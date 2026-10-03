@@ -156,7 +156,11 @@ sys.path.insert(0, str(ROOT / "infra" / "grafana"))
 import growth_dashboard  # noqa: E402
 
 dash = growth_dashboard.build()
-names = {t.get("dimensions", {}).get("event") for p in dash["panels"] for t in p.get("targets", [])} - {None}
+import re  # noqa: E402
+queries = [t for p in dash["panels"] for t in p.get("targets", [])]
+names = {t.get("dimensions", {}).get("event") for t in queries} - {None}
+names |= set(re.findall(r'event="([a-z_]+)"', " ".join(t.get("expression", "") for t in queries)))
+check("the dashboard shows the page events", {"visit", "new_visitor", "search", "job_view", "apply", "signin"} <= names, repr(names))
 check("every event the dashboard shows is one that gets counted",
       names <= (events.PAGE_EVENTS | events.SERVER_EVENTS | {"digest_sent"}), repr(names))
 gauges = {t["metricName"] for p in dash["panels"] for t in p.get("targets", []) if t.get("namespace") == "OceanOfJobs"} - {"Events"}
