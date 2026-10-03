@@ -26658,3 +26658,13 @@ kosmos.com
 modjo.com
 villagereachcareers.com
 missionedge.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+vmc.com
+kernkraftwerkleibstadtag.com
+memira.com
+optitrack.co
+optimile.ai
+marsstrandshavshotell.com
+multiversecomputing.com
+multisparestruckparts.com
