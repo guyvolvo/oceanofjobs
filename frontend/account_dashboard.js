@@ -262,6 +262,23 @@
 
   let inflight = null;
   let historyRetries = 0;
+  let pendingPolls = 0;
+
+  // "Updating" beside the freshness line while the box recomputes.
+  function paintUpdating(on) {
+    const el = document.getElementById("acct-fresh");
+    if (!el) return;
+    let tag = el.querySelector(".acct-updating");
+    if (on && !tag) {
+      tag = document.createElement("span");
+      tag.className = "acct-updating";
+      tag.textContent = " Updating now…";
+      el.appendChild(tag);
+      el.hidden = false;
+    } else if (!on && tag) {
+      tag.remove();
+    }
+  }
 
   // The frame at once: greeting, the four tiles and bones in every
   // panel, before any answer is in. The numbers can take seconds on a
@@ -330,16 +347,28 @@
       paintAll(matches, counts, at);
       return;
     }
-    const promise = loadDashboard().then((d) => ({ h: d?.history || null, matches: d?.matches || [], counts: d?.counts || {}, at: d?.computed_at || null }));
+    const promise = loadDashboard().then((d) => ({
+      h: d?.history || null, matches: d?.matches || [], counts: d?.counts || {}, at: d?.computed_at || null,
+      // The box answers at once from the stored copy and refreshes it in
+      // the background (updating), or has none yet (computing).
+      pending: !!(d && (d.computing || d.updating)), missing: !d,
+    }));
     inflight = { key, promise };
-    const { h, matches, counts, at } = await promise;
+    const { h, matches, counts, at, pending, missing } = await promise;
     if (cacheKey() !== key) return; // the skills changed meanwhile
-    // No history means the box did not answer in time. Ask again in a
-    // little while, twice, rather than leave the page half drawn.
-    if (!h && historyRetries < 2) {
+    // Still being computed on the box: ask again every few seconds for a
+    // couple of minutes. A failed request gets two slower tries.
+    if (pending && pendingPolls < 40) {
+      pendingPolls++;
+      setTimeout(() => { inflight = null; paintDashboard(); }, 4000);
+    } else if (missing && historyRetries < 2) {
       historyRetries++;
       setTimeout(() => { inflight = null; paintDashboard(); }, 20000);
     }
+    if (!pending) pendingPolls = 0;
+    paintUpdating(pending);
+    // Nothing stored yet: keep the bones up rather than paint empty panels.
+    if (pending && !at) return;
     history = h;
     painted = key;
     if (h) writeCache(h, matches, counts, at);

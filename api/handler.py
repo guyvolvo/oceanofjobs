@@ -1660,7 +1660,8 @@ def route_list_alerts(user_id: str) -> dict:
     # filter; a saved job would put one row in the reader's alert list
     # per star, which for anyone who uses the Saved view is most of it.
     items = [i for i in resp.get("Items", [])
-             if i.get("alert_id") not in (PROFILE_ID, DASHBOARD_ID) and not is_saved_id(i.get("alert_id"))]
+             if not str(i.get("alert_id") or "").startswith("#")  # the profile, the overview, its run marker
+             and not is_saved_id(i.get("alert_id"))]
     return {"alerts": items}
 
 
@@ -1704,29 +1705,95 @@ DASHBOARD_TTL_S = 24 * 3600
 
 
 def route_dashboard(user_id: str, refresh: bool = False) -> dict:
-    """The overview's numbers (dashboard.py), from the stored copy when
-    it is for the same skills and under a day old, else computed now
-    and stored. refresh=1 computes regardless."""
-    from datetime import datetime, timezone
+    """The overview's numbers (dashboard.py), never computed while the
+    reader waits.
 
+    The stored copy in DynamoDB answers whenever there is one. When it
+    is under a day old and for the same skills, that is the whole answer.
+    When it is older, made for another skill list, or refresh=1 asked for
+    new numbers, it still answers at once, marked `updating`, and a
+    background thread computes and stores the new copy. With no copy at
+    all the answer is {"computing": true}; the page asks again shortly.
+
+    Computing it for forty skills takes longer than a request may hold
+    a database statement (expensive.STATEMENT_DEADLINE_S): every attempt
+    was cut off, answered 503 and never stored, so every visit started
+    over (2026-10-03). The background thread has no such deadline."""
     profile = route_get_profile(user_id)["profile"]
     key = dashboard.scope_key(profile)
-    if not refresh:
-        item = _alerts_table.get_item(Key={"user_id": user_id, "alert_id": DASHBOARD_ID}).get("Item") or {}
-        if item.get("key") == key and item.get("blob"):
+    stored = None
+    item = _alerts_table.get_item(Key={"user_id": user_id, "alert_id": DASHBOARD_ID}).get("Item") or {}
+    if item.get("blob"):
+        try:
+            stored = json.loads(item["blob"])
+            age = (datetime.now(timezone.utc) - datetime.fromisoformat(stored["computed_at"])).total_seconds()
+        except (ValueError, KeyError, TypeError):
+            stored, age = None, None
+    if stored and not refresh and item.get("key") == key and age < DASHBOARD_TTL_S:
+        return stored
+    _dashboard_in_background(user_id, profile, key)
+    if stored:
+        return dict(stored, updating=True, for_other_skills=item.get("key") != key)
+    return {"computing": True, "key": key}
+
+
+# One overview computation per user at a time, per worker. The thread
+# opens its own connection (db.py keeps one per thread), and since no
+# request started on it, the statement deadline never applies.
+_dashboard_running: set = set()
+_dashboard_lock = threading.Lock()
+
+
+DASHBOARD_RUNNING_ID = "#dashboard-running"
+DASHBOARD_RUN_MAX_S = 600
+
+
+def _claim_dashboard_run(user_id: str) -> bool:
+    """A marker in DynamoDB, so the page's polls, which land on either
+    gunicorn worker, start one computation between them, not one each.
+    A marker older than DASHBOARD_RUN_MAX_S is a run that died."""
+    now = time.time()
+    try:
+        _alerts_table.put_item(
+            Item={"user_id": user_id, "alert_id": DASHBOARD_RUNNING_ID, "started": int(now)},
+            ConditionExpression="attribute_not_exists(alert_id) OR started < :stale",
+            ExpressionAttributeValues={":stale": int(now - DASHBOARD_RUN_MAX_S)},
+        )
+        return True
+    except _alerts_table.meta.client.exceptions.ConditionalCheckFailedException:
+        return False
+
+
+def _dashboard_in_background(user_id: str, profile: dict, key: str) -> None:
+    with _dashboard_lock:
+        if user_id in _dashboard_running:
+            return
+        _dashboard_running.add(user_id)
+    if not _claim_dashboard_run(user_id):
+        with _dashboard_lock:
+            _dashboard_running.discard(user_id)
+        return
+
+    def run():
+        started = time.monotonic()
+        try:
+            conn = get_connection()
+            computed = dashboard.compute(conn, profile, lambda p: _route_jobs(conn, p))
+            _alerts_table.put_item(Item={"user_id": user_id, "alert_id": DASHBOARD_ID, "key": key,
+                                         "computed_at": computed["computed_at"],
+                                         "blob": json.dumps(computed, default=str)})
+            print(f"dashboard computed and stored in {time.monotonic() - started:.1f}s")
+        except Exception:  # noqa: BLE001 - the next visit tries again
+            traceback.print_exc()
+        finally:
             try:
-                stored = json.loads(item["blob"])
-                at = datetime.fromisoformat(stored["computed_at"])
-                if (datetime.now(timezone.utc) - at).total_seconds() < DASHBOARD_TTL_S:
-                    return stored
-            except (ValueError, KeyError, TypeError):
+                _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": DASHBOARD_RUNNING_ID})
+            except Exception:  # noqa: BLE001 - it ages out after DASHBOARD_RUN_MAX_S
                 pass
-    conn = get_connection()
-    computed = dashboard.compute(conn, profile, lambda p: _route_jobs(conn, p))
-    _alerts_table.put_item(Item={"user_id": user_id, "alert_id": DASHBOARD_ID, "key": key,
-                                 "computed_at": computed["computed_at"],
-                                 "blob": json.dumps(computed, default=str)})
-    return computed
+            with _dashboard_lock:
+                _dashboard_running.discard(user_id)
+
+    threading.Thread(target=run, name="dashboard", daemon=True).start()
 
 
 def route_put_profile(user_id: str, body: dict) -> dict:
