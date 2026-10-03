@@ -26621,3 +26621,11 @@ lifenorge.com
 leitmotiv.com
 mandsopticians.com
 kuokmaritimegroup.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+optasia.com
+zg.io
+organox.com
+loft.com
+maslow.io
+medtanken.com
