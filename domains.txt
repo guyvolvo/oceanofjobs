@@ -26642,3 +26642,7 @@ optisigns.com
 keskosenukaiestonia.com
 mous.com
 orquest.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+my-burger.de
+landauheadhunting.com
