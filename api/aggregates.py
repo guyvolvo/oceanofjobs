@@ -381,16 +381,15 @@ def compute_facets(conn, params: dict, locations: list | None = None) -> dict:
     (see job_filters.skill_rowset), instead of each of the rail's passes
     running every skill test over every row again."""
     import uuid
-    from job_filters import skill_rowset, wanted_skills
+    from job_filters import skill_key, skill_rowset, wanted_skills
 
     wanted = wanted_skills(params)
     if not wanted or bool_param(params, "include_closed"):
         with place_rows(conn, params):
             return _compute_facets(conn, params, locations)
     name = "skill_rows_" + uuid.uuid4().hex[:12]
-    clauses = " OR ".join("(',' || COALESCE(skills, '') || ',') LIKE ?" for _ in wanted)
     conn.execute(f"CREATE TEMP TABLE {name} AS SELECT rowid AS rid FROM jobs "
-                 f"WHERE closed_at IS NULL AND ({clauses})", [f"%,{s},%" for s in wanted])
+                 f"WHERE closed_at IS NULL AND skill_hits(skills, ?) > 0", [skill_key(wanted)])
     token = skill_rowset.set(name)
     try:
         with place_rows(conn, params):
