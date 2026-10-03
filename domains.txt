@@ -26841,3 +26841,8 @@ mobysoft.com
 moldenaeringsforum.com
 falkenbergssparbank.com
 15five.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+africa.ai
+al-barakah.net
+banglalink.com
