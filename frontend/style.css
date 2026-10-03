@@ -4369,10 +4369,17 @@ a.hero-account-btn { text-decoration: none; }
 .contact-topics legend { padding: 0 0 8px; font: 600 14px var(--font-ui); }
 .contact-topic-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .contact-topic {
+  /* A label is inline by default, so its height was ignored and the text
+     sat against the top border. Flex centres it in the full 36px. */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   height: 36px;
   padding: 0 14px;
   border: 1.5px solid var(--black);
-  border-radius: 4px;
+  border-radius: 8px;
   background: transparent;
   color: var(--black);
   font: 600 14px var(--font-ui);
@@ -4386,7 +4393,7 @@ a.hero-account-btn { text-decoration: none; }
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 4px;
+  border-radius: 10px;
   background: var(--hover-bg);
   font-size: 14px;
   line-height: 1.4;
@@ -4412,7 +4419,7 @@ a.hero-account-btn { text-decoration: none; }
   width: 100%;
   box-sizing: border-box;
   border: 1.5px solid var(--black);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--white);
   color: var(--black);
   padding: 0 14px;
@@ -4434,7 +4441,7 @@ a.hero-account-btn { text-decoration: none; }
   height: 44px;
   padding: 0 22px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--black);
   color: var(--white);
   font: 600 15px var(--font-ui);
@@ -6643,9 +6650,11 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
   min-height: 0;
   padding: 14px 0 16px 16px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--grey-line) transparent;
+  /* Scrolls, but shows no bar: the column is narrow and the bar sat in
+     the gutter beside the panels. */
+  scrollbar-width: none;
 }
+.site-side::-webkit-scrollbar { display: none; }
 .side-group {
   flex: none;
   display: flex;
