@@ -7546,6 +7546,8 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   /* The alert button floats above the tab bar. */
   .m-alert { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 35; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1.5px solid var(--black); border-radius: 999px; background: var(--white); color: var(--black); font: 700 13px var(--font-ui); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); transform: translateX(-50%); }
   body.m-sheet-open .m-alert, body:has(.job-detail.open) .m-alert { display: none; }
+  .m-alert { transition: transform 0.25s ease, opacity 0.25s ease; }
+  body.m-alert-gone .m-alert { opacity: 0; transform: translate(-50%, 24px); pointer-events: none; }
 
   /* The filters sheet. */
   .m-sheet-scrim { position: fixed; inset: 0; z-index: 45; display: block; background: rgba(0, 0, 0, 0.58); }

@@ -1685,6 +1685,9 @@ let jobCountInFlight = null;
 // background: a timer or tab-return refresh, not something the reader
 // did. Only those may hold new rows back (see holdForReader).
 async function loadJobs({ background = false, append: wantAppend = false } = {}) {
+  // A new search or filter brings the phone's "Alert me for this search"
+  // back; scrolling down the results put it away (wireMobileSheet).
+  if (!background && !wantAppend) document.body.classList.remove("m-alert-gone");
   let append = wantAppend;
   // An infinite list has one starting point. state.offset is where the
   // NEXT page begins, which loadMoreJobs walks forward, so any load that
@@ -5120,6 +5123,11 @@ function wireMobileSheet() {
     try { sessionStorage.setItem("iljobs_alert_prefill", JSON.stringify(currentFilterParams())); } catch { /* the form opens empty */ }
     location.href = "/account#alerts";
   });
+  // Out of the way once the reader is scrolling through the results, so it
+  // stops sitting on top of a row; a new search brings it back (loadJobs).
+  window.addEventListener("scroll", () => {
+    if (MOBILE_MQ.matches && window.scrollY > 120) document.body.classList.add("m-alert-gone");
+  }, { passive: true });
   mobileRailHome();
   MOBILE_MQ.addEventListener("change", () => { mobileRailHome(); if (!MOBILE_MQ.matches) setOpen(false); wireInfiniteList(); });
 }
