@@ -93,6 +93,15 @@ def main() -> int:
         metrics.publish(DB, BUCKET)
     except Exception as e:  # noqa: BLE001
         print(f"metrics failed: {e!r}", file=sys.stderr)
+    # The growth dashboard's hourly numbers (box/growth.py). Network
+    # reads only, so outside the lock with the freshness metrics.
+    try:
+        import growth
+        sent = growth.maybe_publish(DB.with_name("growth-sent-at"))
+        if sent:
+            print(f"growth: {sent}")
+    except Exception as e:  # noqa: BLE001
+        print(f"growth failed: {e!r}", file=sys.stderr)
     # Up to fourteen minutes, within a fifteen-minute cadence: the
     # applier holds the disk often, and leaving at once meant never
     # publishing. While this waits, the applier sits out (lock.someone_waiting).

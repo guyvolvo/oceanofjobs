@@ -233,3 +233,16 @@ attached by hand:
 
 A rebuilt box needs the same, or every source alarm fires for missing
 data within half an hour of the switch.
+
+## Growth permission (2026-10-03)
+
+box/growth.py counts accounts for the Grafana growth dashboard by
+listing the user pool, with no attributes, so only creation dates come
+back. Attached by hand like the metrics one:
+
+    aws iam put-role-policy --role-name otj-box-experiment --policy-name otj-box-growth       --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow",
+      "Action":["cognito-idp:ListUsers","cognito-idp:DescribeUserPool"],
+      "Resource":"arn:aws:cognito-idp:il-central-1:876913698688:userpool/il-central-1_0vIcqqXyg"}]}'
+
+Without it the dashboard's account panels go empty and nothing else
+changes.

@@ -334,6 +334,7 @@ async function verifyEmailOtp(code) {
   });
   const t = result.AuthenticationResult;
   setAuthTokens({ id_token: t.IdToken, access_token: t.AccessToken, refresh_token: t.RefreshToken });
+  if (window.ojCount) window.ojCount("signin");
   _pendingOtpEmail = null;
   _pendingOtpSession = null;
 }
@@ -355,6 +356,7 @@ async function exchangeGoogleCode(code) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error_description || data.error || `HTTP ${res.status}`);
   setAuthTokens({ id_token: data.id_token, access_token: data.access_token, refresh_token: data.refresh_token });
+  if (window.ojCount) window.ojCount("signin");
 }
 
 // What each auth_error the callback can send back actually means, in
@@ -382,6 +384,7 @@ async function handleAuthRedirect() {
       access_token: hash.get("access_token"),
       refresh_token: hash.get("refresh_token"),
     });
+    if (window.ojCount) window.ojCount("signin");
     history.replaceState(null, "", location.pathname + location.search);
     return;
   }

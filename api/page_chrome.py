@@ -180,7 +180,8 @@ def topbar(current: str = "") -> str:
 """
 
 
-FOOT = """  <script>
+FOOT = """  <script src="/count.js"></script>
+  <script>
     (function () {
       var side = document.querySelector(".pg-side");
       if (!side) return;

@@ -175,6 +175,14 @@ def _run_alerts() -> str:
         return ", alerts failed"
     if result.get("errors"):
         print(f"alert evaluation errors: {result['errors']}", file=sys.stderr)
+    # Digests sent, for the growth dashboard. Zero is sent too, so a quiet
+    # day reads as zero there rather than as a gap.
+    if "digests_sent" in result:
+        try:
+            import growth
+            growth.count_event("digest_sent", int(result["digests_sent"]))
+        except Exception as e:  # noqa: BLE001
+            print(f"digest count failed: {e!r}", file=sys.stderr)
     domains = result.get("watched_domains")
     if domains is not None:
         # None means evaluate_alerts declined to run at all, and an

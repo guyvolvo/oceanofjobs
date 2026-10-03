@@ -1684,6 +1684,17 @@ let jobCountInFlight = null;
 
 // background: a timer or tab-return refresh, not something the reader
 // did. Only those may hold new rows back (see holdForReader).
+// A search someone asked for, counted once for the growth dashboard
+// (count.js). Called where a person types, clicks or picks a search,
+// never on a load that restores one from the URL, so a reload or a
+// shared link isn't a second search.
+let lastCountedSearch = "";
+function countSearch() {
+  if (!state.search || state.search === lastCountedSearch) return;
+  lastCountedSearch = state.search;
+  if (window.ojCount) window.ojCount("search");
+}
+
 async function loadJobs({ background = false, append: wantAppend = false } = {}) {
   // A new search or filter brings the phone's "Alert me for this search"
   // back; scrolling down the results put it away (wireMobileSheet).
@@ -2622,6 +2633,7 @@ function wireJobRowControls() {
       state.search = btn.dataset.skill.includes(" ") ? `"${btn.dataset.skill}"` : btn.dataset.skill;
       state.offset = 0;
       setSearchBox(state.search);
+      countSearch();
       loadJobs();
     });
   });
@@ -3325,6 +3337,7 @@ function wireJobDetailPanel(job) {
 }
 
 async function openJobDetail(id) {
+  if (window.ojCount) window.ojCount("job_view");
   const panel = document.getElementById("job-detail");
   // Not always in the currently loaded/filtered page -- a deep link (see
   // jobPermalink/applyStateFromUrl) can point at a job that isn't on
@@ -5217,6 +5230,7 @@ function applySearchNow(raw) {
   const next = raw.trim();
   if (next === state.search) return;
   state.search = next;
+  countSearch();
   // A broadening applies to the search it was asked for, not to the
   // next one somebody types.
   state.search_mode = "";
@@ -6952,6 +6966,7 @@ async function boot() {
     if (search !== undefined) {
       state.search = search;
       setSearchBox(search);
+      countSearch();
     }
     if (mode !== undefined) state.search_mode = mode;
     state.offset = 0;

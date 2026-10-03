@@ -21,6 +21,7 @@ from collections import Counter
 import sqlite3
 import traceback
 
+import events
 import expensive
 import math
 import os
@@ -471,6 +472,16 @@ def lambda_handler(event, context):
                 return _html_response(200, unsubscribe_page(q.get("u"), q.get("a"), q.get("t")),
                                       extra_headers={"X-Robots-Tag": "noindex"})
             return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/event":
+            # An anonymous count for the growth dashboard (api/events.py).
+            # Nothing is stored about the caller; the answer has no body.
+            if method != "POST":
+                return _response(405, json.dumps({"error": "method not allowed"}))
+            if not events.record(_query_params(event).get("e") or ""):
+                return _response(400, json.dumps({"error": "unknown event"}))
+            resp = _response(204, "")
+            resp["headers"]["Cache-Control"] = "no-store"
+            return resp
         if path == "/pipeline-status":
             return _response(200, json.dumps(route_pipeline_status(), default=str))
         if path == "/geo":
@@ -1941,6 +1952,7 @@ def route_create_alert(claims: dict, body: dict) -> dict:
         "last_notified_at": now,
     }
     _alerts_table.put_item(Item=item)
+    events.record("alert_created", from_page=False)
     return item
 
 
