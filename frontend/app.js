@@ -5097,14 +5097,55 @@ function wireMobileSheet() {
     renderMobileCats();
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !sheet.hidden) setOpen(false); });
-  // The sort: the list's own choices, mirrored both ways.
-  const src = document.getElementById("f-sort"), mirror = document.getElementById("m-sort");
-  if (src && mirror) {
-    mirror.innerHTML = src.innerHTML;
-    mirror.querySelector('option[value=""]')?.remove(); // the placeholder; the pill always names an order
-    mirror.value = src.value || "age:asc";
-    mirror.addEventListener("change", () => { src.value = mirror.value; src.dispatchEvent(new Event("change", { bubbles: true })); });
-    src.addEventListener("change", () => { mirror.value = src.value; });
+  // The sort: the list's own choices in a menu of the board's own, not
+  // the browser's. The desktop <select> (#f-sort) stays the one source of
+  // truth: the menu is rebuilt from its options each time it opens (some
+  // come and go, Relevance only with a search), a pick is written back to
+  // it and announced the way a change of the select would be.
+  const src = document.getElementById("f-sort");
+  const sortBtn = document.getElementById("m-sort"), menu = document.getElementById("m-sort-menu");
+  const valueEl = document.getElementById("m-sort-value");
+  if (src && sortBtn && menu) {
+    const options = () => [...src.options].filter((o) => o.value && !o.hidden && !o.disabled);
+    const current = () => src.value || "age:asc";
+    const paintValue = () => {
+      const o = [...src.options].find((x) => x.value === current());
+      if (valueEl) valueEl.textContent = o ? o.textContent.trim() : "Newest";
+    };
+    const close = () => { menu.hidden = true; sortBtn.setAttribute("aria-expanded", "false"); };
+    const open = () => {
+      menu.innerHTML = options().map((o) => {
+        const on = o.value === current();
+        return `<button type="button" class="m-sort-opt${on ? " on" : ""}" role="option" aria-selected="${on}" data-value="${escapeHtml(o.value)}">`
+          + `<span>${escapeHtml(o.textContent.trim())}</span>`
+          + `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>`;
+      }).join("");
+      menu.hidden = false;
+      sortBtn.setAttribute("aria-expanded", "true");
+      (menu.querySelector(".m-sort-opt.on") || menu.querySelector(".m-sort-opt"))?.focus();
+    };
+    sortBtn.addEventListener("click", (e) => { e.stopPropagation(); if (menu.hidden) open(); else close(); });
+    menu.addEventListener("click", (e) => {
+      const opt = e.target.closest(".m-sort-opt");
+      if (!opt) return;
+      e.stopPropagation();
+      close();
+      sortBtn.focus();
+      if (opt.dataset.value === src.value) return;
+      src.value = opt.dataset.value;
+      src.dispatchEvent(new Event("change", { bubbles: true }));
+      paintValue();
+    });
+    menu.addEventListener("keydown", (e) => {
+      const opts = [...menu.querySelectorAll(".m-sort-opt")];
+      const i = opts.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); opts[Math.min(i + 1, opts.length - 1)]?.focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); opts[Math.max(i - 1, 0)]?.focus(); }
+      else if (e.key === "Escape") { close(); sortBtn.focus(); }
+    });
+    document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest("#m-sort-wrap")) close(); });
+    src.addEventListener("change", paintValue);
+    paintValue();
   }
   // The count, in the bar and on the Show button, follows the list's.
   const count = document.getElementById("result-count");
