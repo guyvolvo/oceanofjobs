@@ -231,11 +231,26 @@
     const el = document.getElementById("acct-fresh");
     if (!el) return;
     if (!at) { el.hidden = true; return; }
+    // "Refreshed Saturday at 3:25 PM GMT+3": the day, the time and the
+    // reader's own time zone. A copy more than six days old adds the date,
+    // since the weekday alone would then be ambiguous.
     const d = new Date(at);
-    const when = d.toDateString() === new Date().toDateString()
-      ? `today at ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
-      : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    el.innerHTML = `Numbers from ${when}, refreshed daily. <button type="button" class="link-inline" id="acct-refresh">Refresh now</button>`;
+    const old = Date.now() - d.getTime() > 6 * 864e5;
+    const day = d.toLocaleDateString(undefined, old ? { weekday: "long", month: "short", day: "numeric" } : { weekday: "long" });
+    const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+    el.textContent = `Refreshed ${day} at ${time}. `;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "link-inline";
+    btn.id = "acct-refresh";
+    btn.textContent = "Refresh now";
+    el.appendChild(btn);
+    if (updatingNow) {
+      const tag = document.createElement("span");
+      tag.className = "acct-updating";
+      tag.textContent = " Updating now…";
+      el.appendChild(tag);
+    }
     el.hidden = false;
     el.querySelector("#acct-refresh").addEventListener("click", () => { forceNext = true; inflight = null; paintDashboard(); });
   }
@@ -264,8 +279,12 @@
   let historyRetries = 0;
   let pendingPolls = 0;
 
-  // "Updating" beside the freshness line while the box recomputes.
+  // "Updating" beside the freshness line while the box recomputes. Kept as
+  // state too: the overview repaints when the alerts and saved lists come
+  // in, and paintFresh puts the tag back each time.
+  let updatingNow = false;
   function paintUpdating(on) {
+    updatingNow = on;
     const el = document.getElementById("acct-fresh");
     if (!el) return;
     let tag = el.querySelector(".acct-updating");
@@ -373,6 +392,7 @@
     painted = key;
     if (h) writeCache(h, matches, counts, at);
     paintAll(matches, counts, at);
+    paintUpdating(pending); // paintAll rewrote the freshness line
   }
 
   window.paintDashboard = paintDashboard;
