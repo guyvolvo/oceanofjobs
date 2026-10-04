@@ -26899,3 +26899,23 @@ alpha.co
 # Common Crawl discovery batch (merge_discovered_batch.py)
 cityscience.com
 newjerseydepartmentofeducation.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+adcom.com
+aquifer.org
+berkshiremm.com
+baldwinemc.com
+block64.com
+citizenuniversity.co
+cityoflucas.com
+abpharmacy.com
+childadvocatessv.org
+clubriver.net
+contractexteriors.com
+cosgravelaw.com
+conduitfinancial.com
+deveenergy.com
+eyethrive.ai
+ghcla.com
+hecesc.com
+jbilibrary.org
