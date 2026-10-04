@@ -26869,3 +26869,10 @@ schoolhouse.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 clickables.co
 elevate-counseling.co
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+makers.tech
+22w.de
+skillstruck.com
+tria.com
+wgtv.org
