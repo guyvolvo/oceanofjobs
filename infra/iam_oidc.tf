@@ -85,6 +85,14 @@ resource "aws_iam_role_policy" "infra_deploy" {
         Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/${var.project_name}-*"
       },
       {
+        # The project's own log groups outside Lambda's prefix: the
+        # search terms the growth dashboard lists (search_log.tf).
+        Sid      = "ManageProjectLogs"
+        Effect   = "Allow"
+        Action   = ["logs:*"]
+        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/${var.project_name}/*"
+      },
+      {
         # The alerting in alarms.tf: the topic the alarms post to and its
         # email subscription, then the alarms themselves. Both scoped to
         # this project's names. Added 2026-09-30, when the first apply of
