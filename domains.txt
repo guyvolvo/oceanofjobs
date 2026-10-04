@@ -26895,3 +26895,7 @@ drobockyorthodontics.com
 mixmax.com
 altruistiq.com
 alpha.co
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+cityscience.com
+newjerseydepartmentofeducation.com
