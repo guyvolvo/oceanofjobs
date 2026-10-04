@@ -26846,3 +26846,6 @@ falkenbergssparbank.com
 africa.ai
 al-barakah.net
 banglalink.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+chg.com
