@@ -16,7 +16,7 @@ async function run(human) {
     if (h) Object.defineProperty(navigator, "webdriver", { get: () => false });
     window.__beacons = [];
     Object.defineProperty(Navigator.prototype, "sendBeacon", {
-      configurable: true, value: (u) => { window.__beacons.push(new URL(u, location.href).searchParams.get("e")); return true; } });
+      configurable: true, value: (u) => { const q = new URL(u, location.href).searchParams; window.__beacons.push(q.get("e") + (q.get("q") ? ":" + q.get("q") : "")); return true; } });
   }, human);
   await ctx.route("**/*", (r) => {
     // The apply link opens the employer's site in a new tab: answer it empty.
@@ -51,5 +51,5 @@ const robot = await run(false);
 console.log(JSON.stringify({ human, robot }));
 await b.close();
 const n = (e) => human.filter((x) => x === e).length;
-const ok = ["search", "job_view", "apply"].every((e) => n(e) >= 1) && n("visit") === 1 && n("new_visitor") === 1 && robot.length === 0;
+const ok = ["search:python", "job_view", "apply"].every((e) => n(e) >= 1) && n("visit") === 1 && n("new_visitor") === 1 && robot.length === 0;
 process.exit(ok ? 0 : 1);

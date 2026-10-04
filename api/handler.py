@@ -477,7 +477,8 @@ def lambda_handler(event, context):
             # Nothing is stored about the caller; the answer has no body.
             if method != "POST":
                 return _response(405, json.dumps({"error": "method not allowed"}))
-            if not events.record(_query_params(event).get("e") or ""):
+            q = _query_params(event)
+            if not events.record(q.get("e") or "", term=q.get("q")):
                 return _response(400, json.dumps({"error": "unknown event"}))
             resp = _response(204, "")
             resp["headers"]["Cache-Control"] = "no-store"

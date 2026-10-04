@@ -108,6 +108,9 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
         Resource = [
           "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project_name}-*",
           "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project_name}-*:*",
+          # The growth dashboard's search tables (search_log.tf).
+          aws_cloudwatch_log_group.searches.arn,
+          "${aws_cloudwatch_log_group.searches.arn}:*",
         ]
     }]
   })

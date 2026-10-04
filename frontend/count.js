@@ -1,8 +1,9 @@
 // Anonymous counts for the growth dashboard: visits, searches, job views
 // and apply clicks, as daily totals (api/events.py). A count is a POST to
-// /api/event carrying only the event's name. No cookie, no id. Two flags
-// stay in this browser and are never sent: one says this tab's visit was
-// already counted, the other that this browser has been here before.
+// /api/event carrying the event's name, and for a search its words. No
+// cookie, no id. Two flags stay in this browser and are never sent: one
+// says this tab's visit was already counted, the other that this browser
+// has been here before.
 //
 // Crawlers and automated browsers count nothing, which also keeps the
 // end-to-end tests out of the numbers.
@@ -10,9 +11,12 @@
   var ua = navigator.userAgent || "";
   var robot = navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse|preview|pingdom|uptime/i.test(ua);
 
-  function send(name) {
+  // A search also sends what was searched (q), which the dashboard lists
+  // as top searches. Nothing else goes with it.
+  function send(name, term) {
     if (robot) return;
     var url = "/api/event?e=" + encodeURIComponent(name);
+    if (term) url += "&q=" + encodeURIComponent(String(term).slice(0, 100));
     try {
       if (navigator.sendBeacon && navigator.sendBeacon(url)) return;
       fetch(url, { method: "POST", keepalive: true }).catch(function () {});

@@ -30,6 +30,8 @@ infra/grafana_cloudwatch.tf's role serves:
                           box/growth.py, hourly gauges
   PendingFragments, SourceFreshnessMinutes
                           box/metrics.py, the pipeline's own health
+  /iljobs/searches        the log group api/events.py writes search terms
+                          to, read with Logs Insights for the two tables
   AWS/CloudFront          the edge, in us-east-1 as CloudFront's metrics
                           always are
 
@@ -48,6 +50,8 @@ OUT = HERE / "growth-dashboard.json"
 UID = "oceanofjobs-growth"
 REGION = "il-central-1"
 DISTRIBUTION = "E3UCZ5WT5SLUVY"
+ACCOUNT = "876913698688"
+SEARCH_LOG_GROUP = os.environ.get("SEARCH_LOG_GROUP", "/iljobs/searches")
 DS = {"type": "cloudwatch", "uid": "${ds}"}
 HOUR, WEEK_HOURS = "3600", 168
 
@@ -97,6 +101,37 @@ def filled(ref, source, label, period=HOUR, region=REGION):
 def edge(ref, name, stat="Sum", **kw):
     return metric(ref, name, ns="AWS/CloudFront", region="us-east-1", stat=stat,
                   dims={"DistributionId": DISTRIBUTION, "Region": "Global"}, **kw)
+
+
+def logs(ref, query):
+    """A Logs Insights query on the search terms log group."""
+    arn = f"arn:aws:logs:{REGION}:{ACCOUNT}:log-group:{SEARCH_LOG_GROUP}"
+    return {"datasource": DS, "refId": ref, "region": REGION, "queryMode": "Logs", "id": "",
+            "queryLanguage": "CWLI", "expression": query,
+            "logGroups": [{"arn": arn, "name": SEARCH_LOG_GROUP}], "logGroupNames": [SEARCH_LOG_GROUP]}
+
+
+def table(title, target, desc, columns, bar=None, sort=None):
+    """A Cloudflare-style list: plain rows, the count drawn as a bar."""
+    keep = {name: True for name in columns}
+    overrides = []
+    if bar:
+        overrides.append({"matcher": {"id": "byName", "options": columns[bar]},
+                          "properties": [{"id": "custom.cellOptions",
+                                          "value": {"type": "gauge", "mode": "basic", "valueDisplayMode": "text"}},
+                                         {"id": "color", "value": {"mode": "fixed", "fixedColor": BLUE}},
+                                         {"id": "custom.width", "value": 260}]})
+    return {
+        "type": "table", "title": title, "description": desc, "targets": [target],
+        "transformations": [{"id": "organize", "options": {
+            "excludeByName": {}, "includeByName": keep, "renameByName": columns,
+            "indexByName": {name: i for i, name in enumerate(columns)}}}],
+        "options": {"showHeader": True, "cellHeight": "sm", "footer": {"show": False},
+                    "sortBy": [{"displayName": columns[sort], "desc": True}] if sort else []},
+        "fieldConfig": {"defaults": {"custom": {"align": "auto", "filterable": False,
+                                                "cellOptions": {"type": "auto"}}},
+                        "overrides": overrides},
+    }
 
 
 class Layout:
@@ -244,6 +279,18 @@ def build() -> dict:
                       "Apply clicks per 100 visits", period=day)],
                 "Of every hundred visits in a day, how many ended in a click out to an employer.",
                 decimals=1, legend_calc="mean"), 12, 7)
+
+    L.row("What people search")
+    L.add(table("Top searches",
+                logs("A", "fields term, n | stats sum(n) as searches by term | sort searches desc | limit 50"),
+                "Searches typed or picked on the board in the selected range, most frequent first. "
+                "From the board itself, so crawlers and API scripts aren't in it. Terms that look like an "
+                "email address or a phone number are never kept.",
+                {"term": "Search", "searches": "Times"}, bar="searches", sort="searches"), 12, 12)
+    L.add(table("Recent searches",
+                logs("A", "fields @timestamp, term, n | sort @timestamp desc | limit 100"),
+                "The latest searches, to the minute. Times is how often that term was searched in that minute.",
+                {"@timestamp": "When", "term": "Search", "n": "Times"}), 12, 12)
 
     L.row("Accounts and alerts")
     hourly = {"stat": "Maximum", "period": HOUR}

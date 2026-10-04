@@ -1350,7 +1350,7 @@
     },
     {
       "type": "row",
-      "title": "Accounts and alerts",
+      "title": "What people search",
       "collapsed": false,
       "id": 12,
       "gridPos": {
@@ -1358,6 +1358,213 @@
         "w": 24,
         "x": 0,
         "y": 21
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Top searches",
+      "description": "Searches typed or picked on the board in the selected range, most frequent first. From the board itself, so crawlers and API scripts aren't in it. Terms that look like an email address or a phone number are never kept.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "fields term, n | stats sum(n) as searches by term | sort searches desc | limit 50",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ]
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {
+              "term": true,
+              "searches": true
+            },
+            "renameByName": {
+              "term": "Search",
+              "searches": "Times"
+            },
+            "indexByName": {
+              "term": 0,
+              "searches": 1
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Times",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": false,
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Times"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 260
+              }
+            ]
+          }
+        ]
+      },
+      "id": 13,
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Recent searches",
+      "description": "The latest searches, to the minute. Times is how often that term was searched in that minute.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "fields @timestamp, term, n | sort @timestamp desc | limit 100",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ]
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {
+              "@timestamp": true,
+              "term": true,
+              "n": true
+            },
+            "renameByName": {
+              "@timestamp": "When",
+              "term": "Search",
+              "n": "Times"
+            },
+            "indexByName": {
+              "@timestamp": 0,
+              "term": 1,
+              "n": 2
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": false,
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "id": 14,
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Accounts and alerts",
+      "collapsed": false,
+      "id": 15,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
       },
       "panels": []
     },
@@ -1423,12 +1630,12 @@
         },
         "overrides": []
       },
-      "id": 13,
+      "id": 16,
       "gridPos": {
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 22
+        "y": 35
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1497,12 +1704,12 @@
         },
         "overrides": []
       },
-      "id": 14,
+      "id": 17,
       "gridPos": {
         "h": 5,
         "w": 4,
         "x": 4,
-        "y": 22
+        "y": 35
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1571,12 +1778,12 @@
         },
         "overrides": []
       },
-      "id": 15,
+      "id": 18,
       "gridPos": {
         "h": 5,
         "w": 4,
         "x": 8,
-        "y": 22
+        "y": 35
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1645,12 +1852,12 @@
         },
         "overrides": []
       },
-      "id": 16,
+      "id": 19,
       "gridPos": {
         "h": 5,
         "w": 4,
         "x": 12,
-        "y": 22
+        "y": 35
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1782,12 +1989,12 @@
         },
         "overrides": []
       },
-      "id": 17,
+      "id": 20,
       "gridPos": {
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 22
+        "y": 35
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1919,12 +2126,12 @@
         },
         "overrides": []
       },
-      "id": 18,
+      "id": 21,
       "gridPos": {
         "h": 5,
         "w": 4,
         "x": 20,
-        "y": 22
+        "y": 35
       },
       "datasource": {
         "type": "cloudwatch",
@@ -1935,12 +2142,12 @@
       "type": "row",
       "title": "Traffic at the edge, crawlers included",
       "collapsed": false,
-      "id": 19,
+      "id": 22,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 40
       },
       "panels": []
     },
@@ -2069,12 +2276,12 @@
         },
         "overrides": []
       },
-      "id": 20,
+      "id": 23,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 28
+        "y": 41
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2207,12 +2414,12 @@
         },
         "overrides": []
       },
-      "id": 21,
+      "id": 24,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 28
+        "y": 41
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2333,12 +2540,12 @@
         },
         "overrides": []
       },
-      "id": 22,
+      "id": 25,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 28
+        "y": 41
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2459,12 +2666,12 @@
         },
         "overrides": []
       },
-      "id": 23,
+      "id": 26,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 28
+        "y": 41
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2565,12 +2772,12 @@
           }
         ]
       },
-      "id": 24,
+      "id": 27,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 46
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2672,12 +2879,12 @@
           }
         ]
       },
-      "id": 25,
+      "id": 28,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 46
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2844,12 +3051,12 @@
           }
         ]
       },
-      "id": 26,
+      "id": 29,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 41
+        "y": 54
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2990,12 +3197,12 @@
           }
         ]
       },
-      "id": 27,
+      "id": 30,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 41
+        "y": 54
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3006,12 +3213,12 @@
       "type": "row",
       "title": "The board",
       "collapsed": false,
-      "id": 28,
+      "id": 31,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 62
       },
       "panels": []
     },
@@ -3077,12 +3284,12 @@
         },
         "overrides": []
       },
-      "id": 29,
+      "id": 32,
       "gridPos": {
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 50
+        "y": 63
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3151,12 +3358,12 @@
         },
         "overrides": []
       },
-      "id": 30,
+      "id": 33,
       "gridPos": {
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 50
+        "y": 63
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3167,12 +3374,12 @@
       "type": "row",
       "title": "Pipeline health",
       "collapsed": false,
-      "id": 31,
+      "id": 34,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 55
+        "y": 68
       },
       "panels": []
     },
@@ -3267,12 +3474,12 @@
           }
         ]
       },
-      "id": 32,
+      "id": 35,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 56
+        "y": 69
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3355,12 +3562,12 @@
         },
         "overrides": []
       },
-      "id": 33,
+      "id": 36,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 56
+        "y": 69
       },
       "datasource": {
         "type": "cloudwatch",

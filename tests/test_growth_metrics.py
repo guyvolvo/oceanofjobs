@@ -70,6 +70,50 @@ events.record("visit")
 check("nothing is counted on the Lambda fallback", events.take() == {})
 os.environ.pop("AWS_LAMBDA_FUNCTION_NAME")
 
+# Search terms: cleaned, personal details dropped, sent as log lines.
+ct = events.clean_term
+check("a term is trimmed, spaced and lowercased", ct("  Python   Developer ") == "python developer")
+check("Hebrew and quotes survive", ct("פרויקט") == "פרויקט" and ct('"Technical Support"') == '"technical support"')
+check("an email address is dropped", ct("john@doe.com") is None and ct("jobs for me@x.io") is None)
+check("a phone number is dropped", ct("+972 54-123-4567") is None and ct("0541234567") is None)
+check("short numbers stay", ct("react 18") == "react 18" and ct("c++ 2024 roles") == "c++ 2024 roles")
+check("an empty term is nothing", ct("") is None and ct(None) is None and ct("   ") is None)
+check("a term is cut at 80 characters", len(ct("x" * 200)) == 80)
+events.take(); events.take_terms()
+events.record("search", term="DevOps"); events.record("search", term="devops "); events.record("search", term="me@x.io")
+events.record("visit", term="should not be kept")
+check("terms are counted per search, personal ones left out, other events carry none",
+      events.take_terms() == {"devops": 2} and events.take().get("search") == 3)
+for i in range(events.MAX_TERMS_PER_MINUTE + 20):
+    events.record("search", term=f"term {chr(97 + i % 26)}{i}")
+check("distinct terms per minute are capped", len(events.take_terms()) == events.MAX_TERMS_PER_MINUTE)
+events.take()
+
+
+class FakeLogs:
+    def __init__(self):
+        self.streams, self.puts = [], []
+
+    def create_log_stream(self, **kw):
+        self.streams.append(kw)
+
+    def put_log_events(self, **kw):
+        self.puts.append(kw)
+
+
+fl = FakeLogs()
+events._stream = None
+events.send_terms({"devops": 2, "פרויקט": 1}, logs=fl)
+events.send_terms({"python": 1}, logs=fl)
+lines = [json.loads(e["message"]) for put in fl.puts for e in put["logEvents"]]
+stamps = {e["timestamp"] for e in fl.puts[0]["logEvents"]}
+check("one stream per process, one JSON line per term, sharing the minute's timestamp",
+      len(fl.streams) == 1 and fl.puts[0]["logGroupName"] == events.SEARCH_LOG_GROUP
+      and {"term": "devops", "n": 2} in lines and {"term": "פרויקט", "n": 1} in lines and len(stamps) == 1, repr(lines))
+fl2 = FakeLogs()
+events.send_terms({}, logs=fl2)
+check("no terms, nothing sent", not fl2.puts and not fl2.streams)
+
 import handler  # noqa: E402
 
 
@@ -84,6 +128,10 @@ check("POST /api/event with a known name is 204, uncached",
 check("and it counted", events.take().get("apply") == 1)
 check("an unknown name is 400", call("POST", "e=whatever")["statusCode"] == 400)
 check("GET is 405", call("GET", "e=apply")["statusCode"] == 405)
+events.take_terms()
+call("POST", "e=search&q=Senior+DevOps")
+check("the route passes the search term through", events.take_terms() == {"senior devops": 1})
+events.take()
 
 import growth  # noqa: E402
 

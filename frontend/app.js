@@ -1692,7 +1692,7 @@ let lastCountedSearch = "";
 function countSearch() {
   if (!state.search || state.search === lastCountedSearch) return;
   lastCountedSearch = state.search;
-  if (window.ojCount) window.ojCount("search");
+  if (window.ojCount) window.ojCount("search", state.search);
 }
 
 async function loadJobs({ background = false, append: wantAppend = false } = {}) {

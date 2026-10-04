@@ -246,3 +246,14 @@ back. Attached by hand like the metrics one:
 
 Without it the dashboard's account panels go empty and nothing else
 changes.
+
+## Search terms permission (2026-10-04)
+
+api/events.py writes the board's search terms to the `/iljobs/searches`
+log group (infra/search_log.tf) for the growth dashboard's tables:
+
+    aws iam put-role-policy --role-name otj-box-experiment --policy-name otj-box-searches       --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow",
+      "Action":["logs:CreateLogStream","logs:PutLogEvents"],
+      "Resource":"arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches:*"}]}'
+
+Without it the search tables stay empty; the counts are unaffected.
