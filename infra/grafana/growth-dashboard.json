@@ -1511,7 +1511,7 @@
               "n": true
             },
             "renameByName": {
-              "@timestamp": "When",
+              "@timestamp": "@timestamp",
               "term": "Search",
               "n": "Times"
             },

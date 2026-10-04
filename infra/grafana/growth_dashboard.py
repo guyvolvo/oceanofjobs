@@ -290,7 +290,7 @@ def build() -> dict:
     L.add(table("Recent searches",
                 logs("A", "fields @timestamp, term, n | sort @timestamp desc | limit 100"),
                 "The latest searches, to the minute. Times is how often that term was searched in that minute.",
-                {"@timestamp": "When", "term": "Search", "n": "Times"}), 12, 12)
+                {"@timestamp": "@timestamp", "term": "Search", "n": "Times"}), 12, 12)
 
     L.row("Accounts and alerts")
     hourly = {"stat": "Maximum", "period": HOUR}
