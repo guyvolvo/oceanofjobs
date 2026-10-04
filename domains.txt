@@ -26865,3 +26865,7 @@ brisbane.net
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 schoolhouse.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+clickables.co
+elevate-counseling.co
