@@ -95,6 +95,30 @@ check("limit falls back to the default for zero and non-numbers", /LIMIT 25$/.te
 check("limit clamps a negative to one", /LIMIT 1$/.test(sql({ limit: -5 })));
 
 // Round trip through the URL encoding.
+// Time questions: a range, an optional comparison, and which date.
+q = sql({ group: "day" });
+check("a time group looks back 30 days by default, oldest first",
+  /first_seen >= date\('now', '-30 days'\)/.test(q) && /ORDER BY day ASC/.test(q) && !/closed_at IS NULL/.test(q), q);
+q = sql({ group: "day", range: 0 });
+check("all time drops the range", !/date\('now'/.test(q) && /first_seen IS NOT NULL/.test(q), q);
+q = sql({ group: "day", range: 30, compare: "previous" });
+check("compare adds the 30 days before, shifted onto the same days",
+  /WITH cur AS/.test(q) && /prev AS/.test(q) && /date\(j\.first_seen, '\+30 days'\) AS g/.test(q)
+  && />= date\('now', '-60 days'\) AND j\.first_seen < date\('now', '-30 days'\)/.test(q) && /prev\.v AS previous/.test(q), q);
+q = sql({ group: "week", range: 90, compare: "previous" });
+check("weeks compare on the shifted week", /strftime\('%Y-W%W', date\(j\.first_seen, '\+90 days'\)\)/.test(q), q);
+check("months never compare", !/prev AS/.test(sql({ group: "month", range: 90, compare: "previous" })));
+check("all time never compares", !/prev AS/.test(sql({ group: "day", range: 0, compare: "previous" })));
+check("canCompare says the same", QB.canCompare({ group: "day", range: 30 }) && !QB.canCompare({ group: "month", range: 30 })
+  && !QB.canCompare({ group: "day", range: 0 }) && !QB.canCompare({ group: "category", range: 30 }));
+q = sql({ group: "day", event: "closed_at", range: 7 });
+check("closed per day counts by the closing date", /substr\(j\.closed_at, 1, 10\) AS day/.test(q) && /closed_at >= date\('now', '-7 days'\)/.test(q), q);
+q = sql({ group: "week", range: 30, compare: "previous", filters: [{ field: "skill", values: ["python"] }] });
+check("a skill filter on a time question reads distinct listings from job_skills in both periods",
+  (q.match(/SELECT DISTINCT job_rowid/g) || []).length === 2 && /closed_at, days_open FROM job_skills/.test(q) && !/FROM jobs j/.test(q), q);
+q = sql({ group: "day", metric: "avg_days_open", filters: [{ field: "category", values: ["Sales"] }] });
+check("a time question can average days open, with filters", /ROUND\(AVG\(j\.days_open\), 1\) AS avg_days_open/.test(q) && /j\.category IN \('Sales'\)/.test(q), q);
+
 const st = { status: "closed", filters: [{ field: "title", text: "Ré/sumé 'x'" }], group: "month", metric: "share", limit: 40 };
 check("state survives the URL encoding", JSON.stringify(QB.decodeState(QB.encodeState(st))) === JSON.stringify(st));
 check("garbage decodes to null rather than throwing", QB.decodeState("not base64!") === null);

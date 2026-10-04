@@ -22,7 +22,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Statistics | Ocean of Jobs</title>
   <link rel="canonical" href="https://oceanofjobs.com/stats" />
-  <meta name="description" content="Ask questions of every listing Ocean of Jobs tracks. Pick filters and a grouping, or write SQL. It runs in your browser." />
+  <meta name="description" content="Ask the job market a question. Build it with the picker or write SQL; every result gets a shareable link and a CSV. It runs in your browser." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/stats" />
   <meta property="og:title" content="Statistics | Ocean of Jobs" />
@@ -59,124 +59,93 @@
     </div>
   </div>
 
-  <div class="workspace explore-page" id="main" role="main" tabindex="-1">
-    <section class="section">
-      <div class="container">
-        <h1 class="section-title">DB Explorer</h1>
-        <!-- The database is a static file on the CDN and the query runs
-             in this tab, inside SQLite compiled to WebAssembly. Only the
-             pages a query touches are fetched, by HTTP range request.
-             Nothing is sent anywhere. loader/build_explore.py says what
-             is in the file and why. -->
-        <p class="explore-intro">Here you can query information about the current and past job market statistics, in both no code and SQL formats</p>
-
-        <div class="explore-layout">
-          <!-- Sidebar. Schema first, the starter questions under it, both
-               as panels in the same bordered voice as the workspace. -->
-          <aside class="explore-side">
-            <section class="panel">
-              <div class="panel-head">
-                <span class="panel-title">Schema</span>
-              </div>
-              <div class="panel-body panel-body-flush">
-                <input type="search" id="schema-search" name="column" class="qb-input schema-search" placeholder="Find a column, e.g. salary…" aria-label="Find a column" autocomplete="off" />
-                <div id="explore-schema" class="sx"></div>
-              </div>
-            </section>
-            <section class="panel">
-              <div class="panel-head">
-                <span class="panel-title">Starter queries</span>
-              </div>
-              <div id="explore-templates" class="explore-templates"></div>
-            </section>
-          </aside>
-
-          <div class="explore-main">
-            <!-- Query panel. Mode switch top left, the database's own
-                 headline top right, controls in the body, one Run button
-                 and the last run's measurement in the footer. Switching to
-                 SQL shows the query the builder wrote, editable; switching
-                 back restores the builder's last state and drops edits. -->
-            <section class="panel">
-              <div class="panel-head">
-                <div class="seg" role="tablist" aria-label="Query mode">
-                  <button type="button" class="seg-btn active" data-mode="builder" role="tab" aria-selected="true">Builder</button>
-                  <button type="button" class="seg-btn" data-mode="sql" role="tab" aria-selected="false">SQL</button>
-                </div>
-                <span class="explore-status" id="explore-status">Loading the database runtime…</span>
-              </div>
-
-              <div id="qb" class="qb panel-body">
-                <div class="qb-row qb-row-top">
-                  <label class="qb-field">
-                    <span class="qb-label">Listings</span>
-                    <select id="qb-status" class="qb-select"></select>
-                  </label>
-                  <label class="qb-field">
-                    <span class="qb-label">Group by</span>
-                    <select id="qb-group" class="qb-select"></select>
-                  </label>
-                  <label class="qb-field" id="qb-metric-field">
-                    <span class="qb-label">Show</span>
-                    <select id="qb-metric" class="qb-select"></select>
-                  </label>
-                  <label class="qb-field qb-field-limit">
-                    <span class="qb-label">Rows</span>
-                    <input type="number" id="qb-limit" name="limit" class="qb-input" inputmode="numeric" min="1" max="10000" value="25" />
-                  </label>
-                </div>
-                <div class="qb-where">
-                  <span class="qb-label">Only where</span>
-                  <div id="qb-filters" class="qb-filters"></div>
-                  <select id="qb-add-field" class="qb-select qb-select-inline" aria-label="Add a filter"></select>
-                </div>
-              </div>
-
-              <div id="sqlmode" class="sqlmode panel-body panel-body-flush" hidden>
-                <textarea id="explore-sql" name="sql" class="explore-editor" spellcheck="false" autocomplete="off" autocapitalize="off" rows="8" aria-label="SQL query"></textarea>
-              </div>
-
-              <div class="panel-foot">
-                <button type="button" class="btn btn-small" id="explore-run">
-                  <span class="btn-label">Run query</span>
-                  <svg class="btn-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor"
-                            stroke-width="5" stroke-linecap="round"
-                            stroke-dasharray="26 31" />
-                  </svg>
-                </button>
-                <button type="button" class="btn ghost btn-small" id="qb-reset">Reset</button>
-                <span class="explore-hint">Ctrl+Enter</span>
-                <span class="explore-metric" id="explore-metric" aria-live="polite"></span>
-              </div>
-            </section>
-
-            <!-- Results panel. Its header carries the shape switch and the
-                 two things you can do with an answer. -->
-            <section class="panel">
-              <div class="panel-head">
-                <div class="seg" role="tablist" aria-label="Show results as">
-                  <button type="button" class="seg-btn active" data-viz="auto" role="tab" aria-selected="true">Auto</button>
-                  <button type="button" class="seg-btn" data-viz="table" role="tab" aria-selected="false">Table</button>
-                  <button type="button" class="seg-btn" data-viz="bar" role="tab" aria-selected="false">Bars</button>
-                  <button type="button" class="seg-btn" data-viz="line" role="tab" aria-selected="false">Line</button>
-                </div>
-                <div class="panel-actions">
-                  <button type="button" class="btn ghost btn-small" id="explore-share">Copy link</button>
-                  <button type="button" class="btn ghost btn-small" id="explore-csv" disabled>Export CSV</button>
-                </div>
-              </div>
-              <div class="panel-body">
-                <div id="explore-error" class="explore-error" hidden></div>
-                <div id="explore-result" class="explore-result" aria-live="polite"></div>
-              </div>
-            </section>
-          </div>
+  <div class="workspace st-page" id="main" role="main" tabindex="-1">
+    <div class="st-wrap">
+      <!-- The database is a static file on the CDN and the query runs
+           in this tab, inside SQLite compiled to WebAssembly. Only the
+           pages a query touches are fetched, by HTTP range request.
+           Nothing is sent anywhere. loader/build_explore.py says what
+           is in the file and why. -->
+      <header class="st-head">
+        <div>
+          <h1 class="st-title">Statistics</h1>
+          <p class="st-intro">Ask the job market a question. Build it with the picker or write SQL; every result gets a shareable link and a CSV.</p>
         </div>
+        <a class="st-download" id="st-download" href="/explore.json" download hidden>Download the database</a>
+      </header>
 
-        <p class="legal-back"><a class="link" href="/board">&larr; Back to the job board</a></p>
+      <div class="st-grid">
+        <nav class="st-questions" aria-labelledby="st-q-title">
+          <h2 class="st-rail-title" id="st-q-title">Start from a question</h2>
+          <div id="explore-templates" class="st-qlist"></div>
+        </nav>
+
+        <section class="st-schema" aria-labelledby="st-s-title">
+          <h2 class="st-rail-title" id="st-s-title">Schema</h2>
+          <label class="st-find"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input type="search" id="schema-search" name="column" placeholder="Find a column" aria-label="Find a column" autocomplete="off" /></label>
+          <div id="explore-schema" class="st-tree"></div>
+        </section>
+
+        <div class="st-main">
+          <!-- The question. The builder reads as a sentence; SQL mode shows
+               the query the builder wrote, editable. -->
+          <section class="st-card st-query" aria-label="Query">
+            <div class="st-card-head">
+              <div class="seg st-seg" role="tablist" aria-label="Query mode">
+                <button type="button" class="seg-btn active" data-mode="builder" role="tab" aria-selected="true">Builder</button>
+                <button type="button" class="seg-btn" data-mode="sql" role="tab" aria-selected="false">SQL</button>
+              </div>
+              <span class="st-meta" id="explore-status">Loading the database runtime…</span>
+            </div>
+
+            <div id="qb" class="st-sentence"></div>
+
+            <div id="sqlmode" class="st-sqlmode" hidden>
+              <textarea id="explore-sql" name="sql" class="st-editor" spellcheck="false" autocomplete="off" autocapitalize="off" rows="9" aria-label="SQL query"></textarea>
+            </div>
+
+            <div class="st-card-foot">
+              <button type="button" class="st-run" id="explore-run">
+                <span class="st-run-ico"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg></span>
+                <span class="btn-label">Run query</span>
+                <svg class="btn-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor"
+                          stroke-width="5" stroke-linecap="round"
+                          stroke-dasharray="26 31" />
+                </svg>
+              </button>
+              <span class="st-keys" aria-label="Shortcut: Control plus Enter"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
+              <button type="button" class="st-textlink" id="qb-reset">Reset</button>
+              <button type="button" class="st-viewsql" id="st-viewsql">View as SQL ›</button>
+            </div>
+          </section>
+
+          <!-- The answer: a title written from the question, the numbers
+               that matter, the chart, and the rows under it. -->
+          <section class="st-card st-result" aria-labelledby="st-rtitle">
+            <div class="st-result-head">
+              <div class="st-result-titles">
+                <h2 class="st-rtitle" id="st-rtitle">Loading…</h2>
+                <p class="st-rsub" id="explore-metric" aria-live="polite"></p>
+              </div>
+              <div class="st-actions">
+                <div class="st-seg st-viewseg" role="tablist" aria-label="Show results as">
+                  <button type="button" class="seg-btn" data-viz="line" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/></svg><span>Line</span></button>
+                  <button type="button" class="seg-btn" data-viz="bar" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-6M10 20V9M15 20v-8M20 20V5"/></svg><span>Bars</span></button>
+                  <button type="button" class="seg-btn" data-viz="table" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/></svg><span>Table</span></button>
+                </div>
+                <button type="button" class="st-btn" id="explore-share"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg><span>Copy link</span></button>
+                <button type="button" class="st-btn" id="explore-csv" disabled><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span>CSV</span></button>
+              </div>
+            </div>
+            <div id="explore-error" class="explore-error" hidden></div>
+            <div id="explore-result" class="st-body" aria-live="polite"></div>
+          </section>
+        </div>
       </div>
-    </section>
+
+      <p class="legal-back"><a class="link" href="/board">&larr; Back to the job board</a></p>
+    </div>
   </div>
 
   <!-- sql.js-httpvfs 0.8.12, vendored. UMD, so a plain tag leaves

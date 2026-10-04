@@ -39,10 +39,32 @@
     salary_source: { label: "Pay info",      expr: "COALESCE(j.salary_source, 'none')" },
     company:       { label: "Company",       expr: "COALESCE(c.name, j.company)", join: "companies" },
     skill:         { label: "Skill",         expr: "j.skill", skill: true },
-    day:           { label: "Day first seen",   expr: "substr(j.first_seen, 1, 10)" },
-    week:          { label: "Week first seen",  expr: "strftime('%Y-W%W', j.first_seen)" },
-    month:         { label: "Month first seen", expr: "substr(j.first_seen, 1, 7)" },
+    day:           { label: "Day",   time: "day" },
+    week:          { label: "Week",  time: "week" },
+    month:         { label: "Month", time: "month" },
   };
+
+  // A time group's bucket, over whichever date the question is about.
+  // `shift` moves the date forward first, which is how the previous
+  // period lines up with the current one: a day thirty days ago lands on
+  // the day it is being compared with.
+  function timeExpr(kind, col, shift) {
+    const d = shift ? "date(" + col + ", '+" + shift + " days')" : col;
+    if (kind === "day") return shift ? d : "substr(" + col + ", 1, 10)";
+    if (kind === "week") return "strftime('%Y-W%W', " + d + ")";
+    return shift ? "substr(" + d + ", 1, 7)" : "substr(" + col + ", 1, 7)";
+  }
+
+  // The date a time question counts by. "First seen" is when a listing
+  // appeared; "closed" is when it went away, which only closed listings
+  // have.
+  const EVENTS = {
+    first_seen: { label: "first seen", col: "first_seen" },
+    closed_at:  { label: "closed",     col: "closed_at" },
+  };
+
+  // How far back a time question looks. 0 is everything the file holds.
+  const RANGES = { 7: "7 days", 30: "30 days", 90: "90 days", 0: "all time" };
 
   const METRICS = {
     count:         { label: "Listings",        col: "listings" },
@@ -57,7 +79,17 @@
   };
 
   function defaultState() {
-    return { status: "open", filters: [], group: "category", metric: "count", limit: 25 };
+    return { status: "open", filters: [], group: "category", metric: "count", limit: 25,
+             event: "first_seen", range: 30, compare: "none" };
+  }
+
+  // Whether a state can compare with the period before: a time question
+  // over a fixed number of days, bucketed by day or week. Months do not
+  // line up with a span of days, and "all time" has no period before it.
+  function canCompare(st) {
+    const g = GROUPS[st.group] || {};
+    const days = parseInt(st.range, 10) || 0;
+    return (g.time === "day" || g.time === "week") && days > 0;
   }
 
   // A SQL string literal. Values come from the page's own controls and
@@ -105,7 +137,51 @@
   // filters by skill and groups by something else reads the distinct
   // listings out of these, so nothing has to touch the jobs table.
   const SKILL_COLS = ["job_rowid", "category", "seniority", "workplace", "ats",
-                      "salary_source", "company", "first_seen", "days_open"];
+                      "salary_source", "company", "first_seen", "closed_at", "days_open"];
+
+  // A time question: one bucket per day, week or month of the chosen
+  // date, over the last N days, optionally beside the N days before.
+  // Status does not apply: "first seen per day" counts every listing that
+  // appeared, open or closed since, and "closed per day" is closed ones by
+  // definition.
+  function buildTimeSql(st, group, filters) {
+    const ev = EVENTS[st.event] || EVENTS.first_seen;
+    const days = Math.max(0, parseInt(st.range, 10) || 0);
+    const hasText = filters.some((f) => (FIELDS[f.field] || {}).kind === "text" && (f.text || "").trim());
+    const hasSkillFilter = filters.some((f) => f.field === "skill" && (f.values || []).filter((v) => v !== "" && v != null).length);
+    const on = hasSkillFilter && !hasText ? "skills" : "jobs";
+    const col = "j." + ev.col;
+
+    const base = [];
+    for (const f of filters) {
+      const w = filterSql(f, on);
+      if (w) base.push(w);
+    }
+    // One source of rows per period. On job_skills a listing appears once
+    // per skill, so its distinct listings come out first.
+    function source(extra) {
+      const where = base.concat(extra);
+      const w = where.length ? " WHERE " + where.join(" AND ") : "";
+      return on === "skills"
+        ? "(SELECT DISTINCT " + SKILL_COLS.join(", ") + " FROM job_skills j" + w + ") j"
+        : "jobs j" + w;
+    }
+    const metricSql = st.metric === "avg_days_open" ? "ROUND(AVG(j.days_open), 1)" : "COUNT(*)";
+    const valueCol = st.metric === "avg_days_open" ? "avg_days_open" : "listings";
+    const name = st.group;
+    const cur = [col + " IS NOT NULL"];
+    if (days) cur.push(col + " >= date('now', '-" + days + " days')");
+
+    if (st.compare === "previous" && canCompare(st)) {
+      const prev = [col + " >= date('now', '-" + (2 * days) + " days')", col + " < date('now', '-" + days + " days')"];
+      return "WITH cur AS (\n  SELECT " + timeExpr(group.time, col, 0) + " AS g, " + metricSql + " AS v\n  FROM " + source(cur)
+        + "\n  GROUP BY 1\n),\nprev AS (\n  SELECT " + timeExpr(group.time, col, days) + " AS g, " + metricSql + " AS v\n  FROM " + source(prev)
+        + "\n  GROUP BY 1\n)\nSELECT cur.g AS " + name + ", cur.v AS " + valueCol + ", prev.v AS previous\n"
+        + "FROM cur\nLEFT JOIN prev ON prev.g = cur.g\nORDER BY " + name + " ASC";
+    }
+    return "SELECT " + timeExpr(group.time, col, 0) + " AS " + name + ",\n       " + metricSql + " AS " + valueCol
+      + "\nFROM " + source(cur) + "\nGROUP BY 1\nORDER BY " + name + " ASC\nLIMIT 1000";
+  }
 
   function buildSql(state) {
     const st = Object.assign(defaultState(), state || {});
@@ -114,6 +190,7 @@
     const metric = METRICS[st.metric] || METRICS.count;
     const limit = Math.max(1, Math.min(5000, parseInt(st.limit, 10) || 25));
     const filters = st.filters || [];
+    if (group.time) return buildTimeSql(st, group, filters);
 
     // Which table answers this. job_skills carries every filter column
     // the listing has, so a question about skills is read entirely from
@@ -171,8 +248,7 @@
       cols.push("ROUND(100.0 * COUNT(*) / (" + denom + "), 1) AS share_pct");
     }
     const orderCol = st.metric === "count" ? "listings" : metric.col;
-    const timeGroup = st.group === "day" || st.group === "week" || st.group === "month";
-    const order = timeGroup ? st.group + " ASC" : orderCol + " DESC";
+    const order = orderCol + " DESC";
     return "SELECT " + cols.join(",\n       ") + "\n" + from + (dedupe ? "" : whereSql)
       + "\nGROUP BY 1\nORDER BY " + order + "\nLIMIT " + limit;
   }
@@ -190,7 +266,7 @@
     }
   }
 
-  const api = { FIELDS, GROUPS, METRICS, STATUS, defaultState, buildSql, encodeState, decodeState };
+  const api = { FIELDS, GROUPS, METRICS, STATUS, EVENTS, RANGES, defaultState, canCompare, buildSql, encodeState, decodeState };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.QB = api;
 })(typeof window !== "undefined" ? window : globalThis);
