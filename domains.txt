@@ -26919,3 +26919,15 @@ eyethrive.ai
 ghcla.com
 hecesc.com
 jbilibrary.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+kyabra.org
+liveborders.com
+neuanalytics.com
+tagomics.com
+thetimothycenter.org
+themetchurch.com
+wpga.org
+uprhsd.com
+safenetwork.org
+ihrb.com
