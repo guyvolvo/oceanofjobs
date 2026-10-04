@@ -26879,3 +26879,13 @@ wgtv.org
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 sharecompanygroup.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+safe-passage.io
+personified-tech.com
+bankpds.com
+bcgllaw.com
+bozeman.com
+greenedd.org
+medsurvey.com
+phunware.com
