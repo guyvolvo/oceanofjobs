@@ -30548,5 +30548,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-09-30"
+ },
+ {
+  "domain": "billgosling.com",
+  "tenant": "billgosling",
+  "wd": "wd5",
+  "site": "Global",
+  "jobs_seen": 52,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-04"
+ },
+ {
+  "domain": "blattner.fr",
+  "tenant": "blattner",
+  "wd": "wd5",
+  "site": "BlattnerCompany",
+  "jobs_seen": 52,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-04"
  }
 ]
