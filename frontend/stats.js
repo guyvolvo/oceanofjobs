@@ -217,16 +217,54 @@ function pickName(field, v) {
   return hit ? hit.name : (LABELS[field] || {})[v] || v;
 }
 
-// The builder, as a sentence. Every choice is a pill; every filter is a
-// tag you can open or remove.
+// The builder, as a sentence. Every choice is a pill that opens a menu
+// in the page's own style (a native select opened the browser's plain
+// list); every filter is a tag you can open or remove.
+const PILLS = {};   // pill id -> {options, current, label}
 function pill(id, options, current, label) {
-  const opts = options.map((o) => {
-    if (o.group) return `<optgroup label="${escapeHtml(o.group)}">${o.options.map(([v, t]) =>
-      `<option value="${escapeHtml(v)}"${String(v) === String(current) ? " selected" : ""}>${escapeHtml(t)}</option>`).join("")}</optgroup>`;
-    const [v, t] = o;
-    return `<option value="${escapeHtml(v)}"${String(v) === String(current) ? " selected" : ""}>${escapeHtml(t)}</option>`;
-  }).join("");
-  return `<span class="st-pill"><select id="${id}" aria-label="${escapeHtml(label)}">${opts}</select>${ICON.chev}</span>`;
+  PILLS[id] = { options, current: String(current), label };
+  const flat = options.flatMap((o) => (o.group ? o.options : [o]));
+  const hit = flat.find(([v]) => String(v) === String(current));
+  return `<span class="st-pill"><button type="button" class="st-pill-btn" id="${id}" aria-haspopup="listbox" aria-expanded="false" aria-label="${escapeHtml(label)}: ${escapeHtml(hit ? hit[1] : current)}">${escapeHtml(hit ? hit[1] : current)}</button>${ICON.chev}</span>`;
+}
+
+const CHECK = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+
+function openPillMenu(btn) {
+  const spec = PILLS[btn.id];
+  if (!spec) return;
+  if (pop && pop.anchor === btn) { closePop(); return; }
+  const item = ([v, t]) => {
+    const on = String(v) === spec.current;
+    return `<button type="button" class="st-menu-item" role="option" aria-selected="${on}" data-v="${escapeHtml(v)}"><span>${escapeHtml(t)}</span>${on ? CHECK : ""}</button>`;
+  };
+  const html = `<div role="listbox" aria-label="${escapeHtml(spec.label)}">${spec.options.map((o) => (o.group
+    ? `<div class="st-menu-group" role="presentation">${escapeHtml(o.group)}</div>${o.options.map(item).join("")}`
+    : item(o))).join("")}</div>`;
+  const el = openPop(btn, html, "st-menu");
+  pop.anchor = btn;
+  el.style.minWidth = `${Math.max(180, btn.offsetWidth)}px`;
+  btn.setAttribute("aria-expanded", "true");
+  const items = [...el.querySelectorAll(".st-menu-item")];
+  (items.find((b) => b.getAttribute("aria-selected") === "true") || items[0])?.focus();
+  el.addEventListener("keydown", (e) => {
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+    } else if (e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      items[e.key === "Home" ? 0 : items.length - 1].focus();
+    } else if (e.key === "Tab") {
+      closePop();
+    }
+  });
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest(".st-menu-item");
+    if (!b) return;
+    closePop();
+    applyPill(btn.id, b.dataset.v);
+  });
 }
 const word = (w) => `<span class="st-word">${escapeHtml(w)}</span>`;
 
@@ -298,17 +336,16 @@ function syncSqlFromBuilder() {
 }
 
 // A builder change: the sentence may change shape (time groups read
-// differently), the question is no longer a starter, and it runs.
-function onBuilderChange(e) {
-  const el = e.target;
-  if (!el.matches("select")) return;
-  const key = { "qb-metric": "metric", "qb-event": "event", "qb-status": "status", "qb-group": "group", "qb-range": "range", "qb-limit": "limit", "qb-compare": "compare" }[el.id];
-  if (!key) return;
-  state[key] = key === "range" || key === "limit" ? Number(el.value) : el.value;
-  // A new time question compares by default, the way the design reads.
-  if (key === "group" && QB.GROUPS[el.value]?.time && !state.range) state.range = 30;
+// differently), the question is no longer a starter, and it runs. Focus
+// goes back to the pill that was changed, which renderBuilder replaced.
+function applyPill(id, value) {
+  const key = { "qb-metric": "metric", "qb-event": "event", "qb-status": "status", "qb-group": "group", "qb-range": "range", "qb-limit": "limit", "qb-compare": "compare" }[id];
+  if (!key || String(state[key]) === String(value)) { $(id)?.focus(); return; }
+  state[key] = key === "range" || key === "limit" ? Number(value) : value;
+  if (key === "group" && QB.GROUPS[value]?.time && !state.range) state.range = 30;
   clearActiveTemplate();
   renderBuilder();
+  $(id)?.focus();
   run();
 }
 
@@ -317,17 +354,18 @@ function onBuilderChange(e) {
 let pop = null;
 function closePop() {
   if (!pop) return;
-  const { el, changed, onOutside, onKey } = pop;
+  const { el, changed, onOutside, onKey, anchor } = pop;
+  anchor?.setAttribute("aria-expanded", "false");
   el.remove();
   document.removeEventListener("pointerdown", onOutside, true);
   document.removeEventListener("keydown", onKey, true);
   pop = null;
   if (changed) { clearActiveTemplate(); renderBuilder(); run(); }
 }
-function openPop(anchor, html) {
+function openPop(anchor, html, extraClass) {
   closePop();
   const el = document.createElement("div");
-  el.className = "st-pop";
+  el.className = extraClass ? `st-pop ${extraClass}` : "st-pop";
   el.setAttribute("role", "dialog");
   el.innerHTML = html;
   // Inside the page, which defines the colours it is drawn in; positioned
@@ -1169,7 +1207,6 @@ async function boot() {
   $("explore-csv").addEventListener("click", exportCsv);
   $("st-viewsql").addEventListener("click", () => setMode("sql"));
   $("qb-reset").addEventListener("click", () => { clearActiveTemplate(); state = QB.defaultState(); setViz("auto"); renderBuilder(); run(); });
-  $("qb").addEventListener("change", onBuilderChange);
   $("qb").addEventListener("click", (e) => {
     const x = e.target.closest(".st-tag-x");
     if (x) {
@@ -1179,6 +1216,8 @@ async function boot() {
       run();
       return;
     }
+    const pillBtn = e.target.closest(".st-pill-btn");
+    if (pillBtn) { openPillMenu(pillBtn); return; }
     const edit = e.target.closest(".st-tag-edit");
     if (edit) { editFilter(Number(edit.dataset.i), edit); return; }
     if (e.target.closest("#qb-add")) addFilter(e.target.closest("#qb-add"));

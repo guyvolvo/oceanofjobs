@@ -26,7 +26,7 @@ await p.goto("https://oceanofjobs.com/stats", { waitUntil: "load" });
 await done("first");
 const out = {};
 // Group by category instead of day.
-await clearSub(); await p.selectOption("#qb-group", "category"); await done("group");
+await clearSub(); await p.click("#qb-group"); await p.click('.st-menu [data-v="category"]'); await done("group");
 out.groupTitle = await p.textContent("#st-rtitle");
 out.sentence = (await p.textContent("#qb")).replace(/\s+/g, " ").trim();
 // Add a filter: Workplace is Remote.

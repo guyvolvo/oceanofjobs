@@ -7946,15 +7946,28 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .st-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .st-word { white-space: nowrap; }
 .st-pill { position: relative; display: inline-flex; }
-.st-pill select {
-  appearance: none; -webkit-appearance: none; field-sizing: content;
+.st-pill-btn {
   height: 34px; padding: 0 30px 0 12px; border: 1px solid var(--st-rule); border-radius: 6px;
-  background: none; color: var(--st-ink); font: 700 14px var(--font-ui); cursor: pointer;
+  background: none; color: var(--st-ink); font: 700 14px var(--font-ui); white-space: nowrap; cursor: pointer;
 }
-.st-pill select:hover { background: var(--st-hover); }
-.st-pill select:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
-.st-pill select option { background: var(--st-paper); color: var(--st-ink); font-weight: 400; }
-.st-pill svg { position: absolute; right: 11px; top: 50%; margin-top: -5px; pointer-events: none; color: var(--st-ink); }
+.st-pill-btn:hover { background: var(--st-hover); }
+.st-pill-btn[aria-expanded="true"] { border-color: var(--st-ink); background: var(--st-hover); }
+.st-pill-btn:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.st-pill-btn[aria-expanded="true"] + svg { transform: rotate(180deg); }
+.st-pop.st-menu { width: auto; max-width: 320px; padding: 6px; }
+.st-menu-group {
+  padding: 9px 10px 4px; color: var(--st-muted); font: 700 11px var(--font-ui); letter-spacing: 0.05em; text-transform: uppercase;
+}
+.st-menu-group:first-child { padding-top: 4px; }
+.st-menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%;
+  padding: 7px 10px; border: 0; border-radius: 4px; background: none; color: var(--st-ink);
+  font: 14px var(--font); text-align: left; white-space: nowrap; cursor: pointer;
+}
+.st-menu-item:hover, .st-menu-item:focus-visible { background: var(--st-hover); outline: none; }
+.st-menu-item[aria-selected="true"] { font-weight: 700; }
+.st-menu-item svg { flex: none; color: var(--green-text); }
+.st-pill svg { position: absolute; right: 11px; top: 50%; margin-top: -5px; pointer-events: none; color: var(--st-ink); transition: transform 0.15s; }
 .st-tag { display: inline-flex; align-items: center; height: 34px; border: 1px solid var(--st-rule); border-radius: 6px; }
 .st-tag-edit {
   height: 100%; padding: 0 4px 0 12px; border: 0; background: none; color: var(--st-ink);
