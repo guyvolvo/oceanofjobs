@@ -62,26 +62,35 @@
     <section class="section legal">
       <div class="container">
         <h1 class="section-title">Privacy Policy</h1>
-        <p class="legal-updated">Last updated September 2026.</p>
+        <p class="legal-updated">Last updated October 2026.</p>
 
-        <p>Ocean of Jobs is an open-source job board. Browsing, searching, and filtering listings does not require an account. The only personal data collected is what you voluntarily provide when setting up job alerts.</p>
+        <p>Ocean of Jobs is an open-source job board. You can browse, search and filter every listing without an account. This page says what the site keeps when you do, and what it keeps once you sign in.</p>
 
-        <h3>Data collection policy</h3>
-        <p>Creating an alert requires you to log in (via Google, GitHub, or a one-time email code) and saves your alert's filter criteria under your account. That data is used for exactly one purpose: checking new postings against your saved filter and emailing you a summary when matching listings appear. We do not sell or share your data.</p>
+        <h3>Without an account</h3>
+        <p>The site sets no cookies of its own and runs no advertising. Its pages load Google Analytics, which sets Google's own cookies to count visits and page views.</p>
+        <p>The site also keeps its own anonymous counts of visits, searches, opened listings and apply clicks, so we can see whether it is growing. Each count carries the event's name and, for a search, the words searched. Nothing else goes with it: no cookie, no identifier, no IP address. Counts are kept as totals per minute. Search words are kept for 90 days, and words that look like an email address or a phone number are dropped before anything is stored.</p>
+        <p>To offer jobs near you, the site reads the country your connection comes from, as our content network reports it. That country is used for the page you are on and is not stored.</p>
 
-        <h3>Data exposure policy</h3>
-        <p>Running the alerts feature requires a few AWS services to process data on our behalf: Amazon Cognito (authentication), DynamoDB (storing alert rules), and Amazon SES (sending email alerts). If you log in with Google or GitHub, your chosen provider handles the standard OAuth handshake.</p>
+        <h3>In your browser</h3>
+        <p>Your theme, filters, saved searches, panel layout, starred jobs and a few cached results live in your browser's local storage. So do two flags that stop one visit from being counted twice, and a note that you already answered the location question. None of this is sent to us, with two exceptions once you are signed in. Your sign-in tokens go with each request to show it is you, and your starred jobs are copied to your account so they follow you to other devices.</p>
 
-        <h3>Local storage</h3>
-        <p>Starred jobs and theme choices (light/dark mode) are stored strictly in your browser's local storage. They are never sent to our servers.</p>
+        <h3>With an account</h3>
+        <p>You can sign in with Google, GitHub or a one-time code sent to your email. Amazon Cognito keeps your sign-in record, which is your email address and, if you use Google, the name and picture Google provides.</p>
+        <p>Your account holds your alerts, which are the filters you chose. It holds your profile, which is a list of skills, a seniority, where and how you want to work, and when you want digests. It holds the jobs you starred, and an overview the site computes from your profile. The profile has no name, phone number, employment history or CV in it.</p>
+        <p>If you use a CV to find your skills, it is read in your browser and never uploaded. Only the skills you keep are saved.</p>
+        <p>Alert digests go only to an email address you have confirmed. Every digest has a link that turns its alert off.</p>
 
-        <h3>Cookies and server logs</h3>
-        <p>This site sets no cookies of its own and runs no advertising. Its pages load Google Analytics, which sets Google's own cookies to count visits and page views.</p>
-        <p>The site also keeps its own anonymous counts of visits, searches, opened listings and apply clicks, so we can see whether it is growing. When one of those happens, the page reports the event's name and nothing else: no cookie, no identifier, no IP address kept. Only totals per minute are stored. For a search, the words searched are kept the same way, with nothing about who searched them, for 90 days; words that look like an email address or a phone number are dropped. Two small flags in your browser's storage, never sent anywhere, stop one visit from being counted twice.</p>
-        <p>Like almost all web infrastructure, our hosting providers (AWS API Gateway and CloudFront) temporarily log HTTP request details, including IP addresses and timestamps, strictly for operational health, security, and DDoS protection.</p>
+        <h3>The contact form</h3>
+        <p>A message sent through the contact form reaches the maintainer by email, with the name and address you give so they can reply. It is not stored anywhere else.</p>
 
-        <h3>Data retention and user rights</h3>
-        <p>An alert's data is kept for as long as it remains active. You can delete an alert from within the site at any time, which immediately removes the entry from our database. You retain the right to request full export or deletion of your data at any time.</p>
+        <h3>Who processes your data</h3>
+        <p>Cloudflare and Amazon CloudFront carry every request to the site, and our own server on Amazon Web Services answers it. Amazon DynamoDB stores accounts, Amazon Cognito handles sign-in, Amazon SES sends email, and Amazon CloudWatch holds the anonymous counts and search words. If you sign in with Google or GitHub, they handle that step. We do not sell or share your data.</p>
+
+        <h3>Logs</h3>
+        <p>Cloudflare and CloudFront log requests, including IP addresses, for security and to keep the site running. Our server logs each request's address, time and browser type. It never sees your IP address, because requests reach it through a tunnel, and its log is kept for about a week.</p>
+
+        <h3>Keeping and deleting</h3>
+        <p>An alert is kept while it is on, and deleting one removes it at once. Delete account on your account page removes your alerts and clears your profile. Your sign-in record, starred jobs and computed overview stay until you ask us to remove them, which we will do in full. You can also ask for a copy of everything we hold about you.</p>
 
         <h3>Job listing data</h3>
         <p>Job postings on this board are scraped from companies' public career pages and public ATS APIs. This is public corporate information, not personal user data.</p>
@@ -90,7 +99,7 @@
         <p>If any changes are made to this policy, this page will be updated to reflect them.</p>
 
         <h3>Questions</h3>
-        <p>Ocean of Jobs is maintained as an open-source project. For privacy questions or data requests, open an issue on <a class="link" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">our GitHub repository</a> or contact the maintainer directly.</p>
+        <p>Ocean of Jobs is maintained as an open-source project. For privacy questions or data requests, open an issue on <a class="link" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">our GitHub repository</a> or write through the <a class="link" href="/contact">contact page</a>.</p>
 
         <p class="legal-back"><a class="link" href="/board">&larr; Back to the job board</a></p>
       </div>
