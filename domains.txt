@@ -26856,3 +26856,6 @@ thurrock.co
 # Common Crawl discovery batch (merge_discovered_batch.py)
 cornerbancasa.com
 companiongroupltd.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+synergy.com
