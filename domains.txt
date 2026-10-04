@@ -26876,3 +26876,6 @@ makers.tech
 skillstruck.com
 tria.com
 wgtv.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+sharecompanygroup.com
