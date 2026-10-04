@@ -26859,3 +26859,6 @@ companiongroupltd.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 synergy.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+brisbane.net
