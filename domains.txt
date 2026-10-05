@@ -26944,3 +26944,6 @@ mrpricegroup.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 asharq.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+wheaton.com
