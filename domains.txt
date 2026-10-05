@@ -26953,3 +26953,6 @@ darbasllc.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 gnzs.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+kriyatx.com
