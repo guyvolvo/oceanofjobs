@@ -52,6 +52,9 @@ const state = {
   // nothing (see emptySearchState). "" is the default: every word must
   // appear.
   search_mode: "",
+  // "1" when the reader asked for their exact words only, without the
+  // related roles the server adds (api/search_terms.py). Smart by default.
+  search_exact: "",
   // The CV match, from /account: canonical skill labels, OR-matched
   // and ranked by overlap. Deliberately not folded into `keywords` or
   // `q` -- those ask "which jobs demand all of this" and "which titles
@@ -1228,6 +1231,7 @@ function currentFilterParams() {
   return {
     search: state.search,
     search_mode: state.search_mode,
+    search_exact: state.search_exact,
     department: state.department.join(","),
     seniority: state.seniority.join(","),
     company: state.company.join(","),
@@ -1262,6 +1266,7 @@ function buildShareParams() {
   const p = new URLSearchParams();
   if (state.search) p.set("search", state.search);
   if (state.search_mode) p.set("search_mode", state.search_mode);
+  if (state.search_exact) p.set("search_exact", "1");
   if (state.department.length) p.set("department", state.department.join(","));
   if (state.seniority.length) p.set("seniority", state.seniority.join(","));
   if (state.company.length) p.set("company", state.company.join(","));
@@ -1387,6 +1392,7 @@ function applyStateFromUrl(search) {
   if (p.has("skills")) {
     state.search = "";
     state.search_mode = "";
+    state.search_exact = "";
     state.sortExplicit = false;
     state.department = [];
     state.seniority = [];
@@ -1404,6 +1410,7 @@ function applyStateFromUrl(search) {
   }
   if (p.has("search")) state.search = p.get("search");
   state.search_mode = p.get("search_mode") === "any" ? "any" : "";
+  state.search_exact = p.get("search_exact") === "1" ? "1" : "";
   // Links older than the single box. Semicolons were the separator
   // there; here a space is, and quoting keeps a multi-word term whole.
   if (p.has("q") || p.has("keywords")) {
@@ -2000,18 +2007,26 @@ function highlight(text) {
   // A one-letter word marks half the alphabet on every row (2,094 marks
   // across 50 rows, measured), which tells the reader nothing. It still
   // filters; it just is not worth pointing at.
-  const terms = searchTermsInPlay().filter((t) => t.length > 1);
+  const terms = [...searchTermsInPlay(), ...searchRelatedPhrases].filter((t) => t.length > 1);
   if (!terms.length) return safe;
   const pattern = terms
     .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .sort((a, b) => b.length - a.length)
     .join("|");
+  // From the start of a word, the way the search itself matches: "soc"
+  // marks SOC, not the "soc" inside Associate, and a word still being
+  // typed or a plural ("ana", "analysts") still marks.
   try {
-    return safe.replace(new RegExp(`(${pattern})`, "gi"), "<mark>$1</mark>");
+    return safe.replace(new RegExp(`(?<![\\p{L}\\p{N}])(${pattern})`, "giu"), "<mark>$1</mark>");
   } catch {
     return safe; // a term that will not compile is not worth failing a row over
   }
 }
+
+// The related phrases the server matched on for the current search
+// ("security analyst" for "soc"), so highlight() marks why a related row
+// came back. Empty when the reader searches exactly.
+let searchRelatedPhrases = [];
 
 // A search that found nothing says what it asked, rather than leaving the
 // reader to guess that every word had to appear. The ways out are offered
@@ -2058,6 +2073,19 @@ function renderSearchNotice(data) {
   if (info && info.mode === "any" && (info.terms || []).length > 1) {
     bits.push(`Any of these words: ${info.terms.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ")}` +
               ` <button type="button" class="link-inline" data-search-all>Require all</button>`);
+  }
+  // Related roles are never added silently: the reader sees what else
+  // the search matched, and can switch it off.
+  const related = (info && !info.exact && info.expanded) || [];
+  searchRelatedPhrases = related;
+  if (related.length) {
+    const shown = related.slice(0, 4).map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ");
+    const more = related.length > 4 ? ` and ${related.length - 4} more` : "";
+    bits.push(`Also matching ${shown}${more}` +
+              ` <button type="button" class="link-inline" data-search-exact>Search exactly</button>`);
+  } else if (info && info.exact && (info.terms || []).length) {
+    bits.push(`Your exact words only.` +
+              ` <button type="button" class="link-inline" data-search-smart>Include related roles</button>`);
   }
   el.innerHTML = bits.join(" ");
   el.hidden = !bits.length;
@@ -5234,6 +5262,7 @@ function applySearchNow(raw) {
   // A broadening applies to the search it was asked for, not to the
   // next one somebody types.
   state.search_mode = "";
+  state.search_exact = "";
   followSearchSort();
   state.offset = 0;
   loadJobs();
@@ -5342,6 +5371,7 @@ function wireFilters() {
   document.getElementById("f-reset").addEventListener("click", () => {
     state.search = "";
     state.search_mode = "";
+    state.search_exact = "";
     state.sortExplicit = false;
     state.department = [];
     state.seniority = [];
@@ -6962,23 +6992,26 @@ async function boot() {
   // broadened one. Each sets the filter and reloads, so the URL, the
   // saved filters and the stats panel all follow as they do for any
   // other filter change.
-  function setSearch({ search, mode }) {
+  function setSearch({ search, mode, exact }) {
     if (search !== undefined) {
       state.search = search;
       setSearchBox(search);
       countSearch();
     }
     if (mode !== undefined) state.search_mode = mode;
+    if (exact !== undefined) state.search_exact = exact;
     state.offset = 0;
     loadJobs();
     refreshStats();
   }
   document.addEventListener("click", (e) => {
-    const el = e.target.closest("[data-search-any], [data-search-all], [data-clear-search], [data-drop-term]");
+    const el = e.target.closest("[data-search-any], [data-search-all], [data-clear-search], [data-drop-term], [data-search-exact], [data-search-smart]");
     if (!el) return;
-    if (el.hasAttribute("data-search-any")) setSearch({ mode: "any" });
+    if (el.hasAttribute("data-search-exact")) setSearch({ exact: "1" });
+    else if (el.hasAttribute("data-search-smart")) setSearch({ exact: "" });
+    else if (el.hasAttribute("data-search-any")) setSearch({ mode: "any" });
     else if (el.hasAttribute("data-search-all")) setSearch({ mode: "" });
-    else if (el.hasAttribute("data-clear-search")) setSearch({ search: "", mode: "" });
+    else if (el.hasAttribute("data-clear-search")) setSearch({ search: "", mode: "", exact: "" });
     else {
       const drop = el.getAttribute("data-drop-term").toLowerCase();
       const kept = searchTermsInPlay().filter((t) => t !== drop)

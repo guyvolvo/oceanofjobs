@@ -375,7 +375,38 @@ def place_rows(conn, params: dict):
         conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 
 
+@contextlib.contextmanager
+def search_rows(conn, params: dict):
+    """For the length of the block, the rows the request's search matches
+    sit in a temp table and build_jobs_where reads it instead of running
+    the MATCH again (see job_filters.search_rowset). One read of the index
+    up front, rather than one per count."""
+    import uuid
+    import search_compile
+    from job_filters import search_query, search_rowset
+
+    q = search_query(params) if params.get("search") else None
+    expr = search_compile.match_expression(q) if q and not q.empty and has_fts_index(conn).fts_full else None
+    if not expr:
+        yield
+        return
+    name = "search_rows_" + uuid.uuid4().hex[:12]
+    conn.execute(f"CREATE TEMP TABLE {name} (rid INTEGER PRIMARY KEY)")
+    conn.execute(f"INSERT INTO {name} SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?", [expr])
+    token = search_rowset.set((name, expr))
+    try:
+        yield
+    finally:
+        search_rowset.reset(token)
+        conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+
+
 def compute_facets(conn, params: dict, locations: list | None = None) -> dict:
+    with search_rows(conn, params):
+        return _compute_facets_searched(conn, params, locations)
+
+
+def _compute_facets_searched(conn, params: dict, locations: list | None = None) -> dict:
     """The rail's counts. With skills in the request, the open jobs that
     match them are found once into a temp table and every count reads it
     (see job_filters.skill_rowset), instead of each of the rail's passes
@@ -773,7 +804,7 @@ SCOPED_TOP_COMPANIES = 10
 
 
 def compute_scoped_stats(conn, params: dict) -> dict:
-    with place_rows(conn, params):
+    with place_rows(conn, params), search_rows(conn, params):
         return _compute_scoped_stats(conn, params)
 
 

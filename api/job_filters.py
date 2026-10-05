@@ -529,6 +529,13 @@ skill_rowset: contextvars.ContextVar = contextvars.ContextVar("skill_rowset", de
 # read it.
 place_rowset: contextvars.ContextVar = contextvars.ContextVar("place_rowset", default=None)
 
+# The same idea for a search: the name of a temp table holding the rowids
+# the search's MATCH found, and the MATCH expression it was built from
+# (aggregates.search_rows). The rail asks for its counts seven times over
+# with the search unchanged, and a search with related roles costs a third
+# of a second to match each time. Read only for the identical expression.
+search_rowset: contextvars.ContextVar = contextvars.ContextVar("search_rowset", default=None)
+
 
 def wanted_skills(params: dict) -> list[str]:
     known = {s.lower(): s for s in SKILL_LABELS}
@@ -575,16 +582,14 @@ def skills_score_sql(wanted: list[str]) -> tuple[str, list]:
 # Past this many terms a query costs more than it can be worth. The
 # extras used to be dropped in silence; callers are told now (route_jobs
 # returns them, and the board says so).
-MAX_SEARCH_TERMS = 10
+from search_terms import MAX_SEARCH_TERMS, search_query, tokenize  # noqa: E402
+import search_compile  # noqa: E402
 
 
 def search_terms(raw: str, limit: int | None = MAX_SEARCH_TERMS) -> list[str]:
-    """Whitespace-separated, with "quoted phrases" kept whole."""
-    out = []
-    for match in re.findall(r'"([^"]*)"|(\S+)', raw or ""):
-        term = (match[0] or match[1]).strip()
-        if term:
-            out.append(term)
+    """Whitespace-separated, with "quoted phrases" kept whole. The words
+    a search used, for the reply; what they mean is search_query's."""
+    out = [t for t, _ in tokenize(raw)]
     return out if limit is None else out[:limit]
 
 
@@ -675,43 +680,13 @@ RELEVANCE_ALL_IN_TITLE_BONUS = 30
 def relevance_score_sql(params: dict, has_fts=False) -> tuple[str, list]:
     """How well each row answers the search, as a SQL expression.
 
-    Field-weighted and countable by hand: no hidden model, and a reader
-    asking why a row is where it is can be told. "0" when there is no
-    search to score against, which route_jobs treats as no relevance sort
-    to do.
+    Compiled by api/search_compile.py from the same SearchQuery that
+    build_jobs_where matches with, so a row scores only for what it
+    matched on. Field-weighted and countable by hand: no hidden model.
+    "0" when there is no search to score against, which route_jobs treats
+    as no relevance sort to do.
     """
-    terms = search_terms(params.get("search") or "")
-    if not terms:
-        return "0", []
-    caps = SnapshotCaps.coerce(has_fts)
-    parts, args = [], []
-    for term in terms:
-        like = f"%{term.lower()}%"
-        for column, weight in RELEVANCE_WEIGHTS.items():
-            parts.append(f"(CASE WHEN LOWER(COALESCE({column}, '')) LIKE ? THEN {weight} ELSE 0 END)")
-            args.append(like)
-        if caps.fts_full and fts_safe(term):
-            # Column-scoped, so a term in the title does not also score
-            # as a description hit.
-            parts.append(f"(CASE WHEN jobs.rowid IN (SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?)"
-                         f" THEN {RELEVANCE_DESCRIPTION} ELSE 0 END)")
-            args.append("description : " + fts_escape(term))
-        elif caps.fts:
-            parts.append(f"(CASE WHEN jobs.rowid IN (SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?)"
-                         f" THEN {RELEVANCE_DESCRIPTION} ELSE 0 END)")
-            args.append(fts_escape(term))
-        else:
-            parts.append(f"(CASE WHEN LOWER(COALESCE(description, '')) LIKE ? "
-                         f"THEN {RELEVANCE_DESCRIPTION} ELSE 0 END)")
-            args.append(like)
-    if len(terms) > 1:
-        whole = " ".join(terms).lower()
-        parts.append(f"(CASE WHEN LOWER(title) LIKE ? THEN {RELEVANCE_PHRASE_BONUS} ELSE 0 END)")
-        args.append(f"%{whole}%")
-        every = " AND ".join("LOWER(title) LIKE ?" for _ in terms)
-        parts.append(f"(CASE WHEN {every} THEN {RELEVANCE_ALL_IN_TITLE_BONUS} ELSE 0 END)")
-        args.extend(f"%{t.lower()}%" for t in terms)
-    return "(" + " + ".join(parts) + ")", args
+    return search_compile.rank_sql(search_query(params), SnapshotCaps.coerce(has_fts))
 
 
 # The countries a caller asked for, as codes this vocabulary knows.
@@ -1014,46 +989,12 @@ def build_jobs_where(params: dict, has_fts=False,
         args.extend(city_args)
 
     if params.get("search"):
-        # "any" collects each term's clause and ORs them at the end;
-        # "all" appends them to where, which ANDs them.
-        any_mode = search_mode(params) == "any"
-        any_parts: list[str] = []
-        any_args: list = []
-        for term in search_terms(params["search"]):
-            like = f"%{term.lower()}%"
-            # Every field a job has an answer for. company_domain rather
-            # than the company's real name because that name lives in the
-            # companies table, and this same function runs in the alert
-            # evaluator, which queries jobs on its own with no join.
-            columns = ("title", "company_domain", "location", "department")
-            if caps.fts_full and fts_safe(term):
-                # One index lookup across all five columns. Whole words,
-                # which is what the reverted GLOB attempt above was for:
-                # "rust" no longer answers with Trustly, and it costs a
-                # b-tree probe rather than four LIKE scans and a GLOB.
-                parts = ["jobs.rowid IN (SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?)"]
-                term_args = [fts_escape(term)]
-            elif has_fts:
-                parts = [f"LOWER(COALESCE({c}, '')) LIKE ?" for c in columns]
-                term_args = [like] * len(columns)
-                parts.append("jobs.rowid IN (SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?)")
-                term_args.append(fts_escape(term))
-            else:
-                parts = [f"LOWER(COALESCE({c}, '')) LIKE ?" for c in columns]
-                term_args = [like] * len(columns)
-                # Same fallback as keywords below: a partition written
-                # before the index existed still carries the column.
-                parts.append("LOWER(COALESCE(description, '')) LIKE ?")
-                term_args.append(like)
-            if any_mode:
-                any_parts.append("(" + " OR ".join(parts) + ")")
-                any_args.extend(term_args)
-            else:
-                where.append("(" + " OR ".join(parts) + ")")
-                args.extend(term_args)
-        if any_mode and any_parts:
-            where.append("(" + " OR ".join(any_parts) + ")")
-            args.extend(any_args)
+        # One parse (api/search_terms.py), compiled by search_compile into
+        # the clauses that decide what qualifies. relevance_score_sql
+        # compiles the same SearchQuery for the order.
+        clauses, clause_args = search_compile.where_sql(search_query(params), caps, search_rowset.get())
+        where.extend(clauses)
+        args.extend(clause_args)
 
     if params.get("keywords"):
         # ';'-separated, ALL must appear (AND, not OR): "azure;excel;iso"

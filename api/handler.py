@@ -52,7 +52,7 @@ from skills import spec as skill_spec
 from job_filters import (FRESH_CLAUSE, IL_KEYWORDS, MAX_SEARCH_TERMS, bool_param, category_sql,
                          count_index_hint,
                          build_jobs_where, has_fts_index, has_places, has_role_class,
-                         is_job_id, relevance_score_sql, salary_source_select, search_mode,
+                         is_job_id, relevance_score_sql, salary_source_select, search_mode, search_query,
                          search_terms, skills_score_sql, wanted_city_pairs, wanted_skills)
 
 _alerts_table = boto3.resource("dynamodb").Table(os.environ["ALERTS_TABLE"])
@@ -64,7 +64,7 @@ _alerts_table = boto3.resource("dynamodb").Table(os.environ["ALERTS_TABLE"])
 _ALLOWED_FILTER_KEYS = {
     "search", "q", "keywords", "ats", "company", "department", "seniority", "location", "country",
     "city", "workplace", "confidence", "israel_only", "include_closed", "include_outdated",
-    "min_age_days", "max_age_days", "skills", "ids", "search_mode", "roles",
+    "min_age_days", "max_age_days", "skills", "ids", "search_mode", "search_exact", "roles",
     "salary_min", "salary_max", "salary_known", "salary_disclosed",
 }
 
@@ -915,12 +915,18 @@ def _route_jobs(conn, params: dict) -> dict:
         # What the search actually asked, so the board can say so rather
         # than leave a reader guessing: the terms used, any past the
         # limit that were not, and whether every term had to appear.
-        "search": {
-            "terms": search_terms(params.get("search") or ""),
-            "ignored": search_terms(params.get("search") or "", limit=None)[MAX_SEARCH_TERMS:],
-            "mode": search_mode(params),
-        },
+        "search": _search_reply(params),
     }
+
+
+def _search_reply(params: dict) -> dict:
+    """What the search actually asked, so the board can say so: the terms
+    used, any past the limit, whether every term had to appear, and the
+    related phrases it also matched ("Also matching ...") unless the
+    reader asked to search exactly."""
+    q = search_query(params)
+    return {"terms": list(q.terms), "ignored": list(q.ignored), "mode": q.combine,
+            "exact": not q.expand, "expanded": list(q.expanded)}
 
 
 # /jobs/{id}: a stable permalink, separate from job.url (which the ATS

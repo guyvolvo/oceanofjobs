@@ -57,8 +57,17 @@ SEARCH_PARAMS = [
     _q("search",
        "Space-separated search terms (e.g., kubernetes new york). Matches title, company, "
        "location, category, and description. Use quotes for exact phrases "
-       "(e.g., \"software engineer\").",
+       "(e.g., \"software engineer\"). A few role names also match their related titles "
+       "(soc analyst finds Security Analyst and SecOps roles), a trailing word matches as a "
+       "prefix while it is typed, and tier words (tier 1, L1) rank rather than filter. The "
+       "response's search.expanded lists the phrases added.",
        ),
+    _q("search_mode",
+       "all (default): every term must match. any: one term is enough.",
+       schema={"type": "string", "enum": ["all", "any"]}),
+    _q("search_exact",
+       "1 to match only the words as typed, with no related titles, prefix or tier handling.",
+       schema={"type": "string", "enum": ["1"]}),
     _q("q", "Legacy title/company search."),
     _q("keywords",
        "Semicolon-separated terms (e.g., azure;excel;iso). Matches title and description.",
