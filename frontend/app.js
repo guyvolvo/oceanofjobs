@@ -2071,7 +2071,10 @@ function renderSearchNotice(data) {
               ignored.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · "));
   }
   if (info && info.mode === "any" && (info.terms || []).length > 1) {
-    bits.push(`Any of these words: ${info.terms.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ")}` +
+    const words = info.terms.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ");
+    bits.push((autoAnyFor === state.search
+      ? `No listing has all ${info.terms.length} words, so these match any of them: ${words}`
+      : `Any of these words: ${words}`) +
               ` <button type="button" class="link-inline" data-search-all>Require all</button>`);
   }
   // Related roles are never added silently: one small switch says the
@@ -2280,8 +2283,25 @@ function scheduleFacets() {
   }, 400);
 }
 
+// The search a fallback to any-word was made for. Once per search: if
+// the reader then asks for every word again, they get the empty answer
+// they asked for rather than being bounced back.
+let autoAnyFor = null;
+
 function renderJobs(data, starred) {
   matchedSkills = new Set(data.matched_skills || []);
+  // Nothing has every word, so show what has any of them, and say so
+  // (renderSearchNotice). Only from the first page of a plain all-words
+  // search of two or more words.
+  const terms = (data.search && data.search.terms) || [];
+  if (!data.jobs.length && state.search && !state.search_mode && !state.offset
+      && terms.length > 1 && autoAnyFor !== state.search) {
+    autoAnyFor = state.search;
+    state.search_mode = "any";
+    loadJobs();
+    refreshStats();
+    return;
+  }
   renderSearchNotice(data);
 
   if (!data.jobs.length) {
@@ -4241,7 +4261,12 @@ function railVisibleRows(group) {
   const extra = group.remote
     ? [...railFound.values()].filter((r) => !railRows(group).some((x) => x.value === r.value))
     : [];
-  const pool = [...railRows(group), ...extra];
+  const counted = [...railRows(group), ...extra];
+  // A ticked value the current search leaves no rows for is still on,
+  // so it stays in the list at zero: the list is the only place to untick
+  // it, and dropping it made a filter impossible to clear mid-search.
+  const have = new Set(counted.map((r) => r.value));
+  const pool = [...counted, ...[...picked].filter((v) => !have.has(v)).map((v) => ({ value: v, n: 0 }))];
   if (q) return pool.filter((r) => railLabel(group, r).toLowerCase().includes(q));
   if (railExpanded.has(group.key)) return pool;
   const top = pool.slice(0, RAIL_TOP_N);
@@ -4319,9 +4344,34 @@ const cityName = (v) => v.replace(/^[A-Z]{2}:/, "");
 // whole country; ticking a city narrows it to that city and leaves the
 // country's own box showing a dash, because it is no longer the whole
 // of anything.
+// The location facet, plus every ticked country and city it did not
+// count, at zero. A search that leaves no listings in Israel returns no
+// Israel row, and without one the ticked IL had nowhere to be unticked.
+function railLocationsWithPicked() {
+  const out = (railFacets.locations || []).map((c) => ({ ...c, cities: [...(c.cities || [])] }));
+  const byCode = new Map(out.map((c) => [c.value, c]));
+  const country = (code) => {
+    if (!byCode.has(code)) {
+      const c = { value: code, label: countryLabel(code), n: 0, cities: [] };
+      out.push(c);
+      byCode.set(code, c);
+    }
+    return byCode.get(code);
+  };
+  for (const code of state.country) country(code);
+  for (const key of state.city) {
+    const i = key.indexOf(":");
+    if (i < 0) continue;
+    const c = country(key.slice(0, i));
+    const name = key.slice(i + 1);
+    if (!c.cities.some((t) => t.value === name)) c.cities.push({ value: name, label: name, n: 0 });
+  }
+  return out;
+}
+
 function railCountryBlocks() {
   const q = (railQueries.get("location") || "").trim().toLowerCase();
-  const countries = railFacets.locations || [];
+  const countries = railLocationsWithPicked();
   const picked = new Set(state.country);
   const cities = new Set(state.city);
   const blocks = [];
