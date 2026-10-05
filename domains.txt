@@ -26931,3 +26931,6 @@ wpga.org
 uprhsd.com
 safenetwork.org
 ihrb.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+dynamic.co
