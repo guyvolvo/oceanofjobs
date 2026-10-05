@@ -2074,18 +2074,20 @@ function renderSearchNotice(data) {
     bits.push(`Any of these words: ${info.terms.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ")}` +
               ` <button type="button" class="link-inline" data-search-all>Require all</button>`);
   }
-  // Related roles are never added silently: the reader sees what else
-  // the search matched, and can switch it off.
+  // Related roles are never added silently: one small switch says the
+  // search is broad and offers exact, or the reverse, and its tooltip
+  // names what the broad search adds. The label is what a click does.
   const related = (info && !info.exact && info.expanded) || [];
   searchRelatedPhrases = related;
   if (related.length) {
-    const shown = related.slice(0, 4).map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ");
-    const more = related.length > 4 ? ` and ${related.length - 4} more` : "";
-    bits.push(`Also matching ${shown}${more}` +
-              ` <button type="button" class="link-inline" data-search-exact>Search exactly</button>`);
+    const tip = `Also matching ${related.join(", ")}. Click to match only your words.`;
+    bits.push(`<button type="button" class="search-mode" data-search-exact title="${escapeHtml(tip)}">` +
+              `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>` +
+              `Exact search</button>`);
   } else if (info && info.exact && (info.terms || []).length) {
-    bits.push(`Your exact words only.` +
-              ` <button type="button" class="link-inline" data-search-smart>Include related roles</button>`);
+    bits.push(`<button type="button" class="search-mode is-exact" data-search-smart title="Matching only your words. Click to include related roles.">` +
+              `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.8 2.8M16.2 16.2 19 19M5 19l2.8-2.8M16.2 7.8 19 5"/></svg>` +
+              `Broad search</button>`);
   }
   el.innerHTML = bits.join(" ");
   el.hidden = !bits.length;

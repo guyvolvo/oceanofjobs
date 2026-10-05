@@ -1376,6 +1376,28 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   font-size: 12px;
   color: var(--black);
 }
+/* The broad/exact switch under the search box. Labelled with what a
+   click does; exact, the departure from the default, wears the green. */
+.search-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px 0 9px;
+  border: 1px solid var(--panel-line);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--black);
+  font: 600 12px var(--font-ui);
+  vertical-align: middle;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.search-mode svg { width: 13px; height: 13px; flex: none; }
+.search-mode:hover { background: var(--black); color: var(--white); border-color: var(--black); }
+.search-mode.is-exact { border-color: var(--green-text); color: var(--green-text); background: var(--row-selected); }
+.search-mode.is-exact:hover { background: var(--green-text); color: var(--white); }
+.search-mode:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 /* A button that reads as part of the sentence it sits in. */
 .link-inline {
   border: 0;
