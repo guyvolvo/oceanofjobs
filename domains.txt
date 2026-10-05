@@ -26934,3 +26934,7 @@ ihrb.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 dynamic.co
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+retal.io
+shaner.fr
