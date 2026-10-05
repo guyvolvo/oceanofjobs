@@ -566,7 +566,7 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
             out.setdefault(r["code"], []).append({"value": r["name"], "n": r["n"]})
         return out
 
-    def location_tree(country_limit: int = 40, city_limit: int = 25) -> list[dict]:
+    def location_tree(country_limit: int = 40) -> list[dict]:
         """One entry per country, its cities nested underneath.
 
         Empty while the snapshot in hand predates the columns (see
@@ -582,14 +582,24 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
         they are stored, so a company listing four Tel Aviv offices on
         one posting counts once.
 
-        The SQL orders both levels by n descending, so the slice keeps
-        the 25 biggest cities rather than an arbitrary 25.
+        The SQL orders both levels by n descending. Each country keeps
+        its biggest CITY_TOP cities whatever their size, so a small
+        country still has a list, then every further city with at least
+        CITY_MIN_LISTINGS, up to CITY_LIMIT. It used to stop at 25, which
+        cut Israel off at Caesarea (48 listings) and left Modi'in (21)
+        unreachable even by typing it into the dropdown's search, which
+        only filters what was sent. The query counts every city either
+        way; the slice only decides what goes over the wire.
         """
         if not has_places(conn):
             return []
         cities = city_counts_by_country()
+
+        def kept(rows):
+            return [r for i, r in enumerate(rows[:CITY_LIMIT]) if i < CITY_TOP or r["n"] >= CITY_MIN_LISTINGS]
+
         return [
-            {**c, "cities": cities.get(c["value"], [])[:city_limit]}
+            {**c, "cities": kept(cities.get(c["value"], []))}
             for c in country_counts(country_limit)
         ]
 
@@ -805,6 +815,13 @@ def has_board_filters(params: dict) -> bool:
     probe.pop("roles", None)
     return build_jobs_where(probe, True) != build_jobs_where({"confidence": "verified"}, True)
 
+
+# The location filter's cities per country: the biggest CITY_TOP always,
+# then any with at least CITY_MIN_LISTINGS open listings, CITY_LIMIT at
+# most (see location_tree).
+CITY_TOP = 25
+CITY_MIN_LISTINGS = 3
+CITY_LIMIT = 150
 
 # Matches the global top_companies' own LIMIT 10, so the frontend can
 # swap one list for the other without re-cutting it.
