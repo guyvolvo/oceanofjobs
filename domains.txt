@@ -26962,3 +26962,7 @@ stats.ai
 go1eu.com
 peakmetrics.com
 odcakron.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+taskforcepreventionandcommunityservices.com
+reach-out.ai
