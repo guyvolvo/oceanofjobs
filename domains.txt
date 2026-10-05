@@ -26947,3 +26947,6 @@ asharq.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 wheaton.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+darbasllc.com
