@@ -26938,3 +26938,6 @@ dynamic.co
 # Common Crawl discovery batch (merge_discovered_batch.py)
 retal.io
 shaner.fr
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+mrpricegroup.com
