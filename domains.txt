@@ -26966,3 +26966,8 @@ odcakron.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 taskforcepreventionandcommunityservices.com
 reach-out.ai
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+sales.io
+neurocare.com
+alveotechnologies.com
