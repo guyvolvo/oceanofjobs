@@ -391,14 +391,22 @@ def search_rows(conn, params: dict):
         yield
         return
     name = "search_rows_" + uuid.uuid4().hex[:12]
-    conn.execute(f"CREATE TEMP TABLE {name} (rid INTEGER PRIMARY KEY)")
-    conn.execute(f"INSERT INTO {name} SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?", [expr])
+    # One CREATE ... AS SELECT, as place_rows and the skill table do, and
+    # never CREATE then INSERT. Python's sqlite3 opens a transaction before
+    # an INSERT and leaves it open, and on these long-lived per-thread
+    # connections an open transaction pins the snapshot it started on: the
+    # thread stops seeing new listings for good. 2026-10-05 05:36 to 08:30
+    # UTC, every worker that had served a searched facet answered from the
+    # data as it was then, and jobs the alert email had just sent 404'd.
+    conn.execute(f"CREATE TEMP TABLE {name} AS SELECT rowid AS rid FROM jobs_fts WHERE jobs_fts MATCH ?", [expr])
     token = search_rowset.set((name, expr))
     try:
         yield
     finally:
         search_rowset.reset(token)
         conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+        if conn.in_transaction:
+            conn.commit()
 
 
 def compute_facets(conn, params: dict, locations: list | None = None) -> dict:

@@ -150,6 +150,18 @@ finally:
     J.search_rowset.reset(token)
 check("a temp table built for another search is never read", "temp.rs" not in where, where)
 
+# search_rows must leave the connection out of any transaction. One left
+# open pins the snapshot, and the API's per-thread connections then never
+# see a new listing again (2026-10-05, alert emails linking to 404s).
+import aggregates  # noqa: E402
+aggregates.has_fts_index = lambda c: CAPS
+conn.commit()
+before = conn.in_transaction
+with aggregates.search_rows(conn, {"search": "soc analyst"}):
+    inside = J.search_rowset.get()
+check("search_rows built its table", bool(inside), inside)
+check("search_rows leaves no transaction open", not before and not conn.in_transaction, conn.in_transaction)
+
 # The guard: both compilers get the one SearchQuery, never a second parse.
 seen = []
 real_where, real_rank = search_compile.where_sql, search_compile.rank_sql
