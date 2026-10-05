@@ -2070,13 +2070,6 @@ function renderSearchNotice(data) {
     bits.push(`Searching the first ${MAX_SEARCH_TERMS} words. Not used: ` +
               ignored.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · "));
   }
-  if (info && info.mode === "any" && (info.terms || []).length > 1) {
-    const words = info.terms.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ");
-    bits.push((autoAnyFor === state.search
-      ? `No listing has all ${info.terms.length} words, so these match any of them: ${words}`
-      : `Any of these words: ${words}`) +
-              ` <button type="button" class="link-inline" data-search-all>Require all</button>`);
-  }
   // Related roles are never added silently: one small switch says the
   // search is broad and offers exact, or the reverse, and its tooltip
   // names what the broad search adds. The label is what a click does.
@@ -2283,16 +2276,15 @@ function scheduleFacets() {
   }, 400);
 }
 
-// The search a fallback to any-word was made for. Once per search: if
-// the reader then asks for every word again, they get the empty answer
-// they asked for rather than being bounced back.
+// The search a fallback to any-word was made for, so it happens once per
+// search and can never loop.
 let autoAnyFor = null;
 
 function renderJobs(data, starred) {
   matchedSkills = new Set(data.matched_skills || []);
-  // Nothing has every word, so show what has any of them, and say so
-  // (renderSearchNotice). Only from the first page of a plain all-words
-  // search of two or more words.
+  // Nothing has every word, so show what has any of them, quietly: the
+  // ranking puts the listings holding the most words first. Only from the
+  // first page of a plain all-words search of two or more words.
   const terms = (data.search && data.search.terms) || [];
   if (!data.jobs.length && state.search && !state.search_mode && !state.offset
       && terms.length > 1 && autoAnyFor !== state.search) {
