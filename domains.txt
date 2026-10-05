@@ -26956,3 +26956,9 @@ gnzs.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 kriyatx.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+stats.ai
+go1eu.com
+peakmetrics.com
+odcakron.com
