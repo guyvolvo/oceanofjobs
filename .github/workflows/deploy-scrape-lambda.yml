@@ -37,6 +37,11 @@ on:
       # family of trap as the cp lines below: nothing fails, the code
       # just never arrives.
       - "api/job_filters.py"
+      # job_filters imports these two at load (2026-10-05: they were
+      # missing from all three packages and every fast sweep failed on
+      # ModuleNotFoundError until they were added here).
+      - "api/search_terms.py"
+      - "api/search_compile.py"
       - "api/skills.py"
       - "api/countries.py"
       - "api/same_company.py"
@@ -78,7 +83,7 @@ jobs:
         run: |
           mkdir -p fast/loader fast/db
           cp probe.py scrape_handler.py alerts.py sharding.py salary_model.py fast/
-          cp api/job_filters.py api/skills.py api/countries.py api/same_company.py api/role_class.py fast/
+          cp api/job_filters.py api/search_terms.py api/search_compile.py api/skills.py api/countries.py api/same_company.py api/role_class.py fast/
           cp loader/load_to_sqlite.py loader/localtime.py loader/descriptions.py loader/deltas.py loader/scrape_state.py fast/loader/
           cp db/schema.sql fast/db/
           pip install --target fast requests
@@ -88,7 +93,7 @@ jobs:
         run: |
           mkdir -p workday/loader workday/db
           cp probe.py scrape_workday_handler.py companies.yml workday-tenants.json salary_model.py workday/
-          cp api/job_filters.py api/skills.py api/countries.py api/same_company.py api/role_class.py workday/
+          cp api/job_filters.py api/search_terms.py api/search_compile.py api/skills.py api/countries.py api/same_company.py api/role_class.py workday/
           cp loader/load_to_sqlite.py loader/localtime.py loader/descriptions.py loader/deltas.py loader/scrape_state.py workday/loader/
           cp db/schema.sql workday/db/
           # pyyaml, not just requests: this is the one deployment package
@@ -111,7 +116,7 @@ jobs:
           # bootstrap.py builds its WHERE with build_jobs_where and
           # needs category_of(), so its precomputed pages match what
           # /api/jobs would return exactly.
-          cp api/job_filters.py api/skills.py api/countries.py api/same_company.py api/role_class.py maintenance/
+          cp api/job_filters.py api/search_terms.py api/search_compile.py api/skills.py api/countries.py api/same_company.py api/role_class.py maintenance/
           cp db/schema.sql maintenance/db/
           # aggregates.py: the /stats and /facets bodies, shared with the API
           # so the applier answers exactly what a request would have.
