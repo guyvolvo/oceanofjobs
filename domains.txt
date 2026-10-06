@@ -26995,3 +26995,8 @@ genesis-analytics.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 edge.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+avalanchefusion.com
+hamiltonian.com
+haya-therapeutics.com
