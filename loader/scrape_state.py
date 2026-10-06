@@ -32,6 +32,7 @@ import gzip
 import json
 import random
 import sys
+import zlib
 from datetime import datetime, timedelta, timezone
 
 KEY = "scrape-state.json.gz"
@@ -227,6 +228,39 @@ def save(bucket, s3, state, etag, key=KEY):
     except Exception as e:
         print("couldn't save poll state (non-fatal): %r" % (e,), file=sys.stderr)
         return False
+
+
+# Which boards the box's scrape worker owns (box/scrape_worker.py), so
+# the worker and the scrape-fast Lambda never poll or publish the same
+# board while the scraping moves off Lambda a slice at a time. One small
+# S3 object, read by both sides every pass:
+#
+#     {"fast": {"mod": 10, "keep": [0]}}
+#
+# owns a domain when crc32(domain) % mod is in keep: here a tenth of the
+# boards. Widen keep to move more over; {"mod": 1, "keep": [0]} is all of
+# them, after which the Lambda's schedule can go. Missing or unreadable,
+# the worker owns nothing and the Lambda polls everything, as before.
+CLAIM_KEY = "worker-claim.json"
+
+
+def load_claim(bucket, s3, key=CLAIM_KEY):
+    try:
+        return json.loads(s3.get_object(Bucket=bucket, Key=key)["Body"].read())
+    except Exception:
+        return {}
+
+
+def worker_owns(domain, claim, lane="fast"):
+    c = (claim or {}).get(lane) or {}
+    try:
+        mod = int(c.get("mod") or 0)
+        keep = {int(k) for k in c.get("keep") or ()}
+    except (TypeError, ValueError):
+        return False
+    if mod <= 0 or not keep:
+        return False
+    return zlib.crc32(str(domain or "").lower().encode("utf-8")) % mod in keep
 
 
 def due(state, entries, now=None):

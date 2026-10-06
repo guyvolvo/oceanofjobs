@@ -224,7 +224,14 @@ def lambda_handler(event, context):
     dropped = scrape_state.prune(poll_state, known)
     if dropped:
         print(f"pruned {dropped} state rows with no company behind them")
-    sweep = scrape_state.due(poll_state, sweep)
+    # Boards the box's scrape worker owns are its to poll and publish,
+    # and polling them here as well would send every change twice. See
+    # scrape_state.CLAIM_KEY.
+    claim = scrape_state.load_claim(BUCKET, s3)
+    ours = [e for e in sweep if not scrape_state.worker_owns(e.get("domain"), claim)]
+    if len(ours) < len(sweep):
+        print(f"{len(sweep) - len(ours)} boards belong to the box worker, left to it")
+    sweep = scrape_state.due(poll_state, ours)
     if not sweep:
         # Everything is inside its own interval. Nothing to do, and
         # saying so costs a second rather than a full sweep.

@@ -36,6 +36,12 @@ on:
       # the old code for a day (2026-09-25).
       - "resolve_company_names.py"
       - "workday-tenants.json"
+      # The scrape worker (box/scrape_worker.py) runs probe.py from the
+      # checkout, so a parser fix has to reach the box as well as the
+      # Lambda. The worker restarts itself hourly onto whatever is here.
+      - "probe.py"
+      - "companies.yml"
+      - "company_logo.py"
   workflow_dispatch: {}
 
 permissions:

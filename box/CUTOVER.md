@@ -257,3 +257,60 @@ log group (infra/search_log.tf) for the growth dashboard's tables:
       "Resource":"arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches:*"}]}'
 
 Without it the search tables stay empty; the counts are unaffected.
+
+## Scrape worker trial (2026-10-06)
+
+The scrape-fast Lambda passed the free tier five days into October:
+3GB held for about 90 seconds of every five minutes, billed whether it
+computes or waits. box/scrape_worker.py does the same sweep continuously
+on the box, a hundred due boards at a time on 8 threads (about 110MB),
+with no tick to wait for. It owns only the boards worker-claim.json
+gives it and the Lambda skips those (scrape_state.worker_owns), so it
+moves over a slice at a time and can move back.
+
+The pass mark is the site, not the worker's size: request times and
+disk stalls with the worker running against a window without it, read
+with box/trial_metrics.py.
+
+Request times in the access log, so there is a p95 to compare. %% is
+systemd's escape for %; it restarts the API (a second or two):
+
+    sudo mkdir -p /etc/systemd/system/otj-api.service.d
+    printf '[Service]\nExecStart=\nExecStart=/srv/otj/venv/bin/gunicorn -w 2 --threads 4 -b 0.0.0.0:8000 --access-logfile - --access-logformat '"'"'%%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s" %%(L)s'"'"' --timeout 120 serve:app\n' | sudo tee /etc/systemd/system/otj-api.service.d/timing.conf
+    sudo systemctl daemon-reload && sudo systemctl restart otj-api
+
+The one-minute sampler:
+
+    printf '[Unit]\nDescription=Ocean of Jobs trial metrics sample\n[Service]\nType=oneshot\nUser=ubuntu\nWorkingDirectory=/srv/otj/app\nExecStart=/srv/otj/venv/bin/python box/trial_metrics.py sample\n' | sudo tee /etc/systemd/system/otj-trial.service
+    printf '[Unit]\nDescription=Trial metrics every minute\n[Timer]\nOnBootSec=60\nOnUnitActiveSec=60\nAccuracySec=5\n[Install]\nWantedBy=timers.target\n' | sudo tee /etc/systemd/system/otj-trial.timer
+    sudo install -d -o ubuntu -g ubuntu /var/lib/otj-trial
+    sudo systemctl daemon-reload && sudo systemctl enable --now otj-trial.timer
+
+The worker's own state object needs writing; everything else it reads
+or writes (known.json, the Lambda's state for seeding, deltas/) the box
+role already covers:
+
+    aws iam put-role-policy --role-name otj-box-experiment --policy-name otj-box-scraper --profile openmarket-tf \
+      --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:PutObject",
+      "Resource":"arn:aws:s3:::iljobs-data-876913698688/scrape-state-worker.json.gz"}]}'
+
+The worker unit. Its own throwaway user (DynamicUser) that can write only
+its state directory, never /var/lib/otj; capped at 600MB so the kernel
+kills it rather than anything the site needs; half a CPU at the lowest
+CPU and disk priority:
+
+    printf '[Unit]\nDescription=Ocean of Jobs scrape worker\nAfter=network-online.target\n[Service]\nType=simple\nDynamicUser=yes\nStateDirectory=otj-scrape\nWorkingDirectory=/srv/otj/app\nEnvironmentFile=/etc/otj-api.env\nExecStart=/srv/otj/venv/bin/python -u box/scrape_worker.py\nRestart=always\nRestartSec=5\nMemoryMax=600M\nMemoryHigh=500M\nCPUQuota=50%%\nNice=15\nIOSchedulingClass=idle\nProtectSystem=strict\nProtectHome=yes\nNoNewPrivileges=yes\nPrivateTmp=yes\n[Install]\nWantedBy=multi-user.target\n' | sudo tee /etc/systemd/system/otj-scrape.service
+    sudo systemctl daemon-reload && sudo systemctl enable --now otj-scrape
+
+Give it a tenth of the boards, then more once a window looks clean:
+
+    echo '{"fast": {"mod": 10, "keep": [0]}}' | aws s3 cp - s3://iljobs-data-876913698688/worker-claim.json --profile openmarket-tf
+    # half: "keep": [0,1,2,3,4]; all: {"fast": {"mod": 1, "keep": [0]}}
+
+Back out: delete worker-claim.json (the Lambda takes every board back on
+its next tick) and `sudo systemctl disable --now otj-scrape`.
+
+Compare windows:
+
+    /srv/otj/venv/bin/python box/trial_metrics.py report --since "2026-10-06 12:00" --until "2026-10-07 12:00"
+

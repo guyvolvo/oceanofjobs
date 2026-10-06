@@ -87,6 +87,11 @@ TIMEOUT = 12
 # basis: an all-unchanged shard of 50 took 2.3s at 16 workers, and most
 # of that was the partition round trip rather than the polling.
 WORKERS = 32
+# The box's scrape worker runs a steady stream of small batches rather
+# than the Lambda's one big sweep, and 8 threads keep its memory near
+# 110MB against 190MB at 32 (600 boards, measured 2026-10-06).
+if os.environ.get("PROBE_WORKERS"):
+    WORKERS = int(os.environ["PROBE_WORKERS"])
 
 # Backoff when a provider pushes back. See _request_json.
 RATE_LIMIT_BACKOFF_S = 2.0
