@@ -27003,3 +27003,8 @@ haya-therapeutics.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 deq.de
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+insource.com
+hallmarkhcs.com
+groundtruth.com
