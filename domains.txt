@@ -27022,3 +27022,7 @@ florida.ai
 futurpreneur.com
 futuresearch.ai
 spur.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+conservation.com
+deepseas.com
