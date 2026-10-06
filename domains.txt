@@ -26982,3 +26982,7 @@ hack.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 ellison.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+cfocentre.com
+west-midlands.org
