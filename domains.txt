@@ -26989,3 +26989,6 @@ west-midlands.org
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 earth.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+genesis-analytics.com
