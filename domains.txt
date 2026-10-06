@@ -26974,3 +26974,8 @@ alveotechnologies.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 genusagencyai.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+dentons-europe.com
+ella.io
+hack.com
