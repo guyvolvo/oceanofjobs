@@ -27008,3 +27008,9 @@ deq.de
 insource.com
 hallmarkhcs.com
 groundtruth.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+gigmos.com
+harborlab.com
+hayat.co
+autotiv.com
