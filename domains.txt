@@ -27000,3 +27000,6 @@ edge.com
 avalanchefusion.com
 hamiltonian.com
 haya-therapeutics.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+deq.de
