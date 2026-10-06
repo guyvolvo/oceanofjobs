@@ -26979,3 +26979,6 @@ genusagencyai.com
 dentons-europe.com
 ella.io
 hack.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ellison.io
