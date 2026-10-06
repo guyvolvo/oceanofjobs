@@ -158,21 +158,5 @@
     "domain_verified": true,
     "job_count": 5,
     "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "mosaic",
-    "domain": "mosaic.com",
-    "domain_verified": true,
-    "job_count": 5,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "ashby",
-    "token": "myriad-ai",
-    "domain": "myriad.ai",
-    "domain_verified": true,
-    "job_count": 5,
-    "israel_job_count": 0
   }
 ]
