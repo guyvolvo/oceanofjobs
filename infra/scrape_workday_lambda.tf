@@ -187,7 +187,13 @@ resource "aws_cloudwatch_event_rule" "scrape_workday_schedule" {
   # and most not at all. Each run costs a minute of Lambda regardless of
   # whether anything moved, so halving the frequency halves that for no
   # loss a visitor could notice.
-  schedule_expression = "rate(1 hour)"
+  # Every two hours from 2026-10-06, a stopgap on cost. Each run now fills
+  # its whole 900s timeout at 1,536MB (about 1,350 GB-s), so hourly was a
+  # third of a Lambda bill that passed the free tier five days into
+  # October. Tenants are due by their own time since last poll, so a
+  # slower schedule only delays them. Temporary: the scrapers are moving
+  # to a continuous worker on the box, which retires this rule.
+  schedule_expression = "rate(2 hours)"
 }
 
 resource "aws_cloudwatch_event_target" "scrape_workday_schedule" {
