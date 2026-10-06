@@ -27014,3 +27014,11 @@ gigmos.com
 harborlab.com
 hayat.co
 autotiv.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ammobia.co
+blys.co
+florida.ai
+futurpreneur.com
+futuresearch.ai
+spur.com
