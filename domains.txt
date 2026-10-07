@@ -27061,3 +27061,7 @@ exponential.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 prodeo.de
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+medefer.com
+synthesized.io
