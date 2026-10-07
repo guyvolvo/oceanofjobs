@@ -27055,3 +27055,6 @@ house-of.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 cyber.io
 rheinland-air-service-gmbh.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+exponential.com
