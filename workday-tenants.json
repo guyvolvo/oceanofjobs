@@ -30648,5 +30648,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-10-07"
+ },
+ {
+  "domain": "mmsg.net",
+  "tenant": "mmsg",
+  "wd": "wd3",
+  "site": "MMSG-Careers",
+  "jobs_seen": 20,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
+ },
+ {
+  "domain": "onelinxens.com",
+  "tenant": "onelinxens",
+  "wd": "wd3",
+  "site": "External_Careers",
+  "jobs_seen": 18,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
  }
 ]

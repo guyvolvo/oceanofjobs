@@ -27036,3 +27036,6 @@ international.fr
 # Common Crawl discovery batch (merge_discovered_batch.py)
 hr.de
 ingramcontentgroup.co
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+applied.io
