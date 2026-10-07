@@ -27116,3 +27116,10 @@ cerrogordocounty.com
 uaspire.org
 smithai.com
 cresst.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+flat.io
+marketview.io
+needle.com
+paramo.org
+salesrabbit.com
