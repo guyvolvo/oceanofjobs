@@ -27026,3 +27026,6 @@ spur.com
 # Common Crawl discovery batch (merge_discovered_batch.py)
 conservation.com
 deepseas.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+langham.io

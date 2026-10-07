@@ -30588,5 +30588,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-10-07"
+ },
+ {
+  "domain": "onepoint.de",
+  "tenant": "onepoint",
+  "wd": "wd3",
+  "site": "WepointCA",
+  "jobs_seen": 254,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
+ },
+ {
+  "domain": "nexperia.com",
+  "tenant": "nexperia",
+  "wd": "wd3",
+  "site": "careers",
+  "jobs_seen": 235,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
  }
 ]
