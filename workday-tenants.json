@@ -30578,5 +30578,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-10-04"
+ },
+ {
+  "domain": "medivet.com",
+  "tenant": "medivet",
+  "wd": "wd3",
+  "site": "MedivetCareers",
+  "jobs_seen": 271,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
  }
 ]
