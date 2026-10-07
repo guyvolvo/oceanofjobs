@@ -27177,3 +27177,8 @@ meitner.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 irena.fr
+
+# Added by hand 2026-10-07: Facepunch Studios. Its Teamtailor subdomain
+# redirects to a Squarespace careers page with no public board and no
+# open roles; listed here so the discovery sweep picks it up if that changes.
+facepunch.com
