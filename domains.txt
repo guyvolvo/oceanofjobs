@@ -27058,3 +27058,6 @@ rheinland-air-service-gmbh.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 exponential.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+prodeo.de
