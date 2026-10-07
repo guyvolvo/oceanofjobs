@@ -30608,5 +30608,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-10-07"
+ },
+ {
+  "domain": "ramsayhealthcare.com",
+  "tenant": "ramsayhealthcare",
+  "wd": "wd3",
+  "site": "Ramsay_Careers",
+  "jobs_seen": 100,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
  }
 ]
