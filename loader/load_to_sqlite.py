@@ -394,6 +394,31 @@ def index_description(conn: sqlite3.Connection, jid: str, new_text: str, old_tex
     conn.execute("INSERT INTO jobs_fts(rowid, description) VALUES (?, ?)", (rowid, new_text))
 
 
+def iter_resolved(path: Path):
+    """probe.py's results one board at a time, whichever way they were
+    written: --out's one JSON object per line, or --json's single array.
+
+    The discovery sweep's array reached 1.5GB (2026-09-30, 24,677 boards,
+    357,758 jobs with their descriptions), and json.load of it peaked at
+    8.7GB. Three steps loaded it whole, the loader with a database on top,
+    and from 2026-10-01 every nightly run finished its four hours of
+    probing and then died reading the result. Line by line, the most this
+    holds is the largest single board (SpaceX, about 16MB).
+    """
+    with open(path, encoding="utf-8") as fh:
+        head = fh.read(1)
+        while head and head.isspace():
+            head = fh.read(1)
+        if head == "[":
+            fh.seek(0)
+            yield from json.load(fh)
+            return
+        fh.seek(0)
+        for line in fh:
+            if line.strip():
+                yield json.loads(line)
+
+
 def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
                   drop_description: bool = False) -> set[str]:
     """Upsert probe.py's --json output. Every company in this file was
@@ -413,7 +438,8 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
     Returns every domain this run covered, hit or miss -- --prune-stale's
     "is this domain still tracked at all" check (see prune_stale_companies).
     """
-    data = json.loads(resolved_path.read_text(encoding="utf-8"))
+    data = iter_resolved(resolved_path)
+    covered: set[str] = set()
     ts = now_iso()
     seen_ids_by_domain: dict[str, set[str]] = {}
     # (job_id, description) for descriptions genuinely new or changed
@@ -438,6 +464,7 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
 
     for r in data:
         domain = r["domain"]
+        covered.add(domain)
         adopted_from: str | None = None
         ats = r.get("ats")
         token = r.get("token")
@@ -745,7 +772,7 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
             failed,
         )
 
-    return {r["domain"] for r in data}
+    return covered
 
 
 def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confidence: str, ts: str, already_tracked_company: bool = True) -> None:
@@ -1911,9 +1938,11 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
     except (OSError, ValueError):
         # No baseline to compare against: keep nothing rather than guess.
         return 0
-    results = json.loads(resolved.read_text(encoding="utf-8"))
-    swept = {r.get("domain") for r in results}
-    unanswered = {r.get("domain") for r in results if not r.get("ats") and r.get("retryable")}
+    swept, unanswered = set(), set()
+    for r in iter_resolved(resolved):
+        swept.add(r.get("domain"))
+        if not r.get("ats") and r.get("retryable"):
+            unanswered.add(r.get("domain"))
     known = json.loads(known_out.read_text(encoding="utf-8"))
     have = {e["domain"] for e in known}
     # A company this run released (demote_empty_boards) answered the
