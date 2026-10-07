@@ -158,45 +158,5 @@
     "domain_verified": true,
     "job_count": 6,
     "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "eozs.fa.us6.oraclecloud.com:CX_30",
-    "domain": "river-valley.com",
-    "domain_verified": false,
-    "job_count": 6,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "eybw.fa.us8.oraclecloud.com:Virginia-DEQ-Careers",
-    "domain": "deq.com",
-    "domain_verified": true,
-    "job_count": 6,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-eoob-saasfaprod1.fa.ocs.oraclecloud.com:CX",
-    "domain": "join.com",
-    "domain_verified": false,
-    "job_count": 6,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-eqhm-saasfaprod1.fa.ocs.oraclecloud.com:CX_2",
-    "domain": "bahri.io",
-    "domain_verified": true,
-    "job_count": 6,
-    "israel_job_count": 0
-  },
-  {
-    "ats": "oracle",
-    "token": "fa-ertg-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
-    "domain": "wmfs.net",
-    "domain_verified": true,
-    "job_count": 6,
-    "israel_job_count": 0
   }
 ]
