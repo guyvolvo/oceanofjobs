@@ -27151,3 +27151,26 @@ lansdaleborough.com
 lemonseed.ai
 legalactionworldwide.org
 mrrl.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+mobilityways.com
+miscs.org
+naitsa.com
+northernlightsvet.com
+pebblepad.com
+pmacanada.org
+readycomputing.com
+nektonmission.org
+ruralcollaborative.com
+ruthmiskintraining.com
+serasanadrippingsprings.com
+soundstripe.com
+tact.de
+visitestespark.com
+wolcenstudio.com
+nside.com
+stiftungdigitalechancen.com
+grandmillenniumbusinessbaydubai-demo.com
+highsoft.com
+kompisrestauranter.com
+meitner.com
