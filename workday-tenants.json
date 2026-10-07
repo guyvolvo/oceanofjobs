@@ -30668,5 +30668,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-10-07"
+ },
+ {
+  "domain": "paper.io",
+  "tenant": "paper",
+  "wd": "wd3",
+  "site": "Paper_Careers",
+  "jobs_seen": 1,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
  }
 ]

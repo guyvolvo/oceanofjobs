@@ -27097,3 +27097,15 @@ springfieldleather.com
 tradablebits.com
 wearediamond.com
 neofonie.de
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+carbonfuture.com
+buildingdecarbonizationcoalition.com
+hondasantamonica.com
+ltkau.com
+public.io
+bevaya.com
+fence.com
+inflection.com
+scholarly.co
+strange-loop.com
