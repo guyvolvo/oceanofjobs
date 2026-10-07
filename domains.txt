@@ -27109,3 +27109,10 @@ fence.com
 inflection.com
 scholarly.co
 strange-loop.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+wiiw.com
+cerrogordocounty.com
+uaspire.org
+smithai.com
+cresst.org
