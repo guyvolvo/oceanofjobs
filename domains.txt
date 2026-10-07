@@ -27029,3 +27029,6 @@ deepseas.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 langham.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+international.fr
