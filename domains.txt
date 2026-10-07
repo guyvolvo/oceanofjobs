@@ -27048,3 +27048,6 @@ thc.io
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 oxfampacific.org
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+house-of.com
