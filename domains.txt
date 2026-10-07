@@ -27082,3 +27082,18 @@ bartandco.com
 cet.com
 cnycf.com
 fresnelsoftware.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+ikamper.com
+intrinsicdigital.com
+jorsek.com
+kimoby.com
+lawforall.com
+maishameds.com
+naminh.com
+outpost.ai
+spec.co
+springfieldleather.com
+tradablebits.com
+wearediamond.com
+neofonie.de
