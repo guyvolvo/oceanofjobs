@@ -27174,3 +27174,6 @@ grandmillenniumbusinessbaydubai-demo.com
 highsoft.com
 kompisrestauranter.com
 meitner.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+irena.fr
