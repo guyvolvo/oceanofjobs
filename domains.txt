@@ -27076,3 +27076,9 @@ dakotaresources.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 eduphoria.com
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+bartandco.com
+cet.com
+cnycf.com
+fresnelsoftware.com
