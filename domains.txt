@@ -27045,3 +27045,6 @@ kevinsnaturalfoods.com
 mediserv.net
 swh.net
 thc.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+oxfampacific.org
