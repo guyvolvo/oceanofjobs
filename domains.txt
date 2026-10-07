@@ -27039,3 +27039,9 @@ ingramcontentgroup.co
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 applied.io
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+kevinsnaturalfoods.com
+mediserv.net
+swh.net
+thc.io
