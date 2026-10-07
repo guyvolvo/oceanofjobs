@@ -27032,3 +27032,7 @@ langham.io
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 international.fr
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+hr.de
+ingramcontentgroup.co

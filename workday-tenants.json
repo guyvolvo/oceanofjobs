@@ -30618,5 +30618,25 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-10-07"
+ },
+ {
+  "domain": "missionaustralia.com",
+  "tenant": "missionaustralia",
+  "wd": "wd3",
+  "site": "MissionAustralia",
+  "jobs_seen": 41,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
+ },
+ {
+  "domain": "monex.com",
+  "tenant": "monex",
+  "wd": "wd3",
+  "site": "Careers",
+  "jobs_seen": 41,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
  }
 ]
