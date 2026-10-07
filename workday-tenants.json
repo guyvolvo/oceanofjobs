@@ -30638,5 +30638,15 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-10-07"
+ },
+ {
+  "domain": "northlandpower.com",
+  "tenant": "northlandpower",
+  "wd": "wd3",
+  "site": "ExternalCS",
+  "jobs_seen": 29,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-10-07"
  }
 ]
