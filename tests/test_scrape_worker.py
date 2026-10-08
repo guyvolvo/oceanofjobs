@@ -109,6 +109,54 @@ check("the Lambda's state is never written", all(k != scrape_state.KEY for k, _ 
 check("every polled board gets a next due time", all(saved[d].get("next_at") for d in owned))
 check("after the batch nothing is due, so the worker sleeps rather than polling again", len(probed) == 1, len(probed))
 
+# What the first five minutes on the box did: owned entries with no ATS
+# or token (probe.py exits 2 on a batch of only those), and a board that
+# errors (held at its old due time). Two minutes of simulated time must
+# poll the erroring board once, never the unresolvable ones, and sleep
+# between passes rather than spin.
+dead = [d for d in domains[200:400] if scrape_state.worker_owns(d, tenth)][:3]
+bad = [d for d in domains[400:600] if scrape_state.worker_owns(d, tenth)][0]
+known2 = [{"domain": d, "ats": None, "token": None} for d in dead] + [{"domain": bad, "ats": "lever", "token": "bad"}]
+s3b = FakeS3({
+    "known.json": json.dumps(known2).encode(),
+    "worker-claim.json": json.dumps(tenth).encode(),
+    "watched-domains.json": json.dumps({"domains": []}).encode(),
+    scrape_state.KEY: gzip.compress(json.dumps({}).encode()),
+})
+W.boto3 = types.SimpleNamespace(client=lambda name: s3b)
+W.STATE_KEY = "scrape-state-worker-test2.json.gz"
+calls, sleeps = [], []
+
+
+def erroring_run(cmd, **kw):
+    batch = json.loads(Path(cmd[cmd.index("--known") + 1]).read_text(encoding="utf-8"))
+    calls.append([e["domain"] for e in batch])
+    out = Path(cmd[cmd.index("--out") + 1])
+    out.write_text("".join(json.dumps({"domain": e["domain"], "ats": None, "token": None, "job_count": 0,
+                                       "error": "HTTP 503", "retryable": True, "jobs": []}) + "\n" for e in batch),
+                   encoding="utf-8")
+    return types.SimpleNamespace(returncode=0, stderr="")
+
+
+W.subprocess = types.SimpleNamespace(run=erroring_run, TimeoutExpired=TimeoutError)
+clock2 = {"t": 5000.0}
+
+
+def fake_sleep(sec):
+    sleeps.append(sec)
+    clock2["t"] += sec
+
+
+W.time = types.SimpleNamespace(time=lambda: clock2["t"], sleep=fake_sleep)
+W.RUN_FOR_S = 120
+W.main()
+check("entries with no ATS or token are never handed to probe.py",
+      all(d not in dead for c in calls for d in c), calls)
+check("an erroring board is polled once inside the retry floor, not every second",
+      sum(c.count(bad) for c in calls) == 1, calls)
+check("between passes the worker sleeps at least 5 seconds",
+      sleeps and min(sleeps) >= 5, sleeps[:10])
+
 print()
 if failures:
     print("%d failed:" % len(failures))

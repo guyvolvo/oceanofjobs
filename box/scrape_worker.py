@@ -63,6 +63,11 @@ RUN_FOR_S = 3600
 KNOWN_EVERY_S = 600
 CLAIM_EVERY_S = 60
 IDLE_MAX_S = 30
+# No board is asked twice inside this, whatever the schedule says. The
+# Lambda could not retry faster than its five-minute tick; this loop can
+# retry within a second, and on its first run on the box it did: a board
+# that errors is held at its old due time, so it was due again at once.
+RETRY_FLOOR_S = scrape_state.FLOOR_S
 
 
 def log(msg):
@@ -145,14 +150,18 @@ def _overdue(state, domains, now):
 
 
 def _sleep_for(state, domains, now):
+    """Until the next owned board comes due, between 5 and IDLE_MAX_S
+    seconds. Never less: a board with no due time that was just tried is
+    held back by RETRY_FLOOR_S, and treating it as due now made the loop
+    spin without sleeping."""
     soonest = None
     for d in domains:
         nxt = scrape_state._parse((state.get(d) or {}).get("next_at"))
         if nxt is None:
-            return 0
+            continue
         wait = (nxt - now).total_seconds()
         soonest = wait if soonest is None else min(soonest, wait)
-    return max(1.0, min(IDLE_MAX_S, soonest if soonest is not None else IDLE_MAX_S))
+    return max(5.0, min(IDLE_MAX_S, soonest if soonest is not None else IDLE_MAX_S))
 
 
 def main():
@@ -166,6 +175,7 @@ def main():
         state, etag = {}, None
     known, known_at, claim, claim_at, watched = [], 0.0, {}, 0.0, frozenset()
     owned_key = None
+    attempted: dict[str, float] = {}
     log(f"scrape worker up: {len(state)} boards in {STATE_KEY}, batches of {BATCH} on {PROBE_WORKERS} threads")
     while time.time() - started < RUN_FOR_S:
         now_s = time.time()
@@ -176,7 +186,13 @@ def main():
         if now_s - claim_at > CLAIM_EVERY_S:
             claim = scrape_state.load_claim(BUCKET, s3)
             claim_at = now_s
-        mine = [e for e in known if scrape_state.worker_owns(e.get("domain"), claim)]
+        # Only boards probe.py can poll. known.json keeps a few entries
+        # with no ATS or token; the Lambda's sweep carries them along
+        # harmlessly, but a batch of nothing else makes probe.py exit 2
+        # without a result, so they stayed due and were retried every
+        # second (2026-10-08, the trial's first five minutes).
+        mine = [e for e in known if e.get("ats") and e.get("token")
+                and scrape_state.worker_owns(e.get("domain"), claim)]
         domains = [e["domain"] for e in mine]
         key = (len(known), json.dumps(claim, sort_keys=True))
         if key != owned_key:
@@ -190,13 +206,16 @@ def main():
             continue
 
         now = datetime.now(timezone.utc)
-        due = scrape_state.due(state, mine, now=now)
+        floor = time.time() - RETRY_FLOOR_S
+        due = [e for e in scrape_state.due(state, mine, now=now) if attempted.get(e["domain"], 0) < floor]
         if not due:
             time.sleep(_sleep_for(state, domains, now))
             continue
         rank = lambda e: scrape_state._parse((state.get(e["domain"]) or {}).get("next_at")) or datetime.min.replace(tzinfo=timezone.utc)  # noqa: E731
         due.sort(key=rank)
         batch = due[:BATCH]
+        for e in batch:
+            attempted[e["domain"]] = time.time()
 
         t0 = time.time()
         batch_path, out_path = WORK / "batch.json", WORK / "results.ndjson"
