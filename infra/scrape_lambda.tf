@@ -78,6 +78,12 @@ resource "aws_iam_role_policy" "scrape_fast_lambda" {
           # only asks who is being waited on. A read that fails is not an
           # error, it means nobody gets the fast lane this tick.
           "${aws_s3_bucket.data.arn}/watched-domains.json",
+          # worker-claim.json: read-only here. Which boards the box's
+          # scrape worker owns (scrape_state.worker_owns); this Lambda
+          # skips them. Without this the read fails, load_claim treats it
+          # as no claim, and both would poll the same boards (caught
+          # before the trial worker started, 2026-10-08).
+          "${aws_s3_bucket.data.arn}/worker-claim.json",
           # salary-matrix.json: read once per container, never written
           # here. Rebuilt daily by build-salary-matrix.yml, which is why
           # probe.py downloads it rather than reading a bundled copy that
