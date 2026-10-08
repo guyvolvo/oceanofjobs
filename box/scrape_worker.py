@@ -48,6 +48,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "loader"))
 import scrape_state  # noqa: E402
 from deltas import put_fragment  # noqa: E402
+sys.path.insert(0, str(ROOT))
+from probe import SLOW_BOARD_ATS  # noqa: E402
 
 BUCKET = os.environ["DATA_BUCKET"]
 # Its own state object, never the Lambda's: two writers on one object
@@ -230,7 +232,11 @@ def main():
         # harmlessly, but a batch of nothing else makes probe.py exit 2
         # without a result, so they stayed due and were retried every
         # second (2026-10-08, the trial's first five minutes).
-        mine = [e for e in known if e.get("ats") and e.get("token")
+        # And not the slow-board ATSes (Workday, big-tech career sites):
+        # probe.py --known drops those silently, because the Workday
+        # Lambda polls them, so they came back without a result, were
+        # never scheduled, and sat due forever.
+        mine = [e for e in known if e.get("ats") and e.get("token") and e["ats"] not in SLOW_BOARD_ATS
                 and scrape_state.worker_owns(e.get("domain"), claim)]
         domains = [e["domain"] for e in mine]
         key = (len(known), json.dumps(claim, sort_keys=True))
