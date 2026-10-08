@@ -73,6 +73,15 @@ RETRY_FLOOR_S = scrape_state.FLOOR_S
 # minutes, about 15% of a core). Due boards are gathered for up to this
 # long first; a board polled 20 seconds after it came due loses nothing.
 COALESCE_S = 20
+# How often what changed is sent on. Every fragment wakes the applier on
+# the box, and each apply costs about twenty seconds of disk whatever its
+# size. Sending one per batch ran the applier 44 times in 80 minutes
+# where the Lambda's one per five-minute tick had run it 16 (2026-10-08,
+# the 10% trial), and disk stalls doubled. So changed boards wait in a
+# local spool and go out together, the Lambda's rhythm. The poll state is
+# saved only after they are sent: a crash in between means those boards
+# are polled again, never that a listing is lost.
+FLUSH_S = 300
 
 
 def log(msg):
@@ -127,6 +136,17 @@ def _watched(s3):
         return frozenset(_get_json(s3, "watched-domains.json").get("domains") or ())
     except Exception:
         return frozenset()
+
+
+def _flush(s3, spool, state, etag):
+    """Send the spooled changes as one fragment, then save the poll state.
+    Returns (etag, fragments sent)."""
+    sent = []
+    if spool.exists() and spool.stat().st_size:
+        with open(spool, encoding="utf-8") as fh:
+            sent = put_fragment(BUCKET, (json.loads(line) for line in fh if line.strip()))
+    spool.unlink(missing_ok=True)
+    return _save_state(s3, state, etag) or etag, len(sent)
 
 
 def _results(path, meta):
@@ -188,6 +208,12 @@ def main():
     owned_key = None
     attempted: dict[str, float] = {}
     gathering = None
+    # Left by a run that stopped between a batch and its flush. Its poll
+    # state was never saved, so those boards come due again and are
+    # re-polled; sending this copy as well would only repeat them.
+    spool = WORK / "spool.ndjson"
+    spool.unlink(missing_ok=True)
+    last_flush, dirty, spooled = time.time(), False, 0
     log(f"scrape worker up: {len(state)} boards in {STATE_KEY}, batches of {BATCH} on {PROBE_WORKERS} threads")
     while time.time() - started < RUN_FOR_S:
         now_s = time.time()
@@ -254,14 +280,22 @@ def main():
             time.sleep(IDLE_MAX_S)
             continue
 
-        # Deliver, then remember, as the Lambda does: a fragment sent for
-        # a board whose state then fails to save is polled once more, a
-        # harmless repeat; the other order could lose a listing.
+        # Changed boards go to the spool; the state is recorded in memory
+        # and saved only when the spool is sent (see FLUSH_S).
         meta = []
-        fragments = put_fragment(BUCKET, _results(out_path, meta))
+        with open(spool, "a", encoding="utf-8") as fh:
+            for r in _results(out_path, meta):
+                if r.get("ats") and not r.get("unchanged"):
+                    fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+                    spooled += 1
         data = [r for r in meta if not r.get("deferred")]
         sched = scrape_state.record(state, data, watched=watched)
-        etag = _save_state(s3, state, etag) or etag
+        dirty = True
+        fragments = []
+        if time.time() - last_flush >= FLUSH_S:
+            etag, n = _flush(s3, spool, state, etag)
+            fragments = [None] * n
+            last_flush, dirty, spooled = time.time(), False, 0
         changed = sum(1 for r in data if r.get("ats") and not r.get("unchanged"))
         unchanged = sum(1 for r in data if r.get("unchanged"))
         errors = sum(1 for r in data if r.get("error"))
@@ -273,6 +307,9 @@ def main():
             f"{len(fragments)} fragments, {time.time() - t0:.1f}s; waiting {late}, oldest {oldest / 60:.1f} min late, failing {failing}; "
             f"peak memory worker {self_mb:.0f}MB probe {child_mb:.0f}MB "
             f"({sched['changed']} to floor, {sched['unchanged']} backed off, {sched['errored']} held)")
+    if dirty:
+        etag, n = _flush(s3, spool, state, etag)
+        log(f"sent the last {n} fragment(s) before exiting")
     log("an hour up; exiting so systemd starts the current code")
 
 
