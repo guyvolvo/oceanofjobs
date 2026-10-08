@@ -159,19 +159,19 @@ def _results(path, meta):
                 yield r
 
 
-def _overdue(state, domains, now, attempted, floor):
-    """(waiting, oldest wait in seconds, failing). A board past due that
-    was tried inside the retry floor is failing, not waiting: the
-    scheduler holds an erroring board at its old due time, so counting it
-    would make "oldest overdue" the age of a dead board rather than the
-    backlog, which is the number the throughput test reads."""
+def _overdue(state, domains, now, failing_set):
+    """(waiting, oldest wait in seconds, failing). A board whose last poll
+    failed is failing, not waiting: the scheduler holds an erroring board
+    at its old due time, so counting it would make "oldest overdue" the
+    age of a dead board rather than the backlog, which is the number the
+    throughput test and the overnight watch read."""
     waiting, oldest, failing = 0, 0.0, 0
     for d in domains:
         nxt = scrape_state._parse((state.get(d) or {}).get("next_at"))
         late = float("inf") if nxt is None else (now - nxt).total_seconds()
         if late <= 0:
             continue
-        if attempted.get(d, 0) >= floor:
+        if d in failing_set:
             failing += 1
             continue
         waiting += 1
@@ -207,6 +207,7 @@ def main():
     known, known_at, claim, claim_at, watched = [], 0.0, {}, 0.0, frozenset()
     owned_key = None
     attempted: dict[str, float] = {}
+    failing_set: set[str] = set()
     gathering = None
     # Left by a run that stopped between a batch and its flush. Its poll
     # state was never saved, so those boards come due again and are
@@ -299,8 +300,12 @@ def main():
         changed = sum(1 for r in data if r.get("ats") and not r.get("unchanged"))
         unchanged = sum(1 for r in data if r.get("unchanged"))
         errors = sum(1 for r in data if r.get("error"))
-        late, oldest, failing = _overdue(state, domains, datetime.now(timezone.utc), attempted,
-                                         time.time() - RETRY_FLOOR_S)
+        for r in data:
+            if r.get("error") or not r.get("ats"):
+                failing_set.add(r["domain"])
+            else:
+                failing_set.discard(r["domain"])
+        late, oldest, failing = _overdue(state, domains, datetime.now(timezone.utc), failing_set)
         child_mb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024 if resource else 0
         self_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 if resource else 0
         log(f"batch {len(data)}/{len(due)} due: {changed} changed, {unchanged} unchanged, {errors} errors, "
