@@ -95,7 +95,10 @@ def fake_run(cmd, **kw):
 W.subprocess = types.SimpleNamespace(run=fake_run, TimeoutExpired=TimeoutError)
 clock = {"t": 1000.0}
 W.time = types.SimpleNamespace(time=lambda: clock["t"], sleep=lambda s: clock.__setitem__("t", clock["t"] + max(s, 1) + W.RUN_FOR_S))
+# Gathering a fuller batch is tested below; here the first pass should run.
+W.COALESCE_S = 0
 W.main()
+W.COALESCE_S = 20
 
 batch_domains, workers, batch = probed[0] if probed else ([], None, [])
 check("the worker polls only the boards it owns", probed and set(batch_domains) == set(owned), (len(batch_domains), len(owned)))
@@ -154,6 +157,7 @@ check("entries with no ATS or token are never handed to probe.py",
       all(d not in dead for c in calls for d in c), calls)
 check("an erroring board is polled once inside the retry floor, not every second",
       sum(c.count(bad) for c in calls) == 1, calls)
+check("a lone due board waits to be batched rather than polled at once", sum(sleeps[:4]) >= 15, sleeps[:6])
 check("between passes the worker sleeps at least 5 seconds",
       sleeps and min(sleeps) >= 5, sleeps[:10])
 

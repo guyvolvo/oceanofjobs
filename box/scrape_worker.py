@@ -68,6 +68,11 @@ IDLE_MAX_S = 30
 # retry within a second, and on its first run on the box it did: a board
 # that errors is held at its old due time, so it was due again at once.
 RETRY_FLOOR_S = scrape_state.FLOOR_S
+# A batch of one or two boards costs a whole probe.py start-up, which was
+# most of the worker's CPU on the box (36 CPU-seconds in its first four
+# minutes, about 15% of a core). Due boards are gathered for up to this
+# long first; a board polled 20 seconds after it came due loses nothing.
+COALESCE_S = 20
 
 
 def log(msg):
@@ -134,19 +139,25 @@ def _results(path, meta):
                 yield r
 
 
-def _overdue(state, domains, now):
-    """How many owned boards are past due, and the oldest by how long."""
-    n, oldest = 0, 0.0
+def _overdue(state, domains, now, attempted, floor):
+    """(waiting, oldest wait in seconds, failing). A board past due that
+    was tried inside the retry floor is failing, not waiting: the
+    scheduler holds an erroring board at its old due time, so counting it
+    would make "oldest overdue" the age of a dead board rather than the
+    backlog, which is the number the throughput test reads."""
+    waiting, oldest, failing = 0, 0.0, 0
     for d in domains:
         nxt = scrape_state._parse((state.get(d) or {}).get("next_at"))
-        if nxt is None:
-            n += 1
+        late = float("inf") if nxt is None else (now - nxt).total_seconds()
+        if late <= 0:
             continue
-        late = (now - nxt).total_seconds()
-        if late > 0:
-            n += 1
+        if attempted.get(d, 0) >= floor:
+            failing += 1
+            continue
+        waiting += 1
+        if late != float("inf"):
             oldest = max(oldest, late)
-    return n, oldest
+    return waiting, oldest, failing
 
 
 def _sleep_for(state, domains, now):
@@ -176,6 +187,7 @@ def main():
     known, known_at, claim, claim_at, watched = [], 0.0, {}, 0.0, frozenset()
     owned_key = None
     attempted: dict[str, float] = {}
+    gathering = None
     log(f"scrape worker up: {len(state)} boards in {STATE_KEY}, batches of {BATCH} on {PROBE_WORKERS} threads")
     while time.time() - started < RUN_FOR_S:
         now_s = time.time()
@@ -213,6 +225,12 @@ def main():
             continue
         rank = lambda e: scrape_state._parse((state.get(e["domain"]) or {}).get("next_at")) or datetime.min.replace(tzinfo=timezone.utc)  # noqa: E731
         due.sort(key=rank)
+        if len(due) < BATCH // 4:
+            gathering = gathering or time.time()
+            if time.time() - gathering < COALESCE_S:
+                time.sleep(5)
+                continue
+        gathering = None
         batch = due[:BATCH]
         for e in batch:
             attempted[e["domain"]] = time.time()
@@ -247,11 +265,12 @@ def main():
         changed = sum(1 for r in data if r.get("ats") and not r.get("unchanged"))
         unchanged = sum(1 for r in data if r.get("unchanged"))
         errors = sum(1 for r in data if r.get("error"))
-        late, oldest = _overdue(state, domains, datetime.now(timezone.utc))
+        late, oldest, failing = _overdue(state, domains, datetime.now(timezone.utc), attempted,
+                                         time.time() - RETRY_FLOOR_S)
         child_mb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024 if resource else 0
         self_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 if resource else 0
         log(f"batch {len(data)}/{len(due)} due: {changed} changed, {unchanged} unchanged, {errors} errors, "
-            f"{len(fragments)} fragments, {time.time() - t0:.1f}s; still due {late}, oldest {oldest / 60:.1f} min late; "
+            f"{len(fragments)} fragments, {time.time() - t0:.1f}s; waiting {late}, oldest {oldest / 60:.1f} min late, failing {failing}; "
             f"peak memory worker {self_mb:.0f}MB probe {child_mb:.0f}MB "
             f"({sched['changed']} to floor, {sched['unchanged']} backed off, {sched['errored']} held)")
     log("an hour up; exiting so systemd starts the current code")
