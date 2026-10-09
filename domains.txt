@@ -14,7 +14,6 @@ hibob.com
 walkme.com
 armis.com
 aquasec.com
-orca.security
 island.io
 axonius.com
 silverfort.com
@@ -27214,7 +27213,6 @@ hex.tech
 hippocraticai.com
 imc.com
 immunome.com
-immunovant.com
 impinj.com
 innodata.com
 januxrx.com
@@ -27264,7 +27262,6 @@ smmttx.com
 sofi.com
 spotify.com
 stoketherapeutics.com
-stone.co
 surgehq.ai
 surgerypartners.com
 syndax.com

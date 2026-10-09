@@ -3002,7 +3002,7 @@ KNOWN_FALSE_POSITIVES: set[tuple[str, str]] = {
     ("bamboohr", "pfizer"),                # pfizer.com: no Pfizer jobs; the real board is Workday (pinned) (gap research 2026-10-09)
     ("bamboohr", "baldwin"),               # baldwin.com: Baldwin Paving; the real board is Workday (pinned) (gap research 2026-10-09)
     ("greenhouse", "wise"),                # wise.com: Wise Worksite Field Sales; Wise is smartrecruiters (pinned) (gap research 2026-10-09)
-    ("greenhouse", "orca"),                # orca.security: ORCA Service Technologies; Orca Security is greenhouse orcasecurity (pinned) (gap research 2026-10-09)
+    ("greenhouse", "orca"),                # orca.security: ORCA Service Technologies; Orca Security is greenhouse orcasecurity, under orcasecurity.io (gap research 2026-10-09)
     ("ashby", "matrix"),          # matrix.co.il: real board is a Boston VC firm, not Matrix IT
     ("workable", "real"),         # real.dev: a real but empty Workable board belonging to someone
                                    # else. The domain guesses "real"; the company's own board is
