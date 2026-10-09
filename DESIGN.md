@@ -1058,6 +1058,27 @@ the company's letter outlined where there is no mark.
   phone. The file that renders it is alerts.py; a fixture render is
   scripts/alert_email/render_fixture.py.
 
+### Account overview (October 2026)
+
+The /account overview follows its own design handoff, approved in the
+design session, and breaks four rules on purpose. Each break stays on
+that page.
+
+- **A column.** The page sits in a centred column of at most 1140px
+  (`padding: max(pad, (100% - 1140px) / 2)`), not the full-width gutter.
+- **A card system.** Cards are 12px with a 1px line, controls 8px, the
+  segmented switch 9px outside and 7px inside. There are still no shadows.
+- **Green and red as data.** The chart line, the bars and an up pill are
+  green, and a down pill is red. Elsewhere the One Voice Rule holds.
+- **Geist and Geist Mono.** Geist sets the words and Geist Mono the
+  figures and keywords, on the light ground too. Both are self-hosted.
+
+Its tokens are `--a-*` on `.account-shell`, mapped onto the site palette
+where it has the colour, so the theme toggle moves them all.
+`--a-text-2` is 84% ink, not the handoff's 74%: that was 3.8:1 on the
+raised rows. Above 1100px the overview fits one screen. Between 560 and
+1099px the cards stack, and under 560px the stats go to one column.
+
 ### Not found
 Any address the site does not have gets `404.html` with a real 404
 status, served by the CloudFront function rather than S3's bare XML
