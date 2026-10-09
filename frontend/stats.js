@@ -163,15 +163,6 @@ async function openDatabase() {
   if (built) parts.push(`refreshed ${ago(built)}`);
   status.textContent = parts.join(" · ");
   status.title = built ? `Built ${new Date(built).toLocaleString()}` : "";
-
-  // The file itself, for anyone who would rather query it locally.
-  const dl = $("st-download");
-  if (manifest?.url) {
-    dl.href = manifest.url;
-    const gb = manifest.bytes ? ` ${(manifest.bytes / 1e9).toFixed(1)} GB` : "";
-    dl.textContent = `Download the database (SQLite,${gb})`;
-    dl.hidden = false;
-  }
 }
 
 function ago(iso) {

@@ -8024,7 +8024,6 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .st-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 24px; }
 .st-title { margin: 0; font-family: var(--font-display); font-size: 40px; font-weight: 400; line-height: 1.05; letter-spacing: -0.02em; }
 .st-intro { margin: 8px 0 0; max-width: 640px; font-size: 15px; line-height: 1.5; }
-.st-download { font-size: 14px; color: var(--st-ink); white-space: nowrap; text-underline-offset: 3px; }
 
 .st-grid {
   display: grid;
