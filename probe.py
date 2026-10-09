@@ -2989,6 +2989,20 @@ def f_eightfold(sess, token, known_ids=None, description_budget=None):
 # were caught by spot-checking suspicious results and verified by hand.
 # Add to this set as more turn up.
 KNOWN_FALSE_POSITIVES: set[tuple[str, str]] = {
+    ("bamboohr", "sap"),                   # sap.com: a small London firm, not SAP (gap research 2026-10-09)
+    ("bamboohr", "ngc"),                   # ngc.com: a church, not Northrop Grumman (gap research 2026-10-09)
+    ("recruitee", "ey"),                   # ey.com: an Amsterdam firm, not EY (gap research 2026-10-09)
+    ("greenhouse", "tcs"),                 # tcs.com: Thornbury Community Services, not Tata (gap research 2026-10-09)
+    ("bamboohr", "seagate"),               # seagate.com: Seagate Mass Timber, not Seagate Technology (gap research 2026-10-09)
+    ("bamboohr", "progressinc"),           # progress.com: empty, not Progress Software (gap research 2026-10-09)
+    ("ashby", "uniti"),                    # uniti.com: Uniti AI, not Uniti Group (gap research 2026-10-09)
+    ("recruitee", "clay"),                 # clay.com: Clay Hospitality; Clay itself is ashby claylabs (gap research 2026-10-09)
+    ("personio", "scale"),                 # scale.com: unrelated; Scale AI is greenhouse scaleai (gap research 2026-10-09)
+    ("bamboohr", "zepto"),                 # zepto.co: a placeholder board titled Sign In (gap research 2026-10-09)
+    ("bamboohr", "pfizer"),                # pfizer.com: no Pfizer jobs; the real board is Workday (pinned) (gap research 2026-10-09)
+    ("bamboohr", "baldwin"),               # baldwin.com: Baldwin Paving; the real board is Workday (pinned) (gap research 2026-10-09)
+    ("greenhouse", "wise"),                # wise.com: Wise Worksite Field Sales; Wise is smartrecruiters (pinned) (gap research 2026-10-09)
+    ("greenhouse", "orca"),                # orca.security: ORCA Service Technologies; Orca Security is greenhouse orcasecurity (pinned) (gap research 2026-10-09)
     ("ashby", "matrix"),          # matrix.co.il: real board is a Boston VC firm, not Matrix IT
     ("workable", "real"),         # real.dev: a real but empty Workable board belonging to someone
                                    # else. The domain guesses "real"; the company's own board is
@@ -4362,6 +4376,10 @@ def _resolve_board(domain: str, sess: requests.Session) -> Resolution:
     # moved is still found.
     hint = HINTS.get(domain)
     hint_unanswered = False
+    # A stored answer that turned out to be someone else's board is not
+    # asked again, or it would win over the pin that replaces it.
+    if hint and (hint.get("ats"), hint.get("token")) in KNOWN_FALSE_POSITIVES:
+        hint = None
     if hint and hint.get("ats") and hint.get("token"):
         tried += 1
         if VERBOSE:

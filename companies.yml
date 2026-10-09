@@ -598,6 +598,367 @@ workday:
     source: techaviv-board
     note: added 2026-09-19 from TechAviv's board (jobs.techaviv.com), the token read off the listing's own apply link and the board fetched live.
 
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: northropgrumman.com
+    tenant: ngc
+    wd: wd1
+    site: Northrop_Grumman_External_Site
+    jobs_seen: 3775
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Northrop Grumman), the board fetched live (3775 roles).
+
+  - domain: accenture.com
+    tenant: accenture
+    wd: wd103
+    site: AccentureCareers
+    jobs_seen: 2000
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Accenture), the board fetched live (2000 roles).
+
+  - domain: airbus.com
+    tenant: ag
+    wd: wd3
+    site: Airbus
+    jobs_seen: 2000
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Airbus), the board fetched live (2000 roles).
+
+  - domain: mondelezinternational.com
+    tenant: mdlz
+    wd: wd3
+    site: External
+    jobs_seen: 1309
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Mondelez International), the board fetched live (1309 roles).
+
+  - domain: verizon.com
+    tenant: verizon
+    wd: wd12
+    site: verizon-careers
+    jobs_seen: 1156
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Verizon), the board fetched live (1156 roles).
+
+  - domain: motorolasolutions.com
+    tenant: motorolasolutions
+    wd: wd5
+    site: Careers
+    jobs_seen: 905
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Motorola Solutions), the board fetched live (905 roles).
+
+  - domain: iconplc.com
+    tenant: icon
+    wd: wd3
+    site: broadbean_external
+    jobs_seen: 892
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (ICON), the board fetched live (892 roles).
+
+  - domain: pfizer.com
+    tenant: pfizer
+    wd: wd1
+    site: PfizerCareers
+    jobs_seen: 603
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Pfizer), the board fetched live (603 roles).
+
+  - domain: microchip.com
+    tenant: microchiphr
+    wd: wd5
+    site: External
+    jobs_seen: 498
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Microchip Technology), the board fetched live (498 roles).
+
+  - domain: costargroup.com
+    tenant: costar
+    wd: wd1
+    site: CoStarCareers
+    jobs_seen: 427
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (CoStar Group), the board fetched live (427 roles).
+
+  - domain: globalpayments.com
+    tenant: tsys
+    wd: wd1
+    site: TSYS
+    jobs_seen: 402
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Global Payments), the board fetched live (402 roles).
+
+  - domain: ttm.com
+    tenant: ttmtech
+    wd: wd5
+    site: jobs
+    jobs_seen: 317
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (TTM Technologies), the board fetched live (317 roles).
+
+  - domain: marvell.com
+    tenant: marvell
+    wd: wd1
+    site: MarvellCareers
+    jobs_seen: 296
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Marvell Technology), the board fetched live (296 roles).
+
+  - domain: spglobal.com
+    tenant: spgi
+    wd: wd5
+    site: SPGI_Careers
+    jobs_seen: 265
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (S&P Global), the board fetched live (265 roles).
+
+  - domain: biogen.com
+    tenant: biibhr
+    wd: wd3
+    site: external
+    jobs_seen: 263
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Biogen), the board fetched live (263 roles).
+
+  - domain: aaon.com
+    tenant: aaon
+    wd: wd108
+    site: AAON
+    jobs_seen: 234
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (AAON), the board fetched live (234 roles).
+
+  - domain: integralife.com
+    tenant: integralife
+    wd: wd1
+    site: Careers
+    jobs_seen: 155
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Integra LifeSciences), the board fetched live (155 roles).
+
+  - domain: cdw.com
+    tenant: cdw
+    wd: wd5
+    site: careers
+    jobs_seen: 143
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (CDW), the board fetched live (143 roles).
+
+  - domain: latticesemi.com
+    tenant: latticesemi
+    wd: wd5
+    site: latticesemiconductorscareers
+    jobs_seen: 136
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Lattice Semiconductor), the board fetched live (136 roles).
+
+  - domain: baldwin.com
+    tenant: baldwin
+    wd: wd1
+    site: Baldwin
+    jobs_seen: 117
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (The Baldwin Insurance Group), the board fetched live (117 roles).
+
+  - domain: x-energy.com
+    tenant: xenergy
+    wd: wd5
+    site: X-energyUS
+    jobs_seen: 111
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (X-Energy), the board fetched live (111 roles).
+
+  - domain: xpel.com
+    tenant: xpel
+    wd: wd5
+    site: XPEL_Careers
+    jobs_seen: 98
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (XPEL), the board fetched live (98 roles).
+
+  - domain: cognex.com
+    tenant: cognex
+    wd: wd1
+    site: External_Career_Site
+    jobs_seen: 93
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Cognex), the board fetched live (93 roles).
+
+  - domain: bentley.com
+    tenant: bentleysystems
+    wd: wd5
+    site: bentley
+    jobs_seen: 90
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Bentley Systems), the board fetched live (90 roles).
+
+  - domain: ibc.com
+    tenant: ibc
+    wd: wd5
+    site: ibc_careers
+    jobs_seen: 84
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (International Bancshares), the board fetched live (84 roles).
+
+  - domain: cytokinetics.com
+    tenant: cytokinetics
+    wd: wd1
+    site: Cytokinetics
+    jobs_seen: 81
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Cytokinetics), the board fetched live (81 roles).
+
+  - domain: ssrmining.com
+    tenant: ssrmining
+    wd: wd108
+    site: SSR_Mining_Careers
+    jobs_seen: 72
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (SSR Mining), the board fetched live (72 roles).
+
+  - domain: carlyle.com
+    tenant: carlyle
+    wd: wd1
+    site: carlyle
+    jobs_seen: 70
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (The Carlyle Group), the board fetched live (70 roles).
+
+  - domain: azenta.com
+    tenant: azenta
+    wd: wd1
+    site: AzentaJobs
+    jobs_seen: 63
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Azenta), the board fetched live (63 roles).
+
+  - domain: encorecapital.com
+    tenant: encore
+    wd: wd1
+    site: externalnew
+    jobs_seen: 50
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Encore Capital Group), the board fetched live (50 roles).
+
+  - domain: ideayabio.com
+    tenant: ideayabio
+    wd: wd501
+    site: External
+    jobs_seen: 40
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (IDEAYA Biosciences), the board fetched live (40 roles).
+
+  - domain: corescientific.com
+    tenant: corescientific
+    wd: wd108
+    site: CoreScientificCareers
+    jobs_seen: 34
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Core Scientific), the board fetched live (34 roles).
+
+  - domain: netscout.com
+    tenant: netscout
+    wd: wd108
+    site: Careers
+    jobs_seen: 33
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (NetScout Systems), the board fetched live (33 roles).
+
+  - domain: phillipsedison.com
+    tenant: phillipsedison
+    wd: wd503
+    site: PECO
+    jobs_seen: 30
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Phillips Edison & Company), the board fetched live (30 roles).
+
+  - domain: goodyear.com
+    tenant: goodyear
+    wd: wd1
+    site: GoodyearCareers
+    jobs_seen: 30
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (The Goodyear Tire & Rubber Company), the board fetched live (30 roles).
+
+  - domain: stellantis.com
+    tenant: stellantis
+    wd: wd3
+    site: External_Career_Site_ID01
+    jobs_seen: 30
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Stellantis), the board fetched live (30 roles).
+
+  - domain: kaiseraluminum.com
+    tenant: kawarrick
+    wd: wd5
+    site: Kaiser_Aluminum_Warrick_careers
+    jobs_seen: 24
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kaiser Aluminum), the board fetched live (24 roles).
+
+  - domain: chordenergy.com
+    tenant: chordenergy
+    wd: wd1
+    site: external
+    jobs_seen: 20
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Chord Energy), the board fetched live (20 roles).
+
+  - domain: capfed.com
+    tenant: capfed
+    wd: wd503
+    site: CapFed_Careers
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Capitol Federal Financial), the board fetched live (17 roles).
+
+  - domain: biocryst.com
+    tenant: biocryst
+    wd: wd501
+    site: External
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (BioCryst Pharmaceuticals), the board fetched live (17 roles).
+
+  - domain: crisprtx.com
+    tenant: crisprtx
+    wd: wd12
+    site: Careers
+    jobs_seen: 15
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (CRISPR Therapeutics AG), the board fetched live (15 roles).
+
+  - domain: newamsterdampharma.com
+    tenant: newamsterdampharma
+    wd: wd108
+    site: New_Amsterdam_External_Career_Site
+    jobs_seen: 12
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (NewAmsterdam Pharma Company N.V.), the board fetched live (12 roles).
+
+  - domain: halozyme.com
+    tenant: halozyme
+    wd: wd115
+    site: halozymecareers
+    jobs_seen: 10
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Halozyme Therapeutics), the board fetched live (10 roles).
+
+  - domain: pwpartners.com
+    tenant: pwp
+    wd: wd1
+    site: PWP_Experienced_Opportunities
+    jobs_seen: 6
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Perella Weinberg Partners), the board fetched live (6 roles).
+
+  - domain: pricesmart.com
+    tenant: pricesmart
+    wd: wd503
+    site: PriceSmart
+    jobs_seen: 3
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (PriceSmart), the board fetched live (3 roles).
+
 niloosoft:
   # Niloosoft's Hunter, the ATS behind most of Israel's large traditional
   # employers. Nothing about a board is guessable from the company: it
@@ -677,6 +1038,37 @@ workable:
     token: "rayzone-group"
     jobs_seen: 2
     source: workable-directory
+
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: ascendispharma.com
+    token: "ascendis-pharma"
+    jobs_seen: 67
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Ascendis Pharma A/S), the board fetched live (67 roles).
+
+  - domain: lgihomes.com
+    token: "lgihomes"
+    jobs_seen: 60
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (LGI Homes), the board fetched live (60 roles).
+
+  - domain: atecspine.com
+    token: "atec-spine"
+    jobs_seen: 40
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Alphatec), the board fetched live (40 roles).
+
+  - domain: euronetworldwide.com
+    token: "euronet"
+    jobs_seen: 32
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Euronet Worldwide), the board fetched live (32 roles).
+
+  - domain: pony.ai
+    token: "pony-dot-ai"
+    jobs_seen: 9
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Pony AI), the board fetched live (9 roles).
 
 ness:
   # Ness runs its own careers app, not an ATS. One public JSON call
@@ -887,6 +1279,127 @@ lever:
     source: techaviv-board
     note: added 2026-09-19 from TechAviv's board (jobs.techaviv.com), the token read off the listing's own apply link and the board fetched live.
 
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: shield.ai
+    token: "shieldai"
+    jobs_seen: 593
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Shield AI), the board fetched live (593 roles).
+
+  - domain: extremenetworks.com
+    token: "extremenetworks"
+    jobs_seen: 141
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Extreme Networks), the board fetched live (141 roles).
+
+  - domain: kyivstar.ua
+    token: "kyivstar"
+    jobs_seen: 126
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kyivstar Group), the board fetched live (126 roles).
+
+  - domain: quantinuum.com
+    token: "quantinuum"
+    jobs_seen: 124
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Quantinuum), the board fetched live (124 roles).
+
+  - domain: cfs.energy
+    token: "cfsenergy"
+    jobs_seen: 119
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Commonwealth Fusion Systems), the board fetched live (119 roles).
+
+  - domain: pattern.com
+    token: "pattern"
+    jobs_seen: 95
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Pattern Group), the board fetched live (95 roles).
+
+  - domain: spotify.com
+    token: "spotify"
+    jobs_seen: 80
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Spotify), the board fetched live (80 roles).
+
+  - domain: mtch.com
+    token: "matchgroup"
+    jobs_seen: 65
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Match Group), the board fetched live (65 roles).
+
+  - domain: telesat.com
+    token: "telesat"
+    jobs_seen: 54
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Telesat), the board fetched live (54 roles).
+
+  - domain: dlocal.com
+    token: "dlocal"
+    jobs_seen: 53
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (DLocal Limited), the board fetched live (53 roles).
+
+  - domain: scholarrock.com
+    token: "scholarrock"
+    jobs_seen: 35
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Scholar Rock Holding), the board fetched live (35 roles).
+
+  - domain: expeditions.com
+    token: "lindblad-expeditions"
+    jobs_seen: 30
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Lindblad Expeditions), the board fetched live (30 roles).
+
+  - domain: wealthfront.com
+    token: "wealthfront"
+    jobs_seen: 22
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Wealthfront), the board fetched live (22 roles).
+
+  - domain: rigetti.com
+    token: "rigetti"
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Rigetti Computing), the board fetched live (17 roles).
+
+  - domain: webtoon.com
+    token: "wattpad"
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (WEBTOON Entertainment), the board fetched live (17 roles).
+
+  - domain: grail.com
+    token: "grailbio"
+    jobs_seen: 16
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (GRAIL), the board fetched live (16 roles).
+
+  - domain: weride.ai
+    token: "weride"
+    jobs_seen: 16
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (WeRide), the board fetched live (16 roles).
+
+  - domain: cleanspark.com
+    token: "cleanspark"
+    jobs_seen: 13
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (CleanSpark), the board fetched live (13 roles).
+
+  - domain: januxrx.com
+    token: "januxrx"
+    jobs_seen: 12
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Janux Therapeutics), the board fetched live (12 roles).
+
+  - domain: innodata.com
+    token: "innodata"
+    jobs_seen: 3
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Innodata), the board fetched live (3 roles).
+
 ashby:
   # monday.com's board token is its whole domain, dot included, which no
   # guess produces. Read off the careers page's embedded positions.
@@ -953,6 +1466,85 @@ ashby:
     jobs_seen: 4
     source: techaviv-board
     note: added 2026-09-19 from TechAviv's board (jobs.techaviv.com), the token read off the listing's own apply link and the board fetched live.
+
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: mistral.ai
+    token: "mistral.ai"
+    jobs_seen: 212
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Mistral AI), the board fetched live (212 roles).
+
+  - domain: checkout.com
+    token: "checkout.com"
+    jobs_seen: 163
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Checkout.com), the board fetched live (163 roles).
+
+  - domain: gendigital.com
+    token: "gen-digital"
+    jobs_seen: 117
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Gen Digital), the board fetched live (117 roles).
+
+  - domain: aurora.tech
+    token: "aurora-operations-inc"
+    jobs_seen: 97
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Aurora Innovation), the board fetched live (97 roles).
+
+  - domain: kraken.com
+    token: "kraken.com"
+    jobs_seen: 82
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kraken), the board fetched live (82 roles).
+
+  - domain: temporal.io
+    token: "temporal"
+    jobs_seen: 64
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Temporal), the board fetched live (64 roles).
+
+  - domain: hippocraticai.com
+    token: "Hippocratic AI"
+    jobs_seen: 50
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Hippocratic AI), the board fetched live (50 roles).
+
+  - domain: marqeta.com
+    token: "marqeta-inc"
+    jobs_seen: 47
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Marqeta), the board fetched live (47 roles).
+
+  - domain: hex.tech
+    token: "hex"
+    jobs_seen: 39
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Hex), the board fetched live (39 roles).
+
+  - domain: periodic.com
+    token: "periodic-labs"
+    jobs_seen: 34
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Periodic Labs), the board fetched live (34 roles).
+
+  - domain: surgehq.ai
+    token: "surge-ai"
+    jobs_seen: 28
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Surge AI), the board fetched live (28 roles).
+
+  - domain: absci.com
+    token: "absci"
+    jobs_seen: 7
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Absci), the board fetched live (7 roles).
+
+  - domain: tyra.bio
+    token: "tyrabiosciences"
+    jobs_seen: 1
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Tyra Biosciences), the board fetched live (1 roles).
 
 greenhouse:
   - domain: playtika.com
@@ -1065,6 +1657,457 @@ greenhouse:
     jobs_seen: 31
     source: careers-page
 
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: lucidmotors.com
+    token: "lucidmotors"
+    jobs_seen: 445
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Lucid Group), the board fetched live (445 roles).
+
+  - domain: stone.co
+    token: "stone"
+    jobs_seen: 360
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (StoneCo), the board fetched live (360 roles).
+
+  - domain: avepoint.com
+    token: "avepoint"
+    jobs_seen: 291
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (AvePoint), the board fetched live (291 roles).
+
+  - domain: revmed.com
+    token: "revolutionmedicines"
+    jobs_seen: 268
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Revolution Medicines), the board fetched live (268 roles).
+
+  - domain: roblox.com
+    token: "roblox"
+    jobs_seen: 262
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Roblox), the board fetched live (262 roles).
+
+  - domain: ast-science.com
+    token: "astspacemobile"
+    jobs_seen: 224
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (AST SpaceMobile), the board fetched live (224 roles).
+
+  - domain: imc.com
+    token: "imc"
+    jobs_seen: 175
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (IMC Trading), the board fetched live (175 roles).
+
+  - domain: optiver.com
+    token: "optiverus"
+    jobs_seen: 163
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Optiver), the board fetched live (163 roles).
+
+  - domain: hasbro.com
+    token: "hasbro"
+    jobs_seen: 116
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Hasbro), the board fetched live (116 roles).
+
+  - domain: kestramedical.com
+    token: "kestramedicaltechnologiesinc"
+    jobs_seen: 115
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kestra Medical Technologies), the board fetched live (115 roles).
+
+  - domain: jjsnack.com
+    token: "jjsnackfoods"
+    jobs_seen: 111
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (J & J Snack Foods), the board fetched live (111 roles).
+
+  - domain: jumptrading.com
+    token: "jumptrading"
+    jobs_seen: 108
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Jump Trading), the board fetched live (108 roles).
+
+  - domain: axsome.com
+    token: "axsometherapeutics"
+    jobs_seen: 94
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Axsome Therapeutics), the board fetched live (94 roles).
+
+  - domain: tower-research.com
+    token: "towerresearchcapital"
+    jobs_seen: 93
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Tower Research Capital), the board fetched live (93 roles).
+
+  - domain: alarm.com
+    token: "alarmcom"
+    jobs_seen: 89
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Alarm.com), the board fetched live (89 roles).
+
+  - domain: corcept.com
+    token: "corcepttherapeutics"
+    jobs_seen: 81
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Corcept Therapeutics), the board fetched live (81 roles).
+
+  - domain: smmttx.com
+    token: "summittherapeutics"
+    jobs_seen: 70
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Summit Therapeutics), the board fetched live (70 roles).
+
+  - domain: bridgebio.com
+    token: "bridgebio"
+    jobs_seen: 64
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (BridgeBio Pharma), the board fetched live (64 roles).
+
+  - domain: eplus.com
+    token: "eplusinc"
+    jobs_seen: 63
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (ePlus inc.), the board fetched live (63 roles).
+
+  - domain: atricure.com
+    token: "atricure"
+    jobs_seen: 60
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (AtriCure), the board fetched live (60 roles).
+
+  - domain: commvault.com
+    token: "commvault"
+    jobs_seen: 58
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Commvault Systems), the board fetched live (58 roles).
+
+  - domain: sofi.com
+    token: "sofi"
+    jobs_seen: 54
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (SoFi Technologies), the board fetched live (54 roles).
+
+  - domain: twistbioscience.com
+    token: "twistbioscience"
+    jobs_seen: 50
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Twist Bioscience), the board fetched live (50 roles).
+
+  - domain: ocadogroup.com
+    token: "ocadogroup"
+    jobs_seen: 48
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Ocado), the board fetched live (48 roles).
+
+  - domain: kiniksa.com
+    token: "kiniksapharmaceuticals"
+    jobs_seen: 47
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kiniksa Pharmaceuticals International), the board fetched live (47 roles).
+
+  - domain: beamtx.com
+    token: "beamtherapeutics"
+    jobs_seen: 45
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Beam Therapeutics), the board fetched live (45 roles).
+
+  - domain: cargurus.com
+    token: "cargurus"
+    jobs_seen: 44
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (CarGurus), the board fetched live (44 roles).
+
+  - domain: n26.com
+    token: "n26"
+    jobs_seen: 41
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (N26), the board fetched live (41 roles).
+
+  - domain: amylyx.com
+    token: "amylyx"
+    jobs_seen: 37
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Amylyx Pharmaceuticals), the board fetched live (37 roles).
+
+  - domain: axogeninc.com
+    token: "axogen"
+    jobs_seen: 36
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Axogen), the board fetched live (36 roles).
+
+  - domain: uniqure.com
+    token: "uniqurebiopharmabv"
+    jobs_seen: 35
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (uniQure N.V.), the board fetched live (35 roles).
+
+  - domain: abcellera.com
+    token: "abcellera"
+    jobs_seen: 34
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (AbCellera Biologics), the board fetched live (34 roles).
+
+  - domain: caredx.com
+    token: "caredxinc"
+    jobs_seen: 34
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (CareDx), the board fetched live (34 roles).
+
+  - domain: immunome.com
+    token: "immunomeinc"
+    jobs_seen: 31
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Immunome), the board fetched live (31 roles).
+
+  - domain: ncino.com
+    token: "ncinoinc"
+    jobs_seen: 30
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (nCino), the board fetched live (30 roles).
+
+  - domain: kardigan.bio
+    token: "kardigan"
+    jobs_seen: 30
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kardigan), the board fetched live (30 roles).
+
+  - domain: veracyte.com
+    token: "veracyte"
+    jobs_seen: 29
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Veracyte), the board fetched live (29 roles).
+
+  - domain: turing.com
+    token: "turing"
+    jobs_seen: 29
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Turing), the board fetched live (29 roles).
+
+  - domain: oldsecond.com
+    token: "oldsecondnationalbank"
+    jobs_seen: 27
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Old Second Bancorp), the board fetched live (27 roles).
+
+  - domain: kymeratx.com
+    token: "kymeratherapeutics"
+    jobs_seen: 24
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kymera Therapeutics), the board fetched live (24 roles).
+
+  - domain: adaptivebiotech.com
+    token: "adaptivebiotechnologies"
+    jobs_seen: 23
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Adaptive Biotechnologies), the board fetched live (23 roles).
+
+  - domain: alamarbio.com
+    token: "alamarbiosciences"
+    jobs_seen: 22
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Alamar Biosciences), the board fetched live (22 roles).
+
+  - domain: impinj.com
+    token: "impinjexternal"
+    jobs_seen: 21
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Impinj), the board fetched live (21 roles).
+
+  - domain: liftoff.io
+    token: "liftoff"
+    jobs_seen: 21
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Liftoff Mobile), the board fetched live (21 roles).
+
+  - domain: bandwidth.com
+    token: "bandwidth"
+    jobs_seen: 21
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Bandwidth), the board fetched live (21 roles).
+
+  - domain: ocutx.com
+    token: "oculartherapeutix"
+    jobs_seen: 21
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Ocular Therapeutix), the board fetched live (21 roles).
+
+  - domain: fanatics.com
+    token: "fanaticsinc"
+    jobs_seen: 21
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Fanatics), the board fetched live (21 roles).
+
+  - domain: genedx.com
+    token: "genedx"
+    jobs_seen: 19
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (GeneDx), the board fetched live (19 roles).
+
+  - domain: kailera.com
+    token: "kailera"
+    jobs_seen: 19
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Kailera Therapeutics), the board fetched live (19 roles).
+
+  - domain: vir.bio
+    token: "virbiotechnologyinc"
+    jobs_seen: 18
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Vir Biotechnology), the board fetched live (18 roles).
+
+  - domain: orukatx.com
+    token: "oruka"
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Oruka Therapeutics), the board fetched live (17 roles).
+
+  - domain: mazetx.com
+    token: "mazetherapeutics"
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Maze Therapeutics), the board fetched live (17 roles).
+
+  - domain: rapportrx.com
+    token: "rapporttherapeutics"
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Rapport Therapeutics), the board fetched live (17 roles).
+
+  - domain: shein.com
+    token: "shein"
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Shein), the board fetched live (17 roles).
+
+  - domain: surgerypartners.com
+    token: "surgerypartners"
+    jobs_seen: 17
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Surgery Partners), the board fetched live (17 roles).
+
+  - domain: personalis.com
+    token: "personalisinc"
+    jobs_seen: 16
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Personalis), the board fetched live (16 roles).
+
+  - domain: stoketherapeutics.com
+    token: "stoketherapeutics"
+    jobs_seen: 15
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Stoke Therapeutics), the board fetched live (15 roles).
+
+  - domain: cogentbio.com
+    token: "cogentbiosciences"
+    jobs_seen: 14
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Cogent Biosciences), the board fetched live (14 roles).
+
+  - domain: edgewisetx.com
+    token: "edgewisetherapeutics"
+    jobs_seen: 14
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Edgewise Therapeutics), the board fetched live (14 roles).
+
+  - domain: discmedicine.com
+    token: "discmedicine"
+    jobs_seen: 14
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Disc Medicine), the board fetched live (14 roles).
+
+  - domain: syndax.com
+    token: "syndaxpharmaceuticals"
+    jobs_seen: 14
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Syndax Pharmaceuticals), the board fetched live (14 roles).
+
+  - domain: relaytx.com
+    token: "relaytherapeutics"
+    jobs_seen: 13
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Relay Therapeutics), the board fetched live (13 roles).
+
+  - domain: mbxbio.com
+    token: "mbxbiosciences"
+    jobs_seen: 12
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (MBX Biosciences), the board fetched live (12 roles).
+
+  - domain: maravai.com
+    token: "maravailifesciences"
+    jobs_seen: 12
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Maravai LifeSciences), the board fetched live (12 roles).
+
+  - domain: agilysys.com
+    token: "agilysys"
+    jobs_seen: 11
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Agilysys), the board fetched live (11 roles).
+
+  - domain: roivant.com
+    token: "roivantsciences"
+    jobs_seen: 10
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Roivant Sciences), the board fetched live (10 roles).
+
+  - domain: zenasbio.com
+    token: "zenasbio"
+    jobs_seen: 10
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Zenas BioPharma), the board fetched live (10 roles).
+
+  - domain: thevitacocacompany.com
+    token: "thevitacococompany"
+    jobs_seen: 8
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (The Vita Coco Company), the board fetched live (8 roles).
+
+  - domain: veratx.com
+    token: "veratherapeuticsinc"
+    jobs_seen: 7
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Vera Therapeutics), the board fetched live (7 roles).
+
+  - domain: dianthustx.com
+    token: "dianthustherapeutics"
+    jobs_seen: 6
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Dianthus Therapeutics), the board fetched live (6 roles).
+
+  - domain: immunovant.com
+    token: "imvtcorporation"
+    jobs_seen: 5
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Immunovant), the board fetched live (5 roles).
+
+  - domain: fervoenergy.com
+    token: "fervoenergy"
+    jobs_seen: 5
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Fervo Energy Company), the board fetched live (5 roles).
+
+  - domain: ciphermining.com
+    token: "cipherminingtechnologiesinc"
+    jobs_seen: 4
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Cipher Digital), the board fetched live (4 roles).
+
+  - domain: orca.security
+    token: "orcasecurity"
+    jobs_seen: 10
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research, the board fetched live (10 roles).
+
+  - domain: kodiak.ai
+    token: "kodiak"
+    jobs_seen: 0
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research, the board fetched live (0 roles).
+
 smartrecruiters:
   # Boards whose token is not the domain: SmartRecruiters names Wix's board Wix2.
   - domain: wix.com
@@ -1078,6 +2121,31 @@ smartrecruiters:
     jobs_seen: 301
     source: hand-verified
     note: added 2026-09-30, the board fetched live (301 roles).
+
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: wise.com
+    token: "wise"
+    jobs_seen: 401
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Wise Group), the board fetched live (401 roles).
+
+  - domain: wynnresorts.com
+    token: "wynnresorts"
+    jobs_seen: 138
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Wynn Resorts Limited), the board fetched live (138 roles).
+
+  - domain: flywire.com
+    token: "flywire1"
+    jobs_seen: 46
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Flywire), the board fetched live (46 roles).
+
+  - domain: oricpharma.com
+    token: "oricpharmaceuticals"
+    jobs_seen: 5
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Oric Pharmaceuticals), the board fetched live (5 roles).
 
 bamboohr:
   # BambooHR careers pages, keyed on the subdomain.
@@ -1093,6 +2161,13 @@ bamboohr:
     source: techaviv-board
     note: added 2026-09-19 from TechAviv's board (jobs.techaviv.com), the token read off the listing's own apply link and the board fetched live.
 
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: lbpharma.us
+    token: "lbpharmaceuticals"
+    jobs_seen: 3
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (LB Pharmaceuticals), the board fetched live (3 roles).
+
 jazzhr:
   # JazzHR boards, keyed on the applytojob.com subdomain.
   - domain: verbit.ai
@@ -1106,3 +2181,38 @@ jazzhr:
     jobs_seen: 2
     source: techaviv-board
     note: added 2026-09-19 from TechAviv's board (jobs.techaviv.com), the token read off the listing's own apply link and the board fetched live.
+
+teamtailor:
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: pasqal.com
+    token: "pasqal"
+    jobs_seen: 37
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Pasqal Holding SA), the board fetched live (37 roles).
+
+  - domain: opera.com
+    token: "operanorway"
+    jobs_seen: 7
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Opera Limited American Depositary Shares), the board fetched live (7 roles).
+
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: ouster.com
+    token: "ouster"
+    jobs_seen: 23
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Ouster), the board fetched live (23 roles).
+
+  - domain: tayshagtx.com
+    token: "tayshagenetherapies"
+    jobs_seen: 1
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Taysha Gene Therapies), the board fetched live (1 roles).
+
+breezy:
+  # Gap research 2026-10-09: companies missing from the board, each board fetched live.
+  - domain: tmtgcorp.com
+    token: "tmtg"
+    jobs_seen: 3
+    source: hand-verified
+    note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Trump Media & Technology Group), the board fetched live (3 roles).
