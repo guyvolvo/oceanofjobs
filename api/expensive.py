@@ -24,8 +24,8 @@ import time
 from contextlib import contextmanager
 
 KINDS = {
-    "search": "/api/jobs with search or keywords: the full-text index",
-    "live_aggregate": "/api/facets and /api/stats computed live, past the artifact and the worker cache",
+    "search": "/api/jobs with search or keywords (the full-text index), or sorted on a column with no index",
+    "live_aggregate": "/api/facets, /api/stats and the skill counts and history computed live, past the artifact and the worker cache",
     "directory": "/api/companies/directory past its cache, /api/companies/search",
     "company_page": "/company/<domain>: a company can have 26,000 rows",
 }

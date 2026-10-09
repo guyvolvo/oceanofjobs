@@ -86,8 +86,14 @@ def evaluate_alerts(jobs_db_path: Path) -> dict:
                 continue
             update = "SET last_notified_at = :t"
             if matches:
-                _send_digest(alert, matches)
-                sent += 1
+                try:
+                    _send_digest(alert, matches)
+                    sent += 1
+                except _ses.exceptions.MessageRejected as e:
+                    # SES refuses this address on every pass (the sandbox
+                    # takes verified ones only), so the digest is dropped and
+                    # the watermark moves, or it is retried forever.
+                    errors.append(f"{alert['user_id']}/{alert['alert_id']}: {e}")
                 update += ", last_digest_at = :t"
             table.update_item(
                 Key={"user_id": alert["user_id"], "alert_id": alert["alert_id"]},

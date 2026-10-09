@@ -151,6 +151,9 @@ class FakeTable:
     def put_item(self, Item):
         self.items.append(Item)
 
+    def query(self, **kw):
+        return {"Items": list(self.items)}
+
 
 handler._alerts_table = FakeTable()
 try:
@@ -162,6 +165,15 @@ except ValueError as e:
 item = handler.route_create_alert({"sub": "u1", "email": "me@example.com", "email_verified": "true"},
                                   {"filter": {"search": "python"}})
 check("an alert for a confirmed address is created", item["email"] == "me@example.com" and len(handler._alerts_table.items) == 1)
+handler._alerts_table.items += [{"user_id": "u1", "alert_id": "#profile"}, {"user_id": "u1", "alert_id": "#saved#abc"}]
+for _ in range(4):
+    handler.route_create_alert({"sub": "u1", "email": "me@example.com", "email_verified": "true"}, {"filter": {}})
+try:
+    handler.route_create_alert({"sub": "u1", "email": "me@example.com", "email_verified": "true"}, {"filter": {}})
+    check("a sixth alert is refused", False, "it was created")
+except ValueError as e:
+    check("a sixth alert is refused, and the profile and saved jobs do not count toward five",
+          "up to 5" in str(e) and len(handler._alerts_table.items) == 7, str(e))
 
 print()
 if failures:

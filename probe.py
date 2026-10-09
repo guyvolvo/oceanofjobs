@@ -1358,7 +1358,11 @@ def f_smartrecruiters(sess, token):
     # trusted as a real hit. Treating it as a match would resolve every
     # unmatched domain in a batch to smartrecruiters, overwriting real
     # MISSes. Costs a rare false negative (a real customer with 0 open
-    # roles) to avoid a guaranteed false positive.
+    # roles) to avoid a guaranteed false positive. Only while guessing: a
+    # known board re-polled empty has closed its last role, and None
+    # there would keep every listing open forever.
+    if not d["content"] and not getattr(_cond, "guessing", False):
+        return []
     if not d["content"]:
         if VERBOSE:
             print(f"    [f_smartrecruiters] {token} -> 200 empty content, treating as no-match",
@@ -2305,6 +2309,10 @@ def f_microsoft(sess, token, known_ids=None, detail_budget=None):
     if first is None:
         return None
     count = int(first.get("count") or 0)
+    # Rows but no total means the field moved: reading page 1 alone would
+    # close every role past it.
+    if not count and first["positions"]:
+        return None
     rest = _fetch_all(search, list(range(_MICROSOFT_PAGE, count, _MICROSOFT_PAGE)))
     if rest is None:
         return None
@@ -2391,6 +2399,8 @@ def f_google(sess, token, known_ids=None, description_budget=None):
     if first is None:
         return None
     total = first[2] if len(first) > 2 and isinstance(first[2], int) else 0
+    if not total and first[0]:
+        return None  # rows but no total: see f_microsoft
     pages = min(-(-total // _GOOGLE_PAGE), 500)
     rest = _fetch_all(page, list(range(2, pages + 1)))
     if rest is None:
@@ -2507,6 +2517,8 @@ def f_apple(sess, token, known_ids=None, detail_budget=None):
     if first is None:
         return None
     total = int(first.get("totalRecords") or 0)
+    if not total and first["searchResults"]:
+        return None  # rows but no total: see f_microsoft
     pages = min(-(-total // _APPLE_PAGE), 500)
     rest = _fetch_all(search, list(range(2, pages + 1)))
     if rest is None:
@@ -3785,8 +3797,8 @@ def _workday_list(
 ) -> tuple[int | None, list[dict]]:
     """Every posting up to max_jobs. Page 1 gives the total, so the rest
     of the offsets are known up front and fetched together. (None, [])
-    when page 1 fails; a later page that fails just leaves a gap, and
-    what did come back is kept."""
+    when any page still fails after retries, since a gap would close
+    every job on the missing page (see _fetch_all)."""
     if page1 is None:
         page1 = workday_page1(sess, tenant, wd, site, facets)
     if page1 is None:
@@ -3796,17 +3808,18 @@ def _workday_list(
     postings = list(page1["postings"])
     offsets = list(range(WORKDAY_PAGE_SIZE, min(total, max_jobs), WORKDAY_PAGE_SIZE))
 
-    def fetch(offset: int) -> list[dict]:
+    def fetch(offset: int) -> list[dict] | None:
         d = get_json_post(
             sess, f"{api_base}/jobs",
             {"appliedFacets": facets or {}, "limit": WORKDAY_PAGE_SIZE, "offset": offset, "searchText": ""},
         )
-        return (d.get("jobPostings") or []) if isinstance(d, dict) else []
+        return (d.get("jobPostings") or []) if isinstance(d, dict) else None
 
-    if offsets:
-        with ThreadPoolExecutor(max_workers=min(WORKDAY_PAGE_WORKERS, len(offsets))) as pool:
-            for page in pool.map(fetch, offsets):
-                postings.extend(page)
+    pages = _fetch_all(fetch, offsets, workers=min(WORKDAY_PAGE_WORKERS, len(offsets) or 1))
+    if pages is None:
+        return None, []
+    for page in pages:
+        postings.extend(page)
     return total, postings
 
 
@@ -3852,7 +3865,9 @@ def f_workday(
     if total is None:
         return None
     if israel_facets and total > max_jobs:
-        _, il_postings = _workday_list(sess, tenant, wd, site, israel_facets, WORKDAY_MAX_JOBS)
+        il_total, il_postings = _workday_list(sess, tenant, wd, site, israel_facets, WORKDAY_MAX_JOBS)
+        if il_total is None:
+            return None
         seen = {p.get("externalPath") for p in postings}
         postings.extend(p for p in il_postings if p.get("externalPath") not in seen)
     # Per-job detail fetches (see _workday_job_detail: multi-location

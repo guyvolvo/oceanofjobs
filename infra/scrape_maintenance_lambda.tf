@@ -277,6 +277,9 @@ resource "aws_cloudwatch_event_rule" "scrape_maintenance_schedule" {
   # could see it. Cost is ~85,000 GB-s/month at this cadence, inside the
   # free tier.
   schedule_expression = "rate(5 minutes)"
+  # Off since the box became the only applier (box/CUTOVER.md step 1).
+  # Left unset, the next apply would turn it back on and run two appliers.
+  state = "DISABLED"
 }
 
 resource "aws_cloudwatch_event_target" "scrape_maintenance_schedule" {

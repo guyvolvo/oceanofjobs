@@ -28,6 +28,7 @@ from handler import lambda_handler
 
 COGNITO_ISSUER = os.environ.get("COGNITO_ISSUER", "")
 COGNITO_AUDIENCE = os.environ.get("COGNITO_AUDIENCE", "")
+MAX_BODY = 64 * 1024
 
 _jwks = None
 
@@ -90,6 +91,15 @@ def _event(environ: dict) -> dict:
 
 
 def app(environ, start_response):
+    # Every real body is a small JSON form; _event reads the whole thing
+    # into memory, and nothing upstream caps it below Cloudflare's 100MB.
+    try:
+        too_big = int(environ.get("CONTENT_LENGTH") or 0) > MAX_BODY
+    except ValueError:
+        too_big = False
+    if too_big:
+        start_response("413 Content Too Large", [("Content-Type", "application/json")])
+        return [b'{"error": "request body too large"}']
     event = _event(environ)
     path = event["rawPath"]
     if path.startswith("/api/me/") and "authorizer" not in event["requestContext"]:

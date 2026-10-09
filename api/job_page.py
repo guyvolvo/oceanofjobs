@@ -383,7 +383,8 @@ def render(job, now=None, extra=None) -> str:
     if not description:
         description = '<p class="pg-muted">No description was provided by this listing. The apply link has the full posting.</p>'
 
-    apply_url = esc(job.get("url") or "#")
+    # Scraped, so only http(s): a javascript: link would run on this page.
+    apply_url = esc(job.get("url")) if re.match(r"https?://", job.get("url") or "", re.I) else "#"
     apply_label = f"Apply on {esc(company)} <span aria-hidden=\"true\">↗</span>"
     if open_:
         notice = ""

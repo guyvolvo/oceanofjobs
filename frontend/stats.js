@@ -133,6 +133,7 @@ const fmtNum = (v) => (typeof v !== "number" ? String(v ?? "") : Number.isIntege
 
 let worker = null;
 let running = false;
+let rerun = false;
 let mode = "builder";
 let viz = "auto";                // "auto" until someone picks a view
 let state = QB.defaultState();
@@ -593,7 +594,10 @@ function resultContext() {
 
 // Running and rendering.
 async function run() {
-  if (!worker || running) return;
+  if (!worker) return;
+  // A change made while a query runs is run after it, not dropped, or the
+  // chips would show the new filter over the old chart.
+  if (running) { rerun = true; return; }
   if (mode === "builder") syncSqlFromBuilder();
   const sql = $("explore-sql").value.trim();
   if (!sql) return;
@@ -641,6 +645,7 @@ async function run() {
   } finally {
     running = false;
     document.body.classList.remove("explore-busy");
+    if (rerun) { rerun = false; run(); }
   }
 }
 

@@ -151,7 +151,10 @@ def _parse(ts):
 
 
 def load(bucket, s3, dynamo_table="", key=KEY):
-    """(state, etag). Empty state on anything unreadable.
+    """(state, etag). Empty state when there is no object yet, or it is
+    unreadable. Any other S3 error raises: a throttle read as "no state"
+    would drop every validator and refetch every board in full, so the
+    sweep fails instead and the next one tries again.
 
     dynamo_table is a migration path and nothing more. The first run
     after this ships finds no S3 object, and starting from nothing would
@@ -165,8 +168,9 @@ def load(bucket, s3, dynamo_table="", key=KEY):
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
         return json.loads(gzip.decompress(obj["Body"].read())), obj["ETag"]
-    except Exception:
-        pass
+    except Exception as e:
+        if "NoSuchKey" not in str(e) and not isinstance(e, (OSError, ValueError, EOFError)):
+            raise
     if dynamo_table:
         seeded = _seed_from_dynamo(dynamo_table)
         if seeded:

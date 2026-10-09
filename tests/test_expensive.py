@@ -111,8 +111,11 @@ def call(path, query=""):
 KNOWN_EXPENSIVE = [
     ("/api/jobs", "search=python"),
     ("/api/jobs", "keywords=python"),
+    ("/api/jobs", "sort=title"),
     ("/api/facets", "confidence=all&department=Software%20Engineering"),
     ("/api/stats", "country=IL"),
+    ("/api/jobs/skill_counts", "skills=python"),
+    ("/api/jobs/history", "skills=python"),
     ("/api/companies/directory", ""),
     ("/api/companies/search", "q=wi"),
     ("/company/wix.com", ""),

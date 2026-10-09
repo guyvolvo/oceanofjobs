@@ -33,10 +33,12 @@ import boto3
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "loader"))
 
-from deltas import PREFIX  # noqa: E402
+from deltas import PREFIX, delete_fragments  # noqa: E402
 
 DB = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db"))
 BUCKET = os.environ["DATA_BUCKET"]
+# The box is the only applier (see shadow_apply.py), so it owns deletion.
+PRIMARY = os.environ.get("OTJ_PRIMARY") == "1"
 SPOOL = DB.parent / "deltas"
 # Keys this box has already taken a copy of, whether or not that copy
 # has been applied and deleted since. Without it, every fetch would
@@ -82,6 +84,15 @@ def main() -> int:
         token = page.get("NextContinuationToken")
         if not page.get("IsTruncated"):
             break
+
+    if PRIMARY:
+        # Taken and no longer spooled means applied, set aside as .bad, or
+        # held nothing; any of those whose S3 delete failed would otherwise
+        # sit in the bucket forever, since a known key is never fetched again.
+        spooled = {p.name for p in SPOOL.glob("*.json")}
+        stale = [k for k in keys if k in known and k[len(PREFIX):] not in spooled]
+        if stale:
+            print(f"cleared {delete_fragments(BUCKET, stale)} of {len(stale)} leftover fragments")
 
     wanted = sorted(k for k in keys if k not in known)
     if not wanted:

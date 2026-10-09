@@ -106,6 +106,22 @@ jobs = probe.f_workday(sess, "acme", "wd1", "External", page1=p1, known_external
 check("a page 1 already in hand is not fetched again, and known jobs skip the detail fetch",
       [c[2] for c in sess.calls if c[0] == "POST"] == [20, 40] and not [c for c in sess.calls if c[0] == "GET"], repr(sess.calls))
 
+class FlakySess(Sess):
+    """Page two always fails, the way a 429 or a timeout does."""
+
+    def post(self, url, json=None, **kw):
+        if json.get("offset") == 20:
+            return Resp(500, {})
+        return super().post(url, json=json, **kw)
+
+
+sleep, probe.time.sleep = probe.time.sleep, lambda s: None
+try:
+    check("a page that still fails after retries fails the read, rather than closing its twenty jobs",
+          probe.f_workday(FlakySess(postings), "acme", "wd1", "External", known_external_ids=set()) is None)
+finally:
+    probe.time.sleep = sleep
+
 sess = Sess(postings)
 jobs = probe.f_workday(sess, "acme", "wd1", "External", known_external_ids={"R0000", "R0001"}, describe_budget=10)
 described = [j for j in jobs if j.description]

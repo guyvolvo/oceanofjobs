@@ -9,6 +9,7 @@
 
 const API_BASE = "/api";
 const STAR_KEY = "iljobs_starred";
+const SAVED_MERGED_KEY = "iljobs_saved_merged"; // cleared at sign-out, see syncSavedFromServer
 const PAGE_SIZE = 50;
 
 // Fixed vocabulary. Matches probe.py's _classify_seniority/Job.seniority
@@ -210,17 +211,32 @@ async function syncSavedFromServer() {
   // first, which keeps the array's tail the recent end. Nothing reads
   // this order except the 200-id cap in renderStarredOnly.
   const remote = (data?.saved || []).map((r) => r.job_id).reverse();
+  const remoteSet = new Set(remote);
+  // The union is for the first sync after sign-in only. After that every
+  // star goes through pushStar, so the server is the truth, and a union
+  // would bring back a job unstarred on another device.
+  let merged = false;
+  try { merged = localStorage.getItem(SAVED_MERGED_KEY) === "1"; } catch {}
+  if (merged) {
+    const same = remoteSet.size === local.size && remote.every((id) => local.has(id));
+    if (same) return;
+    setStarred(remoteSet);
+    if (state.starred_only) loadJobs();
+    document.querySelectorAll(".star-btn").forEach((btn) => paintStar(btn.dataset.star, remoteSet));
+    if (selectedJobId) paintStar(selectedJobId, remoteSet);
+    return;
+  }
   const union = new Set([...local, ...remote]);
   if (union.size !== local.size) setStarred(union);
 
   // Local-only ids go up so both sides end up holding the same set.
   // Not pushStar, because a failure here must not roll back a star the
   // reader set before they ever signed in. The next boot tries again.
-  const remoteSet = new Set(remote);
-  for (const id of local) {
-    if (remoteSet.has(id)) continue;
-    authedFetch(`/me/saved/${encodeURIComponent(id)}`, { method: "PUT" }).catch(() => {});
-  }
+  const pushes = [...local].filter((id) => !remoteSet.has(id))
+    .map((id) => authedFetch(`/me/saved/${encodeURIComponent(id)}`, { method: "PUT" }));
+  Promise.all(pushes).then(() => {
+    try { localStorage.setItem(SAVED_MERGED_KEY, "1"); } catch {}
+  }, () => {});
 
   if (union.size === local.size) return;
   if (state.starred_only) {
@@ -398,6 +414,12 @@ function escapeHtml(s) {
   return (s ?? "").replace(/[&<>"']/g, (c) => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
   ));
+}
+
+// A scraped apply link, escaped for an href, or "#" unless it is http(s):
+// a javascript: link would run here, where the sign-in tokens live.
+function safeHref(url) {
+  return /^https?:\/\//i.test(url || "") ? escapeHtml(url) : "#";
 }
 
 function debounce(fn, ms) {
@@ -1558,6 +1580,7 @@ function applyStateToFilterUI() {
 // fast (the EventBridge-scheduled scrape-fast Lambda re-polls every 5
 // min, most visits land well inside that window).
 const JOBS_CACHE_PREFIX = "iljobs_jobs_cache:";
+const JOBS_CACHE_MAX = 8;
 
 function getCachedJobs(params) {
   try {
@@ -1584,6 +1607,11 @@ function setCachedJobs(params, data) {
     // A genuine no-match is cheap to re-ask for and must not be able to
     // survive as a false "the board is empty" on the next visit.
     if (!data || !Array.isArray(data.jobs) || !data.jobs.length) return;
+    // A page is about 70KB and the quota about 5MB, shared with the sign-in
+    // tokens, which fail to save once it is full. So only a few are kept.
+    const others = Object.keys(localStorage)
+      .filter((k) => k.startsWith(JOBS_CACHE_PREFIX) && k !== JOBS_CACHE_PREFIX + params);
+    if (others.length >= JOBS_CACHE_MAX) others.forEach((k) => localStorage.removeItem(k));
     localStorage.setItem(JOBS_CACHE_PREFIX + params, JSON.stringify(data));
   } catch {
     // Full quota or unavailable (private browsing) -- this is a pure UX
@@ -2615,7 +2643,7 @@ function jobRowsHtml(jobs, starred) {
           <div class="job-where">${jobWhereLine(j)}</div>
           <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail">${fmtAgeAgo(age)}</span></div>
           <div class="job-links">
-            <a class="apply-link" href="${escapeHtml(j.url || "#")}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
+            <a class="apply-link" href="${safeHref(j.url)}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
             <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy link</button>
           </div>
           <div class="job-salary-line">${jobSalaryLine(j)}</div>
@@ -2747,7 +2775,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
       job.closed_at ? ' <span class="badge closed">Closed</span>' : ""}</h2>
 
     <div class="job-detail-actions">
-      <a class="job-detail-apply" href="${escapeHtml(job.url || "#")}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
+      <a class="job-detail-apply" href="${safeHref(job.url)}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
       <button type="button" class="job-detail-star ${starred ? "on" : ""}" data-star="${job.id}" aria-pressed="${starred}">${STAR_SVG}<span>${starred ? "Saved" : "Save"}</span></button>
       <button type="button" class="link job-detail-permalink" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}" title="Copy a link to this listing">Copy link</button>
     </div>
@@ -2766,7 +2794,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
 
     <!-- The description here is a copy, and an old one by the time
          anybody reads it. This is the version that is actually true. -->
-    <a class="job-detail-source" href="${escapeHtml(job.url || "#")}" target="_blank" rel="noopener">View original posting ${EXTERNAL_ARROW_SVG}</a>`;
+    <a class="job-detail-source" href="${safeHref(job.url)}" target="_blank" rel="noopener">View original posting ${EXTERNAL_ARROW_SVG}</a>`;
 }
 
 // The empty state
@@ -3333,7 +3361,7 @@ function wireStickyActions(job) {
             aria-pressed="${starred}" aria-label="${starred ? "Saved" : "Save"}">${STAR_SVG}</button>
     <button type="button" class="pane-act" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}"
             aria-label="Copy a link to this listing"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 5.5v-1a1.5 1.5 0 0 0-1.5-1.5H4a1.5 1.5 0 0 0-1.5 1.5v5A1.5 1.5 0 0 0 4 11h1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
-    <a class="job-detail-apply pane-apply" href="${escapeHtml(job.url || "#")}" target="_blank" rel="noopener">Apply on ${escapeHtml(companyLabel(job))} ${EXTERNAL_ARROW_SVG}</a>`;
+    <a class="job-detail-apply pane-apply" href="${safeHref(job.url)}" target="_blank" rel="noopener">Apply on ${escapeHtml(companyLabel(job))} ${EXTERNAL_ARROW_SVG}</a>`;
   const copy = bar.querySelector("[data-copy-permalink]");
   if (copy) copy.addEventListener("click", () => copyToClipboard(copy, copy.dataset.copyPermalink));
   bar.querySelector("[data-star]").addEventListener("click", (e) => {
@@ -6253,16 +6281,12 @@ async function ensureFreshTokens() {
     setAuthTokens(refreshed);
     return refreshed;
   } catch (err) {
-    // A refresh Cognito actively refused is a dead session and the
-    // reader has to sign in again. A timeout or a dropped connection is
-    // not, and signing someone out because their train went into a
-    // tunnel throws away a session that was still good. Fail this one
-    // request instead and leave the tokens where they are.
-    // TimeoutError is what AbortSignal.timeout aborts with; AbortError
-    // is the AbortController fallback; TypeError is fetch's own network
-    // failure.
-    const transient = err && ["TimeoutError", "AbortError", "TypeError"].includes(err.name);
-    if (transient) {
+    // Only a refresh token Cognito refuses is a dead session, and the
+    // reader has to sign in again. Anything else (a timeout, a dropped
+    // connection, a throttle, a Cognito 5xx, a full localStorage) is not,
+    // and signing out would revoke a session that was still good. Fail
+    // this one request instead and leave the tokens where they are.
+    if (!String((err && err.code) || "").endsWith("NotAuthorizedException")) {
       throw new Error("Could not reach the sign-in service");
     }
     signOut();

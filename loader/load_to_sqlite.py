@@ -98,6 +98,12 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def http_url(url) -> str | None:
+    """The apply link, or None unless it is http(s). A scraped page picks
+    it, and a javascript: or data: link would run on this site's pages."""
+    return url if isinstance(url, str) and url[:8].lower().startswith(("http://", "https://")) else None
+
+
 def job_id(domain: str, ats: str, external_id: str | None, url: str | None, title: str) -> str:
     """Stable id for a job row. Prefers external_id (ATS-assigned) over url
     (can pick up tracking params) over title (last resort).
@@ -969,7 +975,7 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
             raw_json = NULL
         """,
         (jid, domain, j.get("ats"), j.get("external_id"), j.get("title") or "",
-         j.get("location"), j.get("department"), j.get("url"),
+         j.get("location"), j.get("department"), http_url(j.get("url")),
          # Comeet's own time_updated is not a creation date (see the CASE
          # above) -- on a genuine first insert (posted_at IS NULL, so the
          # CASE takes this branch) use this run's own timestamp instead,

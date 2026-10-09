@@ -141,6 +141,7 @@ function forgetLocalReaderData() {
   // this sweeps rather than deletes by name.
   try {
     localStorage.removeItem("iljobs_starred");
+    localStorage.removeItem("iljobs_saved_merged");
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith("iljobs_jobs_cache")) localStorage.removeItem(key);
     }
@@ -298,7 +299,11 @@ async function cognitoRequest(target, body) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || data.__type || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.message || data.__type || `HTTP ${res.status}`);
+    err.code = data.__type;
+    throw err;
+  }
   return data;
 }
 

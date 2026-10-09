@@ -199,6 +199,16 @@ check("lever: a hit on the US host asks nothing more", len(urls) == 1, repr(urls
 MS_WORLD = [dict(MS_ROWS[0]), dict(MS_ROWS[1])]
 
 
+# A total that moved or vanished reads as zero pages past the first, and
+# reading page 1 alone would close every role on the others.
+jobs, _ = with_get_json(lambda u: {"data": {"positions": MS_ROWS}}, lambda: probe.f_microsoft(None, "ISR"))
+check("microsoft: rows with no count are a failed read, not a one-page board", jobs is None)
+check("google: rows with no total are a failed read",
+      probe.f_google(Sess(gets=[g_page([g_row("11", "Role", [IL1])], None)]), "ISR") is None)
+check("apple: rows with no totalRecords are a failed read",
+      probe.f_apple(Sess(gets=[csrf], posts=[Resp(200, body={"res": {"searchResults": A_ROWS}})]), "ISR") is None)
+
+
 def ms_world(url):
     if "position_details" in url:
         return {"data": {"jobDescription": "<p>Kubernetes</p>"}}

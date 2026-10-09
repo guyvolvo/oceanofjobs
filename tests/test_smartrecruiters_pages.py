@@ -57,7 +57,14 @@ try:
     probe.get_json, urls = board(250, fail_offsets={200})
     check("a page that never answers makes the whole read fail rather than close its roles",
           probe.f_smartrecruiters(None, "Ubisoft2") is None)
+
+    probe.get_json, urls = board(0)
+    check("a known board re-polled empty says zero, so its last roles close",
+          probe.f_smartrecruiters(None, "Ubisoft2") == [])
+    probe._cond.guessing = True
+    check("an empty board while guessing is still no match", probe.f_smartrecruiters(None, "anyslug") is None)
 finally:
+    probe._cond.guessing = False
     probe.get_json = orig
 
 print()

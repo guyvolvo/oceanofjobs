@@ -204,6 +204,18 @@ check("a missing object with no fallback loads empty",
 check("and no bucket at all is a no-op",
       scrape_state.load("", FakeS3()) == ({}, None))
 
+
+class ThrottledS3(FakeS3):
+    def get_object(self, Bucket, Key):
+        raise RuntimeError("An error occurred (SlowDown) when calling the GetObject operation")
+
+
+try:
+    scrape_state.load("b", ThrottledS3())
+    check("a throttled read raises rather than starting every board from nothing", False, "it returned")
+except RuntimeError:
+    check("a throttled read raises rather than starting every board from nothing", True)
+
 print()
 if failures:
     print("%d failed:" % len(failures))

@@ -404,7 +404,9 @@ def lambda_handler(event, context):
             # copy is an hour of documenting an API that has moved.
             return _response(200, json.dumps(openapi_spec()), cache_seconds=300)
         if path == "/jobs":
-            if (params.get("search") or "").strip() or (params.get("keywords") or "").strip():
+            # A sort on a column with no index is a full pass, like a search.
+            if ((params.get("search") or "").strip() or (params.get("keywords") or "").strip()
+                    or params.get("sort") in ("company", "title", "location", "ats")):
                 with expensive.guard("search"):
                     return _response(200, json.dumps(route_jobs(params), default=str), cache_seconds=60)
             return _response(200, json.dumps(route_jobs(params), default=str), cache_seconds=60)
@@ -486,10 +488,12 @@ def lambda_handler(event, context):
         if path == "/pipeline-status":
             return _response(200, json.dumps(route_pipeline_status(), default=str))
         if path == "/geo":
-            # No cache_seconds, deliberately: the answer is per-viewer,
-            # and CloudFront's own /api/geo behavior disables caching
-            # for the same reason (infra/cloudfront.tf).
-            return _response(200, json.dumps(route_geo(event)))
+            # Per-viewer, so never cached. CloudFront's /api/geo behavior
+            # does not cache it, but the Cloudflare Worker caches any GET
+            # with no Authorization header unless the origin says no-store.
+            resp = _response(200, json.dumps(route_geo(event)))
+            resp["headers"]["Cache-Control"] = "no-store"
+            return resp
         if path == "/me/profile":
             claims = _authenticated_claims(event)
             if method == "GET":
@@ -839,7 +843,7 @@ def _route_jobs(conn, params: dict) -> dict:
     order_sql = f"{order_sql}, id DESC"
 
     limit = _int_param(params, "limit", default=100, lo=1, hi=500)
-    offset = _int_param(params, "offset", default=0, lo=0, hi=10_000_000)
+    offset = _int_param(params, "offset", default=0, lo=0, hi=10_000)
 
     # The count runs the whole WHERE a second time, and for a search that
     # WHERE is the expensive part: four substring scans over every row.
@@ -1930,6 +1934,9 @@ def email_is_verified(claims: dict) -> bool:
     return bool(isinstance(ids, list) and ids and isinstance(ids[0], dict) and ids[0].get("providerName"))
 
 
+MAX_ALERTS = 5
+
+
 def route_create_alert(claims: dict, body: dict) -> dict:
     filter_params = body.get("filter")
     if not isinstance(filter_params, dict):
@@ -1942,6 +1949,10 @@ def route_create_alert(claims: dict, body: dict) -> dict:
         raise ValueError("account has no email on file")
     if not email_is_verified(claims):
         raise ValueError("confirm your email address before creating an alert")
+    # Each alert is a query on every evaluation pass, for everyone.
+    # shortcut: two creates at once can both pass this count; fine at this size.
+    if len(route_list_alerts(claims["sub"])["alerts"]) >= MAX_ALERTS:
+        raise ValueError(f"you can have up to {MAX_ALERTS} alerts; delete one to add another")
 
     now = datetime.now(timezone.utc).isoformat()
     item = {

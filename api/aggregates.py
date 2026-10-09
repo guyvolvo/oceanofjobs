@@ -102,24 +102,28 @@ def skills_history(conn, params: dict, days: int = 90) -> dict:
     # One pass: every matching row that was open at any point in the
     # window, with the two dates, aggregated here. Three separate
     # GROUP BYs each scanned the table; this scans it once.
+    from expensive import guard
     baseline, seen, closed = 0, {}, {}
-    for first, last in conn.execute(
-            f"SELECT date(first_seen), date(closed_at) FROM jobs WHERE {scope} "
-            f"AND (closed_at IS NULL OR date(closed_at) >= ?)", [*args, start_iso]):
-        if first is None:
-            continue
-        if first < start_iso:
-            baseline += 1
-        else:
-            seen[first] = seen.get(first, 0) + 1
-        if last is not None:
-            closed[last] = closed.get(last, 0) + 1
+    with guard("live_aggregate"):
+        for first, last in conn.execute(
+                f"SELECT date(first_seen), date(closed_at) FROM jobs WHERE {scope} "
+                f"AND (closed_at IS NULL OR date(closed_at) >= ?)", [*args, start_iso]):
+            if first is None:
+                continue
+            if first < start_iso:
+                baseline += 1
+            else:
+                seen[first] = seen.get(first, 0) + 1
+            if last is not None:
+                closed[last] = closed.get(last, 0) + 1
     rows, open_n = [], baseline
     for i in range(days):
         day = (start + timedelta(days=i)).isoformat()
         open_n += seen.get(day, 0) - closed.get(day, 0)
         rows.append({"day": day, "open": max(0, open_n), "new": seen.get(day, 0)})
     out = {"skills": wanted, "min_match": min_match, "country": countries, "days": rows}
+    if len(_HISTORY_CACHE) > 256:
+        _HISTORY_CACHE.clear()
     _HISTORY_CACHE[key] = (now, out)
     return out
 
@@ -147,9 +151,14 @@ def skill_counts(conn, params: dict) -> dict:
     hit = _SKILL_COUNTS_CACHE.get(key)
     if hit and (now - hit[0]).total_seconds() < _HISTORY_TTL_S:
         return hit[1]
+    from expensive import guard
     sums = ", ".join("SUM((',' || COALESCE(skills, '') || ',') LIKE ?)" for _ in wanted)
-    row = conn.execute(f"SELECT {sums} FROM jobs WHERE {where_sql}", [*[f"%,{s},%" for s in wanted], *args]).fetchone()
+    with guard("live_aggregate"):
+        row = conn.execute(f"SELECT {sums} FROM jobs WHERE {where_sql}",
+                           [*[f"%,{s},%" for s in wanted], *args]).fetchone()
     out = {"counts": {s: int(row[i] or 0) for i, s in enumerate(wanted)}}
+    if len(_SKILL_COUNTS_CACHE) > 256:
+        _SKILL_COUNTS_CACHE.clear()
     _SKILL_COUNTS_CACHE[key] = (now, out)
     return out
 

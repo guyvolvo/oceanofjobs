@@ -922,7 +922,7 @@ function paintSaved(jobs) {
     return `
       <div class="alert-row" data-saved="${escapeHtml(j.id)}">
         <div class="saved-main">
-          <a class="saved-title" href="${escapeHtml(j.url || "#")}" target="_blank" rel="noopener">${escapeHtml(j.title)}</a>
+          <a class="saved-title" href="${safeHref(j.url)}" target="_blank" rel="noopener">${escapeHtml(j.title)}</a>
           ${j.closed_at ? '<span class="badge closed" title="This listing is no longer open">Closed</span>' : ""}
           <div class="saved-meta">${escapeHtml(where)}</div>
         </div>
