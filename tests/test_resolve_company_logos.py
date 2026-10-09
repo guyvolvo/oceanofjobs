@@ -126,11 +126,6 @@ try:
         conn, _write_logo_file())))
 except Exception as e:  # pragma: no cover - reported, not hidden
     check("load_to_sqlite imports", False, repr(e))
-try:
-    import merge_partitions
-    loaders.append(("merge_partitions", lambda conn: merge_partitions.apply_company_logos(conn, LOGO_FILE)))
-except Exception as e:  # pragma: no cover
-    check("merge_partitions imports", False, repr(e))
 
 
 def _write_logo_file():

@@ -195,6 +195,28 @@ check("lever: a miss on the US host tries the EU one", jobs == [] and "api.eu.le
 jobs, urls = with_get_json(lambda u: [], lambda: probe.f_lever(None, "palantir"))
 check("lever: a hit on the US host asks nothing more", len(urls) == 1, repr(urls))
 
+
+def not_modified(url):
+    probe._cond.not_modified = True
+    return None
+
+
+try:
+    jobs, urls = with_get_json(not_modified, lambda: probe.f_lever(None, "palantir"))
+finally:
+    probe._cond.not_modified = False
+check("lever: a 304 from the US host is an answer, not a reason to ask the EU one", len(urls) == 1, repr(urls))
+
+# A multi-page read that has already failed stops asking.
+calls = []
+sleep, probe.time.sleep = probe.time.sleep, lambda s: None
+try:
+    out = probe._fetch_all(lambda i: calls.append(i) or (None if i == 0 else [i]), list(range(20)), workers=1)
+finally:
+    probe.time.sleep = sleep
+check("_fetch_all: once a page gives up, the pages after it are never requested",
+      out is None and calls == [0, 0, 0], repr(calls))
+
 # Global reads.
 MS_WORLD = [dict(MS_ROWS[0]), dict(MS_ROWS[1])]
 

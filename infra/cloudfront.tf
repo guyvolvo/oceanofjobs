@@ -280,6 +280,15 @@ resource "aws_cloudfront_distribution" "main" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
+  # Job descriptions, one object per listing (loader/descriptions.py). The
+  # board fetches them from here rather than through the box, which spent
+  # a request slot and an S3 round trip on every job opened.
+  origin {
+    domain_name              = aws_s3_bucket.data.bucket_regional_domain_name
+    origin_id                = "descriptions-s3"
+    origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
   origin {
     domain_name = local.api_gateway_domain
     origin_id   = "api-lambda"
@@ -471,6 +480,21 @@ resource "aws_cloudfront_distribution" "main" {
   # per address, and a board page shows fifty companies: a reader paging
   # through the directory was blocked by their own logos (QA, 2026-10-01).
   # Here the edge serves them, and a cold one costs the box one fetch.
+  ordered_cache_behavior {
+    path_pattern           = "/descriptions/*"
+    target_origin_id       = "descriptions-s3"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.legacy_domain_redirect.arn
+    }
+  }
+
   ordered_cache_behavior {
     path_pattern           = "/logo/*"
     target_origin_id       = "box"

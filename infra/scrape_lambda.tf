@@ -203,34 +203,8 @@ resource "aws_lambda_function" "scrape_fast" {
       DATA_BUCKET        = aws_s3_bucket.data.bucket
       ALERTS_TABLE       = aws_dynamodb_table.alerts.name
       SCRAPE_STATE_TABLE = aws_dynamodb_table.scrape_state.name
-      # How many runs cover every company. 1 is a true global sweep and
-      # the destination, but the write side is not ready for it: a sweep
-      # that touches N companies touches every shard those companies
-      # live in, and one partition write is a 48MB pull-modify-push
-      # taking 50-170s. At 4 windows a run wanted 18 partitions and got
-      # through 1 before the function ran out, discarding the rest of
-      # the work. 24 keeps a run to roughly 145 companies and ~3
-      # partitions, which fits, and still covers everything every ~2
-      # hours against the old 5.8. Lowering this further needs the delta
-      # write path, not a bigger timeout.
-      # 1: the full global sweep, every company on every tick. This was
-      # 24 because persisting a sweep meant rewriting every partition it
-      # touched, 48MB and 50-170s each, so a wide sweep wrote 1 of 18 and
-      # binned the rest. The sweep now writes one small delta fragment
-      # instead, so that ceiling is gone.
-      SWEEP_WINDOWS     = "1"
-      ALERTS_FROM_EMAIL = var.alerts_from_email
-      SITE_ORIGIN       = "https://${var.domain_name}"
-      # Must match schedule_expression below in real seconds. Confirmed
-      # live (2026-09-08): during the interim 20-minute cut, this was
-      # left hardcoded at 300 in scrape_handler.py while the actual
-      # EventBridge rate was 1200s -- current_shard_index() then advanced
-      # 4 shards per real invocation instead of 1, and depending on
-      # gcd(4, NUM_SHARDS), some shards could go unpolled indefinitely
-      # rather than just less often. Passed in from here now so the two
-      # can't drift apart silently again the next time this schedule
-      # changes.
-      SCHEDULE_INTERVAL_S = "300"
+      ALERTS_FROM_EMAIL  = var.alerts_from_email
+      SITE_ORIGIN        = "https://${var.domain_name}"
     }
   }
 

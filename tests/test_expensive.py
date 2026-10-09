@@ -174,6 +174,8 @@ handler.route_jobs = lambda params: (_ for _ in ()).throw(sqlite3.OperationalErr
 r = call("/api/jobs", "country=IL")
 check("any other database error is still a 500", r["statusCode"] == 500, str(r["statusCode"]))
 handler.route_jobs = real_route_jobs
+deep = json.loads(call("/api/jobs", "country=IL&offset=20000")["body"])
+check("an offset past the cap is an empty page, not a repeat of the last one", deep["jobs"] == [], repr(deep)[:160])
 check("the frontend retries 429", "429" in (ROOT / "frontend" / "app.js").read_text(encoding="utf-8", errors="replace"))
 
 print()

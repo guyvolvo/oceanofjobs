@@ -1488,20 +1488,12 @@ function applyStateFromUrl(search) {
   }
 }
 
-// Filters persisting across browser sessions -- requested directly: the
-// URL round-trip above only reproduces a filter set that's actually IN
-// the address bar (a shared/bookmarked link), so a plain revisit to /board
-// after closing the tab landed back on hardcoded defaults regardless of
-// what was last picked. Same offset/job exclusions as buildShareParams,
-// for the same reason (a fresh visit shouldn't resume on page 3, or with
-// a job drawer open) -- everything else that's a real filter choice
-// round-trips, sort/dir included.
+// Only the location survives a fresh visit to /board. Every other filter
+// starts from the defaults, by request: a revisit that came back still
+// narrowed by last week's filters was more annoying than useful. A link
+// carrying filters in its query string still reproduces them.
 const FILTERS_KEY = "iljobs_filters";
-const PERSISTED_FILTER_KEYS = [
-  "search", "department", "seniority", "company", "country", "city",
-  "workplace", "skills", "confidence", "max_age_days", "starred_only",
-  "sort", "dir", "roles", "salary_min", "salary_max", "salary_known", "salary_disclosed",
-];
+const PERSISTED_FILTER_KEYS = ["country", "city"];
 
 function saveFiltersToStorage() {
   try {
@@ -1743,6 +1735,7 @@ async function loadJobs({ background = false, append: wantAppend = false } = {})
   // leaving the reader parked below the end of a list a fifth the size.
   if (!append && !background) {
     state.offset = 0;
+    listEnded = false;
     listReloading = true;
     // Out of view at once, so the observer has nothing to fire on while
     // the old rows are still standing.
@@ -3153,6 +3146,9 @@ async function copyToClipboard(btn, url) {
 // that blocks it) leaves a button that still works.
 let moreObserver = null;
 let loadingMore = false;
+// Set when a page comes back empty: the API stops at offset 10,000
+// (api/handler.py MAX_OFFSET), short of the total for the biggest views.
+let listEnded = false;
 // Which query the rows on screen belong to. An append that comes back
 // for a different one is a page of the list the reader has already left,
 // and accumulating it produced a count of 300 over a list of 50.
@@ -3182,7 +3178,7 @@ function paintMoreButton(data) {
   const total = (lastJobsResponse && lastJobsResponse.total) ?? data?.total;
   // Before the count lands, a full page is reason enough to believe
   // there is another one.
-  const more = total == null ? (data?.jobs?.length || 0) >= PAGE_SIZE : shown < total;
+  const more = !listEnded && (total == null ? (data?.jobs?.length || 0) >= PAGE_SIZE : shown < total);
   wrap.hidden = !more;
   const btn = document.getElementById("jobs-more-btn");
   if (btn) {
@@ -3202,6 +3198,7 @@ async function loadMoreJobs() {
   state.offset = shown;
   try {
     await loadJobs({ append: true });
+    if (((lastJobsResponse && lastJobsResponse.jobs) || []).length === shown) listEnded = true;
   } catch {
     state.offset = previous;
   } finally {
@@ -3406,6 +3403,20 @@ function wireJobDetailPanel(job) {
   if (permalinkBtn) permalinkBtn.addEventListener("click", () => copyToClipboard(permalinkBtn, permalinkBtn.dataset.copyPermalink));
 }
 
+// A listing already on screen needs only its text, which CloudFront serves
+// straight from S3 (infra/cloudfront.tf, /descriptions/*) without spending
+// one of the box's few request slots. Null when there is no stored text,
+// and the caller asks the API instead, which also reads the old column.
+async function fetchDescribed(job) {
+  try {
+    const res = await fetch(`/descriptions/${encodeURIComponent(job.id)}.json`, { signal: abortAfter(10000) });
+    const blob = res.ok ? await res.json() : null;
+    return blob && blob.description ? { ...job, description: blob.description } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function openJobDetail(id) {
   if (window.ojCount) window.ojCount("job_view");
   const panel = document.getElementById("job-detail");
@@ -3446,7 +3457,7 @@ async function openJobDetail(id) {
   });
 
   try {
-    const full = await getJSON(`/jobs/${encodeURIComponent(id)}`);
+    const full = (known && await fetchDescribed(known)) || await getJSON(`/jobs/${encodeURIComponent(id)}`);
     if (selectedJobId !== id) return; // a different row was picked while this was in flight
     paneHead(full);
     paneBody().innerHTML = renderJobDetailBody(full);

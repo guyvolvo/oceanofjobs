@@ -26,7 +26,6 @@ import io
 import json
 import os
 import sys
-import tempfile
 import threading
 import types
 from pathlib import Path
@@ -149,36 +148,30 @@ delivered = []
 
 
 class FakeS3:
-    def __init__(self, state_obj=None):
+    def __init__(self, state_obj=None, fail_known=False):
         self.state_obj = state_obj
         self.saved_state = None
+        self.saved_known = None
+        self.fail_known = fail_known
         self.last_status = None
 
     def get_object(self, Bucket, Key):
         if Key == handler.WORKDAY_STATE_KEY and self.state_obj is not None:
             return {"Body": io.BytesIO(gzip.compress(json.dumps(self.state_obj).encode("utf-8"))),
                     "ETag": '"e1"'}
-        raise RuntimeError("no object at " + Key)
+        raise RuntimeError("NoSuchKey: no object at " + Key)
 
     def put_object(self, **kw):
         if kw["Key"] == handler.WORKDAY_STATE_KEY:
             events.append("state")
             self.saved_state = json.loads(gzip.decompress(kw["Body"]))
+        elif kw["Key"] == handler.KNOWN_KEY:
+            events.append("known")
+            if self.fail_known:
+                raise RuntimeError("S3 said no")
+            self.saved_known = json.loads(gzip.decompress(kw["Body"]))
         elif kw["Key"] == "status.json":
             self.last_status = json.loads(kw["Body"])
-
-
-class FakeLoader:
-    """Stands in for the load_to_sqlite subprocess."""
-
-    def __init__(self, returncode=0, raises=None):
-        self.returncode, self.raises = returncode, raises
-
-    def run(self, *args, **kwargs):
-        events.append("loader")
-        if self.raises:
-            raise self.raises
-        return types.SimpleNamespace(returncode=self.returncode, stdout="", stderr="loader said so")
 
 
 def fragment_writer(fail=None):
@@ -194,25 +187,21 @@ def fragment_writer(fail=None):
     return put_fragment
 
 
-def run_once(state_obj, loader=None, put_fragment=None, sess=None):
+def run_once(state_obj, put_fragment=None, sess=None, fail_known=False):
     """One lambda_handler invocation against one fake tenant."""
     del events[:], delivered[:]
-    s3 = FakeS3(state_obj)
+    s3 = FakeS3(state_obj, fail_known=fail_known)
     sess = sess or Sess(POSTINGS)
-    saved = (handler.boto3, handler.subprocess, handler.put_fragment,
-             handler._known_state_by_domain, handler._workday_entries, handler.TMP, probe.session)
+    saved = (handler.boto3, handler.put_fragment, handler._load_known, handler._workday_entries, probe.session)
     handler.boto3 = types.SimpleNamespace(client=lambda service: s3)
-    handler.subprocess = loader or FakeLoader()
     handler.put_fragment = put_fragment or fragment_writer()
-    handler._known_state_by_domain = lambda: ({"acme.com": KNOWN}, {"acme.com": KNOWN}, {})
+    handler._load_known = lambda s3: ({"acme.com": set(KNOWN)}, {"acme.com": set(KNOWN)}, {})
     handler._workday_entries = lambda: [dict(ENTRY)]
-    handler.TMP = Path(tempfile.mkdtemp())
     probe.session = lambda: sess
     try:
         return s3, handler.lambda_handler({"workday_only": True}, None)
     finally:
-        (handler.boto3, handler.subprocess, handler.put_fragment,
-         handler._known_state_by_domain, handler._workday_entries, handler.TMP,
+        (handler.boto3, handler.put_fragment, handler._load_known, handler._workday_entries,
          probe.session) = saved
 
 
@@ -221,8 +210,9 @@ check("a stranded tenant is delivered on the first run after the version bump",
       delivered == ["acme.com"] and out["fragments"] == 1, repr((delivered, out)))
 check("the fragment goes out before the poll state is committed",
       events.index("deliver") < events.index("state"), repr(events))
-check("the loader runs after both, because it is a cache and nothing waits on it",
-      events.index("loader") > events.index("state"), repr(events))
+check("the known state is saved after delivery too, with the open ids and the read time",
+      events.index("known") > events.index("deliver")
+      and len(s3.saved_known["acme.com"]["open"]) == 45 and s3.saved_known["acme.com"]["polled"], repr(events))
 check("the saved row carries the current version and the fingerprint together",
       s3.saved_state["acme.com"]["version"] == handler.WORKDAY_STATE_VERSION
       and s3.saved_state["acme.com"]["content_hash"] == FP, repr(s3.saved_state))
@@ -236,24 +226,52 @@ s3, out = run_once(settled_state, sess=sess)
 check("the second run reads page 1, finds nothing new, and sends nothing",
       delivered == [] and out["fragments"] == 0 and len(sess.calls) == 1, repr((delivered, sess.calls)))
 
-# A loader failure is a lost cache, not a lost delivery. This is the exit
-# path that used to raise.
-s3, out = run_once({"acme.com": {"content_hash": FP, "interval_s": 14400}},
-                   loader=FakeLoader(returncode=3))
-check("a loader that exits non-zero does not stop the jobs going out",
-      delivered == ["acme.com"] and out["fragments"] == 1, repr((delivered, out)))
-check("the exit code comes back in the return value instead of an exception",
-      out["loader_error"] == "load_to_sqlite.py exited 3", repr(out))
+# A known state that fails to save is a lost cache, not a lost delivery.
+s3, out = run_once({"acme.com": {"content_hash": FP, "interval_s": 14400}}, fail_known=True)
+check("a known state that cannot be saved does not stop the jobs going out",
+      delivered == ["acme.com"] and out["fragments"] == 1 and out["known_saved"] is False, repr((delivered, out)))
 check("the poll state is still saved, so the tenant is not re-read for nothing",
       out["state_saved"] is True and s3.saved_state["acme.com"]["version"] == handler.WORKDAY_STATE_VERSION)
 check("and the run reports idle, because delivery is what the status is about",
-      s3.last_status["phase"] == "idle" and "partition cache not written" in s3.last_status["detail"],
+      s3.last_status["phase"] == "idle" and "known state not saved" in s3.last_status["detail"],
       repr(s3.last_status))
 
-s3, out = run_once({"acme.com": {"content_hash": FP, "interval_s": 14400}},
-                   loader=FakeLoader(raises=OSError("Cannot allocate memory")))
-check("a loader that cannot even start is handled the same way",
-      delivered == ["acme.com"] and "Cannot allocate memory" in out["loader_error"], repr(out))
+# What a run remembers. A failed read keeps the old ids and read time, so
+# the company stays due; a described job skipped this run stays described.
+known, described, polled = {"a.com": {"1", "2"}, "b.com": {"9"}}, {"a.com": {"1", "2"}}, {"b.com": "old"}
+handler._remember(known, described, polled, [
+    {"domain": "a.com", "ats": "workday", "jobs": [{"external_id": "2", "description": None},
+                                                 {"external_id": "3", "description": "text"}]},
+    {"domain": "b.com", "ats": None, "error": "timeout", "jobs": []},
+], "now")
+check("a read replaces the open ids, keeps described ones still open, adds newly described",
+      known["a.com"] == {"2", "3"} and described["a.com"] == {"2", "3"} and polled["a.com"] == "now",
+      repr((known, described, polled)))
+check("a failed read changes nothing about that company", known["b.com"] == {"9"} and polled["b.com"] == "old")
+
+# Big-tech pins go longest-unread first, so a site late in the list is not
+# starved by the slow ones ahead of it every run.
+order = []
+saved = (handler.boto3, handler._load_known, handler._workday_entries, handler._poll_big_tech,
+         handler.put_fragment, dict(probe.PINS))
+handler.boto3 = types.SimpleNamespace(client=lambda service: FakeS3())
+handler._load_known = lambda s3: ({}, {}, {"microsoft.com": "2026-10-09T10:00:00+00:00",
+                                           "checkpoint.com": "2026-09-24T11:25:07+00:00"})
+handler._workday_entries = lambda: []
+handler._poll_big_tech = lambda sess, ats, domain, *a: order.append(domain) or {
+    "domain": domain, "ats": ats, "job_count": 0, "jobs": []}
+handler.put_fragment = fragment_writer()
+probe.PINS.clear()
+probe.PINS.update({"microsoft": {"microsoft.com": {"token": "ALL", "every_hours": 0}},
+                   "checkpoint": {"checkpoint.com": {"token": "x", "every_hours": 0}}})
+try:
+    handler.lambda_handler({}, None)
+finally:
+    (handler.boto3, handler._load_known, handler._workday_entries, handler._poll_big_tech,
+     handler.put_fragment, pins) = saved
+    probe.PINS.clear()
+    probe.PINS.update(pins)
+check("the big-tech site unread longest goes first", order == ["checkpoint.com", "microsoft.com"], repr(order))
 
 # The other direction, which is the whole point. Delivery fails, so
 # nothing may be remembered.
@@ -263,8 +281,8 @@ try:
     raised = None
 except RuntimeError as e:
     raised = e
-check("a run that cannot deliver fails instead of committing the fingerprint",
-      raised is not None and "state" not in events, repr(events))
+check("a run that cannot deliver fails instead of committing the fingerprint or the known state",
+      raised is not None and "state" not in events and "known" not in events, repr(events))
 
 print()
 if failures:

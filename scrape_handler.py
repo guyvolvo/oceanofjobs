@@ -8,50 +8,16 @@ see https://github.com/orgs/community/discussions/147369. EventBridge has
 an actual SLA, so this Lambda now owns the recurring cadence entirely;
 scrape-fast.yml keeps workflow_dispatch only, for manual/on-demand runs.
 
-Sharded, not a full re-poll every cycle. Reported live (2026-09-08): once
-company discovery became a standing, continuously-refilling pipeline
-(discover-companies.yml + merge-discovered-companies.yml) instead of a
-one-time batch, re-polling the ENTIRE known.json every 5 minutes meant
-this Lambda's cost grows forever, linearly, with total company count --
-a real run at 358 companies was already projected past $30/month on its
-own before the queue even finished draining. There's no ceiling on how
-many companies discovery eventually finds, so a design whose cost scales
-with that number can't have a stable budget.
+Each tick it polls the boards that are due, by each board's own
+backoff (loader/scrape_state.py), at most MAX_PER_SWEEP of them, with
+the validators that turn most polls into a 304. Boards that changed go
+out as delta fragments (loader/deltas.py) for the box to apply; nothing
+here opens a database. This replaced a fixed rotation of 50-company
+shards, which polled by position rather than by whether a board had
+anything new.
 
-Splitting known.json into fixed-size shards and only re-polling ONE
-shard per invocation decouples cost from total company count: shard size
-stays constant as the company list grows, so per-invocation cost (and
-the monthly total, at a fixed schedule) stays roughly flat too. What
-grows instead is the full-rotation latency (every company gets re-polled
-once per NUM_SHARDS invocations) -- a graceful degradation instead of a
-runaway bill. Which shard runs is computed from wall-clock time, not
-carried in the EventBridge event, so no scheduler config needs to change
-as the company count (and therefore NUM_SHARDS) grows.
-
-VACUUM is NOT run here -- see load_to_sqlite.py's own --skip-vacuum
-docstring for why: it rewrites the whole DB file regardless of shard
-size, which would silently reintroduce the exact per-company-count cost
-scaling this sharding exists to remove. scrape_maintenance_handler.py's
-own hourly run owns VACUUM now, as part of merging every shard's own
-partition into one file (see below).
-
-Partition & Merge (2026-09-08): this Lambda writes its own shard's
-jobs-partition-{shard_index}.db instead of the shared jobs.db --
-sharding alone decoupled the PROBE cost from company count, but
-load_to_sqlite.py's own pull-modify-push cycle still downloaded and
-uploaded the FULL jobs.db every invocation regardless of shard size,
-which is what actually caused the 2026-09-08 outage (jobs.db passed
-795MB, both scrape Lambdas started hitting Runtime.OutOfMemory). Writing
-only this shard's own partition means that cost -- and the OOM risk --
-scale with SHARD_SIZE, not total company count, for real this time.
-scrape_maintenance_handler.py's own hourly run merges every partition
-back into jobs-read.db, which is what api/db.py actually reads; see
-loader/merge_partitions.py's own docstring for that half.
-
-Runs probe.py --known and loader/load_to_sqlite.py as subprocesses
-against /tmp, exactly the same two commands scrape-fast.yml already ran
--- reusing those already-proven CLI entry points rather than
-re-implementing their logic here.
+Runs probe.py --known as a subprocess against /tmp, the same command
+scrape-fast.yml runs by hand.
 """
 
 import json
@@ -63,8 +29,6 @@ from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
-
-from sharding import SHARD_SIZE, current_shard_index, num_shards_for, ordered_domains
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "loader"))
@@ -82,25 +46,18 @@ BUCKET = os.environ["DATA_BUCKET"]
 # the boards in flight at the deadline time to finish, and the fragment
 # and state writes after them, inside the 420s hard kill on the probe and
 # the Lambda's 600s.
-PROBE_DEADLINE_MIN = 5
-
-# Must match the EventBridge schedule's own real interval in seconds --
-# see scrape_lambda.tf's own environment block for why this is passed in
-# rather than hardcoded: during the 2026-09-08 interim cost cut, this
-# constant stayed at 300 while the actual schedule moved to 1200s,
-# silently skipping some shards' rotation entirely rather than just
-# slowing it down (see current_shard_index's own docstring). Defaults to
-# 300 only for a bare local run outside the Lambda environment.
-SCHEDULE_INTERVAL_S = int(os.environ.get("SCHEDULE_INTERVAL_S", "300"))
+#
+# 3.5, down from 5: with nothing to stop two sweeps running at once (no
+# reserved concurrency on this account), a run longer than the 5-minute
+# schedule overlapped the next one, which polled the same boards and lost
+# its state save. Runs reached 415s on 2026-10-04 and 301s on 10-07.
+PROBE_DEADLINE_MIN = 3.5
 
 # The old DynamoDB validator table. Read once, only when the S3 poll
 # state is missing, to seed it (see scrape_state.load). Everything else
 # about conditional polling lives in that object now. Unset it and the
 # first run after a wipe just refetches every board once.
 STATE_TABLE = os.environ.get("SCRAPE_STATE_TABLE")
-
-
-
 
 
 def _watched_domains(s3) -> frozenset:
@@ -136,22 +93,6 @@ def _write_status(s3, phase: str, detail: str = "") -> None:
         )
     except Exception as e:
         print(f"status.json write failed (non-fatal): {e!r}")
-
-
-def _pick_shard(known: list) -> tuple[list, int, int]:
-    """Which shard runs THIS invocation. The domain -> shard assignment
-    itself now lives in sharding.py, shared with loader/merge_partitions.py
-    -- see that module's own docstring for why the two must never drift
-    apart. Only the wall-clock "which shard runs right now" part stays
-    here, since that's specific to this Lambda's own schedule.
-    """
-    by_domain = {e.get("domain", ""): e for e in known}
-    domains = ordered_domains(known)
-    num_shards = num_shards_for(len(domains))
-    shard_index = current_shard_index(num_shards, SCHEDULE_INTERVAL_S)
-    shard_domains = domains[shard_index * SHARD_SIZE: (shard_index + 1) * SHARD_SIZE]
-    shard = [by_domain[d] for d in shard_domains]
-    return shard, shard_index, num_shards
 
 
 def _stream_results(path: Path, meta: list):
@@ -191,7 +132,6 @@ def lambda_handler(event, context):
     # measured live, a 50-company shard where everything answered 304
     # completed in 2.3s, and most of even that was the partition round
     # trip rather than the polling. Sweeping all of them costs seconds.
-    num_shards = num_shards_for(len(known))
     # Every board is a candidate; scrape_state.due decides which are
     # actually polled. The old fixed-window rotation is gone: it split
     # the list by position, which is unrelated to whether a board has
@@ -238,7 +178,7 @@ def lambda_handler(event, context):
         _write_status(s3, "idle", "no boards due this tick")
         print("no boards due")
         return {"swept": 0, "unchanged": 0, "changed": 0, "fragments": 0,
-                "num_shards": 0, "hits": 0, "errors": 0, "jobs": 0}
+                "hits": 0, "errors": 0, "jobs": 0}
 
     shard_path = TMP / "known-shard.json"
     shard_path.write_text(json.dumps(sweep, ensure_ascii=False), encoding="utf-8")
@@ -313,5 +253,5 @@ def lambda_handler(event, context):
     _write_status(s3, "idle", f"last sweep: {len(data)} companies, {len(unchanged)} unchanged, "
                               f"{len(changed)} changed, {n_jobs} jobs")
     return {"swept": len(data), "unchanged": len(unchanged), "changed": len(changed),
-            "fragments": len(fragments), "num_shards": num_shards, "hits": len(hits),
+            "fragments": len(fragments), "hits": len(hits),
             "errors": len(errors), "jobs": n_jobs}

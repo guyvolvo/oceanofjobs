@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+import random
 import threading
 import time
 import urllib.robotparser
@@ -71,7 +72,7 @@ except ImportError:
     from skills import SKILL_LABELS, extract_labels
     from same_company import SAME_COMPANY
 
-UA = "ats-probe/0.2 (+https://github.com/guyvolvo/REPLACE-ME)"
+UA = "ats-probe/0.2 (+https://oceanofjobs.com)"
 TIMEOUT = 12
 # This work is I/O-bound (waiting on other companies' APIs), not
 # CPU-bound, so higher concurrency buys real wall-clock time almost for
@@ -1268,7 +1269,7 @@ def f_lever(sess, token):
     # Lever keeps EU customers on a separate host, and the US one answers
     # "Document not found" for them. Mobileye is one: 183 roles at
     # jobs.eu.lever.co/mobileye, invisible here until this.
-    if not isinstance(d, list):
+    if not isinstance(d, list) and not getattr(_cond, "not_modified", False):
         d = get_json(sess, f"https://api.eu.lever.co/v0/postings/{token}?mode=json")
     if not isinstance(d, list):
         return None
@@ -2051,8 +2052,14 @@ def _fetch_all(fn, items, workers=8, attempts=3, backoff=0.5):
     failed on the first try. So a partial read is no read, the company keeps
     its listings, and the next run tries again.
     """
+    # Once one item has given up the read is lost anyway, so the rest stop
+    # rather than keep retrying against a host that is already refusing.
+    failed = threading.Event()
+
     def one(item):
         for attempt in range(attempts):
+            if failed.is_set():
+                return None
             try:
                 value = fn(item)
             except Exception:
@@ -2060,6 +2067,7 @@ def _fetch_all(fn, items, workers=8, attempts=3, backoff=0.5):
             if value is not None:
                 return value
             time.sleep(backoff * (attempt + 1))
+        failed.set()
         return None
 
     if not items:
@@ -3282,8 +3290,10 @@ FETCHERS: dict[str, Callable] = {
 # Boards too big or too slow for the five-minute sweep. They poll from the
 # hourly Lambda (scrape_workday_handler.py), which reads them with known
 # state so a run only describes jobs it has not seen.
-SLOW_BOARD_ATS = frozenset({"workday", "amazon", "microsoft", "google", "apple", "checkpoint",
-                            "wpjobs", "oracle", "eightfold", "redmatch", "wprest", "tycowp"})
+# Read by scrape_workday_handler.py in this order, never by the fast sweep.
+BIG_TECH_ATS = ("microsoft", "google", "apple", "amazon", "checkpoint", "wpjobs", "oracle",
+                "eightfold", "redmatch", "wprest", "tycowp")
+SLOW_BOARD_ATS = frozenset({"workday", *BIG_TECH_ATS})
 
 # Comeet: not guessable like the ATSes above. The API needs an opaque
 # per-company `token` + `uid`, not derivable from the domain. Recovered
@@ -3441,8 +3451,6 @@ def _fetch_comeet_pin(sess: requests.Session, uid: str, token: str) -> list[Job]
     # of fan-out and shouldn't take a full WORKERS-sized share of the
     # connection pool. Only ever reached on a board that actually
     # changed, since the fingerprint check above returns first otherwise.
-    if not wants_descriptions("comeet"):
-        return [_comeet_job(sess, j, uid, token) for j in jobs]
     with ThreadPoolExecutor(max_workers=4) as pool:
         return list(pool.map(lambda j: _comeet_job(sess, j, uid, token), jobs))
 
@@ -4846,6 +4854,10 @@ def main() -> int:
         if not domains:
             ap.print_help()
             return 2
+        # The deadline stops a run part way through. In file order it stopped
+        # in the same place every time, and new domains are appended last,
+        # so the newest discoveries were never tried.
+        random.shuffle(domains)
 
         results = run_and_report(domains, lambda d: resolve(d, sess), json_mode, sink)
 

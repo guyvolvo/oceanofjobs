@@ -5,17 +5,14 @@ name: deploy-scrape-lambda
 # function's existence/config, this workflow owns their code.
 #
 # Three separate packages, not one shared zip: scrape-fast needs
-# scrape_handler.py + alerts.py + sharding.py (DynamoDB/SES access, the
-# fast-poll's own known.json-driven --known path, sharded -- see that
-# handler's own docstring); scrape-workday needs
+# scrape_handler.py + alerts.py (DynamoDB/SES access, the fast-poll's
+# own known.json-driven --known path -- see that handler's own
+# docstring); scrape-workday needs
 # scrape_workday_handler.py + companies.yml (its own company list comes
 # from probe.py's PINS, not S3's known.json -- see that handler's own
-# docstring for why it's a separate function at all, and why it needs no
-# sharding.py: a pinned company list has no shard concept); scrape-
-# maintenance needs scrape_maintenance_handler.py + loader/
-# merge_partitions.py + sharding.py (no probe.py, no companies.yml -- it
-# never resolves anything itself, just merges every writer's own
-# partition file -- see that handler's own docstring). All three share
+# docstring for why it's a separate function at all); scrape-
+# maintenance needs scrape_maintenance_handler.py (no probe.py, no
+# companies.yml -- see that handler's own docstring). All three share
 # loader/load_to_sqlite.py, job_filters.py, schema.sql, and requests
 # underneath.
 
@@ -30,7 +27,6 @@ on:
       - "scrape_workday_handler.py"
       - "workday-tenants.json"
       - "scrape_maintenance_handler.py"
-      - "sharding.py"
       - "alerts.py"
       # Every shared module the packages copy in, or a change to one
       # ships nowhere and the running Lambda keeps the old copy. Same
@@ -82,7 +78,7 @@ jobs:
       - name: Build scrape-fast package
         run: |
           mkdir -p fast/loader fast/db
-          cp probe.py scrape_handler.py alerts.py sharding.py salary_model.py fast/
+          cp probe.py scrape_handler.py alerts.py salary_model.py fast/
           cp api/job_filters.py api/search_terms.py api/search_compile.py api/skills.py api/countries.py api/same_company.py api/role_class.py fast/
           cp loader/load_to_sqlite.py loader/localtime.py loader/descriptions.py loader/deltas.py loader/scrape_state.py fast/loader/
           cp db/schema.sql fast/db/
@@ -111,8 +107,8 @@ jobs:
       - name: Build scrape-maintenance package
         run: |
           mkdir -p maintenance/loader maintenance/db
-          cp scrape_maintenance_handler.py sharding.py maintenance/
-          cp loader/load_to_sqlite.py loader/localtime.py loader/merge_partitions.py loader/bootstrap.py loader/descriptions.py loader/deltas.py loader/precompute.py loader/archive.py loader/rebuild_fts.py loader/build_explore.py loader/sitemap.py maintenance/loader/
+          cp scrape_maintenance_handler.py maintenance/
+          cp loader/load_to_sqlite.py loader/localtime.py loader/bootstrap.py loader/descriptions.py loader/deltas.py loader/precompute.py loader/archive.py loader/rebuild_fts.py loader/build_explore.py loader/sitemap.py maintenance/loader/
           # bootstrap.py builds its WHERE with build_jobs_where and
           # needs category_of(), so its precomputed pages match what
           # /api/jobs would return exactly.

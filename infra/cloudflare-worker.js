@@ -68,11 +68,14 @@ export default {
     // box. Never with an Authorization header or under /api/me/: those
     // are one person's.
     const shared = request.method === "GET" && !request.headers.has("authorization")
-      && !url.pathname.startsWith("/api/me/") && !url.pathname.startsWith("/api/pipeline-status")
-      // The freshness signal itself: the board's "Last updated" reads it.
-      && url.pathname !== "/api/health";
+      && !url.pathname.startsWith("/api/me/");
+    // The freshness signals: the board's "Last updated" and pipeline phase.
+    // Every open tab polls both every two minutes, so uncached they were
+    // most of the box's load; 15 seconds at the edge keeps the label honest
+    // (the API's own 60 to 180 seconds dated it) and answers the rest.
+    const status = url.pathname === "/api/health" || url.pathname.startsWith("/api/pipeline-status");
     const init = { method: request.method, headers, body: request.body, redirect: "manual" };
-    if (shared) init.cf = { cacheEverything: true };
+    if (shared) init.cf = status ? { cacheEverything: true, cacheTtl: 15 } : { cacheEverything: true };
     const response = await fetch(new Request(target, init));
 
     // So a human (or a curl) can tell which origin answered without

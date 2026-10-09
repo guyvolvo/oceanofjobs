@@ -225,7 +225,10 @@ def main():
             watched = _watched(s3)
             known_at = now_s
         if now_s - claim_at > CLAIM_EVERY_S:
-            claim = scrape_state.load_claim(BUCKET, s3)
+            try:
+                claim = scrape_state.load_claim(BUCKET, s3)
+            except Exception as e:  # noqa: BLE001 -- an unreadable claim keeps the last one
+                log(f"worker-claim.json unreadable, keeping the last claim: {e!r}")
             claim_at = now_s
         # Only boards probe.py can poll. known.json keeps a few entries
         # with no ATS or token; the Lambda's sweep carries them along

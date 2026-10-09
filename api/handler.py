@@ -132,6 +132,8 @@ CORS_HEADERS = {
     "Access-Control-Allow-Headers": "content-type",
 }
 
+MAX_OFFSET = 10_000
+
 SORT_COLUMNS = {
     "age": "posted_at",
     "company": "company_domain",
@@ -843,7 +845,12 @@ def _route_jobs(conn, params: dict) -> dict:
     order_sql = f"{order_sql}, id DESC"
 
     limit = _int_param(params, "limit", default=100, lo=1, hi=500)
-    offset = _int_param(params, "offset", default=0, lo=0, hi=10_000)
+    offset = _int_param(params, "offset", default=0, lo=0, hi=10_000_000)
+    # Past this a page is empty rather than a walk over every row before it.
+    # Clamping instead handed back the same page for every deeper offset,
+    # so infinite scroll repeated it forever.
+    if offset > MAX_OFFSET:
+        limit = 0
 
     # The count runs the whole WHERE a second time, and for a search that
     # WHERE is the expensive part: four substring scans over every row.

@@ -150,6 +150,11 @@ def _parse(ts):
         return None
 
 
+def _missing(e: Exception) -> bool:
+    """S3's "no such object", from boto3 or a test's stand-in."""
+    return type(e).__name__ == "NoSuchKey" or "NoSuchKey" in str(e)
+
+
 def load(bucket, s3, dynamo_table="", key=KEY):
     """(state, etag). Empty state when there is no object yet, or it is
     unreadable. Any other S3 error raises: a throttle read as "no state"
@@ -169,7 +174,7 @@ def load(bucket, s3, dynamo_table="", key=KEY):
         obj = s3.get_object(Bucket=bucket, Key=key)
         return json.loads(gzip.decompress(obj["Body"].read())), obj["ETag"]
     except Exception as e:
-        if "NoSuchKey" not in str(e) and not isinstance(e, (OSError, ValueError, EOFError)):
+        if not _missing(e) and not isinstance(e, (OSError, ValueError, EOFError)):
             raise
     if dynamo_table:
         seeded = _seed_from_dynamo(dynamo_table)
@@ -249,10 +254,15 @@ CLAIM_KEY = "worker-claim.json"
 
 
 def load_claim(bucket, s3, key=CLAIM_KEY):
+    """The claim, or {} when there is none. Any other error raises: read
+    as "the worker owns nothing", a throttle made the Lambda poll the
+    worker's boards too, and the worker's older copy then landed last."""
     try:
         return json.loads(s3.get_object(Bucket=bucket, Key=key)["Body"].read())
-    except Exception:
-        return {}
+    except Exception as e:
+        if _missing(e):
+            return {}
+        raise
 
 
 def worker_owns(domain, claim, lane="fast"):

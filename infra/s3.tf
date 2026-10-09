@@ -113,6 +113,25 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
 # Frontend bucket: static site. Private, served only via CloudFront's
 # Origin Access Control; nobody hits S3 directly.
 
+# Only the descriptions, only to this distribution (see its descriptions-s3
+# origin). The rest of the bucket stays private.
+resource "aws_s3_bucket_policy" "data" {
+  bucket = aws_s3_bucket.data.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "AllowCloudFrontDescriptions"
+      Effect    = "Allow"
+      Principal = { Service = "cloudfront.amazonaws.com" }
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.data.arn}/descriptions/*"
+      Condition = {
+        StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.main.arn }
+      }
+    }]
+  })
+}
+
 resource "aws_s3_bucket" "frontend" {
   bucket = var.frontend_bucket_name
 }

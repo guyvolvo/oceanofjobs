@@ -216,6 +216,13 @@ try:
 except RuntimeError:
     check("a throttled read raises rather than starting every board from nothing", True)
 
+check("a missing claim file means the worker owns nothing", scrape_state.load_claim("b", FakeS3()) == {})
+try:
+    scrape_state.load_claim("b", ThrottledS3())
+    check("a throttled claim read raises rather than handing the worker's boards to the Lambda", False)
+except RuntimeError:
+    check("a throttled claim read raises rather than handing the worker's boards to the Lambda", True)
+
 print()
 if failures:
     print("%d failed:" % len(failures))

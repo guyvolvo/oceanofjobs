@@ -41,7 +41,7 @@ resource "aws_iam_role_policy" "scrape_workday_lambda" {
         Action   = ["s3:ListBucket"]
         Resource = aws_s3_bucket.data.arn
         Condition = {
-          StringLike = { "s3:prefix" = ["jobs-partition-*", "descriptions/*"] }
+          StringLike = { "s3:prefix" = ["jobs-partition-*", "descriptions/*", "workday-known.json.gz"] }
         }
       },
       {
@@ -70,6 +70,9 @@ resource "aws_iam_role_policy" "scrape_workday_lambda" {
           # Without it every run re-walks every tenant; seen live on
           # the first run, 2026-09-21.
           "${aws_s3_bucket.data.arn}/workday-poll-state.json.gz",
+          # workday-known.json.gz: open ids, described ids and last read
+          # per company (scrape_workday_handler.py's KNOWN_KEY).
+          "${aws_s3_bucket.data.arn}/workday-known.json.gz",
           # deltas/*: how this Lambda's results actually reach
           # jobs-read.db. The partition above is only its own memory of
           # which listings it has already fetched descriptions for;

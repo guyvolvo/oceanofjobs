@@ -44,7 +44,7 @@ backoff does (5 minutes to 4 hours, reset on change), under this
 Lambda's hourly schedule.
 
 Deliver, then remember (2026-09-22): put_fragment runs before
-scrape_state.record, and the loader subprocess no longer raises. The old
+scrape_state.record and before KNOWN_KEY is saved. The old
 order wrote each tenant's fingerprint to S3 and only then delivered, so
 a run that died in between left tenants whose state said "read it,
 nothing new" about jobs that had never reached jobs-read.db. deltas.py
@@ -59,8 +59,8 @@ made this cadence affordable to shrink): Workday's own search endpoint
 sends Cache-Control: no-store, no-cache and no ETag at all (confirmed
 live) -- unlike Greenhouse/Lever/Ashby/SmartRecruiters, there's no
 protocol-level "has this changed" to condition on. _known_external_ids_
-by_domain() reads this same partition's own last-known open job ids
-before probing, and probe.f_workday's own known_external_ids parameter
+by_domain() (now _load_known, from KNOWN_KEY) reads the last-known open
+job ids before probing, and probe.f_workday's own known_external_ids parameter
 uses that to skip the (real cost driver) per-job description fetch for
 jobs we already have -- see probe.py's own docstring for why the
 description gets skipped, not the whole job. A job whose description
@@ -70,11 +70,10 @@ the new value is non-empty, so an unfetched (None) description is a
 correct no-op there, not a silent wipe.
 """
 
-import gc
+import gzip
 import json
 import os
 import sqlite3
-import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
@@ -117,8 +116,7 @@ probe.FETCH_FULL_DESCRIPTIONS = True
 # Oracle Recruiting Cloud boards read a couple of hundred roles a page
 # and want a per-job call for each full posting, so they read hourly
 # with a budget rather than every five minutes.
-BIG_TECH_ATS = ("microsoft", "google", "apple", "amazon", "checkpoint", "wpjobs", "oracle",
-                "eightfold", "redmatch", "wprest", "tycowp")
+BIG_TECH_ATS = probe.BIG_TECH_ATS
 # Two budgets, because the two kinds of description cost different things.
 # Microsoft and Apple need a request per description, so theirs is a time
 # budget: 300 calls fits a run beside Workday, four global reads and the
@@ -180,6 +178,14 @@ WORKDAY_DESCRIBE_PER_TENANT = 300
 
 TMP = Path("/tmp")
 BUCKET = os.environ["DATA_BUCKET"]
+# What this Lambda remembers between runs, per company: its open job ids,
+# which of those already have a description, and when it was last read.
+# A few MB gzipped. It replaced the 1.29GB jobs-partition-workday.db,
+# which was pulled twice and pushed once a run to answer those three
+# questions, and whose loader step had failed on every run since
+# 2026-09-23 (a module missing from the package), so every tenant looked
+# new and every_hours never held.
+KNOWN_KEY = "workday-known.json.gz"
 
 
 def _write_status(s3, phase: str, detail: str = "") -> None:
@@ -197,6 +203,50 @@ def _write_status(s3, phase: str, detail: str = "") -> None:
         )
     except Exception as e:
         print(f"status.json write failed (non-fatal): {e!r}")
+
+
+def _load_known(s3) -> tuple[dict[str, set[str]], dict[str, set[str]], dict[str, str]]:
+    """(open ids, described ids, last good read) per company, from
+    KNOWN_KEY. Seeded once from the old partition while that is missing."""
+    try:
+        raw = json.loads(gzip.decompress(s3.get_object(Bucket=BUCKET, Key=KNOWN_KEY)["Body"].read()))
+    except Exception as e:  # noqa: BLE001 -- the seed is the safe answer to any of these
+        print(f"{KNOWN_KEY} unreadable ({e!r}), seeding from the old partition")
+        # shortcut: seeds from the partition last written 2026-09-23; delete
+        # this fallback and _known_state_by_domain once KNOWN_KEY exists.
+        return _known_state_by_domain()
+    return ({d: set(v.get("open") or ()) for d, v in raw.items()},
+            {d: set(v.get("described") or ()) for d, v in raw.items()},
+            {d: v["polled"] for d, v in raw.items() if v.get("polled")})
+
+
+def _remember(known, described, polled, results, now: str) -> None:
+    """Fold this run's reads into the three maps. A failed read keeps what
+    was known and its old read time, so it stays due."""
+    for r in results:
+        if not r.get("ats"):
+            continue
+        domain = r["domain"]
+        polled[domain] = now
+        if r.get("unchanged"):
+            continue
+        ids = {j["external_id"] for j in r["jobs"]}
+        known[domain] = ids
+        # A job skipped for being described already comes back with no text.
+        described[domain] = ((described.get(domain) or set()) & ids) | {
+            j["external_id"] for j in r["jobs"] if j.get("description")}
+
+
+def _save_known(s3, known, described, polled) -> bool:
+    body = {d: {"open": sorted(known.get(d) or ()), "described": sorted(described.get(d) or ()),
+                "polled": polled.get(d)} for d in set(known) | set(polled)}
+    try:
+        s3.put_object(Bucket=BUCKET, Key=KNOWN_KEY, ContentType="application/json", ContentEncoding="gzip",
+                      Body=gzip.compress(json.dumps(body, separators=(",", ":")).encode("utf-8")))
+        return True
+    except Exception as e:  # noqa: BLE001 -- the jobs already went out; this costs re-reads only
+        print(f"KNOWN STATE NOT SAVED: {e!r}")
+        return False
 
 
 def _known_state_by_domain() -> tuple[dict[str, set[str]], dict[str, set[str]], dict[str, str]]:
@@ -408,12 +458,15 @@ def lambda_handler(event, context):
         print("no workday tenants or big-tech pins, skipping")
         return {"skipped": True}
 
-    known_ids, described, polled = _known_state_by_domain()
+    known_ids, described, polled = _load_known(s3)
     not_due = [d for _, d, pin in big_tech if not _due(pin, polled.get(d))]
     if not_due:
         print(f"not due this run (every_hours): {', '.join(sorted(not_due))}")
+    # Longest unread first. In a fixed order the same few sites used up the
+    # time every run, and the ones after them went unread for weeks.
+    big_tech.sort(key=lambda t: polled.get(t[1]) or "")
     print(f"known state: {sum(len(v) for v in known_ids.values())} open jobs across "
-          f"{len(known_ids)} companies from the last partition")
+          f"{len(known_ids)} companies")
 
     state, state_etag = scrape_state.load(BUCKET, s3, key=WORKDAY_STATE_KEY)
     due = scrape_state.due(state, entries)
@@ -456,6 +509,7 @@ def lambda_handler(event, context):
         if domain in not_due:
             continue
         if context is not None and context.get_remaining_time_in_millis() < BIG_TECH_TIME_RESERVE_MS:
+            print(f"{domain}: out of time this run, first in line next run")
             results.append({"domain": domain, "ats": None, "token": None, "job_count": 0, "tried": 0,
                             "error": "out of time this run", "retryable": True, "jobs": []})
             continue
@@ -496,56 +550,12 @@ def lambda_handler(event, context):
     saved = scrape_state.save(BUCKET, s3, state, state_etag, key=WORKDAY_STATE_KEY)
     print(f"poll state {'saved' if saved else 'NOT saved'}: {counts}")
 
-    # Streamed to disk rather than built as one string beside the list it
-    # came from, and freed before the loader starts: the subprocess shares
-    # this Lambda's memory ceiling with everything this process still holds.
-    resolved_path = TMP / "resolved-workday.json"
-    with resolved_path.open("w", encoding="utf-8") as fh:
-        json.dump(results, fh)
-    # Counted before the list is dropped: the status line below needs it,
-    # and reading len() of the cleared list is what failed every run that
-    # followed the memory fix, after its data had already gone out.
-    n_results = len(results)
-    results = None
-    gc.collect()
+    # Same order as the poll state, for the same reason: remembering a
+    # read promises its jobs went out.
+    _remember(known_ids, described, polled, results, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    known_saved = _save_known(s3, known_ids, described, polled)
 
-    _write_status(s3, "loading", f"writing {n_jobs} Workday jobs to jobs-partition-workday.db")
-    # The partition is a cache. _known_state_by_domain reads it back to
-    # skip description re-fetches, which is the whole reason a run is 65
-    # seconds instead of many minutes. A loader failure costs re-fetches
-    # on the next run and nothing else, so it is logged loudly and
-    # reported in the return value rather than raised. The raise this
-    # replaces sat above put_fragment and took delivery down with it.
-    #
-    # The timeout was 60, matching scrape_handler.py's own (also-since-
-    # fixed) loader timeout. Confirmed live (2026-09-08) this exact call
-    # hit TimeoutExpired outright once jobs.db passed 1GB, so there is
-    # real margin now even though this writes a small pinned partition,
-    # not the full db (see this module's own docstring). --skip-vacuum
-    # for the same reason scrape_handler.py's own shard cycle passes it:
-    # scrape_maintenance_handler.py owns VACUUM as part of its hourly
-    # merge instead. --skip-known: see load_to_sqlite.py's own docstring
-    # for that flag.
-    loader_error = None
-    try:
-        load = subprocess.run(
-            [sys.executable, str(ROOT / "loader" / "load_to_sqlite.py"),
-             "--resolved", str(resolved_path), "--out", str(TMP / "jobs-partition-workday.db"),
-             "--bucket", BUCKET, "--key", "jobs-partition-workday.db",
-             "--skip-vacuum", "--skip-known", "--drop-description"],
-            capture_output=True, text=True, timeout=420,
-        )
-        if load.stderr:
-            print(load.stderr)
-        if load.returncode != 0:
-            loader_error = f"load_to_sqlite.py exited {load.returncode}"
-    except Exception as e:
-        loader_error = repr(e)
-    if loader_error:
-        print(f"PARTITION CACHE NOT WRITTEN: {loader_error}. The jobs already went out in "
-              f"{len(fragments)} delta fragments, so this costs description re-fetches next run.")
-
-    detail = f"last run: {len(hits)}/{n_results} Workday and big-tech companies, {n_jobs} jobs"
-    _write_status(s3, "idle", detail + (f" (partition cache not written: {loader_error})" if loader_error else ""))
+    _write_status(s3, "idle", f"last run: {len(hits)}/{len(results)} Workday and big-tech companies, "
+                              f"{n_jobs} jobs" + ("" if known_saved else " (known state not saved)"))
     return {"hits": len(hits), "jobs": n_jobs, "fragments": len(fragments),
-            "state_saved": saved, "loader_error": loader_error}
+            "state_saved": saved, "known_saved": known_saved}
