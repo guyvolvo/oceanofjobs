@@ -260,7 +260,9 @@ def load_claim(bucket, s3, key=CLAIM_KEY):
     try:
         return json.loads(s3.get_object(Bucket=bucket, Key=key)["Body"].read())
     except Exception as e:
-        if _missing(e):
+        # The scrape-fast role cannot list the bucket, so S3 answers a
+        # missing claim with AccessDenied rather than NoSuchKey.
+        if _missing(e) or "AccessDenied" in str(e):
             return {}
         raise
 

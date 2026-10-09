@@ -217,6 +217,15 @@ except RuntimeError:
     check("a throttled read raises rather than starting every board from nothing", True)
 
 check("a missing claim file means the worker owns nothing", scrape_state.load_claim("b", FakeS3()) == {})
+
+
+class NoListS3(FakeS3):
+    def get_object(self, Bucket, Key):
+        raise RuntimeError("An error occurred (AccessDenied) when calling the GetObject operation")
+
+
+check("so does the AccessDenied S3 sends for a missing key to a role that cannot list the bucket",
+      scrape_state.load_claim("b", NoListS3()) == {})
 try:
     scrape_state.load_claim("b", ThrottledS3())
     check("a throttled claim read raises rather than handing the worker's boards to the Lambda", False)
