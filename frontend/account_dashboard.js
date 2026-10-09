@@ -1,10 +1,10 @@
 // The account page's overview: a greeting with what is new, four
-// numbers with a fortnight behind each, the market the reader's skills
-// are in, the skills themselves against demand, the newest fits, what
-// they pay, and what the alerts have been doing. Every number is the
-// reader's own, from the same endpoints the board uses, plus
-// /api/jobs/history for the days. Called by account.js's bootAccount
-// once the profile, alerts and saved lists are in.
+// numbers, the weekly trend of the reader's matches, the newest fits,
+// the skills against demand, and the alerts. Every number is the
+// reader's own, from /api/me/dashboard (computed on the box once a day,
+// api/dashboard.py) and the alert and saved lists account.js loads.
+// Called by account.js's bootAccount once the profile, alerts and saved
+// lists are in.
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const fmt = (n) => Number(n || 0).toLocaleString();
@@ -31,84 +31,6 @@
   const dayLabel = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const weekdayOf = (d) => d.toLocaleDateString(undefined, { weekday: "long" });
 
-  // One line as a polyline, in a 90x28 box, for the tiles.
-  function spark(values, cls = "") {
-    const pts = values.filter((v) => v != null);
-    if (pts.length < 2) return "";
-    const w = 90, h = 28, min = Math.min(...pts), max = Math.max(...pts), span = Math.max(1, max - min);
-    const d = values.map((v, i) => `${i ? "L" : "M"}${(i / (values.length - 1) * w).toFixed(1)} ${(h - 3 - ((v - min) / span) * (h - 6)).toFixed(1)}`).join(" ");
-    const area = `<path class="acct-spark-area" d="${d} L${w} ${h} L0 ${h} Z"/>`;
-    return `<svg class="acct-spark ${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">${area}<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-  }
-
-  function tile(label, value, sub, sparkHtml, cls = "", delta = "") {
-    // A phone shows only the tiles with a number in them.
-    if (value === "0" || value === "–" || value === "" || value == null) cls += " acct-stat-empty";
-    return `<div class="acct-stat ${cls}"><span class="acct-stat-label">${label}</span><span class="acct-stat-value">${value}${delta}</span><span class="acct-stat-sub">${sub}</span>${sparkHtml}</div>`;
-  }
-
-  // How a number moved, the way the board's overview says it: an arrow
-  // and a percentage against the period before. Nothing when there was
-  // nothing before to measure against.
-  function delta(now, prev) {
-    if (now == null || prev == null || !prev) return "";
-    // The record only reaches back as far as the scrapers' first sight
-    // of each role, so a month-ago figure a fraction of today's means
-    // the record was thin then, not that the market grew tenfold.
-    if (prev < now / 4) return "";
-    const pct = Math.round(((now - prev) / prev) * 100);
-    const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
-    const arrow = dir === "up" ? "&#8599;" : dir === "down" ? "&#8600;" : "&#8594;";
-    const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k` : Math.abs(pct);
-    return `<span class="acct-delta ${dir}" title="${pct > 0 ? "+" : ""}${pct}% against the period before"><span aria-hidden="true">${arrow}</span> ${shown}%</span>`;
-  }
-
-  // The history behind the tiles; it comes with the dashboard.
-  let history = null;
-
-  // ---- the tiles and the greeting line ----
-  function paintStats(savedJobs) {
-    const host = document.getElementById("acct-stats");
-    if (!host) return;
-    const days = history?.days || [];
-    const sum = (arr) => arr.reduce((s, d) => s + d.new, 0);
-    const week = sum(days.slice(-7)), before = sum(days.slice(-14, -7));
-    const open = days.length ? days[days.length - 1].open : null;
-    const monthAgo = days.length >= 31 ? days[days.length - 31].open : null;
-    const alerts = (typeof myAlerts !== "undefined" ? myAlerts : []) || [];
-    const on = alerts.filter((a) => a.active).length;
-    const sent = alerts.map((a) => a.last_notified_at).filter(Boolean).sort().pop();
-    const stillOpen = savedJobs.filter((j) => !j.closed_at).length;
-    const noSkills = !draft.skills.length;
-    host.innerHTML = [
-      tile("New matches this week", noSkills ? "–" : fmt(week), noSkills ? '<a href="#skills">Add your skills</a>' : `${fmt(before)} the week before`, spark(days.slice(-14).map((d) => d.new)), "acct-stat-green", noSkills ? "" : delta(week, before)),
-      tile("Open roles that fit you", open == null ? "–" : fmt(open), monthAgo == null ? "" : `${fmt(monthAgo)} a month ago`, spark(days.slice(-30).map((d) => d.open)), "", delta(open, monthAgo)),
-      tile("Alerts", fmt(alerts.length), alerts.length ? `${on} on, ${alerts.length - on} paused${sent ? ` · last sent ${ago(sent)}` : ""}` : '<a href="#alerts">Create one</a>', ""),
-      tile("Saved jobs", fmt(savedJobs.length), savedJobs.length ? `${stillOpen} still open` : '<a href="/board">Save one from the board</a>', ""),
-    ].join("");
-    const since = `last ${weekdayOf(new Date(Date.now() - 7 * DAY))}`;
-    const summary = document.getElementById("acct-summary");
-    if (summary) {
-      summary.innerHTML = noSkills
-        ? 'Read a CV in <a href="#skills">Skills</a> and this page fills with the roles that fit you.'
-        : `<b>${fmt(week)}</b> new ${week === 1 ? "job matches" : "jobs match"} your background since ${since}${open != null ? `, out of <b>${fmt(open)}</b> open roles that fit you` : ""}.`;
-    }
-    const all = document.getElementById("acct-matches-all");
-    if (all) all.textContent = week ? `See all ${fmt(week)}` : "See all";
-    const sub = document.getElementById("acct-matches-sub");
-    if (sub) sub.textContent = `Since ${since}`;
-    const g = document.getElementById("acct-greeting");
-    if (g) g.textContent = greeting();
-    const { country, min } = matchScope();
-    const where = country ? ` in ${countryLabel(country)}` : "";
-    const ms = document.getElementById("acct-market-sub");
-    if (ms) ms.textContent = draft.skills.length ? `Open roles${where} that share at least ${min} of your skills` : "";
-    const ds = document.getElementById("acct-demand-sub");
-    if (ds) ds.textContent = typeof placeSummary === "function" ? placeSummary() : (country ? countryLabel(country) : "Anywhere");
-    const open_link = document.getElementById("acct-open-matches");
-    if (open_link && draft.skills.length) open_link.href = `/board?view=matches&skills=${encodeURIComponent(draft.skills.join(","))}${country ? `&country=${country}` : ""}`;
-  }
-
   function ago(iso) {
     const h = (Date.now() - new Date(iso).getTime()) / 36e5;
     if (h < 1) return "just now";
@@ -117,41 +39,253 @@
     return d === 1 ? "yesterday" : `${d}d ago`;
   }
 
-  // ---- the skills against demand ----
+  const svg = (path, size = 17, width = 1.7) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+  const ICON = {
+    work: svg('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>'),
+    trend: svg('<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>'),
+    save: svg('<path d="M6 3h12v18l-6-4-6 4z"/>'),
+    active: svg('<path d="M4 12l5 5L20 6"/>', 12, 2.2),
+    paused: svg('<path d="M9 5v14M15 5v14"/>', 12, 2.2),
+    x: '<svg viewBox="0 0 10 10" width="9" height="9" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M1 1l8 8M9 1L1 9"/></svg>',
+  };
+  const ARROW = {
+    up: '<svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 9l6-6M4.5 3H9v4.5"/></svg>',
+    down: '<svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 3l6 6M9 4.5V9H4.5"/></svg>',
+  };
+
+  // How a number moved against the period before, in percent. Nothing
+  // when there was nothing before to measure against.
+  function change(now, prev) {
+    if (now == null || prev == null || !prev) return null;
+    // The record only reaches back as far as the scrapers' first sight
+    // of each role, so a month-ago figure a fraction of today's means
+    // the record was thin then, not that the market grew tenfold.
+    if (prev < now / 4) return null;
+    return Math.round(((now - prev) / prev) * 100);
+  }
+  function pill(pct, tail = "") {
+    if (pct == null) return "";
+    const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+    const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k` : Math.abs(pct);
+    return `<span class="acct-pill ${dir}" title="${pct > 0 ? "+" : ""}${pct}% against the period before">${ARROW[dir] || ""}${shown}%${tail ? " " + tail : ""}</span>`;
+  }
+
+  // The 90 days of history as whole weeks ending today, at most eight:
+  // the new matches in each, and the roles open on its last day.
+  function weekly(days) {
+    const out = [];
+    for (let w = Math.min(8, Math.floor(days.length / 7)) - 1; w >= 0; w--) {
+      const end = days.length - 1 - 7 * w;
+      out.push({ day: days[end].day, matches: days.slice(end - 6, end + 1).reduce((s, d) => s + d.new, 0), roles: days[end].open });
+    }
+    return out;
+  }
+
+  // Pay, from the matches' own estimates: the median, the middle half,
+  // and 13 bins of 5K from 20K (the ends hold everything past them).
+  const k = (n) => `₪${Math.round(n / 1000)}K`;
+  function parseShekels(text) {
+    if (!text || !/₪|ILS|NIS/.test(text)) return null;
+    const nums = [...text.matchAll(/(\d[\d,.]*)\s*([kK])?/g)].map((m) => parseFloat(m[1].replace(/,/g, "")) * (m[2] ? 1000 : 1)).filter((n) => n > 1000);
+    if (!nums.length) return null;
+    return nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];
+  }
+  function pay(matches) {
+    const pays = matches.map((j) => parseShekels(j.salary_text)).filter((n) => n).sort((a, b) => a - b);
+    if (pays.length < 5) return null;
+    const q = (f) => pays[Math.min(pays.length - 1, Math.floor(f * (pays.length - 1)))];
+    const bins = Array(13).fill(0);
+    for (const p of pays) bins[Math.max(0, Math.min(12, Math.floor((p - 20000) / 5000)))] += 1;
+    return { med: q(0.5), lo: q(0.25), hi: q(0.75), n: pays.length, bins };
+  }
+  function payBins(p) {
+    const top = Math.max(...p.bins);
+    return `<span class="acct-bins" aria-hidden="true">${p.bins.map((n, i) => {
+      const x0 = 20000 + i * 5000;
+      const mid = (i === 0 || x0 <= p.hi) && (i === 12 || x0 + 5000 > p.lo);
+      return `<i class="${mid ? "mid" : ""}" style="height:${n ? Math.max(8, (n / top) * 100) : 0}%"></i>`;
+    }).join("")}</span>`;
+  }
+
+  // The history behind the tiles and the chart; it comes with the dashboard.
+  let history = null;
+  let weeks = [];
+  let series = "matches";
+
+  function stat({ icon, corner = "", label, value, aside = "", title = "" }) {
+    // A phone shows only the tiles with a number in them.
+    const empty = value === "0" || value === "–" || value === "" || value == null;
+    return `<div class="acct-card acct-stat${empty ? " acct-stat-empty" : ""}"${title ? ` title="${esc(title)}"` : ""}>
+      <div class="acct-stat-top"><span class="acct-icon">${icon}</span>${corner}</div>
+      <div><div class="acct-stat-label">${label}</div>
+      <div class="acct-stat-row"><span class="acct-stat-value">${value}</span><span class="acct-stat-aside">${aside}</span></div></div>
+    </div>`;
+  }
+
+  function figures() {
+    const days = history?.days || [];
+    const n = days.length;
+    return {
+      week: weeks.length ? weeks[weeks.length - 1].matches : 0,
+      before: weeks.length > 1 ? weeks[weeks.length - 2].matches : null,
+      open: n ? days[n - 1].open : null,
+      monthAgo: n >= 31 ? days[n - 31].open : null,
+    };
+  }
+
+  // The tiles and the greeting line.
+  function paintStats(savedJobs, matches) {
+    const host = document.getElementById("acct-stats");
+    if (!host) return;
+    const { week, before, open, monthAgo } = figures();
+    const stillOpen = savedJobs.filter((j) => !j.closed_at).length;
+    const noSkills = !draft.skills.length;
+    const p = pay(matches);
+    host.innerHTML = [
+      stat({ icon: ICON.work, corner: noSkills ? "" : pill(change(week, before)), label: "New matches this week",
+        value: noSkills ? "–" : fmt(week), aside: noSkills ? '<a href="#skills">Add your skills</a>' : before == null ? "" : `Prev: ${fmt(before)}` }),
+      stat({ icon: ICON.trend, corner: pill(change(open, monthAgo)), label: "Open roles that fit you",
+        value: open == null ? "–" : fmt(open), aside: monthAgo == null ? "" : `Prev: ${fmt(monthAgo)} / mo` }),
+      stat({ icon: '<span class="acct-icon-glyph">₪</span>', corner: p ? payBins(p) : "", label: "Median salary / mo",
+        value: p ? k(p.med) : "–", aside: p ? `Mid: ${k(p.lo)}–${k(p.hi).slice(1)}` : noSkills ? "" : "Too few estimates yet",
+        title: p ? `Estimated from ${p.n} of your matches. The middle half pays ${k(p.lo)} to ${k(p.hi)} a month.` : "" }),
+      stat({ icon: ICON.save, corner: savedJobs.length ? '<a class="btn ghost acct-corner" href="#saved">View</a>' : "", label: "Saved jobs",
+        value: fmt(savedJobs.length), aside: savedJobs.length ? `${stillOpen} still open` : '<a href="/board">Save one from the board</a>' }),
+    ].join("");
+    const since = `last ${weekdayOf(new Date(Date.now() - 7 * DAY))}`;
+    const summary = document.getElementById("acct-summary");
+    if (summary) {
+      summary.innerHTML = noSkills
+        ? 'Read a CV in <a href="#skills">Skills</a> and this page fills with the roles that fit you.'
+        : `<b>${fmt(week)}</b> new ${week === 1 ? "match" : "matches"} since ${since}${open != null ? `, out of <b>${fmt(open)}</b> open roles that fit you` : ""}`;
+    }
+    const all = document.getElementById("acct-matches-all");
+    if (all) all.textContent = week ? `View all ${fmt(week)}` : "View all";
+    const g = document.getElementById("acct-greeting");
+    if (g) g.textContent = greeting();
+    const { country } = matchScope();
+    const ds = document.getElementById("acct-demand-sub");
+    if (ds) ds.textContent = typeof placeSummary === "function" ? placeSummary() : (country ? countryLabel(country) : "Anywhere");
+    const openLink = document.getElementById("acct-open-matches");
+    if (openLink && draft.skills.length) openLink.href = `/board?view=matches&skills=${encodeURIComponent(draft.skills.join(","))}${country ? `&country=${country}` : ""}`;
+  }
+
+  // The weekly chart: an area over eight weeks, the latest point marked
+  // and labelled, any other point labelled under the pointer.
+  function niceStep(v) {
+    if (v <= 1) return 1;
+    const p = 10 ** Math.floor(Math.log10(v));
+    return [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= v);
+  }
+  const short = (n) => (n >= 1000 ? `${+(n / 1000).toFixed(n % 1000 ? 1 : 0)}k` : String(Math.round(n)));
+
+  function paintTrend() {
+    const host = document.getElementById("acct-chart");
+    if (!host) return;
+    const title = document.getElementById("acct-trend-title");
+    const valueEl = document.getElementById("acct-trend-value");
+    const pillEl = document.getElementById("acct-trend-pill");
+    document.querySelectorAll("[data-series]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.series === series)));
+    const isM = series === "matches";
+    title.textContent = isM ? "New matches per week" : "Open roles that fit you, weekly";
+    if (weeks.length < 2) {
+      valueEl.textContent = "";
+      pillEl.innerHTML = "";
+      host.innerHTML = `<p class="acct-empty">${draft.skills.length ? "Not enough history yet. The weeks fill in as the board watches your matches." : 'Add <a href="#skills">your skills</a> to see your matches week by week.'}</p>`;
+      return;
+    }
+    const v = weeks.map((w) => w[series]);
+    const last = v.length - 1;
+    const { open, monthAgo } = figures();
+    valueEl.textContent = fmt(v[last]);
+    pillEl.innerHTML = isM ? pill(change(v[last], v[last - 1]), "vs last week") : pill(change(open, monthAgo), "vs last month");
+    const step = niceStep((Math.max(...v) * 1.1) / 4);
+    const max = step * 4;
+    const W = 700, H = 200;
+    const x = (i) => (i * W) / last;
+    const y = (val) => H - (val / max) * H;
+    const line = v.map((val, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(val).toFixed(1)}`).join(" ");
+    const dots = v.map((val, i) => `<span class="acct-dot${i === last ? " on" : ""}" style="left:${(x(i) / W) * 100}%;top:${(y(val) / H) * 100}%"></span>`).join("");
+    const label = isM ? "New matches" : "Open roles";
+    host.innerHTML = `
+      <div class="acct-yaxis" aria-hidden="true">${[4, 3, 2, 1, 0].map((i) => `<span>${short(step * i)}</span>`).join("")}</div>
+      <div class="acct-plot">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="acct-area-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="acct-area-top"/><stop offset="1" class="acct-area-bottom"/></linearGradient></defs>
+          <path class="acct-gridline" d="M0 0H${W}M0 50H${W}M0 100H${W}M0 150H${W}"/>
+          <path class="acct-baseline" d="M0 ${H}H${W}"/>
+          <path class="acct-area" d="${line} L${W} ${H} L0 ${H} Z"/>
+          <path class="acct-line" d="${line}"/>
+          <path class="acct-drop" id="acct-drop" d=""/>
+        </svg>
+        ${dots}
+        <div class="acct-tip" id="acct-tip" aria-hidden="true"></div>
+      </div>
+      <span></span>
+      <div class="acct-xaxis" aria-hidden="true">${weeks.map((w) => `<span>${esc(dayLabel(w.day))}</span>`).join("")}</div>
+      <table class="visually-hidden"><caption>${esc(title.textContent)}</caption><tr><th scope="col">Week to</th><th scope="col">${label}</th></tr>${weeks.map((w, i) => `<tr><td>${esc(dayLabel(w.day))}</td><td>${fmt(v[i])}</td></tr>`).join("")}</table>`;
+    const plot = host.querySelector(".acct-plot");
+    const tip = host.querySelector("#acct-tip");
+    const drop = host.querySelector("#acct-drop");
+    const dotEls = [...plot.querySelectorAll(".acct-dot")];
+    const show = (i) => {
+      tip.innerHTML = `<span class="acct-tip-when">Week to ${esc(dayLabel(weeks[i].day))}</span><span class="acct-tip-n">${fmt(v[i])}</span>`;
+      tip.style.left = `${(x(i) / W) * 100}%`;
+      tip.style.top = `${(y(v[i]) / H) * 100}%`;
+      tip.dataset.edge = i === last ? "end" : i === 0 ? "start" : "";
+      // Near the top the label would cover the card head; it hangs under the point instead.
+      tip.dataset.below = String(y(v[i]) / H < 0.3);
+      drop.setAttribute("d", `M${x(i).toFixed(1)} ${y(v[i]).toFixed(1)} V${H}`);
+      dotEls.forEach((d, j) => d.classList.toggle("hover", j === i && i !== last));
+    };
+    show(last);
+    plot.addEventListener("pointermove", (e) => {
+      const r = plot.getBoundingClientRect();
+      show(Math.max(0, Math.min(last, Math.round(((e.clientX - r.left) / r.width) * last))));
+    });
+    plot.addEventListener("pointerleave", () => show(last));
+  }
+
+  // The skills against demand. Gaps first: skills the reader does not
+  // list that at least a fifth of their matches name, dashed, with Add.
+  // Then the listed skills, capped so the card stays inside its row.
   async function paintDemand(matches, counts = {}) {
     const host = document.getElementById("acct-demand");
     if (!host) return;
-    const { skills, country } = matchScope();
-    if (!skills.length) { host.innerHTML = '<p class="acct-matches-empty">Add skills to see demand for them.</p>'; return; }
-    host.innerHTML = Array.from({ length: Math.min(skills.length, 6) }, () => '<div class="acct-demand-row"><span class="skeleton sk-line" style="width:40%"></span></div>').join("");
-    const shown = skills.slice(0, 10);
-    // Skills the matches ask for that the reader does not list, with
-    // the share of matches naming each; the one most asked for gets
-    // the note, with what adding it would open up.
+    const { skills } = matchScope();
+    if (!skills.length) { host.innerHTML = '<p class="acct-empty">Add skills to see demand for them.</p>'; return; }
     const have = new Set(skills);
     const seen = new Map();
     for (const j of matches) for (const sk of (j.skills || "").split(",").filter(Boolean)) if (!have.has(sk)) seen.set(sk, (seen.get(sk) || 0) + 1);
-    const suggested = [...seen.entries()].filter(([, n]) => matches.length && n / matches.length >= 0.2).sort((a, b) => b[1] - a[1]).slice(0, 2);
-    // The counts came with the dashboard, computed with the matches.
-    const rows = shown.map((sk) => ({ sk, n: counts[sk], mine: true }))
-      .concat(suggested.map(([sk, share]) => ({ sk, n: counts[sk], mine: false, share: share / matches.length })))
-      .filter((r) => r.n != null).sort((a, b) => b.n - a.n);
-    const max = Math.max(1, ...rows.map((r) => r.n));
-    host.innerHTML = rows.map((r) => `
-      <div class="acct-demand-row${r.mine ? "" : " suggested"}">
-        <span class="acct-demand-name">${esc(r.sk)}${r.mine ? "" : ` <button type="button" class="acct-add" data-add="${esc(r.sk)}">Add skill</button>`}</span>
-        <span class="acct-demand-track"><span class="acct-demand-fill" style="width:${Math.round(100 * r.n / max)}%"></span></span>
+    const gaps = [...seen.entries()].filter(([sk, n]) => matches.length && n / matches.length >= 0.2 && counts[sk] != null)
+      .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([sk, n]) => ({ sk, n: counts[sk], share: Math.round((n / matches.length) * 100) }));
+    const mine = skills.slice(0, 10).filter((sk) => counts[sk] != null).map((sk) => ({ sk, n: counts[sk] })).sort((a, b) => b.n - a.n);
+    const max = Math.max(1, ...gaps.map((r) => r.n), ...mine.map((r) => r.n));
+    const w = (n) => `${Math.max(1, Math.round((100 * n) / max))}%`;
+    const cap = gaps.length ? 6 : 8;
+    const more = mine.length - cap;
+    let html = "";
+    if (gaps.length) {
+      const shares = gaps.map((g) => `${g.share}%`).join(" and ");
+      html += `<div class="acct-th">Gaps · in ${shares} of your matches</div>`;
+      html += gaps.map((g) => `<div class="acct-demand-row gap" title="${esc(g.sk)} is named by ${g.share}% of your matches; ${fmt(g.n)} open roles ask for it">
+        <span class="acct-demand-name">${esc(g.sk)}</span>
+        <span class="acct-demand-track"><span class="acct-demand-fill" style="width:${w(g.n)}"></span></span>
+        <span class="acct-demand-n">${fmt(g.n)}</span>
+        <button type="button" class="btn acct-small" data-add="${esc(g.sk)}" aria-label="Add ${esc(g.sk)} to your skills">Add</button>
+      </div>`).join("");
+      html += '<div class="acct-rule"></div>';
+    }
+    html += '<div class="acct-th">On your profile</div>';
+    html += mine.slice(0, cap).map((r) => `<div class="acct-demand-row">
+        <span class="acct-demand-name">${esc(r.sk)}</span>
+        <span class="acct-demand-track"><span class="acct-demand-fill" style="width:${w(r.n)}"></span></span>
         <span class="acct-demand-n">${fmt(r.n)}</span>
       </div>`).join("");
+    if (more > 0) html += `<a class="acct-more" href="#skills">Show ${more} more →</a>`;
+    host.innerHTML = html;
     const note = document.getElementById("acct-demand-note");
-    if (note) {
-      const top = rows.find((r) => !r.mine);
-      if (top) {
-        // The share alone: what adding it would open up cost a scan of its own.
-        note.innerHTML = `<b>${esc(top.sk)}</b> appears in ${Math.round(top.share * 100)}% of your matches. Add it if you have it, and ${fmt(top.n)} open roles ask for it.`;
-        note.hidden = false;
-      } else note.hidden = true;
-    }
+    if (note) note.hidden = true;
     host.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", async () => {
       if (draft.skills.length >= MAX_SKILLS) {
         note.hidden = false;
@@ -165,57 +299,105 @@
         paintProfile(res.profile || res);
         setCount("skills", draft.skills.length);
         paintDashboard();
-      } catch { b.disabled = false; }
+      } catch {
+        draft.skills = draft.skills.filter((sk) => sk !== b.dataset.add);
+        b.disabled = false;
+      }
     }));
   }
 
-  // ---- pay, from the matches' own estimates ----
-  function parseShekels(text) {
-    if (!text || !/₪|ILS|NIS/.test(text)) return null;
-    const nums = [...text.matchAll(/(\d[\d,.]*)\s*([kK])?/g)].map((m) => parseFloat(m[1].replace(/,/g, "")) * (m[2] ? 1000 : 1)).filter((n) => n > 1000);
-    if (!nums.length) return null;
-    return nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];
-  }
-  function paintPay(matches) {
-    const host = document.getElementById("acct-pay");
-    if (!host) return;
-    const pays = matches.map((j) => parseShekels(j.salary_text)).filter((n) => n).sort((a, b) => a - b);
-    if (pays.length < 5) { host.innerHTML = `<p class="acct-matches-empty">${draft.skills.length ? "Not enough salary estimates yet among the roles matching your background." : "Add skills to see what roles matching your background pay."}</p>`; return; }
-    const q = (f) => pays[Math.min(pays.length - 1, Math.floor(f * (pays.length - 1)))];
-    const med = q(0.5), lo = q(0.25), hi = q(0.75);
-    const k = (n) => `₪${Math.round(n / 1000)}K`;
-    const bins = 12, min = pays[0], max = pays[pays.length - 1], step = Math.max(1, (max - min) / bins);
-    const hist = Array(bins).fill(0);
-    for (const p of pays) hist[Math.min(bins - 1, Math.floor((p - min) / step))] += 1;
-    const top = Math.max(...hist);
-    const W = 280, H = 70;
-    const bars = hist.map((n, i) => { const x0 = min + i * step, x1 = x0 + step; const mid = x0 <= hi && x1 >= lo; return `<rect class="acct-pay-bar${mid ? " mid" : ""}" x="${(i / bins * W).toFixed(1)}" y="${(H - 10 - (n / top) * (H - 14)).toFixed(1)}" width="${(W / bins - 2).toFixed(1)}" height="${((n / top) * (H - 14)).toFixed(1)}" rx="1"/>`; }).join("");
-    const mx = ((med - min) / (max - min || 1)) * W;
-    host.innerHTML = `<div class="acct-pay-head"><span class="acct-pay-value">${k(med)}</span><span class="acct-pay-sub">median /mo, estimated from ${pays.length} roles matching your background</span></div>
-      <svg class="acct-pay-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Estimated salary across roles matching your background, median ${k(med)}">${bars}<line class="acct-pay-median" x1="${mx.toFixed(1)}" x2="${mx.toFixed(1)}" y1="2" y2="${H - 8}"/></svg>
-      <div class="acct-pay-foot"><span>${k(min)}</span><span>Middle half pays ${k(lo)}–${k(hi)}</span><span>${k(max)}</span></div>`;
+  // The alerts, as a table with Pause and delete. The create form is the
+  // Alerts section's own, moved in while it is open.
+  let alertFormOpen = false;
+  let alertCount = null;
+  const alertsNow = () => ((typeof myAlerts !== "undefined" ? myAlerts : []) || []);
+
+  function alertParts(filter) {
+    const kw = filter.search || filter.q || "";
+    const rest = describeAlertFilter(Object.assign({}, filter, { search: "", q: "" }));
+    return { kw, rest: kw && rest === "All jobs" ? "" : rest };
   }
 
-  // ---- what happened ----
-  function paintActivity(savedRows, savedJobs) {
-    const host = document.getElementById("acct-activity");
+  function paintAlerts() {
+    const host = document.getElementById("acct-alerts");
     if (!host) return;
-    const items = [];
-    for (const a of ((typeof myAlerts !== "undefined" ? myAlerts : []) || [])) {
-      if (a.last_notified_at) items.push({ at: a.last_notified_at, text: `${a.active ? "Alert" : "Paused alert"} ${esc(describeAlertFilter(a.filter || {}))}`, sub: "last sent" });
+    const list = alertsNow();
+    // A create that went through closes the form it came from.
+    if (alertFormOpen && alertCount != null && list.length > alertCount) setAlertForm(false);
+    alertCount = list.length;
+    const sent = list.map((a) => a.last_notified_at).filter(Boolean).sort().pop();
+    const sentEl = document.getElementById("acct-alerts-sent");
+    if (sentEl) sentEl.textContent = sent ? `· sent ${ago(sent)}` : "";
+    const toggle = document.getElementById("acct-alert-toggle");
+    if (toggle) { toggle.textContent = alertFormOpen ? "Cancel" : "New alert"; toggle.setAttribute("aria-expanded", String(alertFormOpen)); }
+    host.hidden = alertFormOpen;
+    if (!list.length) {
+      host.innerHTML = '<p class="acct-empty">No alerts yet. Create one and new listings that match it are emailed to you.</p>';
+      return;
     }
-    const byId = new Map(savedJobs.map((j) => [j.id, j]));
-    for (const r of savedRows) {
-      const j = byId.get(r.job_id);
-      if (r.saved_at && j) items.push({ at: r.saved_at, text: `You saved ${esc(j.title)}${j.company_name ? ` at ${esc(j.company_name)}` : ""}`, sub: "" });
-    }
-    items.sort((a, b) => new Date(b.at) - new Date(a.at));
-    host.innerHTML = items.length
-      ? items.slice(0, 6).map((it) => `<div class="acct-act"><span class="acct-act-when">${esc(ago(it.at))}</span><span class="acct-act-text">${it.text}${it.sub ? ` <span class="acct-act-sub">· ${it.sub}</span>` : ""}</span></div>`).join("")
-      : '<p class="acct-matches-empty">Nothing yet. Alerts you create and jobs you save show up here.</p>';
+    host.innerHTML = `<div class="acct-th acct-alert-cols" aria-hidden="true"><span>Alert</span><span>Status</span><span></span><span></span></div>
+      <div class="acct-list">${list.map((a) => {
+        const { kw, rest } = alertParts(a.filter || {});
+        const name = describeAlertFilter(a.filter || {});
+        return `<div class="acct-trow acct-alert-cols${a.active ? "" : " paused"}">
+          <span class="acct-alert-text">${kw ? `<span class="acct-kw">"${esc(kw)}"</span> ` : ""}${esc(rest)}</span>
+          <span class="acct-alert-status">${a.active ? ICON.active + "Active" : ICON.paused + "Paused"}</span>
+          <button type="button" class="btn acct-small" data-alert-pause="${esc(a.alert_id)}" data-active="${a.active}">${a.active ? "Pause" : "Resume"}</button>
+          <button type="button" class="acct-x" data-alert-delete="${esc(a.alert_id)}" aria-label="Delete alert ${esc(name)}" title="Delete alert">${ICON.x}</button>
+        </div>`;
+      }).join("")}</div>`;
   }
 
-  // ---- the matches, 100 of them, read once for three panels ----
+  async function reloadAlerts() {
+    renderAlertsList((await authedFetch("/me/alerts")).alerts || []);
+  }
+
+  function setAlertForm(open) {
+    const form = document.getElementById("alert-create");
+    const slot = document.getElementById("acct-alert-slot");
+    const home = document.getElementById("alerts");
+    if (!form || !slot || !home) return;
+    alertFormOpen = open;
+    (open ? slot : home).appendChild(form);
+    paintAlerts();
+    if (open) document.getElementById("alert-f-search")?.focus();
+  }
+  window.closeOverviewAlertForm = () => { if (alertFormOpen) setAlertForm(false); };
+  window.paintOverviewAlerts = paintAlerts;
+
+  function wireOverview() {
+    document.getElementById("acct-alerts")?.addEventListener("click", async (e) => {
+      const pause = e.target.closest("[data-alert-pause]");
+      const del = e.target.closest("[data-alert-delete]");
+      const btn = pause || del;
+      if (!btn) return;
+      if (del && !confirm("Delete this alert? Its emails stop at once.")) return;
+      btn.disabled = true;
+      try {
+        if (pause) await authedFetch(`/me/alerts/${pause.dataset.alertPause}`, { method: "PATCH", body: JSON.stringify({ active: pause.dataset.active !== "true" }) });
+        else await authedFetch(`/me/alerts/${del.dataset.alertDelete}`, { method: "DELETE" });
+        await reloadAlerts();
+      } catch {
+        btn.disabled = false;
+      }
+    });
+    // The card's button toggles the form; the header's opens it, here on
+    // the overview or in the Alerts section from anywhere else.
+    document.getElementById("acct-alert-toggle")?.addEventListener("click", () => setAlertForm(!alertFormOpen));
+    document.querySelector(".acct-hero [data-alert-form]")?.addEventListener("click", () => {
+      if (document.getElementById("overview")?.classList.contains("is-active")) {
+        if (!alertFormOpen) setAlertForm(true);
+        document.getElementById("acct-alert-slot")?.scrollIntoView({ block: "nearest" });
+      } else {
+        document.querySelector('.account-nav-link[href="#alerts"]')?.click();
+        document.getElementById("alert-f-search")?.focus();
+      }
+    });
+    // Upload CV opens the Skills section (the link does that) and its picker.
+    document.querySelector("[data-cv-upload]")?.addEventListener("click", () => document.getElementById("cv-file")?.click());
+    document.querySelectorAll("[data-series]").forEach((b) => b.addEventListener("click", () => { series = b.dataset.series; paintTrend(); }));
+  }
+
   // One call: the overview's numbers, computed on the box on the first
   // visit of the day and stored with the profile (api/dashboard.py).
   let forceNext = false;
@@ -227,23 +409,23 @@
     try { return await authedFetch(`/me/dashboard${force ? "?refresh=1" : ""}`); } catch { return null; }
   }
 
+  // " · Refresh" after the summary, with when the numbers were made in
+  // its tooltip: the day, the time and the reader's own time zone.
   function paintFresh(at) {
     const el = document.getElementById("acct-fresh");
     if (!el) return;
     if (!at) { el.hidden = true; return; }
-    // "Refreshed Saturday at 3:25 PM GMT+3": the day, the time and the
-    // reader's own time zone. A copy more than six days old adds the date,
-    // since the weekday alone would then be ambiguous.
     const d = new Date(at);
-    const old = Date.now() - d.getTime() > 6 * 864e5;
+    const old = Date.now() - d.getTime() > 6 * DAY;
     const day = d.toLocaleDateString(undefined, old ? { weekday: "long", month: "short", day: "numeric" } : { weekday: "long" });
     const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" });
-    el.textContent = `Refreshed ${day} at ${time}. `;
+    el.textContent = " · ";
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "link-inline";
     btn.id = "acct-refresh";
-    btn.textContent = "Refresh now";
+    btn.textContent = "Refresh";
+    btn.title = `Refreshed ${day} at ${time}`;
     el.appendChild(btn);
     if (updatingNow) {
       const tag = document.createElement("span");
@@ -252,13 +434,12 @@
       el.appendChild(tag);
     }
     el.hidden = false;
-    el.querySelector("#acct-refresh").addEventListener("click", () => { forceNext = true; inflight = null; paintDashboard(); });
+    btn.addEventListener("click", () => { forceNext = true; inflight = null; paintDashboard(); });
   }
 
   // The last answer, kept in this browser for half an hour, so the page
   // paints at once on the next visit and the fresh numbers replace it
-  // quietly when they arrive. The history alone is a pass over the
-  // whole table on the box.
+  // quietly when they arrive.
   // The same cap the API applies (api/profile.py MAX_SKILLS): it keeps
   // the first forty and drops the rest without a word.
   const MAX_SKILLS = 40;
@@ -279,7 +460,7 @@
   let historyRetries = 0;
   let pendingPolls = 0;
 
-  // "Updating" beside the freshness line while the box recomputes. Kept as
+  // "Updating" beside the refresh link while the box recomputes. Kept as
   // state too: the overview repaints when the alerts and saved lists come
   // in, and paintFresh puts the tag back each time.
   let updatingNow = false;
@@ -300,7 +481,7 @@
   }
 
   // The frame at once: greeting, the four tiles and bones in every
-  // panel, before any answer is in. The numbers can take seconds on a
+  // card, before any answer is in. The numbers can take seconds on a
   // busy box, and a blank page for that long reads as broken.
   function paintSkeleton() {
     const g = document.getElementById("acct-greeting");
@@ -308,29 +489,28 @@
     const bone = (w, h) => `<span class="skeleton sk-line" style="width:${w}px;height:${h}px;display:inline-block"></span>`;
     const stats = document.getElementById("acct-stats");
     if (stats && !stats.children.length) {
-      stats.innerHTML = ["New matches this week", "Open roles that fit you", "Alerts", "Saved jobs"]
-        .map((label) => tile(label, bone(64, 26), bone(120, 11), "")).join("");
+      stats.innerHTML = ["New matches this week", "Open roles that fit you", "Median salary / mo", "Saved jobs"]
+        .map((label) => stat({ icon: "", label, value: bone(64, 22), aside: bone(60, 11) })).join("");
     }
-    const market = document.getElementById("acct-market");
-    if (market && !market.children.length) market.innerHTML = `<div class="acct-market-bones">${bone(999, 180)}</div>`;
+    const chart = document.getElementById("acct-chart");
+    if (chart && !chart.children.length) chart.innerHTML = `<div class="acct-bones acct-chart-bones">${bone(999, 160)}</div>`;
     const demand = document.getElementById("acct-demand");
-    if (demand && !demand.children.length) demand.innerHTML = Array.from({ length: 5 }, () => `<div class="acct-demand-row"><span class="acct-demand-name">${bone(90, 12)}</span><span class="acct-demand-track"></span><span class="acct-demand-n">${bone(32, 12)}</span></div>`).join("");
-    for (const id of ["acct-matches", "acct-pay", "acct-activity"]) {
-      const el = document.getElementById(id);
-      if (el && !el.children.length && !el.textContent.trim()) el.innerHTML = `<div class="acct-bones">${bone(220, 12)}<br>${bone(160, 12)}</div>`;
-    }
+    if (demand && !demand.children.length) demand.innerHTML = Array.from({ length: 5 }, () => `<div class="acct-demand-row"><span class="acct-demand-name">${bone(70, 11)}</span><span class="acct-demand-track"></span><span class="acct-demand-n">${bone(28, 11)}</span></div>`).join("");
+    const matches = document.getElementById("acct-matches");
+    if (matches && !matches.children.length) matches.innerHTML = Array.from({ length: 3 }, () => `<div class="acct-trow acct-match-cols acct-match">${bone(180, 12)}</div>`).join("");
   }
+
   let painted = "";
   function paintAll(matches, counts = {}, computedAt = null) {
-    const savedRows = (typeof dashSavedRows !== "undefined" ? dashSavedRows : []) || [];
     const savedJobs = (typeof dashSavedJobs !== "undefined" ? dashSavedJobs : []) || [];
-    paintStats(savedJobs);
-    paintActivity(savedRows, savedJobs);
-    paintPay(matches);
+    weeks = weekly(history?.days || []);
+    paintStats(savedJobs, matches);
+    paintTrend();
     paintDemand(matches, counts);
+    paintAlerts();
     paintFresh(computedAt);
     // No matches: one card with the two ways out (style.css shows it on
-    // a phone, where four empty panels were the whole screen).
+    // a phone, where empty cards were the whole screen).
     const none = !matches.length;
     document.getElementById("overview")?.classList.toggle("acct-nomatch", none);
     const card = document.getElementById("acct-getmatched");
@@ -352,7 +532,9 @@
   // hangs on) and again when the alerts and saved lists are, so the
   // tiles that read those can fill. The fetches run once per skill
   // set; a second call while they are in flight only repaints.
+  let wired = false;
   async function paintDashboard() {
+    if (!wired) { wired = true; wireOverview(); }
     paintSkeleton();
     const key = cacheKey();
     const cached = readCache();
@@ -386,13 +568,13 @@
     }
     if (!pending) pendingPolls = 0;
     paintUpdating(pending);
-    // Nothing stored yet: keep the bones up rather than paint empty panels.
+    // Nothing stored yet: keep the bones up rather than paint empty cards.
     if (pending && !at) return;
     history = h;
     painted = key;
     if (h) writeCache(h, matches, counts, at);
     paintAll(matches, counts, at);
-    paintUpdating(pending); // paintAll rewrote the freshness line
+    paintUpdating(pending); // paintAll rewrote the refresh line
   }
 
   window.paintDashboard = paintDashboard;

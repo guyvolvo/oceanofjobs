@@ -316,20 +316,47 @@ function paintMatches(jobs, skills) {
     return;
   }
   const want = new Set(skills);
+  const starred = getStarred();
   host.innerHTML = jobs.map((j) => {
     const listed = (j.skills || "").split(",").filter(Boolean);
     const hit = listed.filter((sk) => want.has(sk)).length;
+    const on = starred.has(j.id);
     return `
-      <a class="acct-match" href="/job/${encodeURIComponent(j.id)}">
-        ${companyLogoImg(j.company_domain, 40, "listing", j.logo_url)}
-        <span class="acct-match-text">
-          <span class="acct-match-title">${escapeHtml(j.title)}</span>
-          <span class="acct-match-meta">${escapeHtml(j.company_name || j.company_domain || "")}${
-            j.location ? " · " + escapeHtml(j.location) : ""}</span>
+      <div class="acct-trow acct-match-cols acct-match">
+        <span class="acct-match-role">
+          ${companyLogoImg(j.company_domain, 28, "listing", j.logo_url)}
+          <span class="acct-match-text">
+            <a class="acct-match-title" href="/job/${encodeURIComponent(j.id)}">${escapeHtml(j.title)}</a>
+            <span class="acct-match-meta">${escapeHtml(j.company_name || j.company_domain || "")}${
+              j.location ? " · " + escapeHtml(j.location) : ""}</span>
+          </span>
         </span>
-        <span class="acct-match-score">${hit} of ${want.size} skills</span>
-      </a>`;
+        <span class="acct-match-share" title="${hit} of your ${want.size} skills">
+          <span class="acct-demand-track"><span class="acct-demand-fill" style="width:${Math.round((100 * hit) / Math.max(1, want.size))}%"></span></span>
+          <span class="acct-demand-n">${hit}</span>
+        </span>
+        <button type="button" class="acct-save${on ? " on" : ""}" data-save="${escapeHtml(j.id)}" aria-pressed="${on}" aria-label="${on ? "Saved" : "Save"}: ${escapeHtml(j.title)}">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
+        </button>
+      </div>`;
   }).join("");
+  // The board's star: this browser's set at once, the account behind it,
+  // and the saved list reloaded so its count and tile follow.
+  host.querySelectorAll("[data-save]").forEach((b) => b.addEventListener("click", async () => {
+    const id = b.dataset.save;
+    toggleStar(id);
+    const on = getStarred().has(id);
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+    try {
+      await authedFetch(`/me/saved/${encodeURIComponent(id)}`, { method: on ? "PUT" : "DELETE" });
+      loadSaved();
+    } catch {
+      toggleStar(id);
+      b.classList.toggle("on", !on);
+      b.setAttribute("aria-pressed", String(!on));
+    }
+  }));
 }
 
 function paintProfile(profile) {
@@ -698,8 +725,11 @@ function wireAccountNav() {
     panels.forEach((p) => {
       p.el.classList.toggle("is-active", p.id === open);
       p.link.classList.toggle("active", p.id === open);
-      p.link.setAttribute("aria-current", p.id === open ? "true" : "false");
+      p.link.setAttribute("aria-selected", String(p.id === open));
     });
+    // The Alerts form may be lent to the overview; it goes home when the
+    // overview closes, so the Alerts section never opens without it.
+    if (open !== "overview" && window.closeOverviewAlertForm) window.closeOverviewAlertForm();
     layout.classList.toggle("section-open", !!open);
     if (page) page.classList.toggle("section-open", !!open);
     paintSectionHead(open || "overview");
@@ -761,6 +791,7 @@ async function wireAlerts() {
   renderAlertsList = (list) => {
     setCount("alerts", (list || []).length);
     paintList(list);
+    if (window.paintOverviewAlerts) window.paintOverviewAlerts();
   };
 
   // The list first, and on its own. It used to come last, behind a

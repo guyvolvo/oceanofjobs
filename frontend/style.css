@@ -36,6 +36,20 @@
   font-weight: 500;
   font-display: swap;
 }
+/* Geist Mono, for the account page's figures and keywords. The same
+   Geist Project and licence; two weights, latin. */
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/GeistMono-400-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/GeistMono-500-latin.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
 
 @font-face {
   font-family: "Overused Grotesk";
@@ -7283,169 +7297,286 @@ table.jobs tbody tr.skeleton-row {
 /* A column of reading width, centred, rather than the full screen. The
    main box is no box here: each panel of the overview is its own card,
    and the other sections keep theirs. */
-.account-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); gap: 14px; width: 100%; max-width: 1200px; margin: 0 auto; }
+/* The account page as the October 2026 handoff draws it: cards of
+   12px with a 1px line, controls of 8px, Geist for the words and Geist
+   Mono for the figures, in a column of at most 1140px. Its own tokens,
+   each mapped onto the site palette where the site has the colour, so
+   the theme toggle moves all of them. */
+.account-shell {
+  --a-card: #f8f7f6;
+  --a-raised: #ebe8e5;
+  --a-grid: #e2dfdb;
+  /* 0.84, not the handoff's 0.74: that was 3.8:1 on --a-raised, under
+     the 4.5:1 small text needs. This is 4.8:1. */
+  --a-text-2: rgba(64, 81, 59, 0.84);
+  --a-accent-bg: var(--green-text);
+  --a-accent-fg: var(--white);
+  --a-chart: var(--green);
+  --a-track: var(--row-open);
+  --a-hover: var(--row-hover);
+  --a-up: var(--green-text);
+  --a-up-bg: var(--row-selected);
+  --a-down: var(--red);
+  --a-down-bg: color-mix(in srgb, var(--red) 11%, transparent);
+  --a-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --a-mono: "Geist Mono", ui-monospace, monospace;
+  background: var(--white);
+}
+:root[data-theme="dark"] .account-shell {
+  --a-card: #1c1d22;
+  --a-raised: #23252b;
+  --a-grid: #26282e;
+  --a-text-2: rgba(237, 237, 236, 0.64);
+  --a-track: #2b2e35;
+  --a-hover: #2b2e35;
+}
+.account-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; width: 100%; }
+@media (min-width: 801px) {
+  .account-layout { --a-pad: clamp(16px, 3vw, 48px); padding: 14px max(var(--a-pad), calc((100% - 1140px) / 2)) 16px; }
+}
 .account-main.acct-box { background: none; border: 0; border-radius: 0; overflow: visible; }
 .account-main > .acct-box-head { display: none; }
 .account-main > .acct-box-body { padding: 0; overflow: visible; }
-.account-main .account-block:not(#overview) { padding: 24px; background: var(--white); border: 1px solid var(--panel-line); border-radius: 10px; }
+.account-main .account-block:not(#overview) { padding: 24px; background: var(--a-card); border: 1px solid var(--grey-line); border-radius: 12px; }
+
 .acct-hero {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: 16px;
-  padding: 6px 4px 0;
+  gap: 12px 14px;
+  padding: 0;
+  font-family: var(--a-sans);
 }
-.acct-hero .acct-id-mark { width: 48px; height: 48px; font-size: 20px; }
+.acct-hero .acct-id-mark { width: 44px; height: 44px; border: 1px solid var(--grey-line); border-radius: 10px; background: var(--a-raised); }
+.acct-hero .acct-id-mark .hero-avatar, .acct-hero .acct-id-mark img { width: 100%; height: 100%; border-radius: 9px; background: none; color: var(--black); font: 500 18px var(--a-sans); }
 .acct-hero-text { min-width: 0; }
-.acct-hero-title { margin: 0; font: 500 clamp(22px, 2.4vw, 30px) var(--font-display); letter-spacing: -0.02em; line-height: 1.1; color: var(--black); }
-.acct-hero-sub { margin: 4px 0 0; font: 400 14px var(--font-ui); color: var(--grey); }
-.acct-hero-sub b { font-weight: 600; color: var(--black); }
-.acct-hero-sub a { color: var(--green-text); }
-.acct-hero-actions { display: flex; align-items: center; gap: 14px; }
-.acct-hero-actions .btn { height: 38px; }
-.acct-hero-actions .acct-signout { color: var(--grey); }
-/* The tab strip: a row of pills, the open one inked. */
-.acct-tabs,
+.acct-hero-title { margin: 0; font: 500 24px/1.15 var(--a-sans); letter-spacing: -0.02em; color: var(--black); }
+.acct-hero-sub { margin: 2px 0 0; font: 400 13px/1.4 var(--a-sans); color: var(--a-text-2); }
+.acct-hero-sub b { font-weight: 500; color: var(--black); }
+.acct-fresh .link-inline { padding: 0; border: 0; background: none; color: var(--black); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.acct-fresh .link-inline:hover { color: var(--green-text); }
+.acct-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.acct-hero .btn, #overview .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-height: 0;
+  padding: 0 11px;
+  border: 1px solid var(--grey-line);
+  border-radius: 8px;
+  background: var(--a-raised);
+  color: var(--black);
+  font: 400 12px var(--a-sans);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+.acct-hero .btn:hover, #overview .btn:hover { background: var(--a-hover); }
+.acct-hero .btn[hidden], #overview .btn[hidden] { display: none; }
+.acct-hero .btn.primary { border-color: transparent; background: var(--a-accent-bg); color: var(--a-accent-fg); font-weight: 500; }
+.acct-hero .btn.primary:hover { background: var(--a-accent-bg); filter: brightness(1.08); }
+.acct-hero .btn.ghost, #overview .btn.ghost { border-color: transparent; background: none; }
+.acct-hero .btn.ghost:hover, #overview .btn.ghost:hover { background: var(--a-hover); }
+.acct-hero .acct-signout { color: var(--red); }
+
+/* The tabs: a 40px row, the open one underlined in ink. The rule under
+   the row is a background, so the 2px underline can sit on it inside a
+   strip that scrolls sideways on a phone. */
 .account-nav.acct-tabs {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 4px;
+  flex-wrap: nowrap;
+  gap: 26px;
+  padding: 0;
   border: 0;
-  background: none;
+  background: linear-gradient(var(--grey-line), var(--grey-line)) left bottom / 100% 1px no-repeat;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.account-nav.acct-tabs { gap: 24px; padding: 0; border-bottom: 1px solid var(--grey-line); }
 .acct-tabs .account-nav-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
+  height: 40px;
   padding: 0 2px;
   border: 0;
+  border-bottom: 2px solid transparent;
   border-radius: 0;
   background: none;
-  color: var(--grey);
-  font: 500 14px var(--font-ui);
+  color: var(--a-text-2);
+  font: 400 14px var(--a-sans);
   text-decoration: none;
+  white-space: nowrap;
 }
 .acct-tabs .account-nav-link:hover { background: none; color: var(--black); }
-.acct-tabs .account-nav-link.active { background: none; color: var(--black); box-shadow: inset 0 -2px 0 var(--black); font-weight: 600; }
-.acct-tabs .account-nav-link.active .account-nav-count { color: var(--grey); }
-.acct-tabs .account-nav-count { font: 400 12px var(--font); color: inherit; opacity: 0.7; }
+.acct-tabs .account-nav-link.active { border-bottom-color: var(--black); background: none; box-shadow: none; color: var(--black); font-weight: 500; }
+.acct-tabs .account-nav-count { font: 400 12px var(--a-mono); color: var(--a-text-2); opacity: 1; }
 .acct-tabs .account-nav-count[data-zero="1"] { display: none; }
 .account-back { display: none; }
 
-/* The four numbers. */
-/* One strip of four, divided by hairlines. */
-.acct-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--panel-line); border-radius: 10px; background: var(--white); overflow: hidden; }
-.acct-stat {
-  position: relative;
+/* The overview: four stat cards, then two rows of two cards. */
+#overview.account-block.is-active { display: flex; flex-direction: column; gap: 12px; }
+.acct-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 104px;
+  min-width: 0;
+  min-height: 0;
   padding: 14px 16px;
-  border-right: 1px solid var(--grey-line);
+  border: 1px solid var(--grey-line);
+  border-radius: 12px;
+  background: var(--a-card);
+  color: var(--black);
+  font: 400 13px/1.4 var(--a-sans);
 }
-.acct-stat:last-child { border-right: 0; }
-.acct-stat-label { font: 500 13px var(--font); color: var(--black); }
-.acct-stat-value { display: flex; align-items: baseline; gap: 8px; font: 500 30px var(--font-display); letter-spacing: -0.02em; line-height: 1; color: var(--black); font-variant-numeric: tabular-nums; }
-/* The move since the period before, in the board's own colours. */
-.acct-delta { font: 500 12px var(--font); letter-spacing: 0; white-space: nowrap; }
-.acct-delta.up { color: var(--green-text); }
-.acct-delta.down { color: #b0452f; }
-:root[data-theme="dark"] .acct-delta.down { color: #e8866b; }
-.acct-delta.flat { color: var(--grey); }
-.acct-stat-sub { font: 400 12px var(--font); color: var(--grey); }
-/* Links on the overview are set, not the browser's: green, no rule
-   under them until the pointer is on them. */
-#overview a:not(.btn):not(.acct-match), .acct-hero-sub a { color: var(--green-text); font-weight: 500; text-decoration: none; }
-#overview a:not(.btn):not(.acct-match):hover, .acct-hero-sub a:hover { text-decoration: underline; text-underline-offset: 3px; }
-/* The one green tile: what is new. */
-.acct-stat-green .acct-stat-value { color: var(--green-text); }
-.acct-spark { position: absolute; right: 14px; bottom: 14px; width: 90px; height: 28px; color: var(--grey); overflow: visible; }
-.acct-stat-green .acct-spark { color: var(--green-text); }
-.acct-spark .acct-spark-area { fill: currentColor; opacity: 0.18; }
+.acct-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; margin-bottom: 10px; }
+.acct-card-title { min-width: 0; margin: 0; font: 500 14px/1.3 var(--a-sans); color: var(--black); }
+.acct-card-actions { display: flex; flex: none; gap: 6px; }
+.acct-muted { color: var(--a-text-2); font-weight: 400; }
+.acct-th { font: 500 11px/1.4 var(--a-sans); color: var(--a-text-2); }
+.acct-big { font: 500 24px/1.15 var(--a-sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.acct-empty { margin: 0; color: var(--a-text-2); font-size: 13px; }
+#overview .acct-empty a, .acct-hero-sub a, .acct-stat-aside a { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
+#overview .acct-empty a:hover, .acct-hero-sub a:hover, .acct-stat-aside a:hover { color: var(--green-text); }
 
-.acct-dash-row { display: grid; gap: 14px; margin-top: 14px; align-items: stretch; }
-.acct-dash-row .acct-panel { padding: 16px 18px 18px; background: var(--white); border: 1px solid var(--panel-line); border-radius: 10px; }
-.acct-dash-market { grid-template-columns: 1.7fr 1fr; }
-.acct-dash-top { grid-template-columns: 1.3fr 1fr 1fr; }
-.acct-dash-bottom { grid-template-columns: minmax(0, 1fr); }
-.acct-fresh { margin: 8px 2px 0; font: 12px var(--font-ui); color: var(--grey); }
-.acct-fresh .link-inline { color: var(--green-text); font: inherit; }
-.acct-panel-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.acct-panel-sub { font: 400 12px var(--font); color: var(--grey); }
-.acct-range { display: inline-flex; border: 1px solid var(--grey-line); border-radius: 6px; overflow: hidden; }
-.acct-range button { height: 26px; padding: 0 10px; border: 0; border-right: 1px solid var(--grey-line); background: none; color: var(--grey); font: 500 12px var(--font-ui); cursor: pointer; }
-.acct-range button:last-child { border-right: 0; }
-.acct-range button.on { background: var(--black); color: var(--white); }
+.acct-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.acct-stat { gap: 8px; }
+.acct-stat-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.acct-icon { display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--grey-line); border-radius: 8px; background: var(--a-raised); }
+.acct-icon:empty { visibility: hidden; }
+.acct-icon-glyph { font: 500 16px var(--a-sans); }
+.acct-stat-label { color: var(--a-text-2); }
+.acct-stat-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.acct-stat-value { font: 500 24px/1.15 var(--a-sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.acct-stat-aside { min-width: 0; overflow: hidden; color: var(--a-text-2); font-size: 12px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+#overview .btn.acct-corner { height: 24px; padding: 0 6px; }
+/* The salary spread: 13 bins of 5K, the middle half in the chart green. */
+.acct-bins { display: flex; align-items: flex-end; gap: 2px; width: 64px; height: 26px; }
+.acct-bins i { flex: 1 1 0; border-radius: 1px; background: var(--a-track); }
+.acct-bins i.mid { background: var(--a-chart); }
+.acct-pill { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 7px; border-radius: 6px; background: var(--a-raised); color: var(--a-text-2); font: 500 11.5px var(--a-mono); white-space: nowrap; }
+.acct-pill.up { background: var(--a-up-bg); color: var(--a-up); }
+.acct-pill.down { background: var(--a-down-bg); color: var(--a-down); }
 
-/* The market chart. The bars are the arrivals, the line what is open;
-   today's bar is the one green. */
-/* The chart fills its card to the height of the card beside it. */
-.acct-chart-panel { display: flex; flex-direction: column; }
-.acct-chart { position: relative; flex: 1; min-height: 220px; display: flex; }
-.acct-market-svg { display: block; width: 100%; height: 100%; }
-.acct-grid { stroke: var(--grey-line); stroke-width: 1; }
-.acct-axis { font: 400 10px var(--font); fill: var(--grey); }
-.acct-area { fill: var(--black); opacity: 0.12; }
-.acct-line { stroke: var(--black); stroke-width: 1.5; stroke-linejoin: round; }
-.acct-cursor line { stroke: var(--grey-line); stroke-width: 1; }
-.acct-cursor circle { fill: var(--black); }
-.acct-cursor[hidden] { display: none; }
-.acct-tip { position: absolute; top: 8px; padding: 4px 8px; border: 1px solid var(--grey-line); border-radius: 4px; background: var(--white); font: 400 12px var(--font); color: var(--black); white-space: nowrap; pointer-events: none; }
-.acct-tip[hidden] { display: none; }
-.acct-legend { display: flex; gap: 16px; margin-top: 6px; font: 400 12px var(--font); color: var(--grey); }
-.acct-legend > span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
-.acct-legend-line::before { height: 2px !important; vertical-align: 3px !important; background: var(--black); }
+.acct-rows { display: flex; flex-direction: column; gap: 12px; }
+.acct-row-top, .acct-row-bottom { display: grid; gap: 12px; min-height: 0; }
+.acct-row-top { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+.acct-row-bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 
-/* Skills against demand. A skill the reader does not list is dashed. */
-.acct-demand { display: flex; flex-direction: column; gap: 8px; }
-.acct-demand-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 44px; align-items: center; column-gap: 10px; min-height: 22px; font: 400 13px var(--font); color: var(--black); }
-.acct-demand-name { display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.acct-demand-track { height: 8px; border-radius: 2px; background: var(--hover-bg); overflow: hidden; }
-.acct-demand-fill { display: block; height: 100%; background: var(--black); }
-.acct-demand-row.suggested .acct-demand-track { background: none; border: 1px dashed var(--grey); }
-.acct-demand-row.suggested .acct-demand-fill { background: color-mix(in srgb, var(--black) 30%, transparent); }
-.acct-demand-n { text-align: right; color: var(--grey); font-variant-numeric: tabular-nums; }
-.acct-add { height: 20px; padding: 0 8px; border: 1px solid var(--green-text); border-radius: 999px; background: none; color: var(--green-text); font: 500 11px var(--font-ui); cursor: pointer; }
-.acct-add:hover { background: var(--green-text); color: var(--white); }
-.acct-note b { color: var(--black); }
+/* The weekly chart. The SVG stretches to the plot; the dots and the
+   tooltip are HTML on top, so they keep their shape. */
+.acct-trend .acct-card-head { flex-wrap: wrap; align-items: flex-start; margin-bottom: 4px; }
+.acct-trend-title { color: var(--a-text-2); font-weight: 400; }
+.acct-trend-now { display: flex; align-items: baseline; gap: 8px; min-height: 28px; margin-top: 2px; }
+.acct-seg { display: flex; flex: none; gap: 2px; padding: 2px; border: 1px solid var(--grey-line); border-radius: 9px; }
+.acct-seg-btn { height: 28px; padding: 0 10px; border: 1px solid transparent; border-radius: 7px; background: none; color: var(--a-text-2); font: 400 12px var(--a-sans); cursor: pointer; }
+.acct-seg-btn:hover { color: var(--black); }
+.acct-seg-btn[aria-selected="true"] { border-color: var(--grey-line); background: var(--a-raised); color: var(--black); }
+.acct-chart { display: grid; flex: 1 1 auto; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 20px; min-height: 170px; margin-top: 12px; }
+.acct-chart > .acct-empty, .acct-chart > .acct-bones { grid-column: 1 / -1; grid-row: 1 / -1; }
+.acct-chart-bones .sk-line { width: 100% !important; max-width: 100%; }
+.acct-yaxis { display: flex; flex-direction: column; justify-content: space-between; color: var(--a-text-2); font: 400 10.5px var(--a-mono); transform: translateY(-6px); }
+.acct-plot { position: relative; min-height: 0; touch-action: pan-y; }
+.acct-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.acct-gridline { fill: none; stroke: var(--a-grid); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.acct-baseline { stroke: var(--grey-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.acct-area { fill: url(#acct-area-fill); }
+.acct-area-top { stop-color: var(--a-chart); stop-opacity: 0.32; }
+.acct-area-bottom { stop-color: var(--a-chart); stop-opacity: 0; }
+.acct-line { fill: none; stroke: var(--a-chart); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.acct-drop { stroke: var(--a-text-2); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.acct-dot { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border: 2px solid var(--a-chart); border-radius: 50%; background: var(--a-card); pointer-events: none; }
+.acct-dot.hover { width: 10px; height: 10px; margin: -5px 0 0 -5px; }
+.acct-dot.on { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--a-chart); }
+.acct-tip { position: absolute; display: flex; flex-direction: column; padding: 5px 9px; border-radius: 7px; background: var(--black); color: var(--white); white-space: nowrap; pointer-events: none; transform: translate(var(--tx, -50%), var(--ty, calc(-100% - 12px))); }
+.acct-tip[data-edge="end"] { --tx: calc(-100% + 6px); }
+.acct-tip[data-edge="start"] { --tx: -6px; }
+.acct-tip[data-below="true"] { --ty: 12px; }
+.acct-tip-when { font-size: 10.5px; opacity: 0.78; }
+.acct-tip-n { font: 500 12.5px var(--a-mono); }
+.acct-xaxis { display: flex; justify-content: space-between; padding-top: 5px; color: var(--a-text-2); font-size: 10.5px; }
 
-/* Pay: a histogram, the middle half filled, the median marked. */
-.acct-pay-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.acct-pay-value { font: 500 28px var(--font-display); letter-spacing: -0.02em; color: var(--black); }
-.acct-pay-sub { font: 400 12px var(--font); color: var(--grey); }
-.acct-pay-svg { display: block; width: 100%; height: 70px; margin-top: 10px; overflow: visible; }
-.acct-pay-bar { fill: color-mix(in srgb, var(--black) 18%, transparent); }
-.acct-pay-bar.mid { fill: color-mix(in srgb, var(--black) 55%, transparent); }
-.acct-pay-median { stroke: var(--green); stroke-width: 2; }
-.acct-pay-foot { display: flex; justify-content: space-between; margin-top: 4px; font: 400 11px var(--font); color: var(--grey); }
+/* Rows are separate rounded strips on the raised ground. */
+.acct-list { display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow: auto; }
+.acct-trow { display: grid; align-items: center; gap: 12px; min-height: 40px; padding: 0 10px; border-radius: 8px; background: var(--a-raised); }
+.acct-trow:hover { background: var(--a-hover); }
+.acct-th.acct-match-cols, .acct-th.acct-alert-cols { display: grid; padding: 0 10px 6px; }
+.acct-match-cols { grid-template-columns: minmax(0, 1fr) 92px 30px; gap: 12px; }
+#overview .acct-match { display: grid; height: 48px; padding: 0 10px; border: 0; text-decoration: none; }
+.acct-match-role { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.acct-match-role > :first-child { flex: none; width: 28px; height: 28px; border-radius: 7px; }
+#overview .acct-match-text { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+#overview .acct-match-title { overflow: hidden; color: var(--black); font: 500 13px/1.3 var(--a-sans); text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+#overview .acct-match-title:hover { text-decoration: underline; text-underline-offset: 3px; }
+#overview .acct-match-meta { overflow: hidden; color: var(--a-text-2); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.acct-match-share { display: flex; align-items: center; gap: 7px; }
+.acct-match-share .acct-demand-track { flex: 1 1 auto; height: 5px; }
+.acct-save { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--a-text-2); cursor: pointer; }
+.acct-save:hover { background: var(--a-card); color: var(--black); }
+.acct-save.on { color: var(--black); }
+.acct-save.on path { fill: currentColor; }
 
-/* The activity list. */
-.acct-activity { display: flex; flex-direction: column; }
-.acct-act { display: grid; grid-template-columns: 72px minmax(0, 1fr); column-gap: 10px; padding: 8px 0; border-top: 1px solid var(--grey-line); font: 400 13px var(--font); color: var(--black); }
-.acct-act:first-child { border-top: 0; }
-.acct-act-when { color: var(--grey); white-space: nowrap; }
-.acct-act-sub { color: var(--grey); }
+/* Open roles per skill: gaps dashed with Add, then the profile's own,
+   every bar against the largest count shown. */
+.acct-demand { display: flex; flex-direction: column; min-height: 0; }
+.acct-demand .acct-th { margin-bottom: 2px; }
+.acct-demand-row { display: grid; grid-template-columns: 104px minmax(0, 1fr) 40px; align-items: center; gap: 8px; height: 19px; font-size: 12px; }
+.acct-demand-row.gap { grid-template-columns: 104px minmax(0, 1fr) 40px 40px; height: 27px; font-size: 13px; }
+.acct-demand-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-demand-row.gap .acct-demand-name { font-weight: 500; }
+.acct-demand-track { display: block; height: 6px; overflow: hidden; border-radius: 3px; background: var(--a-track); }
+.acct-demand-fill { display: block; height: 100%; border-radius: 3px; background: var(--a-chart); }
+.acct-demand-row.gap .acct-demand-track { overflow: visible; background: none; }
+.acct-demand-row.gap .acct-demand-fill { box-sizing: border-box; height: 7px; border: 1px dashed var(--a-text-2); background: none; }
+.acct-demand-n { font: 400 11.5px var(--a-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.acct-rule { height: 1px; margin: 5px 0 7px; background: var(--grey-line); }
+#overview .acct-more { margin-top: 6px; color: var(--a-text-2); font-size: 12px; text-decoration: none; }
+#overview .acct-more:hover { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
+#overview .btn.acct-small { height: 23px; padding: 0 7px; }
+.acct-note { margin: 8px 0 0; color: var(--a-text-2); font-size: 12px; }
+.acct-note b { color: var(--black); font-weight: 500; }
 
-@media (max-width: 960px) {
+/* Alerts. */
+.acct-alerts { display: flex; flex-direction: column; min-height: 0; }
+.acct-alerts[hidden] { display: none; }
+.acct-alert-cols { grid-template-columns: minmax(0, 1fr) 70px 64px 26px; gap: 8px; }
+.acct-alerts .acct-trow { min-height: 44px; }
+.acct-alert-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-kw { font: 500 12.5px var(--a-mono); }
+.acct-alert-status { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.acct-trow.paused .acct-alert-text, .acct-trow.paused .acct-alert-status { color: var(--a-text-2); }
+.acct-x { display: flex; align-items: center; justify-content: center; width: 26px; height: 28px; border: 0; border-radius: 6px; background: none; color: var(--a-text-2); cursor: pointer; }
+.acct-x:hover { color: var(--red); }
+/* The Alerts section's form, lent to the card. */
+.acct-alert-slot:empty { display: none; }
+.acct-alert-slot .alert-create { margin: 0; padding: 0; border: 0; background: none; }
+.acct-alert-slot .alerts-header { display: none; }
+.acct-alert-slot .alert-create-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.acct-alert-slot #alert-f-search { grid-column: 1 / -1; }
+
+/* A wide screen: the overview is one screen, the two rows of cards
+   sharing what the stats leave. */
+@media (min-width: 1100px) {
+  .account-shell:has(#overview.is-active) { height: calc(100dvh - 60px); min-height: 700px; }
+  .account-shell:has(#overview.is-active) .account-layout,
+  .account-shell:has(#overview.is-active) .account-main,
+  .account-shell:has(#overview.is-active) .acct-box-body { min-height: 0; }
+  .account-shell:has(#overview.is-active) .account-main { display: flex; flex-direction: column; }
+  .account-shell:has(#overview.is-active) .acct-box-body { display: flex; flex: 1 1 auto; flex-direction: column; }
+  #overview.account-block.is-active { flex: 1 1 auto; min-height: 0; }
+  #overview .acct-rows { display: grid; flex: 1 1 auto; grid-template-rows: minmax(0, 1fr) minmax(0, 1.12fr); min-height: 0; }
+}
+@media (max-width: 1099px) {
+  .acct-row-top, .acct-row-bottom { grid-template-columns: minmax(0, 1fr); }
   .acct-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .acct-stat:nth-child(2) { border-right: 0; }
-  .acct-stat:nth-child(-n+2) { border-bottom: 1px solid var(--grey-line); }
-  .account-nav.acct-tabs { gap: 16px; overflow-x: auto; scrollbar-width: none; }
-  .acct-dash-top, .acct-dash-bottom { grid-template-columns: minmax(0, 1fr); }
-  .acct-hero { grid-template-columns: 40px minmax(0, 1fr); }
-  .acct-hero .acct-id-mark { width: 40px; height: 40px; font-size: 16px; }
-  .acct-hero-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .acct-hero { grid-template-columns: 44px minmax(0, 1fr); }
+  .acct-hero-actions { grid-column: 1 / -1; }
 }
-@media (max-width: 640px) {
+@media (max-width: 560px) {
   .acct-stats { grid-template-columns: minmax(0, 1fr); }
-  .acct-stat { border-right: 0 !important; border-bottom: 1px solid var(--grey-line); }
-  .acct-stat:last-child { border-bottom: 0; }
-  .acct-market-svg { height: 180px; }
+  .acct-xaxis span:nth-child(even) { visibility: hidden; }
+  .acct-match-cols { grid-template-columns: minmax(0, 1fr) 56px 30px; }
 }
 
 /* The account page's controls on the frame's rounder scale: 8px for a
@@ -7460,8 +7591,6 @@ table.jobs tbody tr.skeleton-row {
 a.hero-account-btn.dir-account { text-decoration: none; }
 
 /* The account overview's bones, shown until the box answers. */
-.acct-market-bones { padding: 12px 0; }
-.acct-market-bones .sk-line { width: 100% !important; max-width: 100%; }
 .acct-bones { padding: 14px 0 4px; line-height: 2; }
 .acct-stat .sk-line { vertical-align: middle; }
 
@@ -7674,8 +7803,9 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .acct-hero-title { font-size: 22px; }
   /* Two by two, the hairlines drawn by the gap so a hidden tile does not
      throw the borders off; a lone tile takes the whole row. */
-  .acct-stats { grid-template-columns: 1fr 1fr; gap: 1px; background: var(--grey-line); }
-  .acct-stat { border: 0 !important; background: var(--white); }
+  #overview.account-block { overflow: visible; border: 0; border-radius: 0; background: none; }
+  #overview.account-block > * { padding: 0; }
+  .acct-stats { gap: 8px; }
   .acct-stat-empty { display: none; }
   .acct-stats:not(:has(.acct-stat:not(.acct-stat-empty) ~ .acct-stat:not(.acct-stat-empty))) .acct-stat { grid-column: 1 / -1; }
   .acct-getmatched { display: block; margin-top: 14px; padding: 14px; border: 1px solid var(--panel-line); border-radius: 10px; }
@@ -7684,7 +7814,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .acct-getmatched-text { margin: 4px 0 0; color: var(--grey); font: 400 13px/1.4 var(--font-ui); }
   .acct-getmatched-actions { display: flex; gap: 8px; margin-top: 12px; }
   .acct-getmatched-actions .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; }
-  #overview.acct-nomatch .acct-dash-row { display: none; }
+  #overview.acct-nomatch .acct-rows { display: none; }
   .account-nav.acct-tabs { flex-wrap: nowrap; gap: 20px; overflow-x: auto; scrollbar-width: none; }
   body.has-tabbar .topbar .theme-toggle { display: inline-flex !important; }
   .acct-tabs .account-nav-link { white-space: nowrap; }

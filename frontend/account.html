@@ -6,6 +6,7 @@
   <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
   <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- Google tag (gtag.js). Google's own instruction is "immediately
        after <head>"; it sits after the charset instead, because a
        document's encoding has to be declared inside the first 1024
@@ -138,25 +139,27 @@
             <div class="acct-id-mark" id="account-avatar"></div>
             <div class="acct-hero-text">
               <h1 class="acct-hero-title" id="acct-greeting">Welcome</h1>
-              <p class="acct-hero-sub" id="acct-summary"><span class="skeleton sk-line" style="width:340px;height:12px"></span></p>
+              <p class="acct-hero-sub"><span id="acct-summary"><span class="skeleton sk-line" style="width:340px;height:12px"></span></span><span class="acct-fresh" id="acct-fresh" hidden></span></p>
               <span class="acct-id-name" id="account-name" hidden></span>
               <span class="acct-id-email" id="account-email" hidden></span>
             </div>
             <div class="acct-hero-actions">
-              <a class="btn primary" id="acct-open-matches" href="/board?view=matches">Open best matches</a>
+              <a class="btn" href="#skills" data-cv-upload><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Upload CV</a>
+              <button type="button" class="btn" data-alert-form><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>New alert</button>
+              <a class="btn primary" id="acct-open-matches" href="/board?view=matches">Open best matches<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
               <span class="acct-provider" id="account-provider" hidden></span>
-              <button type="button" class="link acct-signout" id="acct-hero-signout">Sign out</button>
+              <button type="button" class="btn ghost acct-signout" id="acct-hero-signout">Sign out</button>
             </div>
           </header>
           <!-- Hash targets, not paths: a hash is already shareable,
                already bookmarkable and already what wireAccountNav drives. -->
-          <nav class="account-nav acct-tabs" aria-label="Account sections">
-            <a class="account-nav-link" href="#overview">Overview</a>
-            <a class="account-nav-link" href="#skills">Skills<span class="account-nav-count" id="stat-skills" data-zero="1">0</span></a>
-            <a class="account-nav-link" href="#alerts">Alerts<span class="account-nav-count" id="stat-alerts" data-zero="1">0</span></a>
-            <a class="account-nav-link" href="#saved">Saved jobs<span class="account-nav-count" id="stat-saved" data-zero="1">0</span></a>
-            <a class="account-nav-link" href="#preferences">Preferences</a>
-            <a class="account-nav-link" href="#settings">Settings</a>
+          <nav class="account-nav acct-tabs" aria-label="Account sections" role="tablist">
+            <a class="account-nav-link" href="#overview" role="tab">Overview</a>
+            <a class="account-nav-link" href="#skills" role="tab">Skills<span class="account-nav-count" id="stat-skills" data-zero="1">0</span></a>
+            <a class="account-nav-link" href="#alerts" role="tab">Alerts<span class="account-nav-count" id="stat-alerts" data-zero="1">0</span></a>
+            <a class="account-nav-link" href="#saved" role="tab">Saved jobs<span class="account-nav-count" id="stat-saved" data-zero="1">0</span></a>
+            <a class="account-nav-link" href="#preferences" role="tab">Preferences</a>
+            <a class="account-nav-link" href="#settings" role="tab">Settings</a>
           </nav>
 
           <main class="account-main acct-box" id="main" tabindex="-1">
@@ -181,13 +184,11 @@
                  on the page; this is the one screen that says it all at
                  once, which is why it is the section the nav opens on. -->
             <section class="account-block" id="overview">
-              <!-- Four numbers with a fortnight behind each, the market
-                   those skills are in, the skills themselves, and the
-                   three newest fits. Every number is this reader's own:
-                   nothing here is a placeholder (account_dashboard.js). -->
+              <!-- Four numbers, then the weekly trend beside the newest fits,
+                   then the skills against demand beside the alerts. Every
+                   number is this reader's own: nothing here is a
+                   placeholder (account_dashboard.js). -->
               <div class="acct-stats" id="acct-stats"></div>
-
-              <p class="acct-fresh" id="acct-fresh" hidden></p>
 
               <!-- A phone with no matches yet: one card with the two ways
                    out, in place of four panels saying nothing. -->
@@ -200,28 +201,53 @@
                 </div>
               </section>
 
-              <div class="acct-dash-row acct-dash-top">
-                <div class="acct-panel">
-                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>New best matches</span><span class="acct-panel-sub" id="acct-matches-sub"></span></span>
-                    <a class="link" id="acct-matches-all" href="/board?view=matches">See all</a></h3>
-                  <div id="acct-matches"></div>
+              <div class="acct-rows">
+                <div class="acct-row-top">
+                  <section class="acct-card acct-trend" aria-labelledby="acct-trend-title">
+                    <div class="acct-card-head">
+                      <div class="acct-trend-text">
+                        <h2 class="acct-card-title acct-trend-title" id="acct-trend-title">New matches per week</h2>
+                        <div class="acct-trend-now"><span class="acct-big" id="acct-trend-value"></span><span id="acct-trend-pill"></span></div>
+                      </div>
+                      <div class="acct-seg" role="tablist" aria-label="Series">
+                        <button type="button" role="tab" class="acct-seg-btn" data-series="matches" aria-selected="true">New matches</button>
+                        <button type="button" role="tab" class="acct-seg-btn" data-series="roles" aria-selected="false">Open roles</button>
+                      </div>
+                    </div>
+                    <div class="acct-chart" id="acct-chart"></div>
+                  </section>
+                  <section class="acct-card" aria-labelledby="acct-matches-title">
+                    <div class="acct-card-head">
+                      <h2 class="acct-card-title" id="acct-matches-title">New best matches</h2>
+                      <a class="btn ghost" id="acct-matches-all" href="/board?view=matches">View all</a>
+                    </div>
+                    <div class="acct-th acct-match-cols" aria-hidden="true"><span>Role</span><span>Shared skills</span><span></span></div>
+                    <div class="acct-list" id="acct-matches"></div>
+                  </section>
                 </div>
-                <div class="acct-panel">
-                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>Estimated salary for your background</span></span></h3>
-                  <div class="acct-pay" id="acct-pay"></div>
-                </div>
-                <div class="acct-panel">
-                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>Open jobs per skill</span><span class="acct-panel-sub" id="acct-demand-sub"></span></span>
-                    <a class="link" href="#skills">Edit</a></h3>
-                  <div class="acct-demand" id="acct-demand"></div>
-                  <p class="acct-note" id="acct-demand-note" hidden></p>
-                </div>
-              </div>
-
-              <div class="acct-dash-row acct-dash-bottom">
-                <div class="acct-panel">
-                  <h3 class="acct-panel-title"><span class="acct-panel-head"><span>Recent activity</span></span><a class="link" href="#alerts">Alerts</a></h3>
-                  <div class="acct-activity" id="acct-activity"></div>
+                <div class="acct-row-bottom">
+                  <section class="acct-card" aria-labelledby="acct-demand-title">
+                    <div class="acct-card-head">
+                      <h2 class="acct-card-title" id="acct-demand-title">Open roles per skill</h2>
+                      <div class="acct-card-actions">
+                        <a class="btn" href="#preferences" id="acct-demand-sub" title="Where these are counted. Change it in Preferences.">Anywhere</a>
+                        <a class="btn ghost" href="#skills">Edit skills</a>
+                      </div>
+                    </div>
+                    <div class="acct-demand" id="acct-demand"></div>
+                    <p class="acct-note" id="acct-demand-note" hidden></p>
+                  </section>
+                  <section class="acct-card acct-alerts-card" aria-labelledby="acct-alerts-title">
+                    <div class="acct-card-head">
+                      <h2 class="acct-card-title" id="acct-alerts-title">Alerts <span class="acct-muted" id="acct-alerts-sent"></span></h2>
+                      <button type="button" class="btn" id="acct-alert-toggle" data-alert-form aria-expanded="false">New alert</button>
+                    </div>
+                    <div class="acct-alerts" id="acct-alerts"></div>
+                    <!-- The Alerts section's own form moves in here while it
+                         is open and back when it closes: one form, one set of
+                         pickers, one create path (app.js). -->
+                    <div class="acct-alert-slot" id="acct-alert-slot"></div>
+                  </section>
                 </div>
               </div>
             </section>
