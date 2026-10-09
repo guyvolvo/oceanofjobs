@@ -7315,9 +7315,7 @@ table.jobs tbody tr.skeleton-row {
   --a-track: var(--row-open);
   --a-hover: var(--row-hover);
   --a-up: var(--green-text);
-  --a-up-bg: var(--row-selected);
   --a-down: var(--red);
-  --a-down-bg: color-mix(in srgb, var(--red) 11%, transparent);
   --a-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --a-mono: "Geist Mono", ui-monospace, monospace;
   background: var(--white);
@@ -7351,10 +7349,6 @@ table.jobs tbody tr.skeleton-row {
 .acct-hero .acct-id-mark .hero-avatar, .acct-hero .acct-id-mark img { width: 100%; height: 100%; border-radius: 9px; background: none; color: var(--black); font: 500 18px var(--a-sans); }
 .acct-hero-text { min-width: 0; }
 .acct-hero-title { margin: 0; font: 500 24px/1.15 var(--a-sans); letter-spacing: -0.02em; color: var(--black); }
-.acct-hero-sub { margin: 2px 0 0; font: 400 13px/1.4 var(--a-sans); color: var(--a-text-2); }
-.acct-hero-sub b { font-weight: 500; color: var(--black); }
-.acct-fresh .link-inline { padding: 0; border: 0; background: none; color: var(--black); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.acct-fresh .link-inline:hover { color: var(--green-text); }
 .acct-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .acct-hero .btn, #overview .btn {
   display: inline-flex;
@@ -7437,8 +7431,8 @@ table.jobs tbody tr.skeleton-row {
 .acct-th { font: 500 11px/1.4 var(--a-sans); color: var(--a-text-2); }
 .acct-big { font: 500 24px/1.15 var(--a-sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .acct-empty { margin: 0; color: var(--a-text-2); font-size: 13px; }
-#overview .acct-empty a, .acct-hero-sub a, .acct-stat-aside a { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
-#overview .acct-empty a:hover, .acct-hero-sub a:hover, .acct-stat-aside a:hover { color: var(--green-text); }
+#overview .acct-empty a, .acct-stat-aside a { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
+#overview .acct-empty a:hover, .acct-stat-aside a:hover { color: var(--green-text); }
 
 .acct-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .acct-stat { gap: 8px; }
@@ -7455,9 +7449,9 @@ table.jobs tbody tr.skeleton-row {
 .acct-bins { display: flex; align-items: flex-end; gap: 2px; width: 64px; height: 26px; }
 .acct-bins i { flex: 1 1 0; border-radius: 1px; background: var(--a-track); }
 .acct-bins i.mid { background: var(--a-chart); }
-.acct-pill { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 7px; border-radius: 6px; background: var(--a-raised); color: var(--a-text-2); font: 500 11.5px var(--a-mono); white-space: nowrap; }
-.acct-pill.up { background: var(--a-up-bg); color: var(--a-up); }
-.acct-pill.down { background: var(--a-down-bg); color: var(--a-down); }
+.acct-pill { display: inline-flex; align-items: center; gap: 3px; height: 22px; color: var(--a-text-2); font: 500 11.5px var(--a-mono); white-space: nowrap; }
+.acct-pill.up { color: var(--a-up); }
+.acct-pill.down { color: var(--a-down); }
 
 .acct-rows { display: flex; flex-direction: column; gap: 12px; }
 .acct-row-top, .acct-row-bottom { display: grid; gap: 12px; min-height: 0; }

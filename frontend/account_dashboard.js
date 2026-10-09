@@ -29,7 +29,6 @@
   }
 
   const dayLabel = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const weekdayOf = (d) => d.toLocaleDateString(undefined, { weekday: "long" });
 
   function ago(iso) {
     const h = (Date.now() - new Date(iso).getTime()) / 36e5;
@@ -63,11 +62,11 @@
     if (prev < now / 4) return null;
     return Math.round(((now - prev) / prev) * 100);
   }
-  function pill(pct, tail = "") {
+  function pill(pct) {
     if (pct == null) return "";
     const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
     const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k` : Math.abs(pct);
-    return `<span class="acct-pill ${dir}" title="${pct > 0 ? "+" : ""}${pct}% against the period before">${ARROW[dir] || ""}${shown}%${tail ? " " + tail : ""}</span>`;
+    return `<span class="acct-pill ${dir}" title="${pct > 0 ? "+" : ""}${pct}% against the period before">${ARROW[dir] || ""}${shown}%</span>`;
   }
 
   // The 90 days of history as whole weeks ending today, at most eight:
@@ -152,13 +151,6 @@
       stat({ icon: ICON.save, corner: savedJobs.length ? '<a class="btn ghost acct-corner" href="#saved">View</a>' : "", label: "Saved jobs",
         value: fmt(savedJobs.length), aside: savedJobs.length ? `${stillOpen} still open` : '<a href="/board">Save one from the board</a>' }),
     ].join("");
-    const since = `last ${weekdayOf(new Date(Date.now() - 7 * DAY))}`;
-    const summary = document.getElementById("acct-summary");
-    if (summary) {
-      summary.innerHTML = noSkills
-        ? 'Read a CV in <a href="#skills">Skills</a> and this page fills with the roles that fit you.'
-        : `<b>${fmt(week)}</b> new ${week === 1 ? "match" : "matches"} since ${since}${open != null ? `, out of <b>${fmt(open)}</b> open roles that fit you` : ""}`;
-    }
     const all = document.getElementById("acct-matches-all");
     if (all) all.textContent = week ? `View all ${fmt(week)}` : "View all";
     const g = document.getElementById("acct-greeting");
@@ -198,7 +190,7 @@
     const last = v.length - 1;
     const { open, monthAgo } = figures();
     valueEl.textContent = fmt(v[last]);
-    pillEl.innerHTML = isM ? pill(change(v[last], v[last - 1]), "vs last week") : pill(change(open, monthAgo), "vs last month");
+    pillEl.innerHTML = isM ? pill(change(v[last], v[last - 1])) : pill(change(open, monthAgo));
     const step = niceStep((Math.max(...v) * 1.1) / 4);
     const max = step * 4;
     const W = 700, H = 200;
@@ -400,41 +392,10 @@
 
   // One call: the overview's numbers, computed on the box on the first
   // visit of the day and stored with the profile (api/dashboard.py).
-  let forceNext = false;
   async function loadDashboard() {
     const { skills } = matchScope();
     if (!skills.length) return null;
-    const force = forceNext;
-    forceNext = false;
-    try { return await authedFetch(`/me/dashboard${force ? "?refresh=1" : ""}`); } catch { return null; }
-  }
-
-  // " · Refresh" after the summary, with when the numbers were made in
-  // its tooltip: the day, the time and the reader's own time zone.
-  function paintFresh(at) {
-    const el = document.getElementById("acct-fresh");
-    if (!el) return;
-    if (!at) { el.hidden = true; return; }
-    const d = new Date(at);
-    const old = Date.now() - d.getTime() > 6 * DAY;
-    const day = d.toLocaleDateString(undefined, old ? { weekday: "long", month: "short", day: "numeric" } : { weekday: "long" });
-    const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" });
-    el.textContent = " · ";
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "link-inline";
-    btn.id = "acct-refresh";
-    btn.textContent = "Refresh";
-    btn.title = `Refreshed ${day} at ${time}`;
-    el.appendChild(btn);
-    if (updatingNow) {
-      const tag = document.createElement("span");
-      tag.className = "acct-updating";
-      tag.textContent = " Updating now…";
-      el.appendChild(tag);
-    }
-    el.hidden = false;
-    btn.addEventListener("click", () => { forceNext = true; inflight = null; paintDashboard(); });
+    try { return await authedFetch("/me/dashboard"); } catch { return null; }
   }
 
   // The last answer, kept in this browser for half an hour, so the page
@@ -460,26 +421,6 @@
   let historyRetries = 0;
   let pendingPolls = 0;
 
-  // "Updating" beside the refresh link while the box recomputes. Kept as
-  // state too: the overview repaints when the alerts and saved lists come
-  // in, and paintFresh puts the tag back each time.
-  let updatingNow = false;
-  function paintUpdating(on) {
-    updatingNow = on;
-    const el = document.getElementById("acct-fresh");
-    if (!el) return;
-    let tag = el.querySelector(".acct-updating");
-    if (on && !tag) {
-      tag = document.createElement("span");
-      tag.className = "acct-updating";
-      tag.textContent = " Updating now…";
-      el.appendChild(tag);
-      el.hidden = false;
-    } else if (!on && tag) {
-      tag.remove();
-    }
-  }
-
   // The frame at once: greeting, the four tiles and bones in every
   // card, before any answer is in. The numbers can take seconds on a
   // busy box, and a blank page for that long reads as broken.
@@ -501,14 +442,13 @@
   }
 
   let painted = "";
-  function paintAll(matches, counts = {}, computedAt = null) {
+  function paintAll(matches, counts = {}) {
     const savedJobs = (typeof dashSavedJobs !== "undefined" ? dashSavedJobs : []) || [];
     weeks = weekly(history?.days || []);
     paintStats(savedJobs, matches);
     paintTrend();
     paintDemand(matches, counts);
     paintAlerts();
-    paintFresh(computedAt);
     // No matches: one card with the two ways out (style.css shows it on
     // a phone, where empty cards were the whole screen).
     const none = !matches.length;
@@ -541,11 +481,11 @@
     if (cached && painted !== key) {
       history = cached.history;
       painted = key;
-      paintAll(cached.matches || [], cached.counts || {}, cached.computedAt || null);
+      paintAll(cached.matches || [], cached.counts || {});
     }
     if (inflight && inflight.key === key) {
-      const { matches, counts, at } = await inflight.promise;
-      paintAll(matches, counts, at);
+      const { matches, counts } = await inflight.promise;
+      paintAll(matches, counts);
       return;
     }
     const promise = loadDashboard().then((d) => ({
@@ -567,14 +507,12 @@
       setTimeout(() => { inflight = null; paintDashboard(); }, 20000);
     }
     if (!pending) pendingPolls = 0;
-    paintUpdating(pending);
     // Nothing stored yet: keep the bones up rather than paint empty cards.
     if (pending && !at) return;
     history = h;
     painted = key;
     if (h) writeCache(h, matches, counts, at);
-    paintAll(matches, counts, at);
-    paintUpdating(pending); // paintAll rewrote the refresh line
+    paintAll(matches, counts);
   }
 
   window.paintDashboard = paintDashboard;
