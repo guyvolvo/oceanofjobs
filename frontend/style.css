@@ -7435,14 +7435,12 @@ table.jobs tbody tr.skeleton-row {
 #overview .acct-empty a:hover, .acct-stat-aside a:hover { color: var(--green-text); }
 
 .acct-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.acct-stat { gap: 8px; }
-.acct-stat-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.acct-icon { display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--grey-line); border-radius: 8px; background: var(--a-raised); }
-.acct-icon:empty { visibility: hidden; }
-.acct-icon-glyph { font: 500 16px var(--a-sans); }
+.acct-stat { justify-content: space-between; gap: 6px; }
+.acct-stat-head { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 34px; }
+.acct-stat-extra { margin-left: auto; }
 .acct-stat-label { color: var(--a-text-2); }
 .acct-stat-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
-.acct-stat-value { font: 500 24px/1.15 var(--a-sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.acct-stat-value { font: 500 30px/1.1 var(--a-sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .acct-stat-aside { min-width: 0; overflow: hidden; color: var(--a-text-2); font-size: 12px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 #overview .btn.acct-corner { height: 24px; padding: 0 6px; }
 /* The salary spread: 13 bins of 5K, the middle half in the chart green. */

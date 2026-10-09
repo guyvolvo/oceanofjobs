@@ -40,9 +40,6 @@
 
   const svg = (path, size = 17, width = 1.7) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
   const ICON = {
-    work: svg('<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>'),
-    trend: svg('<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>'),
-    save: svg('<path d="M6 3h12v18l-6-4-6 4z"/>'),
     active: svg('<path d="M4 12l5 5L20 6"/>', 12, 2.2),
     paused: svg('<path d="M9 5v14M15 5v14"/>', 12, 2.2),
     x: '<svg viewBox="0 0 10 10" width="9" height="9" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M1 1l8 8M9 1L1 9"/></svg>',
@@ -111,13 +108,13 @@
   let weeks = [];
   let series = "matches";
 
-  function stat({ icon, corner = "", label, value, aside = "", title = "" }) {
+  // The number first with its trend beside it, then what it counts.
+  function stat({ trend = "", extra = "", label, value, aside = "", title = "" }) {
     // A phone shows only the tiles with a number in them.
     const empty = value === "0" || value === "–" || value === "" || value == null;
     return `<div class="acct-card acct-stat${empty ? " acct-stat-empty" : ""}"${title ? ` title="${esc(title)}"` : ""}>
-      <div class="acct-stat-top"><span class="acct-icon">${icon}</span>${corner}</div>
-      <div><div class="acct-stat-label">${label}</div>
-      <div class="acct-stat-row"><span class="acct-stat-value">${value}</span><span class="acct-stat-aside">${aside}</span></div></div>
+      <div class="acct-stat-head"><span class="acct-stat-value">${value}</span>${trend}<span class="acct-stat-extra">${extra}</span></div>
+      <div class="acct-stat-row"><span class="acct-stat-label">${label}</span><span class="acct-stat-aside">${aside}</span></div>
     </div>`;
   }
 
@@ -141,14 +138,14 @@
     const noSkills = !draft.skills.length;
     const p = pay(matches);
     host.innerHTML = [
-      stat({ icon: ICON.work, corner: noSkills ? "" : pill(change(week, before)), label: "New matches this week",
+      stat({ trend: noSkills ? "" : pill(change(week, before)), label: "New matches this week",
         value: noSkills ? "–" : fmt(week), aside: noSkills ? '<a href="#skills">Add your skills</a>' : before == null ? "" : `Prev: ${fmt(before)}` }),
-      stat({ icon: ICON.trend, corner: pill(change(open, monthAgo)), label: "Open roles that fit you",
+      stat({ trend: pill(change(open, monthAgo)), label: "Open roles that fit you",
         value: open == null ? "–" : fmt(open), aside: monthAgo == null ? "" : `Prev: ${fmt(monthAgo)} / mo` }),
-      stat({ icon: '<span class="acct-icon-glyph">₪</span>', corner: p ? payBins(p) : "", label: "Median salary / mo",
+      stat({ extra: p ? payBins(p) : "", label: "Median salary / mo",
         value: p ? k(p.med) : "–", aside: p ? `Mid: ${k(p.lo)}–${k(p.hi).slice(1)}` : noSkills ? "" : "Too few estimates yet",
         title: p ? `Estimated from ${p.n} of your matches. The middle half pays ${k(p.lo)} to ${k(p.hi)} a month.` : "" }),
-      stat({ icon: ICON.save, corner: savedJobs.length ? '<a class="btn ghost acct-corner" href="#saved">View</a>' : "", label: "Saved jobs",
+      stat({ extra: savedJobs.length ? '<a class="btn ghost acct-corner" href="#saved">View</a>' : "", label: "Saved jobs",
         value: fmt(savedJobs.length), aside: savedJobs.length ? `${stillOpen} still open` : '<a href="/board">Save one from the board</a>' }),
     ].join("");
     const all = document.getElementById("acct-matches-all");
@@ -431,7 +428,7 @@
     const stats = document.getElementById("acct-stats");
     if (stats && !stats.children.length) {
       stats.innerHTML = ["New matches this week", "Open roles that fit you", "Median salary / mo", "Saved jobs"]
-        .map((label) => stat({ icon: "", label, value: bone(64, 22), aside: bone(60, 11) })).join("");
+        .map((label) => stat({ label, value: bone(64, 26), aside: bone(60, 11) })).join("");
     }
     const chart = document.getElementById("acct-chart");
     if (chart && !chart.children.length) chart.innerHTML = `<div class="acct-bones acct-chart-bones">${bone(999, 160)}</div>`;
