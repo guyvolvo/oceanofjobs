@@ -6452,7 +6452,7 @@ function renderAlertsList(alerts) {
   });
   container.querySelectorAll(".alert-delete").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      if (!confirm("Delete this alert? Its emails stop at once.")) return;
+      if (!confirmClick(btn)) return;
       btn.disabled = true;
       try {
         await authedFetch(`/me/alerts/${btn.dataset.id}`, { method: "DELETE" });
@@ -6462,6 +6462,27 @@ function renderAlertsList(alerts) {
       }
     });
   });
+}
+
+// Two clicks in place of the browser's confirm() box: the first turns the
+// button itself into "Delete?" for four seconds, the second goes ahead.
+// Returns true on the second click.
+function confirmClick(btn, label = "Delete?") {
+  if (btn.dataset.armed) return true;
+  const html = btn.innerHTML;
+  const aria = btn.getAttribute("aria-label");
+  btn.dataset.armed = "1";
+  btn.classList.add("is-armed");
+  btn.textContent = label;
+  btn.setAttribute("aria-label", `${label} Click again to confirm`);
+  setTimeout(() => {
+    if (!btn.isConnected || btn.disabled) return;
+    delete btn.dataset.armed;
+    btn.classList.remove("is-armed");
+    btn.innerHTML = html;
+    if (aria) btn.setAttribute("aria-label", aria);
+  }, 4000);
+  return false;
 }
 
 function showCreateAlertFeedback(msg, isError) {

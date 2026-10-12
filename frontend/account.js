@@ -964,7 +964,7 @@ function paintSaved(jobs) {
   host.querySelectorAll("[data-unsave]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = btn.dataset.unsave;
-      if (!confirm("Remove this job from your saved list?")) return;
+      if (!confirmClick(btn, "Remove?")) return;
       btn.disabled = true;
       try {
         await authedFetch(`/me/saved/${encodeURIComponent(id)}`, { method: "DELETE" });

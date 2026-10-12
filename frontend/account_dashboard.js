@@ -360,7 +360,7 @@
       const del = e.target.closest("[data-alert-delete]");
       const btn = pause || del;
       if (!btn) return;
-      if (del && !confirm("Delete this alert? Its emails stop at once.")) return;
+      if (del && !confirmClick(del)) return;
       btn.disabled = true;
       try {
         if (pause) await authedFetch(`/me/alerts/${pause.dataset.alertPause}`, { method: "PATCH", body: JSON.stringify({ active: pause.dataset.active !== "true" }) });

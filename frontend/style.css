@@ -601,6 +601,8 @@ button, input, select {
   padding: 2px;
 }
 .alert-delete:hover { color: var(--red); }
+/* A delete button waiting for its second click (confirmClick in app.js). */
+.alert-delete.is-armed, .acct-x.is-armed { width: auto; padding: 2px 8px; border: 1px solid var(--red); border-radius: 6px; color: var(--red); font: 500 12px var(--font-ui); white-space: nowrap; }
 /* A 17px glyph is not a thumb target. The padding grows the tap box
    without moving the glyph, so the row keeps its height. */
 @media (pointer: coarse) {
@@ -6413,9 +6415,11 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   --card-h: 200px;
   --card-w: 716px;
   --card-gap: 50px;
-  /* No block around the cards: they span its old width on the page's own
-     ground. The photograph is still one picture across the stack. */
-  --inset: 0px;
+  /* No block around the cards any more: they span its old width on the
+     page's own ground. --inset is now only how far the one photograph runs
+     past the stack on every side, the room its scroll drift and hover zoom
+     move into; at 0 the first card showed black above the picture. */
+  --inset: 50px;
   display: flex;
   flex-direction: column;
   gap: var(--card-gap);
