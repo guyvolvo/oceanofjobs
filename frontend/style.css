@@ -6413,7 +6413,9 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   --card-h: 200px;
   --card-w: 716px;
   --card-gap: 50px;
-  --inset: 50px;
+  /* No block around the cards: they span its old width on the page's own
+     ground. The photograph is still one picture across the stack. */
+  --inset: 0px;
   display: flex;
   flex-direction: column;
   gap: var(--card-gap);
@@ -6421,9 +6423,6 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
   width: calc(100% - 2 * clamp(16px, 2.4vw, 36px));
   max-width: 816px;
   margin: clamp(56px, 8vw, 120px) auto clamp(24px, 4vw, 56px);
-  padding: var(--inset);
-  border-radius: 24px;
-  background: #050505;
 }
 .feature-row { display: block; }
 .feature-card {
@@ -6650,7 +6649,7 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
    in to the page's own gutter. The file's 50px gaps stay; the inset and
    padding step down so a title fits. */
 @media (max-width: 720px) {
-  .hero-features { --inset: 16px; width: auto; margin-inline: var(--edge); }
+  .hero-features { width: auto; margin-inline: var(--edge); }
   .feature-card { border-radius: 32px; }
   .feature-card-body { padding: 28px; }
 }
