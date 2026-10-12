@@ -7582,6 +7582,22 @@ table.jobs tbody tr.skeleton-row {
 .account-shell .ms-toggle.active { border-color: var(--green-text); }
 .account-shell .ms-toggle:focus-visible, .account-shell input:focus-visible, .account-shell select:focus-visible, .account-shell textarea:focus-visible { border-color: var(--black); }
 .account-shell .hero-theme { border-color: color-mix(in srgb, var(--black) 40%, transparent); }
+/* The board's alerts menu holds the same form and list, so its controls
+   take the same scale. */
+.auth-panel .btn, .auth-panel .ms-toggle, .auth-panel input[type="text"], .auth-panel input[type="email"], .auth-panel .alert-toggle { border-radius: 8px; }
+.auth-panel .ms-toggle, .auth-panel input[type="text"], .auth-panel input[type="email"], .auth-panel .alert-toggle, .account-shell .alert-toggle { border-width: 1px; border-color: color-mix(in srgb, var(--black) 40%, transparent); }
+.auth-panel .ms-toggle.active { border-color: var(--green-text); }
+.auth-panel .ms-toggle:focus-visible, .auth-panel input:focus-visible { border-color: var(--black); }
+/* The alerts menu and every option list float over the page, so they
+   take the account menu's treatment (.hero-menu): a hairline and a soft
+   shadow in place of the 2px ink rule, on the rounder corners. */
+.auth-panel, .ms-menu { border: 1px solid var(--grey-line); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08); }
+.auth-panel { border-radius: 14px; }
+.ms-menu { border-radius: 10px; }
+@media (max-width: 640px) {
+  /* The bottom sheet: rounded where it leaves the page, square where it meets the edge. */
+  .auth-panel, .auth-panel.alerts-panel { border-radius: 14px 14px 0 0; border-bottom: 0; }
+}
 /* The directory's corner, signed in: the board's account control as a link to /account. */
 a.hero-account-btn.dir-account { text-decoration: none; }
 
