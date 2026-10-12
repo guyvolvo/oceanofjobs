@@ -386,6 +386,23 @@ function fmtAgeAgo(days) {
   return `${Math.floor(days)}d ago`;
 }
 
+// Posted more than a week after the board first saw it: the employer
+// reposted or refreshed the listing, so the date moved and the role did
+// not. Said as such, so a role open for months does not read as new.
+const REPOST_GAP_DAYS = 7;
+function isReposted(j) {
+  // shortcut: Greenhouse rows stored before 2026-10-12 carry the last-edit
+  // date as posted_at (probe.py now reads first_published), and a board's
+  // rows are rewritten only when the board next changes; drop this line
+  // once those have been re-read, or every edited role reads "Reposted".
+  if (j.ats === "greenhouse") return false;
+  if (!j.posted_at || !j.first_seen) return false;
+  return (new Date(j.posted_at) - new Date(j.first_seen)) / 86400000 > REPOST_GAP_DAYS;
+}
+function fmtPostedAgo(j, days) {
+  return isReposted(j) ? `Reposted ${fmtAgeAgo(days)}` : fmtAgeAgo(days);
+}
+
 function fmtMinutesAgo(mins) {
   if (mins === null || mins === undefined) return "UNKNOWN";
   if (mins < 60) return `${Math.round(mins)}M AGO`;
@@ -2606,7 +2623,7 @@ function jobRowsHtml(jobs, starred) {
       const age = j.posted_at
         ? (Date.now() - new Date(j.posted_at).getTime()) / 86400000
         : null;
-      const fresh = age !== null && age <= 3;
+      const fresh = age !== null && age <= 3 && !isReposted(j);
       const isStarred = starred.has(j.id);
       return `
       <tr data-id="${j.id}" class="${j.id === selectedJobId ? "selected" : ""}" tabindex="0"
@@ -2632,16 +2649,16 @@ function jobRowsHtml(jobs, starred) {
                where its own column would steal the width the title
                needs, and hides on desktop where the column exists.
                Same trick the board used before this layout. -->
-          <div class="job-meta"><span class="job-who">${jobWhoLine(j)}</span><span class="meta-age"> · <span class="meta-age-value ${fresh ? "fresh" : ""}">${fmtAgeAgo(age)}</span></span></div>
+          <div class="job-meta"><span class="job-who">${jobWhoLine(j)}</span><span class="meta-age"> · <span class="meta-age-value ${fresh ? "fresh" : ""}">${fmtPostedAgo(j, age)}</span></span></div>
           <div class="job-where">${jobWhereLine(j)}</div>
-          <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail">${fmtAgeAgo(age)}</span></div>
+          <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail">${fmtPostedAgo(j, age)}</span></div>
           <div class="job-links">
             <a class="apply-link" href="${safeHref(j.url)}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
             <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy link</button>
           </div>
           <div class="job-salary-line">${jobSalaryLine(j)}</div>
         </td>
-        <td data-label="Age" class="age-cell ${fresh ? "fresh" : ""}">${fmtAgeAgo(age)}</td>
+        <td data-label="Age" class="age-cell ${fresh ? "fresh" : ""}">${fmtPostedAgo(j, age)}</td>
       </tr>`;
     })
     .join("");
@@ -2775,7 +2792,9 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
 
     <div class="job-detail-facts">
       ${jobFact("Monthly salary", detailSalaryHtml(job))}
-      ${jobFact("Posted", age !== null ? escapeHtml(fmtAgeAgo(age)) : '<span class="fact-absent">Unreported</span>')}
+      ${jobFact("Posted", age === null ? '<span class="fact-absent">Unreported</span>'
+        : isReposted(job) ? escapeHtml(`Reposted ${fmtAgeAgo(age)} · first seen ${fmtAgeAgo((Date.now() - new Date(job.first_seen).getTime()) / 86400000)}`)
+        : escapeHtml(fmtAgeAgo(age)))}
       ${jobFact("Department", job.department ? escapeHtml(job.department) : '<span class="fact-absent">-</span>')}
       ${jobFact("Workplace", job.workplace_type ? escapeHtml(WORKPLACE_LABELS[job.workplace_type] || job.workplace_type) : '<span class="fact-absent">-</span>')}
     </div>

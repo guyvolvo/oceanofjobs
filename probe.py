@@ -1241,7 +1241,10 @@ def f_greenhouse(sess, token):
     return [Job("greenhouse", token, str(j.get("id")), _txt(j.get("title")),
                 _txt(j.get("location")),
                 f"https://job-boards.greenhouse.io/embed/job_app?for={token}&token={j.get('id')}",
-                _normalize_date(j.get("updated_at")),
+                # first_published, not updated_at: any edit moves updated_at,
+                # and a bulk edit made every Taboola role read as days old
+                # (77 of 88, 2026-10-12).
+                _normalize_date(j.get("first_published") or j.get("updated_at")),
                 _txt((j.get("departments") or [{}])[0].get("name")) or None,
                 len(_txt(j.get("content"))), _clean_text(j.get("content")))
             for j in _greenhouse_distinct(d["jobs"])]
