@@ -18,6 +18,7 @@ ATS_NAMES = {
     "teamtailor": "Teamtailor", "recruitee": "Recruitee", "jobvite": "Jobvite", "icims": "iCIMS", "successfactors": "SAP SuccessFactors",
     "taleo": "Taleo", "breezy": "Breezy", "jazzhr": "JazzHR", "rippling": "Rippling", "niloosoft": "Niloosoft", "hunter": "Hunter",
     "custom": "the company website", "html": "the company website", "careers": "the company website",
+    "experis": "the company website", "nogamy": "the company website", "matrix": "the company website", "adamjobs": "Adam",
 }
 
 

@@ -3253,6 +3253,201 @@ def f_tycowp(sess, token, known_ids=None, description_budget=None):
     return out
 
 
+# Israeli IT staffing and services firms. They list roles on their own
+# sites rather than on an ATS, and most of the roles are placements at
+# their clients, so the employer shown is the firm. Each one below is its
+# own site and its own fetcher; none of them is guessable, so each is
+# keyed on a host or a listing URL and makes no request until a pin names
+# it. Hebrew throughout, so every location ends in Israel for the same
+# reason as the Niloosoft boards: IL_KEYWORDS is Latin.
+
+# Experis (ManpowerGroup's IT arm). The site is Next.js over a headless
+# WordPress, and the search page reads WPGraphQL; this is that query,
+# 100 roles a page. The token is the public host; the API lives on
+# experiscontent.<host>. A page that fails loses the whole read: a
+# partial list would close every role it missed.
+EXPERIS_PAGE = 100
+_EXPERIS_QUERY = (
+    "query($where: RootQueryToJobConnectionWhereArgs){ allJob(where:$where){"
+    " nodes{ title slug date jobFields{ jobcode jobdescription }"
+    " jobAreas{ nodes{ name } } jobProfessions{ nodes{ name } } }"
+    " pageInfo{ offsetPagination{ hasMore } } } }")
+
+
+def _names(v) -> list[str]:
+    return [_txt(n.get("name")).strip() for n in ((v or {}).get("nodes") or []) if isinstance(n, dict) and _txt(n.get("name")).strip()]
+
+
+def f_experis(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "." not in token or "/" in token:
+        return None
+    out, seen, offset = [], set(), 0
+    while offset < 5000:
+        d = get_json_post(sess, f"https://experiscontent.{token}/graphql",
+                          {"query": _EXPERIS_QUERY, "variables": {"where": {"offsetPagination": {"size": EXPERIS_PAGE, "offset": offset}}}})
+        conn = ((d or {}).get("data") or {}).get("allJob") if isinstance(d, dict) else None
+        if not isinstance(conn, dict):
+            return None
+        for j in conn.get("nodes") or []:
+            code = _txt((j.get("jobFields") or {}).get("jobcode")).strip()
+            title = _txt(j.get("title")).strip()
+            # The same role is sometimes posted two or three times under
+            # one code (slugs 240187, 240187-2, 240187-3); one is kept.
+            if not code or not title or code in seen:
+                continue
+            seen.add(code)
+            areas = _names(j.get("jobAreas"))
+            out.append(Job("experis", token, code, html.unescape(title),
+                           f"{', '.join(areas)}, Israel" if areas else "Israel",
+                           f"https://{token}/job/{_txt(j.get('slug')) or code}",
+                           _normalize_date(j.get("date")),
+                           (_names(j.get("jobProfessions")) or [None])[0],
+                           description=_clean_text((j.get("jobFields") or {}).get("jobdescription"))))
+        if not ((conn.get("pageInfo") or {}).get("offsetPagination") or {}).get("hasMore"):
+            return out or None
+        offset += EXPERIS_PAGE
+    return None
+
+
+def _html_page(sess, url, ua=_BROWSER_UA):
+    """A listing page's HTML, or None with the reason on stderr. These are
+    pinned companies, so a silent None would read as no jobs at all."""
+    try:
+        r = sess.get(url, headers={"User-Agent": ua, "Accept": "text/html"}, timeout=40)
+    except requests.RequestException as e:
+        print(f"{url}: {e!r}", file=sys.stderr)
+        return None
+    if r.status_code != 200:
+        print(f"{url}: answered {r.status_code}", file=sys.stderr)
+        return None
+    return r.text
+
+
+def _strip_tags(s: str) -> str:
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", s)).split())
+
+
+# adam-jobs, the WordPress plugin Adam (an Israeli HR system) ships for a
+# client's own careers page. It renders every open order into the page at
+# once, with the region as a code whose name is in the page's own filter.
+# Yael Group is the first (yaelgroup.com/job/, 337 roles, 4.6 MB). The
+# token is the listing URL without its scheme.
+_ADAM_AREA_RE = re.compile(r"id='area-(\d+)'\s*>\s*<label[^>]*>\s*([^<]+?)\s*</label>")
+_ADAM_ITEM_RE = re.compile(r'<div class="job_item"(.*?)(?=<div class="job_item"|<footer|\Z)', re.S)
+
+
+def f_adamjobs(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "/" not in token or "." not in token.split("/", 1)[0]:
+        return None
+    # yaelgroup.com's firewall answers 403 to _BROWSER_UA's full string
+    # and 200 to this one (2026-10-12).
+    page = _html_page(sess, f"https://{token}", ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126")
+    if page is None:
+        return None
+    host = token.split("/", 1)[0]
+    areas = dict(_ADAM_AREA_RE.findall(page))
+    out = []
+    for item in _ADAM_ITEM_RE.findall(page):
+        # Two kinds of order on Yael's page: its own (/jobs/order/N/) and
+        # ones from a second source (/jobs/korn_order/N/, data-company
+        # cvnext, 99 of 337). Their numbers are separate sequences, so the
+        # second kind keeps its path in the id.
+        order = re.search(r"/jobs/(order|korn_order)/(\d+)/", item)
+        title = re.search(r'<h3 class="job_title[^"]*">(.*?)</h3>', item, re.S)
+        if not order or not title:
+            continue
+        where = [areas[a] for a in re.search(r"data-area='([^']*)'", item).group(1).split(",") if a in areas] if "data-area='" in item else []
+        body = item.split('job_description">', 1)[-1].split('class="job_form', 1)[0] if 'job_description">' in item else ""
+        kind, num = order.groups()
+        out.append(Job("adamjobs", token, num if kind == "order" else f"{kind}-{num}", _strip_tags(title.group(1)),
+                       f"{', '.join(where)}, Israel" if where else "Israel",
+                       f"https://{host}/jobs/{kind}/{num}/",
+                       description=_clean_text(body)))
+    if not out:
+        print(f"adamjobs {token}: no roles on the page ({len(page)} bytes)", file=sys.stderr)
+    return out or None
+
+
+# Nogamy, a BI and data integrator. Its join-us page renders every role
+# into one accordion: a title, the role's number, the text. No place is
+# given, so each role is Israel. The token is that page's URL without its
+# scheme; each role links to the page with its number as the fragment.
+_NOGAMY_ITEM_RE = re.compile(r'<div class="collapse-toggler">(.*?)(?=<div class="collapse-toggler">|<!-- Jobs|<footer|\Z)', re.S)
+_NOGAMY_NUMBER_RE = re.compile(r"<h4[^>]*>[^<\d]*(\d+)\s*</h4>")
+
+
+def f_nogamy(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "/" not in token or "." not in token.split("/", 1)[0]:
+        return None
+    page = _html_page(sess, f"https://{token}")
+    if page is None:
+        return None
+    out = []
+    for item in _NOGAMY_ITEM_RE.findall(page):
+        title = re.search(r"<h3[^>]*>(.*?)</h3>", item, re.S)
+        number = _NOGAMY_NUMBER_RE.search(item)
+        if not title or not number:
+            continue
+        out.append(Job("nogamy", token, number.group(1), _strip_tags(title.group(1)), "Israel",
+                       f"https://{token}#{number.group(1)}",
+                       description=_clean_text(item[number.end():])))
+    if not out:
+        print(f"nogamy {token}: no roles on the page ({len(page)} bytes)", file=sys.stderr)
+    return out or None
+
+
+# Matrix, Israel's largest IT services firm. Its careers site is its own
+# WordPress, and the role archive is ten to a page (506 roles over 51
+# pages on 2026-10-12), with no feed or API that returns them. The token
+# is the archive URL without its scheme. Read page by page until the
+# first 404, which is the end; any other failure loses the whole read.
+# Slow enough to poll from the hourly Lambda (BIG_TECH_ATS).
+MATRIX_MAX_PAGES = 150
+_MATRIX_ITEM_RE = re.compile(r'<div class="job-item"[^>]*?job-id="(\d+)"(.*?)(?=<div class="job-item"|<footer|\Z)', re.S)
+
+
+def f_matrix(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "/" not in token or "." not in token.split("/", 1)[0]:
+        return None
+    base = f"https://{token.rstrip('/')}/"
+    out, seen = [], set()
+    for n in range(1, MATRIX_MAX_PAGES + 1):
+        url = base if n == 1 else f"{base}page/{n}/"
+        try:
+            r = sess.get(url, headers={"User-Agent": _BROWSER_UA, "Accept": "text/html"}, timeout=40)
+        except requests.RequestException as e:
+            print(f"matrix {url}: {e!r}", file=sys.stderr)
+            return None
+        if r.status_code == 404 and n > 1:
+            return out or None
+        if r.status_code != 200:
+            print(f"matrix {url}: answered {r.status_code}", file=sys.stderr)
+            return None
+        items = _MATRIX_ITEM_RE.findall(r.text)
+        if not items:
+            return out or None
+        for jid, item in items:
+            # <a class="job-title" href> in the archive, an <a> inside
+            # <h2 class="job-title"> on the category pages.
+            link = (re.search(r'<a class="job-title" href="([^"]+)"[^>]*>(.*?)</a>', item, re.S)
+                    or re.search(r'class="job-title"[^>]*>\s*<a href="([^"]+)"[^>]*>(.*?)</a>', item, re.S))
+            if jid in seen or not link:
+                continue
+            seen.add(jid)
+            where = re.search(r'<b class="job-areas">(.*?)</b>', item, re.S)
+            where = _strip_tags(where.group(1)) if where else ""
+            # The requirements sit inside an HTML comment on the live page;
+            # they are still the role's text, so the markers come out.
+            start = item.find("</b>", item.find("job-areas")) + 4 if "job-areas" in item else 0
+            body = item[start:].split('class="job-buttons', 1)[0].replace("<!--", "").replace("-->", "")
+            out.append(Job("matrix", token, jid, _strip_tags(link.group(2)),
+                           f"{where}, Israel" if where else "Israel",
+                           link.group(1),
+                           description=_clean_text(body)))
+    print(f"matrix {token}: more than {MATRIX_MAX_PAGES} pages, refusing a partial read", file=sys.stderr)
+    return None
+
+
 # Ordered by how often each one actually wins, because the guess loop
 # below tries them in this order and stops at the first hit. The old
 # order was roughly the order they were written in, which put personio
@@ -3299,6 +3494,11 @@ FETCHERS: dict[str, Callable] = {
     "oracle": f_oracle_cx,
     # Keyed on "host:domain". See the note above it.
     "eightfold": f_eightfold,
+    # Staffing and services firms' own sites. See the note above f_experis.
+    "experis": f_experis,
+    "adamjobs": f_adamjobs,
+    "nogamy": f_nogamy,
+    "matrix": f_matrix,
 }
 
 # Boards too big or too slow for the five-minute sweep. They poll from the
@@ -3306,7 +3506,7 @@ FETCHERS: dict[str, Callable] = {
 # state so a run only describes jobs it has not seen.
 # Read by scrape_workday_handler.py in this order, never by the fast sweep.
 BIG_TECH_ATS = ("microsoft", "google", "apple", "amazon", "checkpoint", "wpjobs", "oracle",
-                "eightfold", "redmatch", "wprest", "tycowp")
+                "eightfold", "redmatch", "wprest", "tycowp", "matrix")
 SLOW_BOARD_ATS = frozenset({"workday", *BIG_TECH_ATS})
 
 # Comeet: not guessable like the ATSes above. The API needs an opaque

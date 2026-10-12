@@ -2138,3 +2138,40 @@ breezy:
     jobs_seen: 3
     source: hand-verified
     note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Trump Media & Technology Group), the board fetched live (3 roles).
+
+# Israeli IT staffing and services firms, each read off its own site
+# (f_experis, f_adamjobs, f_nogamy, f_matrix in probe.py). Most of their
+# roles are placements at clients, so the firm is the employer shown.
+# Counts as of 2026-10-12.
+experis:
+  # The token is the public host; the WPGraphQL API is on experiscontent.<host>.
+  - domain: experis.co.il
+    token: "experis.co.il"
+    jobs_seen: 979
+    source: own-careers-api
+    note: added 2026-10-12. 989 posts, 979 roles once repeat postings of one job code are folded.
+
+adamjobs:
+  # Adam's WordPress plugin; the token is the listing URL without its scheme.
+  - domain: yaelgroup.com
+    token: "yaelgroup.com/job/"
+    jobs_seen: 337
+    source: own-careers-data
+    note: added 2026-10-12. Its firewall refuses the full browser user agent; f_adamjobs sends a short one.
+
+nogamy:
+  # The token is the join-us page's URL without its scheme.
+  - domain: nogamy.com
+    token: "www.nogamy.co.il/%d7%94%d7%a6%d7%98%d7%a8%d7%a4%d7%95-%d7%90%d7%9c%d7%99%d7%a0%d7%95/"
+    jobs_seen: 66
+    source: own-careers-data
+    note: added 2026-10-12. No locations on the page; every role reads Israel.
+
+matrix:
+  # The token is the role archive's URL without its scheme. 51 pages, so
+  # it polls from the hourly Lambda (BIG_TECH_ATS), not the sweep.
+  - domain: matrix.co.il
+    token: "www.matrix.co.il/jobs/%D7%9E%D7%A9%D7%A8%D7%94/"
+    jobs_seen: 506
+    source: own-careers-data
+    note: added 2026-10-12.
