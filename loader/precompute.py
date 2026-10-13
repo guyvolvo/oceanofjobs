@@ -224,12 +224,14 @@ def build(db_path: Path, pause=None) -> dict[str, dict]:
         # The /companies page's list groups every open row by company. With
         # 1.2M open rows that ran past the request deadline under an apply,
         # so it never cached and every visitor got a 503 (2026-10-13).
-        # Everywhere, and each country the scoped stats cover; the page
-        # always asks with confidence=all.
-        directory = {"all": company_directory(conn, {"confidence": "all"})}
-        pause()
-        for cc in countries:
-            directory[f"all:{cc}"] = company_directory(conn, {"confidence": "all", "country": cc})
+        # Everywhere and Israel only: each pass reads the whole open set,
+        # and the first build with all twelve countries held the applier
+        # off for over twenty minutes. Other countries are counted live.
+        directory = {}
+        for key, p in (("all", {"confidence": "all"}), ("all:IL", {"confidence": "all", "country": "IL"})):
+            started = datetime.now(timezone.utc)
+            directory[key] = company_directory(conn, p)
+            print(f"precompute: directory {key} in {(datetime.now(timezone.utc) - started).total_seconds():.0f}s", file=sys.stderr)
             pause()
     finally:
         conn.close()
