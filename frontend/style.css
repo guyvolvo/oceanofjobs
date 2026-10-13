@@ -7594,6 +7594,11 @@ table.jobs tbody tr.skeleton-row {
 .auth-panel, .ms-menu { border: 1px solid var(--grey-line); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08); }
 .auth-panel { border-radius: 14px; }
 .ms-menu { border-radius: 10px; }
+/* Inside the alerts menu, which scrolls, a floating list was clipped at
+   the panel's edge and read as a second box to scroll. There the list
+   opens in the flow and pushes the fields below it down (revealMenu in
+   app.js scrolls the panel to it). */
+.auth-panel .ms-menu { position: static; width: 100%; margin-top: 6px; box-shadow: none; }
 @media (max-width: 640px) {
   /* The bottom sheet: rounded where it leaves the page, square where it meets the edge. */
   .auth-panel, .auth-panel.alerts-panel { border-radius: 14px 14px 0 0; border-bottom: 0; }

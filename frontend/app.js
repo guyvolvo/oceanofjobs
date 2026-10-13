@@ -35,6 +35,9 @@ const WORKPLACE_LABELS = {
   onsite: "Onsite",
 };
 
+// The view a visitor arrives on, and the one Reset returns to.
+const DEFAULT_ROLES = "all";
+
 const state = {
   // One box. Every word must appear somewhere in the listing, quotes
   // keep a phrase whole. It replaced two boxes, q and keywords, that
@@ -90,8 +93,8 @@ const state = {
   max_age_days: "", // "" = any time; else days-since-posting cutoff, straight into the API param of the same name
   starred_only: false,
   // "tech" shows only listings the classifier (api/role_class.py) judged
-  // technical work, which is the board's default; "all" is every role.
-  roles: "tech",
+  // technical work; "all" is every role, the default since 2026-10-13.
+  roles: DEFAULT_ROLES,
   sort: "age",
   dir: "asc", // newest first by default
   offset: 0,
@@ -1320,7 +1323,7 @@ function buildShareParams() {
   if (state.confidence !== "all") p.set("confidence", state.confidence);
   if (state.max_age_days) p.set("max_age_days", state.max_age_days);
   if (state.starred_only) p.set("starred", "1");
-  if (state.roles !== "tech") p.set("roles", state.roles);
+  if (state.roles !== DEFAULT_ROLES) p.set("roles", state.roles);
   // Against the order this view would take on its own (see
   // followSearchSort), not against "age" flat: with a search in the box
   // that IS relevance, so a reader who chose Newest has to have it
@@ -2212,9 +2215,8 @@ let matchedSkills = new Set();
 // CV matches. activeFilterSummary is the list the sidebar's scope line
 // names, so the two never disagree about whether a filter is on.
 function resultNoun() {
-  if (currentView() === "matches") return "roles matching your CV";
-  const noun = state.roles === "tech" && !state.starred_only ? "tech roles" : "roles";
-  return activeFilterSummary().length ? `matching ${noun}` : noun;
+  if (currentView() === "matches") return "jobs matching your CV";
+  return state.roles === "tech" && !state.starred_only ? "tech jobs" : "jobs";
 }
 
 // The second half of a foreground load: the number, once the rows are
@@ -3685,6 +3687,14 @@ const OPEN_MULTISELECTS = new Set();
 // past that line used to say No matches. keepSelected keeps a picked value
 // selected when a refresh of the list no longer carries it, which is what
 // a company found by search, or named in a shared link, needs.
+// In the alerts menu a picker's list opens in the panel's own flow
+// (style.css, .auth-panel .ms-menu) rather than floating over it, so the
+// panel scrolls just far enough to show the whole list instead of
+// clipping it at the panel's edge.
+function revealMenu(menu) {
+  if (menu.closest(".auth-panel")) menu.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
 function createMultiSelect(containerId, { placeholder, options = [], searchable = false, onChange, pinnedOption = null,
                                           remoteSearch = null, keepSelected = false }) {
   const container = document.getElementById(containerId);
@@ -3803,7 +3813,8 @@ function createMultiSelect(containerId, { placeholder, options = [], searchable 
     menu.hidden = false;
     toggle.setAttribute("aria-expanded", "true");
     OPEN_MULTISELECTS.add(close);
-    if (searchEl) searchEl.focus();
+    if (searchEl) searchEl.focus({ preventScroll: true });
+    revealMenu(menu);
   }
 
   toggle.addEventListener("click", (e) => {
@@ -4028,7 +4039,8 @@ function createLocationSelect(containerId, { placeholder, onChange }) {
     menu.hidden = false;
     toggle.setAttribute("aria-expanded", "true");
     OPEN_MULTISELECTS.add(close);
-    searchEl.focus();
+    searchEl.focus({ preventScroll: true });
+    revealMenu(menu);
   }
 
   toggle.addEventListener("click", (e) => {
@@ -5120,12 +5132,12 @@ function renderActiveChips() {
   // Reset appears with the first chip and goes away with the last. A
   // permanent Reset beside an unfiltered board offers to undo nothing.
   const reset = document.getElementById("f-reset");
-  if (reset) reset.hidden = !chips.length && !state.search && state.roles === "tech" && !state.starred_only;
+  if (reset) reset.hidden = !chips.length && !state.search && state.roles === DEFAULT_ROLES && !state.starred_only;
   // The phone's chip row says the same, plus the role mode, with its
   // own Reset at the end; the Filters button wears the count.
   const mobile = document.getElementById("m-chips");
   if (mobile) {
-    const all = (state.roles === "all" ? [{ kind: "roles", value: "", text: "All roles" }] : []).concat(chips);
+    const all = (state.roles !== DEFAULT_ROLES ? [{ kind: "roles", value: "", text: "Tech roles" }] : []).concat(chips);
     mobile.innerHTML = all.map((c) => `<button type="button" class="m-chip" data-chip="${escapeHtml(c.kind)}" data-value="${escapeHtml(c.value)}" title="Remove this filter"><span>${escapeHtml(c.text)}</span>${CHIP_X_SVG}</button>`).join("")
       + (all.length ? '<button type="button" class="m-chip-reset" data-reset>Reset</button>' : "");
     mobile.hidden = !all.length;
@@ -5174,7 +5186,7 @@ function wireActiveChips() {
     if (e.target.closest("[data-reset]")) return document.getElementById("f-reset")?.click();
     const chip = e.target.closest("[data-chip]");
     if (!chip) return;
-    if (chip.dataset.chip === "roles") return setView("tech");
+    if (chip.dataset.chip === "roles") return setView(DEFAULT_ROLES);
     removeChip(chip.dataset.chip, chip.dataset.value);
   });
 }
@@ -5302,8 +5314,8 @@ function wireMobileSheet() {
     const text = count.textContent.trim();
     const n = (text.match(/^[\d,]+/) || [""])[0];
     const m = document.getElementById("m-count"), show = document.getElementById("m-show");
-    if (m) m.textContent = !text ? "" : n ? `${n} roles` : text;
-    if (show) show.textContent = n ? `Show ${n} roles` : "Show roles";
+    if (m) m.textContent = !text ? "" : n ? `${n} jobs` : text;
+    if (show) show.textContent = n ? `Show ${n} jobs` : "Show jobs";
   };
   if (count) { new MutationObserver(paintCount).observe(count, { childList: true, subtree: true, characterData: true }); paintCount(); }
   // "Alert me for this search": the account page's alert form, with
@@ -5488,7 +5500,7 @@ function wireFilters() {
     state.salary_known = false;
     state.salary_disclosed = false;
     state.starred_only = false;
-    state.roles = "tech";
+    state.roles = DEFAULT_ROLES;
     state.sort = "age";
     state.dir = "asc";
     state.offset = 0;
