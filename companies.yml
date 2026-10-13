@@ -1484,6 +1484,11 @@ ashby:
     note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Tyra Biosciences), the board fetched live (1 roles).
 
 greenhouse:
+  - domain: orionsec.io
+    token: "orioncscybersecurityltd"
+    jobs_seen: 6
+    source: own-careers-page
+    note: added 2026-10-13 on request (Orion Security, DLP). The careers page embeds this board; its name is the legal entity, so no guess from the domain reaches it.
   - domain: playtika.com
     token: "playtikaltd"
     jobs_seen: 26
