@@ -36,7 +36,7 @@ from urllib.parse import parse_qs, quote
 import boto3
 from boto3.dynamodb.conditions import Key
 
-from aggregates import (scoped_variant_key, company_directory, company_profile, compute_facets,
+from aggregates import (scoped_variant_key, company_directory, company_directory_daily, company_profile, compute_facets,
                         compute_scoped_stats, compute_stats, has_board_filters, place_rows, search_companies,
                         skill_counts, skills_history)
 from db import get_connection, status as db_status
@@ -437,13 +437,13 @@ def lambda_handler(event, context):
         if path == "/companies/directory":
             # The /companies page's list: cached at the edge like the
             # facets, since every visitor's first question is the same.
-            # The page's own requests answer from the precomputed file
-            # (loader/precompute.py); anything else is counted live.
-            if set(params) <= {"confidence", "country"} and params.get("confidence") == "all":
-                ready = _precomputed_json("directory.json")
-                key = "all" + (f":{params['country']}" if params.get("country") else "")
-                if isinstance(ready, dict) and key in ready:
-                    return _response(200, json.dumps(ready[key], default=str), cache_seconds=300)
+            # The page's first request, everywhere, reads the daily
+            # per-company counts (company_directory_daily); a country or
+            # any other filter is counted live.
+            if set(params) <= {"confidence"} and params.get("confidence") == "all":
+                daily = company_directory_daily(get_connection())
+                if daily is not None:
+                    return _response(200, json.dumps(daily, default=str), cache_seconds=300)
             return _response(200, json.dumps(company_directory(get_connection(), params), default=str),
                              cache_seconds=300)
         if path == "/companies":

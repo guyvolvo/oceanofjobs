@@ -232,6 +232,41 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
     return out
 
 
+def company_directory_daily(conn, limit: int = 500) -> dict | None:
+    """The directory for everywhere, read from company_daily rather than
+    by grouping the open rows: the publish run's own count per company,
+    written once a day, about 20,000 rows against 1.2M. The live GROUP BY
+    ran past the request deadline at that size and the page answered 503
+    (2026-10-13). Counts are as of the day's row. None when the table is
+    missing or empty, so the caller can fall back to the live count."""
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'company_daily'").fetchone():
+        return None
+    day = conn.execute("SELECT MAX(day) FROM company_daily").fetchone()[0]
+    if not day:
+        return None
+    rows = [dict(r) for r in conn.execute(
+        "SELECT domain, open_n AS n FROM company_daily WHERE day = ? AND domain != '' AND open_n > 0 "
+        "ORDER BY open_n DESC, domain LIMIT ?", (day, limit))]
+    if rows:
+        domains = [r["domain"] for r in rows]
+        marks = ",".join("?" * len(domains))
+        new = dict(conn.execute(
+            f"SELECT domain, SUM(new_n) FROM company_daily WHERE day > date(?, '-7 days') AND domain IN ({marks}) GROUP BY domain",
+            [day, *domains]).fetchall())
+        cols = _company_columns(conn)
+        pick = ", ".join(c for c in ("domain", "ats", "company_name", "logo_url") if c in cols)
+        known = {c["domain"]: dict(c) for c in conn.execute(f"SELECT {pick} FROM companies WHERE domain IN ({marks})", domains)}
+        trends = company_trends(conn, domains)
+        for r in rows:
+            c = known.get(r["domain"], {})
+            r["new_7d"] = new.get(r["domain"]) or 0
+            r["name"] = c.get("company_name") or None
+            r["ats"] = c.get("ats")
+            r["has_logo"] = bool(c.get("logo_url"))
+            r["trend"] = trends.get(r["domain"], [])
+    return {"companies": rows, "capped": len(rows) >= limit, "limit": limit, "as_of": day}
+
+
 def company_trends(conn, domains: list[str], days: int = 7) -> dict[str, list]:
     """Each company's open roles over the last `days` days, one number a
     day (None for a day with nothing), oldest first, today last, from
