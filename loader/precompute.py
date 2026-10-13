@@ -36,7 +36,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "api"))
 
-from aggregates import (compute_facets, compute_scoped_stats, compute_stats,  # noqa: E402
+from aggregates import (company_directory, compute_facets, compute_scoped_stats, compute_stats,  # noqa: E402
                         scoped_variant_key, top_companies_with_logos)
 from job_filters import register_functions  # noqa: E402
 
@@ -221,9 +221,19 @@ def build(db_path: Path, pause=None) -> dict[str, dict]:
                     variants[scoped_variant_key(p)] = compute_scoped_stats(conn, p)
                     pause()
         stats["scoped_variants"] = variants
+        # The /companies page's list groups every open row by company. With
+        # 1.2M open rows that ran past the request deadline under an apply,
+        # so it never cached and every visitor got a 503 (2026-10-13).
+        # Everywhere, and each country the scoped stats cover; the page
+        # always asks with confidence=all.
+        directory = {"all": company_directory(conn, {"confidence": "all"})}
+        pause()
+        for cc in countries:
+            directory[f"all:{cc}"] = company_directory(conn, {"confidence": "all", "country": cc})
+            pause()
     finally:
         conn.close()
-    return {"stats.json": stats, "facets.json": facets}
+    return {"stats.json": stats, "facets.json": facets, "directory.json": directory}
 
 
 def _fresh_enough(s3, bucket: str) -> bool:

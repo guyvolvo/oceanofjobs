@@ -437,6 +437,13 @@ def lambda_handler(event, context):
         if path == "/companies/directory":
             # The /companies page's list: cached at the edge like the
             # facets, since every visitor's first question is the same.
+            # The page's own requests answer from the precomputed file
+            # (loader/precompute.py); anything else is counted live.
+            if set(params) <= {"confidence", "country"} and params.get("confidence") == "all":
+                ready = _precomputed_json("directory.json")
+                key = "all" + (f":{params['country']}" if params.get("country") else "")
+                if isinstance(ready, dict) and key in ready:
+                    return _response(200, json.dumps(ready[key], default=str), cache_seconds=300)
             return _response(200, json.dumps(company_directory(get_connection(), params), default=str),
                              cache_seconds=300)
         if path == "/companies":
