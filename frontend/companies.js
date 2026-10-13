@@ -10,7 +10,7 @@
   const ATS = { greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", workday: "Workday", smartrecruiters: "SmartRecruiters",
     workable: "Workable", comeet: "Comeet", recruitee: "Recruitee", personio: "Personio", teamtailor: "Teamtailor",
     bamboohr: "BambooHR", breezy: "Breezy", jazzhr: "JazzHR", pinpoint: "Pinpoint", oracle: "Oracle", eightfold: "Eightfold",
-    hunter: "Hunter" };
+    hunter: "Hunter", jobvite: "Jobvite", hibob: "HiBob", gem: "Gem" };
   // A scraper of our own is named for the company it reads (tycowp,
   // niloosoft, apple...). To a reader those are all one thing, the
   // company's own website, so they count, filter and read as one.

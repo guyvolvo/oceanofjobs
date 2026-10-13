@@ -3451,6 +3451,150 @@ def f_matrix(sess, token, known_ids=None, description_budget=None):
     return None
 
 
+# Three hosted ATSes and one company's own careers data, added 2026-10-13
+# for companies on the Israeli unicorn list that no fetcher reached. Each
+# is keyed on a host or URL, never a bare slug, so the guess loop's
+# guessed tokens never reach them and they cost nothing until a pin
+# names a board.
+
+# Jobvite: the board's own listing page (jobs.jobvite.com/<company>/jobs),
+# which renders every role as a link to /<company>/job/<id> with its name
+# and place beside it. Themes differ in the markup around that, so this
+# reads the link and the two classed cells after it. Paged boards are
+# followed to the end; a page that fails loses the whole read. Varonis
+# and Exabeam are the first.
+_JOBVITE_ROW_RE = re.compile(r'<a href="/([A-Za-z0-9_-]+)/job/([A-Za-z0-9]+)[^"]*"[^>]*>(.*?)</a>', re.S)
+
+
+def f_jobvite(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or not token.startswith("jobs.jobvite.com/"):
+        return None
+    slug = token.split("/", 1)[1].strip("/")
+    out, seen = [], set()
+    for page in range(20):
+        html_text = _html_page(sess, f"https://jobs.jobvite.com/{slug}/jobs" + (f"?p={page}" if page else ""))
+        if html_text is None:
+            return None
+        found = 0
+        for who, jid, inner in _JOBVITE_ROW_RE.findall(html_text):
+            if who.lower() != slug.lower() or jid in seen:
+                continue
+            name = re.search(r'jv-job-list-name[^>]*>(.*?)</', inner, re.S)
+            place = re.search(r'jv-job-list-location[^>]*>(.*?)</div>', inner, re.S)
+            if not name:
+                continue
+            seen.add(jid)
+            found += 1
+            spans = [_strip_tags(s) for s in re.findall(r"<span[^>]*>(.*?)</span>", place.group(1), re.S)] if place else []
+            spans = [s for s in spans if s]
+            where = spans[-1] if spans else (_strip_tags(place.group(1)) if place else "")
+            out.append(Job("jobvite", token, jid, _strip_tags(name.group(1)), where,
+                           f"https://jobs.jobvite.com/{slug}/job/{jid}",
+                           department=spans[0] if len(spans) > 1 else None))
+        if not found or f"?p={page + 1}" not in html_text:
+            break
+    return out or None
+
+
+# HiBob's hosted careers site (<company>.careers.hibob.com), whose own
+# page reads /api/job-ad with the company named in a header. The token
+# is that host. Fundbox is the first.
+_HIBOB_WORKPLACE = {"hybrid": "hybrid", "remote": "remote", "onsite": "onsite", "office": "onsite"}
+
+
+def f_hibob(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or not token.endswith(".careers.hibob.com"):
+        return None
+    try:
+        r = sess.get(f"https://{token}/api/job-ad", timeout=30,
+                     headers={"User-Agent": _BROWSER_UA, "Accept": "application/json",
+                              "companyidentifier": token.split(".", 1)[0]})
+        d = r.json() if r.status_code == 200 else None
+    except (requests.RequestException, ValueError) as e:
+        print(f"hibob {token}: {e!r}", file=sys.stderr)
+        return None
+    ads = (d or {}).get("jobAdDetails") if isinstance(d, dict) else None
+    if not isinstance(ads, list):
+        return None
+    out = []
+    for j in ads:
+        jid, title = _txt(j.get("id")), _txt(j.get("title")).strip()
+        if not jid or not title:
+            continue
+        where = ", ".join(x for x in (_txt(j.get("site")).strip(), _txt(j.get("country")).strip()) if x)
+        body = " ".join(_txt(j.get(k)) for k in ("description", "responsibilities", "requirements") if j.get(k))
+        out.append(Job("hibob", token, jid, title, where, f"https://{token}/jobs/{jid}",
+                       _normalize_date(j.get("publishedAt")), _txt(j.get("department")) or None,
+                       description=_clean_text(body),
+                       workplace_type=_HIBOB_WORKPLACE.get(_txt(j.get("workspaceTypeId")).lower())))
+    return out
+
+
+# Gem's job boards (jobs.gem.com/<board>), from the public posts API the
+# board itself reads, shaped like Greenhouse's. The token is the board's
+# URL without its scheme. BigPanda is the first.
+_GEM_WORKPLACE = {"remote": "remote", "hybrid": "hybrid", "in_office": "onsite", "onsite": "onsite"}
+
+
+def f_gem(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or not token.startswith("jobs.gem.com/"):
+        return None
+    board = token.split("/", 1)[1].strip("/")
+    d = get_json(sess, f"https://api.gem.com/job_board/v0/{board}/job_posts/")
+    if not isinstance(d, list):
+        return None
+    out = []
+    for j in d:
+        jid, title = _txt(j.get("id")), _txt(j.get("title")).strip()
+        if not jid or not title:
+            continue
+        where = _txt((j.get("location") or {}).get("name")) or _txt(((j.get("offices") or [{}])[0] or {}).get("name"))
+        out.append(Job("gem", token, jid, title, where,
+                       _txt(j.get("absolute_url")) or f"https://jobs.gem.com/{board}/{jid}",
+                       _normalize_date(j.get("first_published_at") or j.get("created_at")),
+                       _txt(((j.get("departments") or [{}])[0] or {}).get("name")) or None,
+                       description=_clean_text(j.get("content")),
+                       workplace_type=_GEM_WORKPLACE.get(_txt(j.get("location_type")).lower())))
+    return out
+
+
+# Deel lists its roles on its own careers page, which carries every one
+# as a record in the page's data (title, team, places, Ashby's published
+# date, the apply link); its public Ashby board is empty. The token is
+# the page's URL without its scheme.
+_DEEL_RECORD_RE = re.compile(r'\{"id":\d+,"attributes":\{"ashby_id"')
+
+
+def f_deel(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or not token.startswith("www.deel.com/"):
+        return None
+    page = _html_page(sess, f"https://{token}")
+    if page is None:
+        return None
+    data = page.replace('\\"', '"')
+    dec = json.JSONDecoder()
+    records = {}
+    for m in _DEEL_RECORD_RE.finditer(data):
+        try:
+            obj, _ = dec.raw_decode(data, m.start())
+        except ValueError:
+            continue
+        a = obj.get("attributes") or {}
+        if a.get("ashby_id") and str(a.get("is_listed")).lower() != "false":
+            records[a["ashby_id"]] = a
+    out = []
+    for jid, a in records.items():
+        places = a.get("all_locations")
+        places = places if isinstance(places, list) else [_txt(a.get("location_name"))]
+        out.append(Job("deel", token, jid, _txt(a.get("title")).strip(), ", ".join(p for p in places if p),
+                       _txt(a.get("external_link")) or f"https://www.deel.com/careers/position/?ashby_jid={jid}",
+                       _normalize_date(a.get("ashby_published_date")),
+                       _txt(a.get("team_name")) or None))
+    if not out:
+        print(f"deel {token}: no roles in the page ({len(page)} bytes)", file=sys.stderr)
+    return out or None
+
+
 # Ordered by how often each one actually wins, because the guess loop
 # below tries them in this order and stops at the first hit. The old
 # order was roughly the order they were written in, which put personio
@@ -3502,6 +3646,11 @@ FETCHERS: dict[str, Callable] = {
     "adamjobs": f_adamjobs,
     "nogamy": f_nogamy,
     "matrix": f_matrix,
+    # Keyed on a host or board URL. See the note above f_jobvite.
+    "jobvite": f_jobvite,
+    "hibob": f_hibob,
+    "gem": f_gem,
+    "deel": f_deel,
 }
 
 # Boards too big or too slow for the five-minute sweep. They poll from the

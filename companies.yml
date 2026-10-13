@@ -24,6 +24,34 @@
 # API shape: GET https://www.comeet.com/careers-api/1.0/company/{uid}/positions?token={token}
 
 comeet:
+  # added 2026-10-13 from the Israeli unicorn list (Airtable). Tokens read off each company's comeet.com/jobs page.
+  # StarkWare, AI21 and Fabric had no open roles on the day.
+  - domain: starkware.co
+    uid: "C6.00E"
+    token: "6CE28D4D9C220601B386CE22061B386CE"
+    jobs_seen: 0
+    source: comeet-page
+  - domain: ai21.com
+    uid: "E6.001"
+    token: "6E12946DC230276E13DE93708294637083708"
+    jobs_seen: 0
+    source: comeet-page
+  - domain: xsightlabs.com
+    uid: "46.00C"
+    token: "64C25C864C12E41930326064C25C801930"
+    jobs_seen: 23
+    source: comeet-page
+  - domain: covenant.com
+    uid: "3B.00F"
+    token: "B3F4EB959F8167E437A383B167E4EB9B3F59F8"
+    jobs_seen: 31
+    source: comeet-page
+  - domain: getfabric.com
+    uid: "52.009"
+    token: "25996412C8106FBBD152170B0E16259"
+    jobs_seen: 0
+    source: comeet-page
+
   - domain: aquasec.com
     uid: "91.001"
     token: "191644966966644E194B3191644644"
@@ -1338,6 +1366,16 @@ lever:
     note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Innodata), the board fetched live (3 roles).
 
 ashby:
+  # added 2026-10-13 from the Israeli unicorn list (Airtable). SSI's board was empty on the day.
+  - domain: ssi.inc
+    token: "ssi"
+    jobs_seen: 0
+    source: own-careers-page
+  - domain: fundamental.tech
+    token: "fundamental"
+    jobs_seen: 21
+    source: hand-verified
+    note: the board's own text names NEXUS, fundamental.tech's model.
   # monday.com's board token is its whole domain, dot included, which no
   # guess produces. Read off the careers page's embedded positions.
   - domain: monday.com
@@ -1484,6 +1522,16 @@ ashby:
     note: added 2026-10-09 from the Nasdaq and most-sought-after gap research (Tyra Biosciences), the board fetched live (1 roles).
 
 greenhouse:
+  # added 2026-10-13 from the Israeli unicorn list (Airtable).
+  - domain: lightricks.com
+    token: "ltx"
+    jobs_seen: 8
+    source: hand-verified
+    note: LTX is Lightricks' product; lightricks.com/careers points at it.
+  - domain: hevendrones.com
+    token: "hevenaerotech"
+    jobs_seen: 28
+    source: hand-verified
   - domain: orionsec.io
     token: "orioncscybersecurityltd"
     jobs_seen: 6
@@ -2180,3 +2228,37 @@ matrix:
     jobs_seen: 506
     source: own-careers-data
     note: added 2026-10-12.
+
+# Hosted ATSes read off their own boards (f_jobvite, f_hibob, f_gem) and
+# Deel's own careers data (f_deel), added 2026-10-13 from the Israeli unicorn list (Airtable).
+jobvite:
+  # The token is the board's URL without its scheme.
+  - domain: varonis.com
+    token: "jobs.jobvite.com/varonis"
+    jobs_seen: 56
+    source: own-careers-page
+  - domain: exabeam.com
+    token: "jobs.jobvite.com/exabeam"
+    jobs_seen: 3
+    source: own-careers-page
+
+hibob:
+  # The token is the hosted careers host.
+  - domain: fundbox.com
+    token: "fundbox.careers.hibob.com"
+    jobs_seen: 3
+    source: own-careers-page
+
+gem:
+  # The token is the board's URL without its scheme.
+  - domain: bigpanda.io
+    token: "jobs.gem.com/bigpanda"
+    jobs_seen: 19
+    source: own-careers-page
+
+deel:
+  # The token is the careers page's URL without its scheme.
+  - domain: deel.com
+    token: "www.deel.com/careers"
+    jobs_seen: 268
+    source: own-careers-data
