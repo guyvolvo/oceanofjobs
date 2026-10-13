@@ -381,7 +381,7 @@ def render(job, now=None, extra=None) -> str:
     # The description, with the closing-date phrase in bold.
     description = description_html(job.get("description") or "", bold=closes[1] if closes else None)
     if not description:
-        description = '<p class="pg-muted">No description was provided by this listing. The apply link has the full posting.</p>'
+        description = '<p class="pg-muted">No description was provided, see full details by clicking apply</p>'
 
     # Scraped, so only http(s): a javascript: link would run on this page.
     apply_url = esc(job.get("url")) if re.match(r"https?://", job.get("url") or "", re.I) else "#"

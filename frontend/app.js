@@ -2760,7 +2760,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
   } else if (job.description) {
     descriptionHtml = `<div class="job-detail-description">${renderDescriptionLines(job.description)}</div>`;
   } else {
-    descriptionHtml = '<div class="job-detail-description empty">No description provided by this listing.</div>';
+    descriptionHtml = '<div class="job-detail-description empty">No description was provided, see full details by clicking apply</div>';
   }
 
   // No close button here any more: the pane has a head of its own and
