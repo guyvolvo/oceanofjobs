@@ -3696,7 +3696,7 @@ function revealMenu(menu) {
 }
 
 function createMultiSelect(containerId, { placeholder, options = [], searchable = false, onChange, pinnedOption = null,
-                                          remoteSearch = null, keepSelected = false }) {
+                                          remoteSearch = null, keepSelected = false, maxShown = 0 }) {
   const container = document.getElementById(containerId);
   const selected = new Set();
   let currentOptions = options;
@@ -3776,8 +3776,15 @@ function createMultiSelect(containerId, { placeholder, options = [], searchable 
         return a2 - b2;
       });
     }
+    // maxShown: a list too long to draw whole (the alert form's Companies
+    // is 44,000 names, and drawing every checkbox froze the page) shows
+    // that many until the reader types, then that many times four of the
+    // matches. Ticked rows are sorted first above, so they always show.
+    const cap = maxShown ? (q ? maxShown * 4 : maxShown) : Infinity;
+    const more = visible.length - Math.min(visible.length, cap);
     optionsEl.innerHTML =
-      visible
+      (visible
+        .slice(0, cap)
         .map(
           (o) => `
         <label class="ms-option">
@@ -3785,7 +3792,8 @@ function createMultiSelect(containerId, { placeholder, options = [], searchable 
           ${escapeHtml(o.label)}
         </label>`
         )
-        .join("") || '<div class="ms-empty">No matches.</div>';
+        .join("") || '<div class="ms-empty">No matches.</div>')
+      + (more > 0 ? `<div class="ms-empty">${fmtInt(more)} more. ${q ? "Keep typing to narrow it." : "Type to search them."}</div>` : "");
   }
 
   function updateLabel() {
@@ -5598,8 +5606,10 @@ async function loadGlobalCompanyOptions() {
   if (globalCompanyOptions) return globalCompanyOptions;
   try {
     const companies = await getJSON("/companies?resolved_only=1");
+    // Busiest first, so the picker's first 50 are the companies most
+    // people are after (it draws only those until a search).
     globalCompanyOptions = [...companies.companies]
-      .sort((a, b) => a.domain.localeCompare(b.domain))
+      .sort((a, b) => (b.job_count || 0) - (a.job_count || 0) || a.domain.localeCompare(b.domain))
       .map((c) => ({ value: c.domain, label: c.domain }));
   } catch {
     // Non-fatal: the alert form's company picker just stays empty/stale.
@@ -6703,6 +6713,7 @@ function wireAlertCreateForm() {
   alertMsCompany = createMultiSelect("alert-ms-company", {
     placeholder: "Companies",
     searchable: true,
+    maxShown: 50,
     onChange: (values) => { alertFormState.company = values; },
   });
   alertMsLocation = createLocationSelect("alert-ms-location", {
