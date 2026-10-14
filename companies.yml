@@ -1376,6 +1376,11 @@ ashby:
     jobs_seen: 21
     source: hand-verified
     note: the board's own text names NEXUS, fundamental.tech's model.
+  - domain: oak.id
+    token: "oak"
+    jobs_seen: 10
+    source: hand-verified
+    note: Oak, the identity security company. The board's publicWebsite is oak.id.
   # monday.com's board token is its whole domain, dot included, which no
   # guess produces. Read off the careers page's embedded positions.
   - domain: monday.com
