@@ -5564,9 +5564,12 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   width: min(420px, calc(100vw - 2 * var(--edge)));
   background: var(--white);
   color: var(--black);
-  border: var(--rule) solid var(--black);
-  border-radius: 4px;
-  padding: 20px;
+  /* The sign-in dialog's card: the 24px corner and a hairline instead of
+     the 2px ink rule, with a shadow to lift it off the scrim. */
+  border: 1px solid var(--grey-line);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.35);
+  padding: 28px;
 }
 .geo-prompt h2 {
   font-family: var(--font-display);
@@ -5580,7 +5583,7 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
    between a helpful guess and a site that seems to know too much. */
 .geo-evidence {
   border: 1px solid var(--grey-line);
-  border-radius: 4px;
+  border-radius: 10px;
   padding: 10px 12px;
   margin: 0 0 16px;
   font-family: "Courier New", monospace;
@@ -5593,7 +5596,8 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 /* Neither button shouts. .btn is 700 everywhere else, which on a dialog
    this small made the accept button the loudest thing on the screen,
    ahead of the question it answers. The fill still carries the emphasis. */
-.geo-prompt .btn { font-weight: 400; }
+.geo-prompt .btn { font-weight: 400; border-radius: 10px; }
+.geo-prompt #geo-accept { border-color: transparent; }
 /* Skip is the quiet one. .btn-quiet is scoped to .alert-create, so it
    does not reach here, and without this both buttons render as the
    primary and Skip reads as the thing to press. Widening that selector
