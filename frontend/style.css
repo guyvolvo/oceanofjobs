@@ -58,6 +58,15 @@
   font-display: swap;
 }
 
+/* Urbanist for the homepage headings. Variable, 400 to 700, latin only.
+   OFL, licence beside the file. */
+@font-face {
+  font-family: "Urbanist";
+  src: url("fonts/Urbanist-VF-latin.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 /* Source Sans 3 for controls (buttons, inputs, the view switch, chips,
    badges), per request. Self-hosted for the same reason as Overused
    Grotesk: no third-party font request on every page view. The variable
@@ -4373,6 +4382,8 @@ a.hero-account-btn { text-decoration: none; }
 /* Level with the middle of the link columns beside it. */
 .home-foot-brand { align-self: center; }
 .home-foot-h { margin: 0; font: 500 13px/1.4 "Geist", var(--font); color: var(--h-text); }
+/* Every heading on the homepage, after the rules that size them. */
+.home :is(h1, h2, h3) { font-family: "Urbanist", "Geist", var(--font); }
 .home-foot-grid nav a { display: block; margin-top: 10px; font-size: 13px; color: var(--h-muted); }
 .home-foot-base {
   display: flex;
