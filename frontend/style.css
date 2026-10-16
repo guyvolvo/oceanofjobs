@@ -4284,7 +4284,7 @@ a.hero-account-btn { text-decoration: none; }
 
 /* First screen: the claim and its two doors at the left, the flower at
    the right, its top level with the headline. */
-.home-hero { padding: 112px var(--h-pad) 64px; }
+.home-hero { padding: 112px var(--h-pad) 0; }
 .home-hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 720px) clamp(240px, 32vw, 440px);
@@ -4306,7 +4306,7 @@ a.hero-account-btn { text-decoration: none; }
 .home-face { width: 380px; max-width: 100%; height: auto; justify-self: end; color: var(--ill-ink); }
 
 /* The ticker between the first screen and the privacy section. */
-.home .hero-band { padding: 40px 0 175px; }
+.home .hero-band { padding: 16px 0 175px; }
 .home .logo-band { margin: 0 auto; }
 
 .home-section { padding: 0 var(--h-pad) 112px; }
