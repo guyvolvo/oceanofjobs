@@ -197,3 +197,19 @@ variable "origin_secret" {
   description = "Sent as x-otj-origin-key on every CloudFront request to the box. A WAF rule on box.* blocks requests without it, so the box answers only CloudFront and the Worker (which sends the same value from its own secret) and nobody can reach it directly around the rate limit. From the OTJ_ORIGIN_SECRET repository secret; empty sends no header."
   default     = ""
 }
+
+variable "precompute_mode" {
+  type        = string
+  default     = "shadow"
+  description = "Where the precompute Lambda publishes. shadow: precomputed-shadow/ only, for comparing with the box's output. live: the production artifacts (precomputed/ and the frontend copies), with the box's own precompute switched off in box/publish.py at the same time."
+  validation {
+    condition     = contains(["shadow", "live"], var.precompute_mode)
+    error_message = "precompute_mode is shadow or live."
+  }
+}
+
+variable "precompute_schedule_enabled" {
+  type        = bool
+  default     = false
+  description = "Off until a hand-invoked run has been measured against the 15-minute limit (2026-10-16)."
+}

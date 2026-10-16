@@ -401,7 +401,7 @@ resource "aws_iam_role_policy" "scrape_lambda_deploy" {
       Sid      = "UpdateScrapeLambdaCode"
       Effect   = "Allow"
       Action   = ["lambda:UpdateFunctionCode", "lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:PublishVersion"]
-      Resource = [aws_lambda_function.scrape_fast.arn, aws_lambda_function.scrape_workday.arn, aws_lambda_function.scrape_maintenance.arn]
+      Resource = [aws_lambda_function.scrape_fast.arn, aws_lambda_function.scrape_workday.arn, aws_lambda_function.scrape_maintenance.arn, aws_lambda_function.precompute.arn]
     }]
   })
 }
