@@ -210,6 +210,6 @@ variable "precompute_mode" {
 
 variable "precompute_schedule_enabled" {
   type        = bool
-  default     = false
-  description = "Off until a hand-invoked run has been measured against the 15-minute limit (2026-10-16)."
+  default     = true
+  description = "Measured 2026-10-16 before switching on: 347s of the 900s limit with the file compacted first (876s without), at 3008MB."
 }

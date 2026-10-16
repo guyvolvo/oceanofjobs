@@ -184,11 +184,12 @@ def lambda_handler(event=None, context=None) -> dict:
         out["db_mb"] = round(db.stat().st_size / 1048576)
         out["tmp_used_mb"] = round(shutil.disk_usage(WORK).used / 1048576)
         version = out["source_version"] = source_version(db)
-        if event.get("compact", os.environ.get("PRECOMPUTE_COMPACT") == "1"):
-            # The live file's pages are about half empty (3.3GB restored
-            # against 1.5GB vacuumed), and the build reads the table some
-            # fifty times. Compacted, it fits in the function's 3GB, and
-            # every pass after the first reads memory, not disk.
+        if event.get("compact", os.environ.get("PRECOMPUTE_COMPACT", "1") == "1"):
+            # The live file's pages are about half empty (3,344MB restored
+            # against 1,463MB vacuumed), and the build reads the table some
+            # fifty times. Measured 2026-10-16 at 3008MB: without this the
+            # build took 760s and the run 876s of the 900s limit; with it,
+            # compaction 56s, build 183s, run 347s.
             t = time.monotonic()
             db = compact(db)
             out["compact_s"] = round(time.monotonic() - t, 1)
