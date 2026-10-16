@@ -4408,8 +4408,10 @@ a.hero-account-btn { text-decoration: none; }
   .home-hero-text { display: contents; }
   .home-hero h1,
   .home-hero p { grid-column: 1 / -1; }
-  .home-hero .home-actions { grid-column: 1; flex-direction: column; align-items: stretch; }
-  .home-hero .home-soft { justify-content: center; }
+  .home-hero .home-actions { grid-column: 1; flex-direction: column; align-items: flex-start; }
+  /* The API is the side door: a smaller pill under the main one, not a
+     second button of the same weight. */
+  .home-hero .home-soft { height: 44px; padding: 0 20px; font-size: 15px; }
   .home-flower { grid-column: 2; grid-row: 3; align-self: center; justify-self: center; width: 100%; max-width: 240px; margin: 34px 0 0; }
   .home-privacy { grid-template-columns: minmax(0, 1fr); }
   .home-face { width: 260px; justify-self: start; }
