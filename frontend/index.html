@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="theme-color" content="#f2f0ef" />
   <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
-  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-500-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-GXP63R1JP1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -82,81 +82,75 @@
   <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
   <link rel="stylesheet" href="/style.css" />
-  <!-- The product shot is a CSS background, so on its own the browser
-       only finds it after the stylesheet has parsed and then fetches it
-       behind everything else. It is the largest thing in the first
-       screen on a desktop, and the field measured it arriving at 21s on
-       the slowest visits. Named here it downloads alongside the CSS.
-       Desktop widths only: the phone layout paints a different scene
-       and this file is never shown there. -->
-  <link rel="preload" as="image" href="/img/showcase-field.webp" media="(min-width: 721px)" fetchpriority="high" />
-  <!-- This page ignored the theme for a while, because it had no toggle
-       and somebody who switched to dark on the board arrived here with
-       nothing to switch it back. The bar carries one now, so the choice
-       is honoured here as everywhere else. The showcase photograph stays
-       as it is in both: it is a picture, not a surface. -->
+  <!-- The board's theme choice is honoured here too. Dark is this page's
+       own deeper ground, #0e0f11, rather than the board's #17181c. -->
   <script>
     if (localStorage.getItem("iljobs_theme") === "dark") {
-      document.querySelector('meta[name="theme-color"]').content = "#17181c";
+      document.querySelector('meta[name="theme-color"]').content = "#0e0f11";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
-<body class="hero-page">
+<body class="home">
 <a class="skip-link" href="#main">Skip to content</a>
 
-  <header class="hero-bar hero-bar-head hero-bar-bare">
-    <!-- Island's shape: the brand at the left, a row of plain text
-         menus at the right, and the account last. Resources and About
-         open small panels (hero_nav.js). Hidden on a phone, where
-         mobile_nav.js turns the right side into its one vertical list
-         and the brand stays. -->
-    <a class="hero-brand" href="/" aria-label="Ocean of Jobs home">
-      <img src="/favicon.svg?v=3" width="28" height="28" alt="" />
+  <!-- The brand at the left, the menus in the middle, theme and account at
+       the right. Jobs, Companies and API resources open small panels
+       (hero_nav.js) holding only pages that exist; About goes to the
+       contact page until there is an about page. On a phone mobile_nav.js
+       folds the menus and the right side into its one list. -->
+  <header class="home-bar hero-bar-head">
+    <a class="home-brand" href="/" aria-label="Ocean of Jobs home">
+      <img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" />
       <span translate="no">Ocean of Jobs</span>
     </a>
+    <nav class="site-menus home-nav" aria-label="Main">
+      <div class="site-menu" data-menu="jobs">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-jobs">Jobs<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-jobs" hidden>
+          <a class="site-menu-item" href="/board"><span class="site-menu-name">Board</span></a>
+        </div>
+      </div>
+      <div class="site-menu" data-menu="companies">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-companies">Companies<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-companies" hidden>
+          <a class="site-menu-item" href="/companies"><span class="site-menu-name">Directory</span></a>
+        </div>
+      </div>
+      <div class="site-menu" data-menu="api">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-api">API resources<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-api" hidden>
+          <a class="site-menu-item" href="/api/help"><span class="site-menu-name">API docs</span></a>
+          <a class="site-menu-item" href="/api/openapi.json"><span class="site-menu-name">OpenAPI spec</span></a>
+          <a class="site-menu-item" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener"><span class="site-menu-name">GitHub</span></a>
+        </div>
+      </div>
+      <a class="site-menu-link" href="/contact">About</a>
+    </nav>
     <div class="hero-bar-right" id="hero-bar-right">
-      <nav class="site-menus" aria-label="Site">
-        <a class="site-menu-link" href="/board">Jobs</a>
-        <a class="site-menu-link" href="/companies">Companies</a>
-        <div class="site-menu" data-menu="resources">
-          <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-resources">Resources<svg class="site-menu-chev" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <div class="site-menu-panel" id="site-menu-resources" hidden>
-            <a class="site-menu-item" href="/api/help"><span class="site-menu-name">API reference</span></a>
-            <a class="site-menu-item" href="/stats"><span class="site-menu-name">Statistics</span></a>
-            <a class="site-menu-item" href="/feed.xml"><span class="site-menu-name">RSS feed</span></a>
-            <a class="site-menu-item" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener"><span class="site-menu-name">Source code</span></a>
-          </div>
-        </div>
-        <div class="site-menu" data-menu="about">
-          <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-about">About<svg class="site-menu-chev" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <div class="site-menu-panel" id="site-menu-about" hidden>
-            <a class="site-menu-item" href="/contact"><span class="site-menu-name">Contact</span></a>
-            <a class="site-menu-item" href="/privacy"><span class="site-menu-name">Privacy</span></a>
-          </div>
-        </div>
-      </nav>
       <button type="button" class="hero-theme" id="hero-theme">Dark</button>
       <div class="hero-account" id="hero-account"><a class="hero-bar-name" href="/account">Log in</a></div>
     </div>
   </header>
 
   <main id="main" tabindex="-1">
-    <section class="hero">
-      <h1 class="hero-claim">Find your next opportunity.</h1>
-      <!-- The count lives in the door now rather than in a sentence above
-           it. "all" until the stats land, so the button reads as a whole
-           phrase either way and nothing reflows into a gap. -->
-      <div class="hero-actions">
-        <a class="btn hero-primary" href="/board"><span>Search <span id="lede-count">all</span> open jobs</span><svg class="cta-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-        <a class="hero-secondary" href="/api/help">Explore the API</a>
+    <section class="home-hero" aria-labelledby="home-title">
+      <div class="home-wrap home-hero-grid">
+        <div class="home-hero-text">
+          <h1 id="home-title">find your next opportunity</h1>
+          <p>Ocean of Jobs is the job search platform made to make your job search easy and hassle-free.</p>
+          <div class="home-actions">
+            <a class="home-cta" href="/board">Search jobs<span class="home-cta-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="19" height="19"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+            <a class="home-soft" href="/api/help">Explore the API</a>
+          </div>
+        </div>
+        <svg class="home-flower" viewBox="0 0 626 626" aria-hidden="true" focusable="false"><use href="/img/home-flower.svg#art"/></svg>
       </div>
     </section>
 
-    <section class="hero-band" aria-label="Companies hiring on the board">
-      <!-- Two rows of the busiest companies' wordmarks, centred under the
-           claim and a little wider than it, drifting in opposite
-           directions on the page's own ground. -->
+    <!-- Two rows of the busiest companies' wordmarks drifting in opposite
+         directions, filled from stats.json by the script below. -->
+    <section class="hero-band">
       <div class="logo-band" aria-hidden="true">
         <div class="hero-ticker to-right"><div class="hero-ticker-track" id="ticker-logos-a"></div></div>
         <div class="hero-ticker to-left"><div class="hero-ticker-track" id="ticker-logos-b"></div></div>
@@ -164,127 +158,106 @@
       <p class="sr-only" id="hero-stats-text">Loading board statistics.</p>
     </section>
 
-    <section class="hero-showcase">
-      <!-- The board on a monitor in a field at sunset, one photograph as
-           the card's background. A picture of the product, so it is
-           hidden from screen readers: the page says all of this in words
-           above. Phones get the phone scene instead. -->
-      <div class="showcase-device" aria-hidden="true"></div>
+    <section class="home-section" aria-labelledby="privacy-title">
+      <div class="home-wrap home-privacy">
+        <div>
+          <h2 class="home-h2" id="privacy-title">A privacy focused platform for job seekers</h2>
+          <p class="home-body">Browse over a million jobs without creating an account. Ocean of Jobs follows a local-first approach: data that can be stored on your device stays in your browser by default. If you create an account, you can sync supported data across devices.</p>
+          <p class="home-body">We don't sell your personal data. If you sign up for job alerts, we store your email address and alert preferences to deliver them. Resume and work history analysis runs locally in your browser, so your information doesn't need to be uploaded to our servers for analysis.</p>
+        </div>
+        <svg class="home-face" viewBox="80 20 480 543" aria-hidden="true" focusable="false"><use href="/img/home-face.svg#art"/></svg>
+      </div>
     </section>
 
-    <!-- Four windows onto one blurred photograph of tulips, so the flowers
-         run on behind the gaps (the "Tulips - Blur" design), each with a
-         preview of what it describes beside it on wide screens. Each card's
-         image layer is the whole stack's picture, shifted up by the card's
-         own place in it; see .feature-card-img. -->
-    <section class="hero-features" aria-label="What the board does">
-      <div class="feature-row" style="--i: 0">
-        <article class="feature-card">
-          <div class="feature-card-img" aria-hidden="true"></div>
-          <div class="feature-card-body">
-            <h2>Sources</h2>
-            <p>Every listing is scraped either from the company's own hiring system or from their
-             careers page.</p>
+    <section class="home-section" aria-labelledby="features-title">
+      <div class="home-wrap">
+        <h2 class="home-h2" id="features-title">Features</h2>
+        <div class="home-features">
+          <div class="home-feature">
+            <h3>Salary disclosure</h3>
+            <p>Most companies do not disclose their salary ranges, that's why there is a salary estimation algorithm to help you decide better.</p>
           </div>
-        </article>
-        <div class="feature-preview fp-sources" aria-hidden="true">
-          <div class="fp-marquee"><div class="fp-track"><span class="fp-ats"><img src="/img/ats/greenhouse.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Greenhouse</span><span class="fp-ats"><img src="/img/ats/lever.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Lever</span><span class="fp-ats"><img src="/img/ats/ashby.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Ashby</span><span class="fp-ats"><img src="/img/ats/workday.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workday</span><span class="fp-ats"><img src="/img/ats/smartrecruiters.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />SmartRecruiters</span><span class="fp-ats"><img src="/img/ats/workable.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workable</span><span class="fp-ats"><img src="/img/ats/comeet.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Comeet</span><span class="fp-ats"><img src="/img/ats/recruitee.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Recruitee</span><span class="fp-ats"><img src="/img/ats/greenhouse.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Greenhouse</span><span class="fp-ats"><img src="/img/ats/lever.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Lever</span><span class="fp-ats"><img src="/img/ats/ashby.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Ashby</span><span class="fp-ats"><img src="/img/ats/workday.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workday</span><span class="fp-ats"><img src="/img/ats/smartrecruiters.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />SmartRecruiters</span><span class="fp-ats"><img src="/img/ats/workable.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Workable</span><span class="fp-ats"><img src="/img/ats/comeet.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Comeet</span><span class="fp-ats"><img src="/img/ats/recruitee.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Recruitee</span></div></div>
-          <div class="fp-marquee fp-rev"><div class="fp-track"><span class="fp-ats"><img src="/img/ats/personio.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Personio</span><span class="fp-ats"><img src="/img/ats/teamtailor.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Teamtailor</span><span class="fp-ats"><img src="/img/ats/bamboohr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />BambooHR</span><span class="fp-ats"><img src="/img/ats/breezy.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Breezy HR</span><span class="fp-ats"><img src="/img/ats/jazzhr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />JazzHR</span><span class="fp-ats"><img src="/img/ats/pinpoint.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Pinpoint</span><span class="fp-ats"><img src="/img/ats/oracle.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Oracle</span><span class="fp-ats"><img src="/img/ats/eightfold.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Eightfold</span><span class="fp-ats"><img src="/img/ats/personio.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Personio</span><span class="fp-ats"><img src="/img/ats/teamtailor.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Teamtailor</span><span class="fp-ats"><img src="/img/ats/bamboohr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />BambooHR</span><span class="fp-ats"><img src="/img/ats/breezy.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Breezy HR</span><span class="fp-ats"><img src="/img/ats/jazzhr.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />JazzHR</span><span class="fp-ats"><img src="/img/ats/pinpoint.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Pinpoint</span><span class="fp-ats"><img src="/img/ats/oracle.svg" alt="" width="28" height="28" loading="lazy" decoding="async" />Oracle</span><span class="fp-ats"><img src="/img/ats/eightfold.webp" alt="" width="28" height="28" loading="lazy" decoding="async" />Eightfold</span></div></div>
-        </div>
-      </div>
-      <div class="feature-row" style="--i: 1">
-        <article class="feature-card">
-          <div class="feature-card-img" aria-hidden="true"></div>
-          <div class="feature-card-body">
-            <h2>CV keyword matching</h2>
-            <p>To analyze your CV for keywords and experience go to your account page and (locally)
-             upload your resume, which gives you the option to sort by "Best matches" according to
-             your CV.</p>
+          <div class="home-feature">
+            <h3>Real-time data</h3>
+            <p>Jobs appear on Ocean of Jobs a few minutes after companies publish them, and at most up to 2 hours for low cadency companies.</p>
           </div>
-        </article>
-        <div class="feature-preview fp-cv" aria-hidden="true">
-          <div class="fp-job">
-            <div><div class="fp-job-title">Backend Engineer</div><div class="fp-job-meta">Tel Aviv · Hybrid</div></div>
-            <span class="fp-score">4 of 5 skills from your CV</span>
+          <div class="home-feature">
+            <h3>Smart alerts</h3>
+            <p>Sign-up to set up email alerts based on your preferences.</p>
           </div>
-          <div class="fp-skills">
-            <span class="fp-skill m" style="--k: 0">Python</span>
-            <span class="fp-skill m" style="--k: 1">Kubernetes</span>
-            <span class="fp-skill" style="--k: 2">Go</span>
-            <span class="fp-skill m" style="--k: 3">PostgreSQL</span>
-            <span class="fp-skill m" style="--k: 4">AWS</span>
+          <div class="home-feature">
+            <h3>Public API usage</h3>
+            <p>Free JSON API endpoint that does not require an API key.</p>
+            <div class="home-feature-links"><a href="/api/help">API documentation</a><a href="/api/openapi.json">OpenAPI specification</a></div>
           </div>
-        </div>
-      </div>
-      <div class="feature-row" style="--i: 2">
-        <article class="feature-card">
-          <div class="feature-card-img" aria-hidden="true"></div>
-          <div class="feature-card-body">
-            <h2>Salary estimation</h2>
-            <p>There is a salary estimation algorithm which is made to be as accurate as possible.</p>
-          </div>
-        </article>
-        <div class="feature-preview fp-salary" aria-hidden="true">
-          <div class="fp-sal-top"><span class="fp-est">Est. $10K–13K</span><span class="fp-sal-unit">a month</span></div>
-          <div class="fp-bar"><span class="fp-range"></span></div>
-          <div class="fp-scale"><span>$2K</span><span>$22K+</span></div>
-        </div>
-      </div>
-      <div class="feature-row" style="--i: 3">
-        <article class="feature-card">
-          <div class="feature-card-img" aria-hidden="true"></div>
-          <div class="feature-card-body">
-            <h2>Smart alerts</h2>
-            <p>To set up alerts on future job openings you must create an account to let AWS SES send
-             you alerts via email.</p>
-          </div>
-        </article>
-        <div class="feature-preview fp-alerts" aria-hidden="true">
-          <div class="fp-note" style="--k: 0"><span class="fp-bell"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><div><b>3 new jobs match your alert</b><span>Backend · Tel Aviv · Daily at 09:00</span></div></div>
-          <div class="fp-note" style="--k: 1"><span class="fp-bell"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><div><b>1 new job matches your alert</b><span>Data · Remote · Instant</span></div></div>
         </div>
       </div>
     </section>
 
-
-    <!-- Its own block, not a fifth feature: the people who want this are
-         not the people reading the four above. Last on the page, and dark
-         in both themes, because a terminal is the one thing here that
-         should look like a terminal.
-
-         The sample is the real answer to the real query beside it, nulls
-         and all. Apple's Golang listing genuinely has no company_name and
-         no salary, and a developer reading this needs to know those come
-         back null rather than finding out in their own parser. -->
-    <section class="hero-api" aria-labelledby="api-title">
-      <div class="hero-api-text">
-        <h2 id="api-title">Build on the same data.</h2>
-        <p>Free public JSON API, rate limited to 20&nbsp;requests per second.</p>
-        <a class="hero-api-link" href="/api/help">Read the API reference</a>
+    <!-- The sample is a real answer to the real query above it, taken
+         2026-10-15, trimmed to the fields shown. -->
+    <section class="home-section" aria-labelledby="api-title">
+      <div class="home-wrap home-api">
+        <div>
+          <h2 class="home-h2" id="api-title">API</h2>
+          <p class="home-api-p">Use the API to search jobs, look up companies, retrieve statistics, or build your own tools.</p>
+          <p class="home-api-p">Check the API documentation to see how you can retrieve data with filters such as location, skills, seniority, workplace type, salary and more.</p>
+          <div class="home-actions home-actions-sm">
+            <a class="home-pill" href="/api/help">Read the API docs<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            <a class="home-soft home-soft-sm" href="https://github.com/guyvolvo/oceanofjobs">View on GitHub</a>
+          </div>
+        </div>
+        <div class="home-code">
+          <div class="home-code-pane">
+            <div class="home-code-label">Example request</div>
+            <button type="button" class="home-code-copy" id="api-copy">Copy</button>
+            <span class="visually-hidden" id="api-copy-live" role="status" aria-live="polite"></span>
+<pre class="home-code-req"><span class="api-prompt">$</span> <span class="api-cmd">curl "https://oceanofjobs.com/api/jobs?israel_only=1&amp;limit=1"</span></pre>
+          </div>
+          <div class="home-code-pane">
+            <div class="home-code-label">Example response</div>
+<pre>{
+  <span class="api-key">"id"</span>: "4379ce3773adfb26",
+  <span class="api-key">"company_domain"</span>: "pendo.com",
+  <span class="api-key">"ats"</span>: "greenhouse",
+  <span class="api-key">"title"</span>: "Software Engineer, Mobile SDK",
+  <span class="api-key">"location"</span>: "Herzliya, Israel",
+  <span class="api-key">"confidence"</span>: "verified",
+  <span class="api-key">"posted_at"</span>: "2026-10-15T16:59:00+00:00",
+  <span class="api-key">"first_seen"</span>: "2026-10-15T17:13:47+00:00",
+  <span class="api-key">"closed_at"</span>: null,
+  <span class="api-key">"salary_text"</span>: "₪28K–38K",
+  <span class="api-key">"salary_is_estimate"</span>: 1
+}</pre>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div class="hero-api-code">
-        <button type="button" class="hero-api-copy" id="api-copy">Copy</button>
-        <span class="visually-hidden" id="api-copy-live" role="status" aria-live="polite"></span>
-<pre><code><span class="api-cmd">$ curl "oceanofjobs.com/api/jobs?q=golang&amp;limit=1"</span>
-{
-  <span class="api-key">"total"</span>: 176,
-  <span class="api-key">"jobs"</span>: [{
-    <span class="api-key">"title"</span>: "Distributed Systems Software Engineer (Golang)",
-    <span class="api-key">"company_domain"</span>: "apple.com",
-    <span class="api-key">"company_name"</span>: null,
-    <span class="api-key">"location"</span>: "Austin, United States of America",
-    <span class="api-key">"salary_text"</span>: null,
-    <span class="api-key">"ats"</span>: "apple"
-  }]
-}</code></pre>
+    <section class="home-section home-last" aria-labelledby="start-title">
+      <div class="home-wrap home-start">
+        <h2 id="start-title">Start your search.</h2>
+        <div class="home-actions">
+          <a class="home-pill home-pill-md" href="/board">Search jobs<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="home-soft home-soft-md" href="/companies">Browse companies</a>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="hero-bar hero-foot">
-    <span>oceanofjobs.com</span>
-    <span class="hero-foot-links"><a href="/contact">contact</a><a href="/privacy">privacy</a></span>
+  <footer class="home-foot">
+    <div class="home-wrap home-foot-grid">
+      <div class="home-foot-brand">
+        <div class="home-brand"><img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" /><span translate="no">Ocean of Jobs</span></div>
+      </div>
+      <nav aria-labelledby="foot-product"><h2 class="home-foot-h" id="foot-product">Product</h2><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a></nav>
+      <nav aria-labelledby="foot-dev"><h2 class="home-foot-h" id="foot-dev">Developers</h2><a href="/api/help">API docs</a><a href="/api/openapi.json">OpenAPI spec</a><a href="https://github.com/guyvolvo/oceanofjobs">GitHub</a></nav>
+      <nav aria-labelledby="foot-site"><h2 class="home-foot-h" id="foot-site">Site</h2><a href="/contact">Contact</a><a href="/privacy">Privacy</a></nav>
+    </div>
+    <div class="home-wrap home-foot-base">
+      <span>© 2026 Ocean of Jobs</span>
+      <span class="home-poll" id="home-poll" hidden><span class="home-poll-dot" aria-hidden="true"></span><span id="home-poll-text"></span></span>
+    </div>
   </footer>
 
   <script src="auth.js"></script>
@@ -311,24 +284,6 @@
         if (m) return `<span class="hero-logo"><img src="/img/wordmarks/${m[0]}" alt="" width="${m[1]}" height="${m[2]}" loading="eager" decoding="async" draggable="false" /></span>`;
         return `<span class="hero-logo hero-logo-text">${esc(c.name || c.domain)}</span>`;
       }
-      // The band runs wider than the claim above it: the claim's
-      // own text width plus 85%, re-measured when the window changes and
-      // when the display face arrives. CSS alone cannot read another
-      // element's text width; without this the band falls back to 920px.
-      (function () {
-        const claim = document.querySelector(".hero-claim");
-        const band = document.querySelector(".logo-band");
-        if (!claim || !band) return;
-        const size = () => {
-          const r = document.createRange();
-          r.selectNodeContents(claim);
-          band.style.setProperty("--band-w", `${Math.round(r.getBoundingClientRect().width * 1.85)}px`);
-        };
-        size();
-        addEventListener("resize", size, { passive: true });
-        if (document.fonts) document.fonts.ready.then(size);
-      })();
-
       function fill(el, items, minItems) {
         // Repeated until one copy is wider than any screen, then doubled, so
         // the track can loop by moving exactly half its width.
@@ -340,9 +295,6 @@
       function render(stats) {
         const t = stats.totals || {};
         const remote = ((stats.workplace || []).find((w) => w.workplace === "remote") || {}).n;
-        // The number inside the button: "Search 599,686 open jobs".
-        const lede = document.getElementById("lede-count");
-        if (t.open_jobs) lede.textContent = fmt(t.open_jobs);
 
         // top_companies_logos is thirty companies, the hand-picked big tech
         // and startups first (api/hot_companies.py). Until a precompute has
@@ -372,39 +324,6 @@
         .then((r) => (r.ok ? r.json() : fetch("/api/stats").then((x) => x.json())))
         .then(render)
         .catch(() => {});
-
-      // Feature rows rise into place as they scroll into view. Visible by
-      // default: the motion is added only where it can run and is wanted.
-      if ("IntersectionObserver" in window) {
-        document.documentElement.classList.add("hero-motion");
-        const io = new IntersectionObserver((entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-          });
-        }, { rootMargin: "0px 0px -12% 0px", threshold: 0.2 });
-        document.querySelectorAll(".feature-row").forEach((el) => io.observe(el));
-      }
-
-      // The tulips drift against the cards as the block scrolls past: one
-      // number, the block's distance from the middle of the window, turned
-      // into up to 48px of travel for every card's image at once, so the
-      // photograph moves as one picture behind its windows. Only while the
-      // block is on screen, once per frame.
-      (function () {
-        const block = document.querySelector(".hero-features");
-        if (!block || !("IntersectionObserver" in window)) return;
-        let on = false, queued = false;
-        const paint = () => {
-          queued = false;
-          const r = block.getBoundingClientRect();
-          const p = Math.max(-1, Math.min(1, (r.top + r.height / 2 - innerHeight / 2) / innerHeight));
-          block.style.setProperty("--drift", `${(p * 48).toFixed(1)}px`);
-        };
-        const onScroll = () => { if (on && !queued) { queued = true; requestAnimationFrame(paint); } };
-        new IntersectionObserver(([e]) => { on = e.isIntersecting; if (on) onScroll(); }).observe(block);
-        addEventListener("scroll", onScroll, { passive: true });
-        addEventListener("resize", onScroll, { passive: true });
-      })();
 
       // Either row can be thrown. Drag it and let go: it takes the speed and
       // direction of the last tenth of a second of the drag, holds close to
@@ -503,7 +422,7 @@
     (function () {
       var live = document.getElementById("api-copy-live");
       var btn = document.getElementById("api-copy");
-      var cmd = document.querySelector(".hero-api-code .api-cmd");
+      var cmd = document.querySelector(".home-code .api-cmd");
       if (!btn || !cmd) return;
       btn.addEventListener("click", function () {
         var text = cmd.textContent.replace(/^\$\s*/, "");
@@ -528,6 +447,22 @@
         try { document.execCommand("copy"); done(); } catch (e) {}
         document.body.removeChild(ta);
       });
+    })();
+
+    // The footer's live line: when the scraper last swept, from the same
+    // status the board's light reads. Stays hidden if the call fails.
+    (function () {
+      fetch("/api/pipeline-status", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          var at = d && d.scrape && d.scrape.at ? new Date(d.scrape.at) : null;
+          if (!at || isNaN(at)) return;
+          var pad = function (n) { return String(n).padStart(2, "0"); };
+          document.getElementById("home-poll-text").textContent =
+            "Last poll " + pad(at.getUTCHours()) + ":" + pad(at.getUTCMinutes()) + " UTC";
+          document.getElementById("home-poll").hidden = false;
+        })
+        .catch(function () {});
     })();
   </script>
   <script src="mobile_nav.js"></script>

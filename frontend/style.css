@@ -80,9 +80,6 @@
 
 :root {
   --white: #f2f0ef;
-  /* Ink that stays ink in dark mode, for the one section that keeps a
-     light ground in both themes (see .hero-showcase). */
-  --ink-fixed: #40513b;
   --black: #40513b;
   --green: #609966;
   --green-bright: #80ad85;
@@ -3568,14 +3565,6 @@ body.signin-open .workspace > .section { border-bottom: 0; }
   .cv-chip { min-height: 36px; padding: 6px 10px; font-size: 12.5px; }
 }
 
-/* /hero. A draft landing page: a giant wordmark over a full-width block of
-   live board numbers on two tickers, then the features, each rising into
-   place as it scrolls in. Overused Grotesk throughout, a named exception to
-   the Three-Voice Rule (see DESIGN.md), because this page is the brand
-   moment the display face exists for. Colours are the board's own tokens,
-   so both themes work. */
-.hero-page { background: var(--white); color: var(--black); }
-
 .hero-bar {
   display: flex;
   align-items: stretch;
@@ -4043,92 +4032,16 @@ a.hero-account-btn { text-decoration: none; }
 .hero-bar a:hover { color: var(--green-text); }
 .hero-bar a:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 4px; }
 
-.hero {
-  /* The space above used to belong to the wordmark's own margin, so taking
-     the wordmark out left the claim sitting against the nav row. It lives
-     on the section now, where it survives whatever the first child happens
-     to be. The range matches what that margin actually resolved to: 0.5em
-     of a clamp(34px, 6.4vw, 82px) face, so 17px on a phone and 41px on a
-     desktop. */
-  padding: clamp(18px, 4vw, 44px) var(--edge) 0;
-  container-type: inline-size;
-  /* Centred: the claim and the two doors read as one column down the
-     middle of the page rather than a left-hung stack. */
-  text-align: center;
-}
-/* The claim carries the page, and now it is the only thing up here. The
-   brand used to sit above it and the visitor met the name before the
-   promise; the bar at the top of the page says who we are, which is
-   enough. */
-.hero-claim {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(30px, 4.4vw, 4rem);
-  line-height: 1.02;
-  letter-spacing: -0.03em;
-  margin: 0;
-  /* Wide enough to keep the sentence on one line on a desktop: it is 27
-     characters, against the 25 of the claim this replaced, and the old
-     18ch measure broke it in two. Narrow screens still wrap it, where the
-     viewport is the real constraint rather than this. */
-  max-width: 30ch;
-  margin-inline: auto;
-}
-.hero-lede {
-  /* One line on a desktop: the sentence is 78 characters, which needs the
-     wider measure. It still wraps on anything narrower. */
-  max-width: min(100%, 760px);
-  margin: 0.8em auto 0;
-  font-size: clamp(16px, 1.2vw, 19px);
-  line-height: 1.45;
-  color: var(--black);
-}
-/* Stacked, not side by side. The door and the side door were a row
-   under a line of prose; with the prose gone they are the only thing
-   under the claim, and a column puts the API link where an afterthought
-   belongs rather than level with the main action. */
-.hero-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  margin-top: clamp(24px, 3vw, 38px);
-}
-/* The one door on the page, so it is not the 13px dense-face button the
-   rest of the site shares. The display face at 16px, a taller box and
-   the same 14px corner the account menu floats on. */
-.hero-primary.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 46px;
-  padding: 0 24px;
-  border-radius: 14px;
-  font-family: var(--font-display);
-  /* 400, not the 700 every other button on the site carries. The display
-     face is already the loud one, and bold on top of it read as shouting
-     under a claim set in the same face at 400. Bumped a step, because a
-     regular weight at 16px looked thin inside a box this size, and 19 is
-     the documented step above it: the hero lede's own upper bound. */
-  font-size: 19px;
-  font-weight: 400;
-}
-.hero-primary.btn .cta-arrow { width: 16px; height: 16px; }
-.cta-arrow { flex: none; }
-.hero-secondary { font-size: 15px; color: var(--black); text-underline-offset: 3px; }
-.hero-secondary:hover { color: var(--green-text); }
-/* The logo band: two rows of the busiest companies' wordmarks, centred
-   under the claim and a little wider than it (--band-w, the claim's text
-   width plus 85%, set by the page script), drifting in opposite
-   directions on the page's own ground. Nothing else in the band. */
-.hero-band { padding: 0 var(--edge); }
+/* The logo band: two rows of the busiest companies' wordmarks drifting
+   in opposite directions on the page's own ground, up to 900px wide.
+   The page script fills and moves them (index.html). */
 .logo-band {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: var(--band-w, 1200px);
+  width: 900px;
   max-width: 100%;
-  margin: clamp(36px, 5vw, 64px) auto 0;
+  margin: clamp(28px, 4vw, 48px) auto 0;
 }
 /* Both rows fade in and out over the outer 30% at each side, on an eased
    curve: the first steps of a straight ramp read as an edge. */
@@ -4190,146 +4103,336 @@ a.hero-account-btn { text-decoration: none; }
 @keyframes hero-ticker-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 @keyframes hero-ticker-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-/* The product shot: a photographed device with the board inside it,
-   standing on a sunlit field. --showcase-bg is the art behind it, a
-   photograph under a veil; point it at another file to change the picture.
-   The device itself is one image per screen size (see .showcase-device),
-   and the board in it is always the light one, whatever the reader's
-   theme: this is a picture of the product, not a mirror of their
-   settings. */
-.hero-showcase {
-  /* The photograph under a paper veil, the same one in both themes: the
-     hills are a bright, sunlit thing and turning them to night to match a
-     dark page made them someone else's picture. Measured against the sky
-     itself, ink needs 0.51 at the heading and 0.42 at the copy to clear
-     4.5:1, so the veil starts a hair above that and thins to almost
-     nothing at the foot, where the laptop sits and nothing is written. */
-  --showcase-veil: linear-gradient(180deg,
-    rgba(242, 240, 239, 0.54) 0%,
-    rgba(242, 240, 239, 0.52) 30%,
-    rgba(242, 240, 239, 0.34) 62%,
-    rgba(242, 240, 239, 0.16) 100%);
-  --showcase-bg: var(--showcase-veil), url("/img/hills.webp");
-  position: relative;
-  overflow: hidden;
-  /* A card, not a full-bleed band: the photograph is held away from the
-     window on both sides and rounded, so it reads as a picture of the
-     product rather than the page's own ground. Closer to the window than
-     the text margin on desktop, so the picture gets the width. */
-  margin: clamp(24px, 3vw, 48px) clamp(16px, 2.4vw, 36px) 0;
-  border-radius: 24px;
-  text-align: center;
-  /* Desktop is one finished picture, exported as one file: the board on
-     a monitor standing in a field at sunset, the sky above it and the
-     grass either side, cropped to the card's 5:2 around its middle.
-     Nothing is written on it, so it needs no veil. The phone layout
-     below still builds its scene from the hills and the phone photograph. */
-  aspect-ratio: 5 / 2;
-  background: #c9a9b4 url("/img/showcase-field.webp") center / cover no-repeat;
+/* The landing page (index.html), from the "Homepage - minimal dark"
+   design. Dark is the design; light is the same page in the board's paper
+   and ink. Every colour on the page is one of the tokens below, so the
+   theme switch is only this block. Geist throughout: the design was set
+   in Overused Grotesk, matched here by size, weight and tracking. */
+.home {
+  --h-bg: var(--white);
+  --h-surface: #e8e5e2;
+  --h-text: var(--black);
+  --h-body: #4c5a48;
+  --h-muted: #5d6a58;
+  --h-dim: #7d8879;
+  --h-line: rgba(64, 81, 59, 0.14);
+  --h-soft: rgba(64, 81, 59, 0.07);
+  --h-soft-hover: rgba(64, 81, 59, 0.13);
+  --h-link-hover: var(--green-text);
+  --h-live: var(--green);
+  --h-pill-bg: #40513b;
+  --h-pill-fg: #f2f0ef;
+  --ill-ink: #40513b;
+  --ill-blob: rgba(96, 153, 102, 0.18);
+  --h-pad: 40px;
+  background: var(--h-bg);
+  color: var(--h-text);
+  font: 400 16px/1.5 "Geist", var(--font);
 }
-/* The API block. Dark in both themes, because the thing in it is a
-   terminal and a terminal that follows the page theme stops reading as
-   one. The values are literal rather than tokens for the same reason:
-   these are not the page's colours, they are the block's. */
-.hero-api {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-  gap: 40px;
+:root[data-theme="dark"] .home {
+  --h-bg: #0e0f11;
+  --h-surface: #17181c;
+  --h-text: #f2f0ef;
+  --h-body: #b9b4ad;
+  --h-muted: #9a9ca3;
+  --h-dim: #6b6e75;
+  --h-line: rgba(242, 240, 239, 0.10);
+  --h-soft: rgba(242, 240, 239, 0.07);
+  --h-soft-hover: rgba(242, 240, 239, 0.13);
+  --h-link-hover: #7fd49b;
+  --h-live: #2fae60;
+  --h-pill-bg: #f2f0ef;
+  --h-pill-fg: #0e0f11;
+  --ill-ink: rgba(242, 240, 239, 0.82);
+  --ill-blob: rgba(242, 240, 239, 0.07);
+}
+.home-wrap { max-width: 1180px; margin: 0 auto; }
+.home a { color: inherit; text-decoration: none; }
+.home a:focus-visible,
+.home button:focus-visible { outline: 2px solid var(--h-live); outline-offset: 3px; border-radius: 6px; }
+
+/* The bar: sticky, blurred, brand left, menus centred, account right. */
+.home .home-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
   align-items: center;
-  margin: 0 var(--edge) clamp(40px, 6vw, 88px);
-  padding: 28px 32px;
-  border: 0;
-  border-radius: 4px;
-  background: #17181c;
-  color: #ededec;
+  gap: 24px;
+  height: 64px;
+  padding: 0 var(--h-pad);
+  background: color-mix(in srgb, var(--h-bg) 80%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
-.hero-api-text { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.hero-api h2 {
-  margin: 0;
-  font: 400 36px/1 var(--font-display);
-  letter-spacing: -0.03em;
-  color: #ededec;
-}
-.hero-api p {
-  margin: 0;
-  max-width: 62ch;
-  font: 400 15px/1.5 var(--font);
-  color: #ededec;
-}
-/* The secondary button inverted: the ground is dark, so the outline is
-   the light thing and filling it is what hover does. */
-.hero-api-link {
-  align-self: flex-start;
+.home-brand {
+  flex: 1 1 0;
   display: inline-flex;
   align-items: center;
-  height: 38px;
-  padding: 0 16px;
-  border: 2px solid #ededec;
-  border-radius: 4px;
-  background: transparent;
-  color: #ededec;
-  font: 600 13px var(--font-ui);
-  text-decoration: none;
+  gap: 10px;
+  font: 500 17px/1 "Geist", var(--font);
+  letter-spacing: -0.01em;
+  color: var(--h-text);
+  white-space: nowrap;
 }
-.hero-api-link:hover { background: #ededec; color: #17181c; }
+/* The site's own mark. The design's flat one-colour mark was a canvas
+   asset that never shipped; the favicon is a picture, so it can't be
+   tinted with a mask and keeps its own colours. */
+.home-mark { flex: none; display: block; width: 22px; height: 22px; }
+.home .home-nav { flex: none; gap: 28px; }
+.home .home-nav .site-menu-link,
+.home .home-nav .site-menu-btn {
+  gap: 5px;
+  height: 32px;
+  font: 400 14px/1 "Geist", var(--font);
+  color: var(--h-muted);
+}
+.home .home-nav .site-menu-link:hover,
+.home .home-nav .site-menu-btn:hover,
+.home .home-nav .site-menu.open .site-menu-btn { color: var(--h-text); text-decoration: none; }
+.home .site-menu-chev { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* Under its own menu rather than hung off the right edge: these menus
+   sit in the middle of the bar. */
+.home .site-menu-panel { left: -12px; right: auto; background: var(--h-bg); border-color: var(--h-line); }
+.home .site-menu-item { color: var(--h-text); }
+.home .site-menu-name { font: 500 14px "Geist", var(--font); }
+.home .hero-bar-right { flex: 1 1 0; justify-content: flex-end; align-items: center; gap: 10px; }
+.home .hero-theme {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--h-soft);
+  color: var(--h-muted);
+  font: 400 14px "Geist", var(--font);
+}
+.home .hero-theme:hover { background: var(--h-soft-hover); color: var(--h-text); }
+.home .hero-bar-name,
+.home .hero-bar-head .hero-account-btn {
+  height: 32px;
+  padding: 0 10px;
+  background: none;
+  color: var(--h-muted);
+  font: 400 14px/1 "Geist", var(--font);
+}
+.home .hero-bar-name:hover,
+.home .hero-account-btn:hover { color: var(--h-text); }
 
-.hero-api-code { position: relative; min-width: 0; }
-.hero-api-code pre {
+/* Buttons. The big one is a paper pill with a dark oblong arrow cut into
+   its right end; the quiet one is a soft fill at the same height. */
+.home-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.home-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  height: 56px;
+  padding: 0 6px 0 28px;
+  border-radius: 999px;
+  background: var(--h-pill-bg);
+  color: var(--h-pill-fg) !important;
+  font: 500 16px/1 "Geist", var(--font);
+}
+.home-cta-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--h-pill-fg);
+  color: var(--h-pill-bg);
+}
+.home-cta svg,
+.home-pill svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+.home-cta:hover svg,
+.home-pill:hover svg { transform: translateX(3px); }
+.home-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--h-pill-bg);
+  color: var(--h-pill-fg) !important;
+  font: 500 14px/1 "Geist", var(--font);
+}
+.home-soft {
+  display: inline-flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--h-soft);
+  color: var(--h-text);
+  font: 400 16px/1 "Geist", var(--font);
+  transition: background-color 150ms ease;
+}
+.home-soft:hover { background: var(--h-soft-hover); }
+.home-soft-sm { height: 42px; padding: 0 18px; font-size: 14px; }
+.home-pill-md { gap: 10px; height: 46px; padding: 0 22px; font-size: 15px; }
+.home-soft-md { height: 46px; padding: 0 20px; font-size: 15px; }
+
+/* First screen: the claim and its two doors at the left, the flower at
+   the right, its top level with the headline. */
+.home-hero { padding: 112px var(--h-pad) 64px; }
+.home-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 720px) clamp(240px, 32vw, 440px);
+  justify-content: space-between;
+  align-items: start;
+  gap: 32px;
+  min-height: 400px;
+}
+.home-hero-text { padding-top: 24px; }
+.home-hero h1 {
   margin: 0;
+  font: 500 clamp(40px, 5vw, 60px)/1.04 "Geist", var(--font);
+  letter-spacing: -0.035em;
+  color: var(--h-text);
+}
+.home-hero p { max-width: 560px; margin: 22px 0 0; font-size: 17px; line-height: 1.55; color: var(--h-muted); }
+.home-hero .home-actions { margin-top: 34px; }
+.home-flower { width: 100%; height: auto; margin-top: -72px; color: var(--ill-ink); }
+.home-face { width: 380px; max-width: 100%; height: auto; justify-self: end; color: var(--ill-ink); }
+
+/* The ticker between the first screen and the privacy section. */
+.home .hero-band { padding: 40px 0 175px; }
+.home .logo-band { margin: 0 auto; }
+
+.home-section { padding: 0 var(--h-pad) 112px; }
+.home-h2 {
+  margin: 0;
+  max-width: 720px;
+  font: 500 40px/1.1 "Geist", var(--font);
+  letter-spacing: -0.03em;
+  color: var(--h-text);
+}
+.home-privacy .home-h2 { max-width: none; }
+/* One line on a desktop, as designed: the heading may run into the gap
+   beside the face, where nothing else sits. */
+@media (min-width: 1181px) { .home-privacy .home-h2 { margin-right: -64px; } }
+.home-privacy { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 64px; align-items: center; }
+.home-body { max-width: 620px; margin: 12px 0 0; font-size: 17px; line-height: 1.55; color: var(--h-body); }
+.home-h2 + .home-body { margin-top: 14px; }
+
+.home-features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px 24px; margin-top: 44px; }
+.home-feature { padding: 8px 24px 8px 0; }
+.home-feature h3 { margin: 0; font: 500 20px/1.25 "Geist", var(--font); letter-spacing: -0.02em; color: var(--h-text); }
+.home-feature p { margin: 8px 0 0; font-size: 14px; line-height: 1.6; color: var(--h-muted); }
+.home-feature-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 14px; }
+.home .home-feature-links a { color: var(--h-text); text-decoration: underline; text-underline-offset: 3px; }
+.home .home-feature-links a:hover,
+.home .home-foot-grid nav a:hover { color: var(--h-link-hover); }
+
+.home-api { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+.home-api-p { margin: 12px 0 0; font-size: 16px; line-height: 1.6; color: var(--h-muted); }
+.home-h2 + .home-api-p { margin-top: 18px; }
+.home-api .home-actions { margin-top: 26px; }
+.home-code { min-width: 0; border-radius: 12px; background: var(--h-surface); overflow: hidden; }
+.home-code-pane { position: relative; }
+.home-code-pane + .home-code-pane { border-top: 1px solid var(--h-line); }
+.home-code-label {
+  padding: 10px 16px 0;
+  font: 500 11px/1.4 "Geist", var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-muted);
+}
+.home-code pre {
+  margin: 0;
+  padding: 10px 16px 14px;
   overflow-x: auto;
   background: none;
-}
-.hero-api-code code {
-  display: block;
+  font: 400 12.5px/1.65 "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+  color: var(--h-text);
   white-space: pre;
-  font: 12.5px/1.7 ui-monospace, Menlo, monospace;
-  color: #2fae60;
 }
-.api-cmd { color: #ededec; }
-.api-key { color: #9a9a9a; }
-/* Over the code rather than above it: the block is already the last
-   thing on the page and a row of its own for one word is a row wasted. */
-.hero-api-copy {
+.home .api-prompt { color: var(--h-dim); }
+.home .api-key { color: var(--h-muted); }
+.home-code-copy {
   position: absolute;
-  top: 0;
-  right: 0;
-  padding: 2px 4px;
+  top: 6px;
+  right: 10px;
+  padding: 4px 6px;
   border: 0;
   background: none;
-  color: #9a9a9a;
-  font: 400 12px var(--font-ui);
+  color: var(--h-muted);
+  font: 400 12px "Geist", var(--font);
   cursor: pointer;
 }
-.hero-api-copy:hover { color: #ededec; }
+.home-code-copy:hover { color: var(--h-text); }
 
-@media (max-width: 900px) {
-  .hero-api { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 24px; }
-  .hero-api h2 { font-size: 30px; }
+.home-last { padding-bottom: 96px; }
+.home-start { padding: 48px 40px 24px; border-top: 1px solid var(--h-line); text-align: center; }
+.home-start h2 { margin: 0; font: 500 44px/1.1 "Geist", var(--font); letter-spacing: -0.03em; color: var(--h-text); }
+.home-start .home-actions { justify-content: center; margin-top: 28px; }
+
+.home-foot { padding: 48px var(--h-pad) 40px; }
+.home-foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 32px; }
+/* Level with the middle of the link columns beside it. */
+.home-foot-brand { align-self: center; }
+.home-foot-h { margin: 0; font: 500 13px/1.4 "Geist", var(--font); color: var(--h-text); }
+.home-foot-grid nav a { display: block; margin-top: 10px; font-size: 13px; color: var(--h-muted); }
+.home-foot-base {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--h-line);
+  font-size: 12px;
+  color: var(--h-muted);
 }
-/* Phones only: the desktop scene is the one photograph above. */
-.showcase-device { display: none; }
-@media (max-width: 720px) {
-  .hero-showcase {
-    margin-inline: var(--edge);
-    padding: clamp(44px, 6vw, 96px) clamp(20px, 3vw, 48px) 0;
-    aspect-ratio: auto;
-    background-image: var(--showcase-bg);
-    background-size: auto, cover;
-    background-position: center, bottom center;
-  }
-  /* A phone mockup with the board's own phone layout composited into its
-     screen, exported as one image. Drawn frames came first and never
-     stopped looking drawn. */
-  .showcase-device {
-    display: block;
-    width: min(300px, 78%);
-    height: clamp(300px, 80vw, 420px);
-    margin: clamp(36px, 5vw, 72px) auto 0;
-    /* The query string is bumped whenever the composite is re-exported.
-       The deploy stamps only the .js and .css the HTML names, so without
-       it the CDN and the reader's browser keep serving the old picture. */
-    background: url("/img/device-iphone.webp?v=2") top center / 100% auto no-repeat;
-  }
+.home-poll { display: inline-flex; align-items: center; gap: 8px; }
+.home-poll[hidden] { display: none; }
+.home-poll-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--h-live); }
+
+@media (max-width: 1024px) {
+  .home-features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-privacy { grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; }
+}
+@media (max-width: 900px) {
+  .home .home-nav { gap: 18px; }
+  .home-api { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+@media (min-width: 769px) {
+  /* The design hangs the flower 40px past the text column's right edge. */
+  .home-flower { translate: 40px 0; }
+}
+@media (max-width: 768px) {
+  /* The headline and line run full width; under them the two doors stack
+     at the left and the flower takes what is left of the row beside them. */
+  .home-hero-grid { grid-template-columns: max-content minmax(0, 1fr); gap: 0 16px; min-height: 0; }
+  .home-hero-text { display: contents; }
+  .home-hero h1,
+  .home-hero p { grid-column: 1 / -1; }
+  .home-hero .home-actions { grid-column: 1; flex-direction: column; align-items: stretch; }
+  .home-hero .home-soft { justify-content: center; }
+  .home-flower { grid-column: 2; grid-row: 3; align-self: center; justify-self: center; width: 100%; max-width: 240px; margin: 34px 0 0; }
+  .home-privacy { grid-template-columns: minmax(0, 1fr); }
+  .home-face { width: 260px; justify-self: start; }
+  .home-foot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-foot-grid > :first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .home { --h-pad: 16px; }
+  .home .home-nav { display: none; }
+  /* The app pages hide this under 800px for their tab bar. This page has
+     no tab bar, so the menu is its only way around on a phone. */
+  .home .hero-nav-toggle { display: inline-flex !important; color: var(--h-text); }
+  .home .hero-nav-panel { display: flex !important; }
+  .home-brand { order: -1; }
+  .home-hero { padding-top: 56px; padding-bottom: 40px; }
+  .home-section { padding-bottom: 80px; }
+  .home-h2 { font-size: 32px; }
+  .home-features { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .home-feature { padding-right: 0; }
+  .home-start { padding: 40px 0 16px; }
+  .home-start h2 { font-size: 34px; }
+  .home .hero-band { padding: 8px 0 147px; }
+  .home-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .hero-foot { padding-bottom: 18px; color: var(--grey); }
@@ -6397,272 +6500,6 @@ table.jobs tbody tr[data-id] { border-bottom: 0; }
 .rail-acc-body.animating { overflow: hidden; box-sizing: border-box; }
 
 
-/* The features, as the "Tulips - Blur" design: four 200px cards, 50px
-   apart and 50px in from the edge of a #050505 block, 48px corners, 48px
-   of side padding, titles in 64px Geist over a 25% black veil. Each card
-   is a window onto one blurred photograph: its image layer is the size
-   of the file's whole artboard (816 x 1050) and sits shifted up by the
-   card's place in the stack (--i), so the tulips carry on behind the
-   gaps. The cards keep the file's 716px, the photograph being an 816px
-   portrait that turns to smudges stretched any wider; on a wide screen
-   the block spans the page and each row gets a preview of its feature
-   beside the card, the same 200px tall and 50px away.
-
-   Motion, when the page script added .hero-motion: each row rises in as
-   one piece as it scrolls into view, a step behind the one before, while its slice of
-   the photograph pulls into focus and its preview plays once. After that
-   the photograph drifts up to 48px against the cards with the scroll
-   (--drift, set by the page script), and a card under the pointer lifts
-   its veil. Every preview's resting state is its finished one, so with
-   no script it simply shows. */
-.hero-features {
-  --card-h: 200px;
-  --card-w: 716px;
-  --card-gap: 50px;
-  /* No block around the cards any more: they span its old width on the
-     page's own ground. --inset is now only how far the one photograph runs
-     past the stack on every side, the room its scroll drift and hover zoom
-     move into; at 0 the first card showed black above the picture. */
-  --inset: 50px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--card-gap);
-  box-sizing: border-box;
-  width: calc(100% - 2 * clamp(16px, 2.4vw, 36px));
-  max-width: 816px;
-  margin: clamp(56px, 8vw, 120px) auto clamp(24px, 4vw, 56px);
-}
-.feature-row { display: block; }
-.feature-card {
-  position: relative;
-  isolation: isolate;
-  min-height: var(--card-h);
-  overflow: hidden;
-  border-radius: 48px;
-  background: #050505;
-}
-.feature-card-img {
-  position: absolute;
-  z-index: -1;
-  left: calc(-1 * var(--inset));
-  width: calc(100% + 2 * var(--inset));
-  top: calc(-1 * var(--inset) - var(--i) * (var(--card-h) + var(--card-gap)));
-  height: calc(4 * var(--card-h) + 3 * var(--card-gap) + 2 * var(--inset));
-  background: url("/img/features-tulips.webp") center / cover no-repeat;
-  transform: translate3d(0, var(--drift, 0px), 0) scale(var(--zoom, 1));
-  filter: blur(var(--soft, 0px));
-  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
-}
-.feature-card-body {
-  box-sizing: border-box;
-  min-height: var(--card-h);
-  height: 100%;
-  display: grid;
-  align-content: center;
-  gap: 10px;
-  padding: 24px 48px;
-  background: rgba(0, 0, 0, 0.25);
-  transition: background-color 400ms ease;
-}
-.feature-card h2 {
-  margin: 0;
-  font: 500 clamp(34px, 4.6vw, 64px) / 1.05 "Geist", var(--font-display);
-  letter-spacing: -0.02em;
-  color: #f4f1ee;
-  text-wrap: balance;
-}
-/* One line, as in the file: "CV keyword matching" is 631px of Geist
-   against 620px inside the padding, and edges into it rather than
-   wrapping and pushing its card past 200px. */
-@media (min-width: 721px) { .feature-card h2 { white-space: nowrap; } }
-.feature-card p {
-  margin: 0;
-  font: 400 14px / 1.5 var(--font);
-  color: rgba(244, 241, 238, 0.74);
-}
-.feature-card:hover .feature-card-body { background-color: rgba(0, 0, 0, 0.1); }
-.feature-card:hover .feature-card-img { --zoom: 1.04; }
-
-/* The previews. Dark in both themes like the block they sit in, so the
-   colours are the block's own rather than tokens, as .hero-api does. */
-.feature-preview { display: none; }
-/* Wide screens: each row is one tile. The card's slice of the photograph
-   fades into the tile's own dark ground over its last 460px, eased so a
-   bright petal near the edge thins out rather than stops, veil and
-   all, and the preview sits on that ground with no edge of its own, so
-   the picture and what it describes read as one thing. The tile keeps
-   the card's 48px corners and clips the photograph to them. */
-@media (min-width: 1100px) {
-  .hero-features { max-width: none; }
-  .feature-row {
-    display: grid;
-    grid-template-columns: var(--card-w) minmax(0, 1fr);
-    overflow: hidden;
-    outline: 1px solid rgba(255, 255, 255, 0.07);
-    outline-offset: -1px;
-    border-radius: 48px;
-    /* The photograph's own black under its veil, so the fade has no step
-       to cross; the outline is what draws the tile on the block. */
-    background: #030303;
-  }
-  .feature-card { border-radius: 0; background: transparent; }
-  .feature-card-img {
-    --fade: linear-gradient(90deg,
-      #000 calc(100% - var(--inset) - 520px),
-      rgba(0, 0, 0, 0.82) calc(100% - var(--inset) - 420px),
-      rgba(0, 0, 0, 0.55) calc(100% - var(--inset) - 320px),
-      rgba(0, 0, 0, 0.28) calc(100% - var(--inset) - 220px),
-      rgba(0, 0, 0, 0.09) calc(100% - var(--inset) - 130px),
-      transparent calc(100% - var(--inset) - 60px));
-    -webkit-mask-image: var(--fade);
-    mask-image: var(--fade);
-  }
-  .feature-card-body { background: linear-gradient(90deg, rgba(0, 0, 0, 0.25) calc(100% - 340px), transparent calc(100% - 30px)); }
-  .feature-card:hover .feature-card-body { background: linear-gradient(90deg, rgba(0, 0, 0, 0.1) calc(100% - 340px), transparent calc(100% - 30px)); }
-  .feature-preview {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 12px;
-    box-sizing: border-box;
-    height: var(--card-h);
-    padding: 26px 48px 26px 8px;
-    overflow: hidden;
-    color: #f4f1ee;
-    font-family: var(--font-ui);
-  }
-  .fp-sources { padding-right: 0; }
-}
-
-/* Sources: two rows of the hiring systems the board reads, drifting in
-   opposite directions. Each track holds its list twice and slides by
-   half, so the loop has no seam. */
-.fp-marquee {
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-.fp-sources { gap: 14px; padding-inline: 0; }
-.fp-track { display: flex; gap: 40px; width: max-content; animation: fp-slide 48s linear infinite; }
-.fp-track > * { flex: none; }
-.fp-rev .fp-track { animation-direction: reverse; animation-duration: 56s; }
-@keyframes fp-slide { to { transform: translateX(calc(-50% - 20px)); } }
-.fp-ats {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  height: 60px;
-  font-size: 18px;
-  font-weight: 500;
-  color: rgba(244, 241, 238, 0.8);
-  white-space: nowrap;
-}
-.fp-ats img { width: 40px; height: 40px; border-radius: 12px; opacity: 0.85; object-fit: contain; }
-
-/* CV matching: a listing, and the skills it asks for lighting up where
-   the CV has them. */
-.fp-job { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.fp-job-title { font-size: 18px; font-weight: 600; }
-.fp-job-meta { margin-top: 2px; font-size: 13px; color: rgba(244, 241, 238, 0.6); }
-.fp-score { flex: none; padding: 3px 10px; border: 1px solid #f4f1ee; border-radius: 999px; color: #f4f1ee; font-size: 13px; font-weight: 600; }
-.fp-skills { display: flex; flex-wrap: wrap; gap: 8px; }
-.fp-skill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 13px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  font-size: 14px;
-  color: rgba(244, 241, 238, 0.55);
-  transition: border-color 450ms ease, color 450ms ease;
-  transition-delay: calc(var(--k) * 140ms + 350ms);
-}
-.fp-skill.m { border-color: #f4f1ee; color: #f4f1ee; }
-.fp-skill.m::before { content: "✓"; font-size: 12px; }
-
-/* Salary: the estimate, and where it sits on the board's range. */
-.fp-sal-top { display: flex; align-items: baseline; gap: 10px; }
-.fp-est { font: 500 34px / 1 "Geist", var(--font-display); letter-spacing: -0.02em; }
-.fp-sal-unit { font-size: 14px; color: rgba(244, 241, 238, 0.6); }
-.fp-bar { position: relative; height: 8px; margin-top: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); }
-/* $10K to $13K on a $2K to $22K track. */
-.fp-range {
-  position: absolute;
-  inset: 0 auto 0 40%;
-  width: 15%;
-  border-radius: 999px;
-  background: #2fae60;
-  transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1) 350ms;
-}
-.fp-scale { display: flex; justify-content: space-between; gap: 16px; font-size: 12.5px; color: rgba(244, 241, 238, 0.5); }
-.fp-scale span:nth-child(2) { text-align: center; }
-
-/* Alerts: two notifications, arriving. */
-.fp-note {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 16px 7px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-  transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1), transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(var(--k) * 220ms + 350ms);
-}
-.fp-note b { display: block; font-size: 14.5px; font-weight: 600; }
-.fp-note span:not(.fp-bell) { font-size: 13px; color: rgba(244, 241, 238, 0.6); }
-.fp-bell { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 12px; background: rgba(47, 174, 96, 0.14); color: #7fd49b; }
-
-/* The reveal. */
-.hero-motion .feature-row {
-  opacity: 0;
-  transform: translateY(48px);
-  transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(var(--i) * 80ms);
-}
-.hero-motion .feature-row .feature-card-img {
-  --zoom: 1.18;
-  --soft: 14px;
-  transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), filter 1400ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(var(--i) * 80ms);
-}
-.hero-motion .feature-row h2,
-.hero-motion .feature-row p {
-  opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(var(--i) * 80ms + 180ms);
-}
-.hero-motion .feature-row p { transition-delay: calc(var(--i) * 80ms + 260ms); }
-.hero-motion .feature-row .feature-preview {
-  opacity: 0;
-  transform: translateX(24px);
-  transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(var(--i) * 80ms + 260ms);
-}
-.hero-motion .feature-row:not(.in) .fp-skill.m { border-color: rgba(255, 255, 255, 0.12); color: rgba(244, 241, 238, 0.55); }
-.hero-motion .feature-row:not(.in) .fp-range { transform: scaleX(0); }
-.hero-motion .feature-row:not(.in) .fp-note { opacity: 0; transform: translateX(28px); }
-.hero-motion .feature-row.in,
-.hero-motion .feature-row.in .feature-preview { opacity: 1; transform: none; }
-.hero-motion .feature-row.in .feature-card-img { --zoom: 1; --soft: 0px; }
-.hero-motion .feature-row.in .feature-card:hover .feature-card-img { --zoom: 1.04; transition-delay: 0s; }
-.hero-motion .feature-row.in h2,
-.hero-motion .feature-row.in p { opacity: 1; transform: none; }
-
-/* Narrow screens: the card grows to fit its words, and the block comes
-   in to the page's own gutter. The file's 50px gaps stay; the inset and
-   padding step down so a title fits. */
-@media (max-width: 720px) {
-  .hero-features { width: auto; margin-inline: var(--edge); }
-  .feature-card { border-radius: 32px; }
-  .feature-card-body { padding: 28px; }
-}
-
-
 /* The board's frame: a sidebar and a main column. Built as a preview
    first (board-next.html, October 2026) by moving the live board's
    nodes, then folded in here. The sidebar sits on the page ground
@@ -7620,7 +7457,7 @@ a.hero-account-btn.dir-account { text-decoration: none; }
 #main:focus { outline: none; }
 a, button, input, select, textarea, [role="button"] { touch-action: manipulation; }
 a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
-.section-title, .hero-claim, .acct-hero-title, .dir-company h2 { text-wrap: balance; }
+.section-title, .acct-hero-title, .dir-company h2 { text-wrap: balance; }
 h3.alerts-header { margin: 0 0 10px; }
 .job-title-link { color: inherit; text-decoration: none; }
 .job-title-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 2px; }
