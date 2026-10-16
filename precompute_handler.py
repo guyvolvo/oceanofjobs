@@ -34,12 +34,13 @@ and raises, so the Lambda's Errors metric counts it.
 
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -114,6 +115,89 @@ def check(payloads: dict) -> None:
         raise RuntimeError(f"facets.json is missing {sorted(missing)}")
 
 
+# The homepage's "Hot job posts" tiles. Senior tech roles from the last
+# few days at companies big enough to be known, scored by how much of the
+# title is the work people want (AI, research, infrastructure, quant),
+# one per company. The page shows six at a time and shuffles through the
+# rest itself, so it never asks the box.
+HOT_WORDS = re.compile(
+    r"\b(ai|ml|llm|genai|agents?|agentic|machine learning|deep learning|research(?:er)?|quant\w*|gpu|cuda"
+    r"|inference|computer vision|nlp|robotics|autonomous|compiler|kernel|distributed|infrastructure"
+    r"|platform|security|cryptograph\w*|trading|founding|staff|principal)\b", re.I)
+DULL_WORDS = re.compile(
+    r"\b(intern|internship|student|support|technician|help ?desk|tester|qa|manual|administrator"
+    r"|sales|account|consultant|recruit\w*|coordinator|assistant|clerk)\b", re.I)
+HOT_LEVELS = {"staff": 3, "principal": 3, "lead": 2, "senior": 2, "manager": 1, "director": 1}
+HOT_POOL = 48
+
+
+def hot_jobs(db: Path, now: datetime | None = None) -> dict:
+    since = ((now or datetime.now(timezone.utc)) - timedelta(days=4)).strftime("%Y-%m-%dT%H:%M:%S")
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT j.id, j.title, j.company_domain, co.company_name, co.logo_source, co.domain_verified, co.job_count, j.location,"
+            " j.posted_at, j.first_seen, j.seniority, j.workplace_type, j.skills, j.salary_text,"
+            " j.salary_is_estimate FROM jobs j JOIN companies co ON co.domain = j.company_domain"
+            " WHERE j.closed_at IS NULL AND j.role_class = 'tech' AND co.job_count >= 15"
+            " AND (j.posted_at >= ? OR (j.posted_at IS NULL AND j.first_seen >= ?))",
+            (since, since),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    def score(r):
+        title = r["title"] or ""
+        s = 2 * len({m.group(0).lower() for m in HOT_WORDS.finditer(title)})
+        s += HOT_LEVELS.get(r["seniority"] or "", 0) + (1 if r["salary_text"] else 0)
+        return s + min(r["job_count"] or 0, 400) / 200
+
+    # One per company, counting a company's second domain (aws.amazon.com
+    # and amazon.com) as the same one by its shown name, and no title twice.
+    picked, seen = [], set()
+    for r in sorted((r for r in rows if not DULL_WORDS.search(r["title"] or "")), key=score, reverse=True):
+        card = hot_card(r)
+        keys = {r["company_domain"], card["company"].lower(), card["title"].lower()}
+        if keys & seen:
+            continue
+        seen |= keys
+        picked.append(card)
+        if len(picked) == HOT_POOL:
+            break
+    return {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "jobs": picked}
+
+
+def hot_card(r) -> dict:
+    domain = r["company_domain"]
+    name = r["company_name"] or ""
+    if not name or name == domain:
+        name = domain.split(".")[-2 if domain.count(".") else 0].capitalize()
+    badges = []
+    salary = r["salary_text"] or ""
+    # Estimates outside Israel are monthly figures that read as absurd
+    # yearly pay on a card; the shekel table is the market's own unit.
+    if salary and (not r["salary_is_estimate"] or salary.startswith("₪")):
+        badges.append(salary.replace(" - ", "–") + (" est." if r["salary_is_estimate"] else ""))
+    if r["workplace_type"] in ("remote", "hybrid"):
+        badges.append(r["workplace_type"].capitalize())
+    if r["seniority"] in HOT_LEVELS:
+        badges.append(r["seniority"].capitalize())
+    # A company's own product is not a skill it offers: "Datadog" on a Datadog job.
+    own = name.lower() + " " + domain
+    skills = [s.strip() for s in (r["skills"] or "").split(",") if s.strip() and s.strip().lower() not in own]
+    if skills:
+        badges.append(" · ".join(skills[:2]))
+    return {
+        "id": r["id"], "title": (r["title"] or "").strip(), "company": name, "domain": domain,
+        # Not yet looked up (NULL) is still worth a try: /logo/ answers 404
+        # when it has none and the card keeps the initial.
+        "logo": r["logo_source"] != "none" and r["domain_verified"] != 0,
+        "location": (r["location"] or "").split(";")[0].strip()[:48],
+        "posted": r["posted_at"] or r["first_seen"], "badges": badges[:3],
+    }
+
+
 def published_version(s3, bucket: str, key: str) -> str | None:
     """The source version on the object already there. None when there is
     no object, and "" when there is one without a version: the box's,
@@ -151,6 +235,16 @@ def publish(s3, payloads: dict, version: str, mode: str) -> list[str]:
                 Metadata={"source-version": version},
             )
             written.append(f"{bucket}/{pre}{name}")
+    # The homepage tiles have no box version to compare against, so they
+    # go live in shadow mode too.
+    if FRONTEND_BUCKET and "hot.json" in payloads:
+        s3.put_object(
+            Bucket=FRONTEND_BUCKET, Key="hot.json",
+            Body=json.dumps(payloads["hot.json"], ensure_ascii=False).encode("utf-8"),
+            ContentType="application/json", CacheControl="public, max-age=300",
+            Metadata={"source-version": version},
+        )
+        written.append(f"{FRONTEND_BUCKET}/hot.json")
     if mode == "live":
         s3.delete_object(Bucket=DATA_BUCKET, Key=f"{prefix}force")
     return written
@@ -209,6 +303,7 @@ def lambda_handler(event=None, context=None) -> dict:
         payloads = precompute.build(db)
         out["build_s"] = round(time.monotonic() - t, 1)
         check(payloads)
+        payloads["hot.json"] = hot_jobs(db)
         try:
             import resource  # Linux only; the Lambda has it, a Windows test run does not
             out["peak_rss_mb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)

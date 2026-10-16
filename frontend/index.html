@@ -162,6 +162,18 @@
       <p class="sr-only" id="hero-stats-text">Loading board statistics.</p>
     </section>
 
+    <!-- Recent job posts: six of the week's most wanted roles from hot.json, which the
+         precompute Lambda writes every three hours. Hidden until it loads. -->
+    <section class="home-section home-hot" aria-labelledby="hot-title" hidden>
+      <div class="home-wrap">
+        <div class="home-hot-head">
+          <h2 class="home-h2" id="hot-title">Recent job posts</h2>
+          <button type="button" class="home-soft home-soft-sm home-shuffle" id="hot-shuffle"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>Shuffle</button>
+        </div>
+        <div class="home-hot-grid" id="hot-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
     <section class="home-section" aria-labelledby="privacy-title">
       <div class="home-wrap home-privacy">
         <div>
@@ -451,6 +463,75 @@
         try { document.execCommand("copy"); done(); } catch (e) {}
         document.body.removeChild(ta);
       });
+    })();
+
+    // Recent job posts: six cards from a pool of about fifty. Shuffle swaps
+    // every card for one not yet shown, one at a time in a random order
+    // and at random intervals, each easing out and back in.
+    (function () {
+      var section = document.querySelector(".home-hot");
+      var grid = document.getElementById("hot-grid");
+      var button = document.getElementById("hot-shuffle");
+      var esc = function (s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); };
+      var pool = [], used = new Set();
+
+      function card(j) {
+        var d = new Date(j.posted);
+        var date = isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        var img = j.logo ? '<img src="/logo/' + encodeURIComponent(j.domain) + '.png" alt="" width="24" height="24" loading="lazy" onerror="this.remove()" />' : "";
+        return '<div class="hot-top"><span class="hot-logo" aria-hidden="true">' + esc((j.company || "?").charAt(0).toUpperCase()) + img + "</span>" +
+          '<span class="hot-co">' + esc(j.company) + "</span>" +
+          (date ? '<time class="hot-date" datetime="' + esc(j.posted) + '">' + date + "</time>" : "") + "</div>" +
+          '<h3 class="hot-title">' + esc(j.title) + "</h3>" +
+          '<p class="hot-loc">' + esc(j.location) + "</p>" +
+          '<ul class="hot-badges">' + (j.badges || []).map(function (b) { return "<li>" + esc(b) + "</li>"; }).join("") + "</ul>";
+      }
+
+      // Six not yet shown since the pool last ran out, in random order.
+      function draw() {
+        var fresh = pool.filter(function (j) { return !used.has(j.id); });
+        if (fresh.length < 6) { used.clear(); fresh = pool.slice(); }
+        for (var i = fresh.length - 1; i > 0; i--) { var k = Math.floor(Math.random() * (i + 1)); var t = fresh[i]; fresh[i] = fresh[k]; fresh[k] = t; }
+        var picks = fresh.slice(0, 6);
+        picks.forEach(function (j) { used.add(j.id); });
+        return picks;
+      }
+
+      function fill(a, j) { a.href = "/job/" + encodeURIComponent(j.id); a.innerHTML = card(j); }
+
+      function shuffle() {
+        var picks = draw();
+        var cards = Array.prototype.slice.call(grid.children);
+        var order = cards.map(function (_, i) { return i; }).sort(function () { return Math.random() - 0.5; });
+        var at = 0;
+        button.disabled = true;
+        order.forEach(function (slot, n) {
+          at += n ? 60 + Math.random() * 180 : 0;
+          setTimeout(function () {
+            var a = cards[slot];
+            a.classList.add("is-out");
+            setTimeout(function () {
+              fill(a, picks[slot]);
+              void a.offsetWidth;
+              a.classList.remove("is-out");
+              if (n === order.length - 1) setTimeout(function () { button.disabled = false; }, 450);
+            }, 220);
+          }, at);
+        });
+      }
+
+      fetch("/hot.json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          pool = (d && d.jobs) || [];
+          if (pool.length < 6) return;
+          var first = draw();
+          grid.innerHTML = first.map(function () { return '<a class="hot-card"></a>'; }).join("");
+          first.forEach(function (j, i) { fill(grid.children[i], j); });
+          section.hidden = false;
+          button.addEventListener("click", shuffle);
+        })
+        .catch(function () {});
     })();
 
     // The footer's live line: when the scraper last swept, from the same

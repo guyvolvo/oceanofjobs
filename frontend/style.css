@@ -4384,6 +4384,70 @@ a.hero-account-btn { text-decoration: none; }
 .home-foot-h { margin: 0; font: 500 13px/1.4 "Geist", var(--font); color: var(--h-text); }
 /* Every heading on the homepage, after the rules that size them. */
 .home :is(h1, h2, h3) { font-family: "Urbanist", "Geist", var(--font); }
+
+/* Recent job posts: six cards, three across, under the logo band. With them
+   on the page the band's tail is shorter; they carry the gap to privacy. */
+.home .hero-band:has(+ .home-hot:not([hidden])) { padding-bottom: 96px; }
+.home-section.home-hot { padding-bottom: 175px; }
+.home-hot-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.home-shuffle { gap: 8px; border: 0; cursor: pointer; }
+.home-shuffle svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 300ms cubic-bezier(0.2, 0, 0, 1); }
+.home-shuffle:hover svg { transform: rotate(180deg); }
+.home-shuffle:disabled { cursor: progress; }
+.home-hot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.hot-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--h-surface);
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: opacity 420ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 420ms ease, box-shadow 150ms ease;
+}
+.hot-card:hover { box-shadow: inset 0 0 0 1px var(--h-line); }
+.hot-card.is-out { opacity: 0; transform: translateY(10px) scale(0.98); filter: blur(4px); transition-duration: 220ms; transition-timing-function: ease-in; }
+.hot-top { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--h-muted); }
+.hot-logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--h-soft);
+  overflow: hidden;
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--h-text);
+}
+.hot-logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.hot-co { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hot-date { margin-left: auto; flex: none; font: 400 12px/1 "Geist Mono", ui-monospace, monospace; color: var(--h-dim); }
+.hot-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 2.5em;
+  margin: 18px 0 0;
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--h-text);
+}
+.hot-loc { margin: 6px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--h-muted); }
+.hot-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: auto 0 0; padding: 22px 0 0; list-style: none; }
+.hot-badges li { padding: 5px 10px; border: 1px solid var(--h-line); border-radius: 999px; font-size: 12px; line-height: 1.2; color: var(--h-text); white-space: nowrap; }
+@media (max-width: 1024px) { .home-hot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .home-hot-grid { grid-template-columns: minmax(0, 1fr); }
+  .home .hero-band:has(+ .home-hot:not([hidden])) { padding-bottom: 72px; }
+  .home-section.home-hot { padding-bottom: 147px; }
+}
 .home-foot-grid nav a { display: block; margin-top: 10px; font-size: 13px; color: var(--h-muted); }
 .home-foot-base {
   display: flex;

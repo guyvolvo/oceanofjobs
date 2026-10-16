@@ -72,13 +72,15 @@ resource "aws_iam_role_policy" "precompute_lambda" {
         Resource = "${aws_s3_bucket.data.arn}/precomputed/force"
       },
       {
-        # The browser's copies, live mode only.
+        # The browser's copies, live mode only, and the homepage's hot.json
+        # in every mode.
         Sid    = "WriteFrontendCopies"
         Effect = "Allow"
         Action = ["s3:GetObject", "s3:PutObject"]
         Resource = [
           "${aws_s3_bucket.frontend.arn}/stats.json",
           "${aws_s3_bucket.frontend.arn}/facets.json",
+          "${aws_s3_bucket.frontend.arn}/hot.json",
         ]
       },
       {

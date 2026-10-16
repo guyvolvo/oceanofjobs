@@ -64,6 +64,8 @@ def make_db(path: Path, last_loaded: str) -> None:
         conn.execute("INSERT OR IGNORE INTO companies (domain, ats, first_seen, last_checked) "
                      "VALUES (?, 'greenhouse', '2026-10-01T00:00:00+00:00', '2026-10-16T00:00:00+00:00')", (dom,))
         conn.execute(f"INSERT INTO jobs ({','.join(rec)}) VALUES ({','.join('?' * len(rec))})", list(rec.values()))
+    if "logo_source" not in {r[1] for r in conn.execute("PRAGMA table_info(companies)")}:
+        conn.execute("ALTER TABLE companies ADD COLUMN logo_source TEXT")
     conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('last_loaded', ?)", (last_loaded,))
     conn.commit()
     conn.close()
@@ -105,8 +107,9 @@ h.restore = lambda dest: shutil.copy(SOURCE, dest)
 make_db(SOURCE, "2026-10-16T10:00:00+00:00")
 out = h.lambda_handler({}, None)
 puts = [k for op, b, k in s3.log if op == "put"]
-check("shadow: facets then stats, under precomputed-shadow/ only",
-      puts == ["precomputed-shadow/facets.json", "precomputed-shadow/stats.json"], puts)
+check("shadow: facets then stats under precomputed-shadow/, then the homepage's hot.json",
+      puts == ["precomputed-shadow/facets.json", "precomputed-shadow/stats.json", "hot.json"], puts)
+check("shadow: hot.json goes to the frontend bucket", ("front", "hot.json") in s3.objects)
 check("shadow: every object carries the source version",
       all(o["Metadata"].get("source-version") == "2026-10-16T10:00:00+00:00" for o in s3.objects.values()))
 check("shadow: the measurements come back", all(k in out for k in ("restore_s", "build_s", "peak_rss_mb", "db_mb")), out)
@@ -139,7 +142,7 @@ out = h.lambda_handler({"mode": "live"}, None)
 keys = {(b, k) for op, b, k in s3.log if op == "put"}
 check("live: overwrites the box's unversioned artifact and writes the frontend copies",
       keys == {("data", "precomputed/facets.json"), ("data", "precomputed/stats.json"),
-               ("front", "facets.json"), ("front", "stats.json")}, keys)
+               ("front", "facets.json"), ("front", "stats.json"), ("front", "hot.json")}, keys)
 check("live: clears the force marker", ("data", "precomputed/force") not in s3.objects)
 check("live: the shadow prefix is left alone",
       s3.objects[("data", "precomputed-shadow/stats.json")]["Metadata"]["source-version"] == "2026-10-16T13:00:00+00:00")
@@ -161,13 +164,46 @@ check("incomplete facets: raises, nothing written", raised and not s3.log, s3.lo
 make_db(SOURCE, "2026-10-16T15:00:00+00:00")
 s3.log.clear()
 out = h.lambda_handler({"compact": True}, None)
-check("compact: builds from the vacuumed copy and publishes", "compact_s" in out and len(s3.log) == 2, out)
+check("compact: builds from the vacuumed copy and publishes", "compact_s" in out and len(s3.log) == 3, out)
 check("compact: no copy left behind", not any((TMP / "work").glob("jobs*.db")))
 
 # Measuring only: builds, writes nothing.
 s3.log.clear()
 out = h.lambda_handler({"publish": False}, None)
 check("publish=false: measured, nothing written", "build_s" in out and not s3.log, out)
+
+# The homepage picks: senior, recent, notable, one per company, no dull
+# titles, and no monthly dollar estimate that reads as yearly pay.
+from datetime import datetime, timezone  # noqa: E402
+
+HOT = TMP / "hot.db"
+make_db(HOT, "2026-10-16T10:00:00+00:00")
+conn = sqlite3.connect(HOT)
+conn.execute("UPDATE companies SET job_count = 100, company_name = NULL")
+conn.execute("INSERT INTO companies (domain, ats, first_seen, last_checked, job_count, company_name, logo_source) "
+             "VALUES ('tiny.io', 'lever', '2026-10-01', '2026-10-16', 3, 'Tiny', 'none')")
+hot_rows = [
+    ("h1", "wix.com", "Staff Machine Learning Engineer, LLM Platform", "staff", "hybrid", "₪40K - 60K", 1, "LLM,PyTorch,Go"),
+    ("h2", "wix.com", "Senior Backend Engineer", "senior", None, None, 0, ""),
+    ("h3", "stripe.com", "Principal AI Researcher", "principal", "remote", "$17K - $28K", 1, "Python"),
+    ("h4", "stripe.com", "IT Support Technician", None, None, None, 0, ""),
+    ("h5", "tiny.io", "Staff AI Engineer", "staff", None, None, 0, ""),
+]
+for jid, dom, title, sen, wp, sal, est, skills in hot_rows:
+    conn.execute("INSERT INTO jobs (id, company_domain, ats, title, role_class, seniority, workplace_type, salary_text,"
+                 " salary_is_estimate, skills, posted_at, first_seen, last_seen, confidence) VALUES"
+                 " (?, ?, 'greenhouse', ?, 'tech', ?, ?, ?, ?, ?, '2026-10-15T08:00:00+00:00',"
+                 " '2026-10-15T08:00:00+00:00', '2026-10-16T00:00:00+00:00', 'verified')",
+                 (jid, dom, title, sen, wp, sal, est, skills))
+conn.commit()
+conn.close()
+hot = h.hot_jobs(HOT, now=datetime(2026, 10, 16, 12, tzinfo=timezone.utc))["jobs"]
+ids = [j["id"] for j in hot]
+check("hot: best title per company, recent only, dull and small-company titles out", ids == ["h1", "h3"], ids)
+check("hot: shekel estimate kept with three badges", hot[0]["badges"] == ["₪40K–60K est.", "Hybrid", "Staff"],
+      hot[0]["badges"])
+check("hot: monthly dollar estimate dropped", not any("$" in b for b in hot[1]["badges"]), hot[1]["badges"])
+check("hot: a missing name falls back to the domain's own word", hot[0]["company"] == "Wix", hot[0]["company"])
 
 shutil.rmtree(TMP, ignore_errors=True)
 sys.exit(1 if failed else 0)

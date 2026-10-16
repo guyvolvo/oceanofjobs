@@ -75,6 +75,7 @@ jobs:
             --exclude "feed.xml" \
             --exclude "stats.json" \
             --exclude "facets.json" \
+            --exclude "hot.json" \
             --exclude "explore.json" \
             --exclude "explore/*" \
             --exclude "media/*" \
