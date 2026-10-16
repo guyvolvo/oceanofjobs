@@ -1,0 +1,72 @@
+name: deploy-precompute-lambda
+
+# Ships precompute_handler.py, loader/precompute.py, the API modules it
+# imports and a pinned Litestream binary to the precompute Lambda.
+# Terraform (infra/precompute_lambda.tf) owns the function's existence
+# and config; this owns its code, as deploy-scrape-lambda.yml does for
+# the scrape Lambdas.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "precompute_handler.py"
+      - "loader/precompute.py"
+      # Everything precompute.build imports. A change to one that is not
+      # listed here never reaches the Lambda.
+      - "api/aggregates.py"
+      - "api/job_filters.py"
+      - "api/search_terms.py"
+      - "api/search_compile.py"
+      - "api/skills.py"
+      - "api/countries.py"
+      - "api/hot_companies.py"
+      - "api/expensive.py"
+      - ".github/workflows/deploy-precompute-lambda.yml"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: il-central-1
+  FUNCTION_NAME: iljobs-precompute
+  # The version the box replicates with, so restore reads the same
+  # format it writes.
+  LITESTREAM_VERSION: "0.5.17"
+  LITESTREAM_SHA256: f8ca4a050095c1efbda2c4365172e61bf9d955ea0d9ac42f448b52e51819baa5
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build package
+        run: |
+          set -euo pipefail
+          mkdir -p pkg/loader pkg/bin
+          cp precompute_handler.py pkg/
+          cp loader/precompute.py pkg/loader/
+          cp api/aggregates.py api/job_filters.py api/search_terms.py api/search_compile.py \
+             api/skills.py api/countries.py api/hot_companies.py api/expensive.py pkg/
+          curl -fsSL -o litestream.tar.gz \
+            "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-arm64.tar.gz"
+          echo "${LITESTREAM_SHA256}  litestream.tar.gz" | sha256sum -c -
+          tar -xzf litestream.tar.gz -C pkg/bin litestream
+          chmod +x pkg/bin/litestream
+          # The package imports cleanly, with the layout the handler expects.
+          (cd pkg && python3 -c "import sys; sys.path.insert(0, 'loader'); import precompute_handler, precompute")
+          cd pkg && zip -r ../precompute.zip . -x "__pycache__/*" "*/__pycache__/*" && cd ..
+          ls -la precompute.zip
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.SCRAPE_LAMBDA_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update the function's code
+        run: |
+          aws lambda update-function-code --function-name "$FUNCTION_NAME" --zip-file fileb://precompute.zip
+          aws lambda wait function-updated --function-name "$FUNCTION_NAME"
