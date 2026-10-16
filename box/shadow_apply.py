@@ -92,6 +92,12 @@ ARCHIVE_CLOSED_DAYS = 30
 # is most of a run when the box is behind. An instant alert waits at most
 # this long more.
 ALERTS_EVERY_S = 10 * 60
+# While more than another full batch is still queued, alerts wait for the
+# queue instead, up to this long. They cost 120 to 310 seconds a run on a
+# disk-bound box (2026-10-16), inside the apply lock, so evaluating them
+# every ten minutes during an evening backlog left the box applying about
+# half the time it held the disk.
+ALERTS_DEFER_MAX_S = 30 * 60
 ALERTS_STAMP = DB.with_name("alerts-ran-at")
 
 
@@ -117,11 +123,19 @@ def _write_status(phase: str, detail: str = "") -> None:
         print(f"merge-status.json write failed (non-fatal): {e!r}", file=sys.stderr)
 
 
-def _alerts_due() -> bool:
+def _alerts_due(every: int = ALERTS_EVERY_S) -> bool:
     try:
-        return time.time() - ALERTS_STAMP.stat().st_mtime >= ALERTS_EVERY_S
+        return time.time() - ALERTS_STAMP.stat().st_mtime >= every
     except OSError:
         return True
+
+
+def _alerts_now(pending: int, taken: int) -> bool:
+    """Due, and either the queue is about caught up or they have waited
+    ALERTS_DEFER_MAX_S already. Caught up means what is left after this
+    batch fits in one more."""
+    behind = pending - taken > taken
+    return _alerts_due() and (not behind or _alerts_due(ALERTS_DEFER_MAX_S))
 
 
 def _owed_path() -> Path:
@@ -381,7 +395,7 @@ def _apply() -> int:
     # never touched while the two run side by side. Paced inside
     # publish: it looks at the artifact's age and leaves a fresh one.
     alerts_started = time.monotonic()
-    if _alerts_due():
+    if _alerts_now(len(pending), len(take)):
         alerts = _run_alerts()
     else:
         _owe_alerts()

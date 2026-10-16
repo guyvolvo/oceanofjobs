@@ -443,7 +443,12 @@ def lambda_handler(event, context):
             if set(params) <= {"confidence"} and params.get("confidence") == "all":
                 daily = company_directory_daily(get_connection())
                 if daily is not None:
-                    return _response(200, json.dumps(daily, default=str), cache_seconds=300)
+                    # The daily counts move once a day, so the edge keeps
+                    # them an hour and serves the old copy while it fetches
+                    # a new one: a miss here was 20s on a busy box
+                    # (2026-10-16), the whole of the page's first paint.
+                    return _response(200, json.dumps(daily, default=str), cache_seconds=300,
+                                     edge="s-maxage=3600, stale-while-revalidate=86400")
             return _response(200, json.dumps(company_directory(get_connection(), params), default=str),
                              cache_seconds=300)
         if path == "/companies":
@@ -610,7 +615,7 @@ def _query_params(event) -> dict:
     return {k: v[-1] for k, v in parsed.items()}
 
 
-def _response(status: int, body: str, cache_seconds: int | None = None):
+def _response(status: int, body: str, cache_seconds: int | None = None, edge: str | None = None):
     # cache_seconds reaches the actual BROWSER's own HTTP cache -- CloudFront
     # already caches these paths for 120s at the edge (infra/cloudfront.tf's
     # own cache policy) regardless of this header, but confirmed live
@@ -637,7 +642,7 @@ def _response(status: int, body: str, cache_seconds: int | None = None):
     # often the data itself can move.
     headers = {"Content-Type": "application/json", **CORS_HEADERS}
     if cache_seconds is not None:
-        headers["Cache-Control"] = f"public, max-age={cache_seconds}, s-maxage={EDGE_CACHE_SECONDS}"
+        headers["Cache-Control"] = f"public, max-age={cache_seconds}, {edge or f's-maxage={EDGE_CACHE_SECONDS}'}"
     return {
         "statusCode": status,
         "headers": headers,
