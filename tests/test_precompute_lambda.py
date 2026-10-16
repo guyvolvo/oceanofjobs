@@ -157,6 +157,13 @@ except RuntimeError:
 precompute.build = real_build
 check("incomplete facets: raises, nothing written", raised and not s3.log, s3.log)
 
+# Compacted before the build: same artifacts, both copies removed after.
+make_db(SOURCE, "2026-10-16T15:00:00+00:00")
+s3.log.clear()
+out = h.lambda_handler({"compact": True}, None)
+check("compact: builds from the vacuumed copy and publishes", "compact_s" in out and len(s3.log) == 2, out)
+check("compact: no copy left behind", not any((TMP / "work").glob("jobs*.db")))
+
 # Measuring only: builds, writes nothing.
 s3.log.clear()
 out = h.lambda_handler({"publish": False}, None)

@@ -79,6 +79,20 @@ def restore(dest: Path) -> None:
                    check=True, capture_output=True, text=True, timeout=600)
 
 
+def compact(db: Path) -> Path:
+    """A vacuumed copy beside db, which is then removed. Returns the copy."""
+    small = db.with_name("jobs-compact.db")
+    small.unlink(missing_ok=True)
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("VACUUM INTO ?", (str(small),))
+    finally:
+        conn.close()
+    for p in (db, db.with_name(db.name + "-wal"), db.with_name(db.name + "-shm")):
+        p.unlink(missing_ok=True)
+    return small
+
+
 def source_version(db: Path) -> str:
     conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
@@ -170,6 +184,15 @@ def lambda_handler(event=None, context=None) -> dict:
         out["db_mb"] = round(db.stat().st_size / 1048576)
         out["tmp_used_mb"] = round(shutil.disk_usage(WORK).used / 1048576)
         version = out["source_version"] = source_version(db)
+        if event.get("compact", os.environ.get("PRECOMPUTE_COMPACT") == "1"):
+            # The live file's pages are about half empty (3.3GB restored
+            # against 1.5GB vacuumed), and the build reads the table some
+            # fifty times. Compacted, it fits in the function's 3GB, and
+            # every pass after the first reads memory, not disk.
+            t = time.monotonic()
+            db = compact(db)
+            out["compact_s"] = round(time.monotonic() - t, 1)
+            out["compact_mb"] = round(db.stat().st_size / 1048576)
 
         s3 = boto3.client("s3")
         key = f"{PREFIXES[mode]}stats.json"
@@ -210,5 +233,5 @@ def lambda_handler(event=None, context=None) -> dict:
         raise RuntimeError(f"litestream restore failed: {(e.stderr or '').strip()[-2000:]}") from e
     finally:
         print(json.dumps(out), flush=True)
-        for p in (db, db.with_name("jobs.db-wal"), db.with_name("jobs.db-shm")):
-            p.unlink(missing_ok=True)
+        for name in ("jobs.db", "jobs.db-wal", "jobs.db-shm", "jobs-compact.db"):
+            (WORK / name).unlink(missing_ok=True)
