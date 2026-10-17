@@ -520,6 +520,24 @@
       var LINES = 13;
       var shown = 0;
       var anime = null;
+      var req = cmd.closest("pre");
+      function curl(q) { return 'curl "https://oceanofjobs.com/api/jobs?' + q + '"'; }
+      // The request box is as tall as the longest of the ten commands at this
+      // width, so it never resizes between runs.
+      function fit() {
+        var now = cmd.textContent, tall = 0;
+        req.style.height = "";
+        QUERIES.forEach(function (q) { cmd.textContent = curl(q); tall = Math.max(tall, req.scrollHeight); });
+        cmd.textContent = now;
+        req.style.height = tall + "px";
+      }
+      fit();
+      if (document.fonts) document.fonts.ready.then(fit);
+      var fitting = 0;
+      window.addEventListener("resize", function () {
+        cancelAnimationFrame(fitting);
+        fitting = requestAnimationFrame(function () { if (!btn.disabled) fit(); });
+      });
       function html(text) {
         return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
           .replace(/^(\s*)("[a-z_]+")(?=:)/gm, '$1<span class="api-key">$2</span>');
@@ -556,8 +574,7 @@
         var data = answer(q);
         (anime ? Promise.resolve(anime) : import("/vendor/animejs/anime.esm.min.js")).then(function (m) {
           anime = m;
-          var line = 'curl "https://oceanofjobs.com/api/jobs?' + q + '"';
-          return Promise.all([scramble(cmd, line, 700), data]);
+          return Promise.all([scramble(cmd, curl(q), 700), data]);
         }).then(function (r) {
           // One block per line, padded to the box's 13: the scramble would
           // otherwise swap the line breaks too and fold the answer into one line.
