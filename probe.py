@@ -5190,7 +5190,9 @@ def main() -> int:
         comeet_pins = PINS.get("comeet", {})
         for e in known:
             pin = comeet_pins.get(e["domain"])
-            if pin and e.get("ats") != "comeet":
+            # The token counts too: a company that rotates its Comeet token
+            # (Cellebrite, 2026-09-19) otherwise keeps polling the dead one.
+            if pin and (e.get("ats"), e.get("token")) != ("comeet", f"{pin['uid']}:{pin['token']}"):
                 e["ats"] = "comeet"
                 e["token"] = f"{pin['uid']}:{pin['token']}"
 

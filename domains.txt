@@ -318,6 +318,7 @@ variantyx.com
 # and confirmed NOT reachable this way: google.com, apple.com,
 # amazon.com, microsoft.com, meta.com, ibm.com, oracle.com, sap.com --
 # all run fully custom/in-house systems with no Workday board at all.
+# oracle.com runs its own Oracle Recruiting Cloud, pinned in companies.yml.
 # palantir.com needed no pin: it already resolves via the existing Lever
 # guessing loop.
 microsoft.com
@@ -10152,6 +10153,7 @@ goalcast.com
 # and confirmed NOT reachable this way: google.com, apple.com,
 # amazon.com, microsoft.com, meta.com, ibm.com, oracle.com, sap.com --
 # all run fully custom/in-house systems with no Workday board at all.
+# oracle.com runs its own Oracle Recruiting Cloud, pinned in companies.yml.
 # palantir.com needed no pin: it already resolves via the existing Lever
 # guessing loop.
 
