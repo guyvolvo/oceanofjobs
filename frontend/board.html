@@ -70,7 +70,7 @@
   <script>
     // Applied before first paint so there's no flash of the wrong theme
     // on reload. app.js still owns the toggle button/click handling.
-    if (localStorage.getItem("iljobs_theme") === "dark") {
+    if (localStorage.getItem("iljobs_theme") !== "light") {
       document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }

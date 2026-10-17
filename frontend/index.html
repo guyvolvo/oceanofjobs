@@ -86,7 +86,7 @@
   <!-- The board's theme choice is honoured here too. Dark is this page's
        own deeper ground, #0e0f11, rather than the board's #17181c. -->
   <script>
-    if (localStorage.getItem("iljobs_theme") === "dark") {
+    if (localStorage.getItem("iljobs_theme") !== "light") {
       document.querySelector('meta[name="theme-color"]').content = "#0e0f11";
       document.documentElement.setAttribute("data-theme", "dark");
     }

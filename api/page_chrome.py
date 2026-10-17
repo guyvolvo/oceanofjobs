@@ -150,7 +150,7 @@ def head(title, description, canonical, robots=None, ld=None, og_type="article")
   <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/style.css" />
 {ld_tag}  <script>
-    if (localStorage.getItem("iljobs_theme") === "dark") {{
+    if (localStorage.getItem("iljobs_theme") !== "light") {{
       document.querySelector('meta[name="theme-color"]').content = "#17181c";
       document.documentElement.setAttribute("data-theme", "dark");
     }}
