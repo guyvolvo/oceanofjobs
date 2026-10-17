@@ -223,7 +223,7 @@
           </div>
           <div class="home-feature">
             <h3>Real-time data</h3>
-            <p>Jobs appear on Ocean of Jobs a few minutes after companies publish them, and at most up to 2 hours for low cadency companies.</p>
+            <p>Jobs appear on Ocean of Jobs a few minutes after companies publish them, and at most 2 hours for companies that post less often.</p>
           </div>
           <div class="home-feature">
             <h3>Smart alerts</h3>
@@ -254,13 +254,14 @@
         <div class="home-code">
           <div class="home-code-pane">
             <div class="home-code-label">Example request</div>
+            <button type="button" class="home-code-copy home-code-run" id="api-run"><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Run</button>
             <button type="button" class="home-code-copy" id="api-copy">Copy</button>
             <span class="visually-hidden" id="api-copy-live" role="status" aria-live="polite"></span>
 <pre class="home-code-req"><span class="api-prompt">$</span> <span class="api-cmd">curl "https://oceanofjobs.com/api/jobs?israel_only=1&amp;limit=1"</span></pre>
           </div>
           <div class="home-code-pane">
             <div class="home-code-label">Example response</div>
-<pre>{
+<pre id="api-res" aria-live="polite">{
   <span class="api-key">"id"</span>: "4379ce3773adfb26",
   <span class="api-key">"company_domain"</span>: "pendo.com",
   <span class="api-key">"ats"</span>: "greenhouse",
@@ -490,6 +491,83 @@
         ta.select();
         try { document.execCommand("copy"); done(); } catch (e) {}
         document.body.removeChild(ta);
+      });
+    })();
+
+    // Run: swaps in one of ten example queries, asks the live API and
+    // scrambles both blocks over to the new request and its answer. Every
+    // query is cheap on the box (one company or a narrow search, one row)
+    // and repeats come back from the edge cache. anime.js loads on the
+    // first click only.
+    (function () {
+      var btn = document.getElementById("api-run");
+      var cmd = document.querySelector(".home-code .api-cmd");
+      var res = document.getElementById("api-res");
+      if (!btn || !cmd || !res) return;
+      var QUERIES = [
+        "israel_only=1&limit=1",
+        "company=nvidia.com&limit=1",
+        "company=wiz.io&limit=1",
+        "company=monday.com&limit=1",
+        "company=anthropic.com&limit=1",
+        "company=openai.com&limit=1",
+        "company=amazon.com&israel_only=1&limit=1",
+        "company=apple.com&seniority=senior&limit=1",
+        "seniority=senior&search=devops&limit=1",
+        "search=security+researcher&seniority=senior&limit=1"
+      ];
+      var KEYS = ["id", "company_domain", "ats", "title", "location", "confidence", "posted_at", "first_seen", "closed_at", "salary_text", "salary_is_estimate"];
+      var LINES = 13;
+      var shown = 0;
+      var anime = null;
+      function html(text) {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/^(\s*)("[a-z_]+")(?=:)/gm, '$1<span class="api-key">$2</span>');
+      }
+      function answer(q) {
+        var ctl = new AbortController();
+        var timer = setTimeout(function () { ctl.abort(); }, 8000);
+        return fetch("/api/jobs?" + q, { signal: ctl.signal }).then(function (r) {
+          if (!r.ok) return { error: "HTTP " + r.status + ", try another" };
+          return r.json().then(function (d) {
+            var job = d.jobs && d.jobs[0];
+            if (!job) return { jobs: [], total: 0 };
+            var out = {};
+            KEYS.forEach(function (k) { out[k] = job[k] === undefined ? null : job[k]; });
+            return out;
+          });
+        }, function () {
+          return { error: "No answer within 8 seconds, try another" };
+        }).finally(function () { clearTimeout(timer); });
+      }
+      function scramble(el, text, ms) {
+        return new Promise(function (done) {
+          anime.animate(el, {
+            innerHTML: anime.scrambleText({ text: html(text).replace(/<[^>]+>/g, ""), duration: ms }),
+            onComplete: function () { done(); }
+          });
+        });
+      }
+      btn.addEventListener("click", function () {
+        var next = (shown + 1 + Math.floor(Math.random() * (QUERIES.length - 1))) % QUERIES.length;
+        shown = next;
+        btn.disabled = true;
+        var q = QUERIES[next];
+        var data = answer(q);
+        (anime ? Promise.resolve(anime) : import("/vendor/animejs/anime.esm.min.js")).then(function (m) {
+          anime = m;
+          var line = 'curl "https://oceanofjobs.com/api/jobs?' + q + '"';
+          return Promise.all([scramble(cmd, line, 700), data]);
+        }).then(function (r) {
+          // One block per line, padded to the box's 13: the scramble would
+          // otherwise swap the line breaks too and fold the answer into one line.
+          var pad = function (text) { var a = text.split("\n"); while (a.length < LINES) a.push(""); return a; };
+          var block = function (a) { return a.map(function (l) { return '<span class="api-line">' + html(l) + "</span>"; }).join(""); };
+          var want = pad(JSON.stringify(r[1], null, 2));
+          if (res.children.length !== LINES || !res.firstElementChild.classList.contains("api-line")) res.innerHTML = block(pad(res.textContent));
+          return Promise.all(want.map(function (l, i) { return scramble(res.children[i], l, 1100); }))
+            .then(function () { res.innerHTML = block(want); });
+        }).catch(function () {}).finally(function () { btn.disabled = false; });
       });
     })();
 

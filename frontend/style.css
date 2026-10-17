@@ -4446,6 +4446,24 @@ a.hero-account-btn { text-decoration: none; }
   cursor: pointer;
 }
 .home-code-copy:hover { color: var(--h-text); }
+/* The one thing to press in the sample, so it is the filled pill. */
+.home-code .home-code-run {
+  right: 62px; top: 7px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px 4px 9px; border-radius: 999px;
+  background: var(--h-pill-bg); color: var(--h-pill-fg);
+  font-weight: 500;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.home-code .home-code-run svg { fill: currentColor; }
+.home-code .home-code-run:hover { color: var(--h-pill-fg); opacity: 0.88; }
+.home-code .home-code-run:active { transform: scale(0.96); }
+/* Run swaps the text in place, so both blocks keep one size: the request
+   two lines with long commands wrapping, the response the 13 lines of a job. */
+.home-code .home-code-req { white-space: pre-wrap; overflow-wrap: anywhere; height: calc(2lh + 24px); overflow: hidden; }
+.home-code #api-res { height: calc(13lh + 24px); overflow: auto hidden; }
+.api-line { display: block; min-height: 1lh; }
+.home-code-copy:disabled { opacity: 0.5; cursor: default; }
 
 .home-last { padding-bottom: 96px; }
 .home-start { padding: 48px 40px 24px; border-top: 1px solid var(--h-line); text-align: center; }
