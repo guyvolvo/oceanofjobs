@@ -1262,6 +1262,15 @@ BOX_INDEXES = (
     # 70MB of index instead.
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_company ON jobs(company_domain, role_class, country, first_seen)"
     " WHERE closed_at IS NULL",
+    # The skills filter (the CV match). skill_hits has to see every open
+    # row's skills, and without this that meant reading the whole table:
+    # skills=kubernetes answered 503 after 25s live (2026-10-17). This
+    # holds just those columns, so the rail's rowset and the result count
+    # walk the index. closed_at, confidence and posted_at are here because
+    # the planner only picks an index that covers every term the query
+    # tests; with skills alone it kept scanning the table.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_open_skills ON jobs(skills, closed_at, confidence, posted_at)"
+    " WHERE closed_at IS NULL",
     # The loader's own to-do lists. Each of these steps asked "which rows
     # still need X" with a scan of the whole table, every run, to find a
     # few dozen rows: roles 222s, categories 107s, meta 86s, and the
