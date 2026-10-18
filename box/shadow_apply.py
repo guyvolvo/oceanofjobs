@@ -71,7 +71,12 @@ WORK = DB.with_name("delta-resolved.json")
 # against a sweep producing roughly 20MB a minute, which is break-even
 # and drained a 70-fragment backlog at one fragment a minute.
 #
-# Measured at this size the process holds about 86MB resident for a
+# Back to 96MB on 2026-10-01 (4e4c2e3), on a t4g.medium with 4GB, so a
+# run drains twice the fragments. Since 2026-10-17 _read holds one
+# fragment at a time, not the whole batch, so the 14x above applies to
+# a single fragment rather than to all 96MB.
+#
+# Measured at 48MB the process held about 86MB resident for a
 # 19MB fragment. The much larger number systemd reports for the unit is
 # mostly page cache, which cgroup v2 charges to whichever cgroup faults
 # it in, so reading and writing a 2.7GB database inflates it well past
