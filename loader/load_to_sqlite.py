@@ -843,7 +843,10 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
             -- out on the very next 5-min fast-poll. Every other ats
             -- always sends a real value here, so this is a no-op for them.
             description_chars = CASE WHEN excluded.description_chars > 0 THEN excluded.description_chars ELSE description_chars END,
-            description = CASE WHEN excluded.description IS NOT NULL AND excluded.description != '' THEN excluded.description ELSE description END,
+            -- Only when the text changed. Unchanged text is already in S3,
+            -- and writing it here only for --drop-description to clear it
+            -- again cost the disk-bound box every page of it twice.
+            description = CASE WHEN excluded.description IS NOT NULL AND excluded.description != '' AND excluded.description_sha IS NOT description_sha THEN excluded.description ELSE description END,
             -- Moves with description, never independently: a poll that
             -- carries no description must leave both alone or the hash
             -- would claim a blob that was never written.

@@ -87,12 +87,21 @@ with tempfile.TemporaryDirectory() as td:
           all(v is None for v in column(conn).values()), str(column(conn)))
 
     # Second pass, one description changed. The other two are unchanged,
-    # which is the case that used to refill the column.
+    # which is the case that used to refill the column. The trigger counts
+    # text written mid-pass, which the end state alone cannot show: the
+    # column used to be filled and then cleared within the same pass.
+    conn.execute("CREATE TEMP TABLE text_writes (id TEXT)")
+    conn.execute("CREATE TEMP TRIGGER count_text AFTER UPDATE OF description ON jobs"
+                 " WHEN NEW.description IS NOT NULL BEGIN INSERT INTO text_writes VALUES (NEW.id); END")
     uploaded = run(conn, [job(1, "alpha text"), job(2, "beta CHANGED"), job(3, "gamma text")], tmp)
     check("only the changed description is uploaded again",
           len(uploaded) == 1, f"uploaded {uploaded}")
     check("unchanged rows do not get their text written back",
           all(v is None for v in column(conn).values()), str(column(conn)))
+    written = [r[0] for r in conn.execute("SELECT id FROM text_writes")]
+    check("only the changed row's text is written during the pass",
+          written == uploaded, f"written {written}, uploaded {uploaded}")
+    conn.execute("DROP TRIGGER count_text")
 
     # A failed upload is the one case where the column is the last copy.
     run(conn, [job(1, "alpha REWRITTEN")], tmp, uploads_land=False)
