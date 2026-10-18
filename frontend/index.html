@@ -337,6 +337,32 @@
         el.innerHTML = half.join("") + half.join("");
       }
 
+      // The last visit's companies, so the band moves the moment the page
+      // does instead of after the stats fetch. A first visit starts from the
+      // companies we hold wordmarks for. Either way the fresh list is saved
+      // for next time rather than swapped in mid-scroll, which would jump.
+      const CACHE_KEY = "otj-ticker";
+      let shown = false;
+      function tickerRows(companies) {
+        if (shown || !companies.length) return;
+        // Split between the two rows, alternating, so each carries big names.
+        const halves = [companies.filter((_, i) => i % 2 === 0), companies.filter((_, i) => i % 2 === 1)];
+        ["ticker-logos-a", "ticker-logos-b"].forEach((id, k) => {
+          const row = document.getElementById(id);
+          fill(row, halves[k].map(logo), 15);
+          // A logo that no longer loads leaves the row rather than showing
+          // a broken image. Every copy of it fails the same way, so the two
+          // halves stay the same width and the loop stays seamless.
+          row.querySelectorAll("img").forEach((img) => {
+            img.addEventListener("error", () => img.parentElement.remove(), { once: true });
+          });
+        });
+      }
+
+      let cached = null;
+      try { cached = JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (e) {}
+      tickerRows(Array.isArray(cached) && cached.length ? cached : Object.keys(WORDMARKS).map((domain) => ({ domain })));
+
       function render(stats) {
         const t = stats.totals || {};
         const remote = ((stats.workplace || []).find((w) => w.workplace === "remote") || {}).n;
@@ -345,27 +371,18 @@
         // and startups first (api/hot_companies.py). Until a precompute has
         // written it, the ten-row chart list stands in, minus the ones
         // without a logo.
-        const companies = (stats.top_companies_logos || stats.top_companies || []).slice(0, 30);
-        // Split between the two rows, alternating, so each carries big names.
-        if (companies.length) {
-          const halves = [companies.filter((_, i) => i % 2 === 0), companies.filter((_, i) => i % 2 === 1)];
-          ["ticker-logos-a", "ticker-logos-b"].forEach((id, k) => {
-            const row = document.getElementById(id);
-            fill(row, halves[k].map(logo), 15);
-            // A logo that no longer loads leaves the row rather than showing
-            // a broken image. Every copy of it fails the same way, so the two
-            // halves stay the same width and the loop stays seamless.
-            row.querySelectorAll("img").forEach((img) => {
-              img.addEventListener("error", () => img.parentElement.remove(), { once: true });
-            });
-          });
-        }
+        const companies = (stats.top_companies_logos || stats.top_companies || [])
+          .slice(0, 30).map((c) => ({ domain: c.domain, name: c.name }));
+        try { if (companies.length) localStorage.setItem(CACHE_KEY, JSON.stringify(companies)); } catch (e) {}
+        tickerRows(companies);
         document.getElementById("hero-stats-text").textContent =
           `${fmt(t.open_jobs)} open jobs, ${fmt(remote)} of them remote.` +
           (companies.length ? ` Hiring now: ${companies.slice(0, 10).map((c) => c.name || c.domain).join(", ")}.` : "");
       }
 
-      fetch("/stats.json", { cache: "no-cache" })
+      // The browser's own copy for its max-age (60s, set by the publisher),
+      // then a revalidation, rather than a forced round trip on every visit.
+      fetch("/stats.json")
         .then((r) => (r.ok ? r.json() : fetch("/api/stats").then((x) => x.json())))
         .then(render)
         .catch(() => {});
