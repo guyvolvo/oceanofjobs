@@ -238,24 +238,36 @@ def _refresh_logos() -> None:
         print(f"company-logos.json refresh skipped (non-fatal): {e!r}", file=sys.stderr)
 
 
-def _read(paths: list[Path]) -> list[dict]:
-    """Every result across these fragments, in name order.
+def _read(paths: list[Path], out: Path) -> int:
+    """Every result across these fragments, in name order, written to
+    `out` one per line. Returns how many.
 
     Concatenated rather than merged, for the reason deltas.read_fragments
     gives: load_resolved is an upsert keyed on job id, so replaying an
     older entry before a newer one lands on the newer one.
+
+    One line per result, so the loader's iter_resolved reads them one at
+    a time. This used to build the whole batch as one list and dump it as
+    one JSON array, which the loader then parsed whole a second time: two
+    copies of the batch in memory, the shape that ran the box out of
+    memory on 2026-09-23. Now at most one fragment is held at once.
     """
-    out: list[dict] = []
-    for p in paths:
-        try:
-            out.extend(json.loads(p.read_text(encoding="utf-8")))
-        except (OSError, ValueError) as e:
-            # A fragment that cannot be parsed will never parse. Moving
-            # it aside keeps the queue draining instead of retrying it
-            # every minute forever, and leaves it for a human to look at.
-            print(f"unreadable, set aside: {p.name}: {e!r}", file=sys.stderr)
-            p.rename(p.with_suffix(".bad"))
-    return out
+    n = 0
+    with out.open("w", encoding="utf-8") as fh:
+        for p in paths:
+            try:
+                results = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as e:
+                # A fragment that cannot be parsed will never parse. Moving
+                # it aside keeps the queue draining instead of retrying it
+                # every minute forever, and leaves it for a human to look at.
+                print(f"unreadable, set aside: {p.name}: {e!r}", file=sys.stderr)
+                p.rename(p.with_suffix(".bad"))
+                continue
+            for r in results:
+                fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+            n += len(results)
+    return n
 
 
 # The freshness metrics the alarms read, sent from here every five
@@ -335,16 +347,12 @@ def _apply() -> int:
         take.append(p)
         total += size
 
-    results = _read(take)
-    if not results:
+    companies = _read(take, WORK)
+    if not companies:
         print(f"{len(take)} fragments held nothing to apply")
         for p in take:
             p.unlink(missing_ok=True)
         return 0
-    with WORK.open("w", encoding="utf-8") as fh:
-        json.dump(results, fh, ensure_ascii=False)
-    companies = len(results)
-    results = None
     read_s = time.monotonic() - started
 
     _write_status("merging", f"applying {len(take)} of {len(pending)} delta fragments")
