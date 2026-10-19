@@ -3,13 +3,15 @@ title: MCP Server
 description: The Ocean of Jobs MCP server lets AI assistants search job listings, read job descriptions, and look up companies directly from Ocean of Jobs.
 ---
 
+import { ClientIcon } from '@/components/client-icon';
+
 **Server URL:** https://oceanofjobs.com/mcp
 
 The server uses Streamable HTTP and requires no API key. All tools are read-only and use the same public data as the website.
 
 ## Connect a client
 
-### Claude Code
+### <ClientIcon name="claude-code" />Claude Code
 
 Run this in your terminal:
 
@@ -18,6 +20,90 @@ claude mcp add --transport http oceanofjobs https://oceanofjobs.com/mcp
 ```
 
 Start Claude Code and ask it to search for jobs. To check the connection, run `/mcp` inside a session.
+
+### <ClientIcon name="claude" />Claude
+
+In Claude, open **Customize**, then **Connectors**, then **Add custom connector**. Name it Ocean of Jobs and paste the server URL:
+
+```text
+https://oceanofjobs.com/mcp
+```
+
+The server needs no sign-in, so leave the advanced settings empty. Turn the connector on in a chat from the tools menu.
+
+### <ClientIcon name="chatgpt" />ChatGPT
+
+In ChatGPT, open **Settings**, then **Apps & Connectors**. Turn on **Developer mode**, then choose **Create** and paste the server URL:
+
+```text
+https://oceanofjobs.com/mcp
+```
+
+Choose no authentication. In a new chat, pick the connector from the tools menu.
+
+### <ClientIcon name="cursor" />Cursor
+
+[Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=oceanofjobs&config=eyJ1cmwiOiJodHRwczovL29jZWFub2Zqb2JzLmNvbS9tY3AifQ==) opens Cursor with the server filled in, and you confirm there. To add it by hand, put this in `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "oceanofjobs": {
+      "url": "https://oceanofjobs.com/mcp"
+    }
+  }
+}
+```
+
+### <ClientIcon name="vscode" />VS Code
+
+[Add to VS Code](vscode:mcp/install?%7B%22name%22%3A%22oceanofjobs%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Foceanofjobs.com%2Fmcp%22%7D) opens VS Code with the server filled in, and you confirm there. From a terminal instead:
+
+```bash
+code --add-mcp '{"name":"oceanofjobs","type":"http","url":"https://oceanofjobs.com/mcp"}'
+```
+
+Then start it: run **MCP: List Servers** from the Command Palette, pick **oceanofjobs** and choose **Start Server**. The tools work in Copilot Chat in **Agent** mode. Check that `search_jobs`, `get_job` and `get_company` are ticked under the tools button.
+
+### <ClientIcon name="gemini" />Gemini CLI
+
+```bash
+gemini mcp add -s user --transport http oceanofjobs https://oceanofjobs.com/mcp
+```
+
+`-s user` adds it for every folder. Without it, Gemini adds it to the current project only. Gemini loads MCP servers only in folders you have trusted, so `gemini mcp list` shows the server as disabled until you trust the folder.
+
+### <ClientIcon name="codex" />Codex
+
+```bash
+codex mcp add oceanofjobs --url https://oceanofjobs.com/mcp
+```
+
+`codex mcp list` shows it as enabled.
+
+### <ClientIcon name="hermes" />Hermes Agent
+
+```bash
+hermes mcp add oceanofjobs --url https://oceanofjobs.com/mcp
+```
+
+Hermes asks whether the server needs authentication. Answer no. It then connects, lists the three tools and asks which to enable. Run `hermes mcp test oceanofjobs` to check the connection, and start a new session to use the tools.
+
+### <ClientIcon name="kimi" />Kimi Code
+
+In Kimi Code, run `/mcp-config`, or edit its `mcp.json`, and add:
+
+```json
+{
+  "mcpServers": {
+    "oceanofjobs": {
+      "url": "https://oceanofjobs.com/mcp"
+    }
+  }
+}
+```
+
+An entry with a `url` and no `transport` is an HTTP server. The older `kimi-cli` is no longer maintained, and its `kimi mcp add` command no longer saves anything.
 
 ### Other MCP clients
 
@@ -46,10 +132,6 @@ If your client only supports locally running MCP servers, you can connect throug
   }
 }
 ```
-
-### Claude.ai and ChatGPT
-
-Setup instructions for Claude.ai and ChatGPT will be added after both integrations have been tested.
 
 ## Available tools
 
