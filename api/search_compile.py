@@ -100,11 +100,19 @@ def match_expression(q: SearchQuery, near: int = SEARCH_NEAR_DISTANCE) -> str | 
     if q.expand and q.combine == "all" and len(plain) >= 2:
         near_expr = f"description : NEAR({' '.join(phrase(g.alternatives[0], prefix=False) for g in plain)}, {near})"
     parts = []
+    if near_expr:
+        # Each plain word qualifies through its own metadata or the shared
+        # NEAR: (A OR N) AND (B OR N) is (A AND B) OR N, so N is written
+        # once. Once per word, six words read six NEARs of six words each,
+        # and every added word made the search slower than the last.
+        metas = " AND ".join(f"{META} : {alternatives(g.alternatives)}" for g in plain)
+        parts.append(f"(({metas}) OR {near_expr})")
     for g in groups:
+        if near_expr and g in plain:
+            continue
         alts = alternatives(g.alternatives)
         desc_alts = g.alternatives if RELATED_IN_DESCRIPTION else [a for a in g.alternatives if a.kind == "literal"]
-        desc = near_expr if (near_expr and g in plain) else f"description : {alternatives(desc_alts, prefix=False)}"
-        parts.append(f"({META} : {alts} OR {desc})")
+        parts.append(f"({META} : {alts} OR description : {alternatives(desc_alts, prefix=False)})")
     return (" AND " if q.combine == "all" else " OR ").join(parts + narrow)
 
 

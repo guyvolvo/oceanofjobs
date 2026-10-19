@@ -126,6 +126,12 @@ check("exact title word > stem-only title > description only",
 got = run("reac")
 check("a half-typed word finds both titles", {"react_dev", "a_reactor"} <= set(got), got)
 
+# The description NEAR is shared by every plain word, so it is written
+# once however many words there are (it was once per word, and a six-word
+# search read thirty-six phrases).
+expr = search_compile.match_expression(J.search_query({"search": "system architect end to end solution"}))
+check("a long search holds one NEAR", expr.count("NEAR(") == 1, expr)
+
 # C++ and C# keep their substring test, but behind the index: FTS5 holds
 # them as "c", so the MATCH narrows first and a search never scans every
 # listing (25s per facet count live, 2026-10-19, and the board queued
@@ -140,7 +146,7 @@ check("any-word mode does not let the bare c qualify",
 # The facets' temp table (aggregates.search_rows) stands in for the MATCH
 # and must find exactly what the index finds, or the rail's counts would
 # describe a different list from the one beside them.
-for q in ("soc", "soc analyst tier 1", "security operations", "chip auditor", "c++", "c# developer"):
+for q in ("soc", "soc analyst tier 1", "security operations", "chip auditor", "c++", "c# developer", "security operations lead team"):
     params = {"search": q, **({"search_mode": "any"} if q == "chip auditor" else {})}
     plain = sorted(r["id"] for r in conn.execute(
         "SELECT id FROM jobs WHERE " + J.build_jobs_where(params, CAPS)[0], J.build_jobs_where(params, CAPS)[1]))
