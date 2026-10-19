@@ -4461,7 +4461,7 @@ a.hero-account-btn { text-decoration: none; }
 /* The install lines follow the page theme, unlike the window above. */
 /* Each pane hugs its content; the block keeps the tallest pane's room
    (Cursor, VS Code) so switching tabs never moves what is below. */
-.mcp-install { width: 540px; min-height: 124px; margin-top: 64px; font: 400 12px/16px "Geist Mono", ui-monospace, Menlo, Consolas, monospace; }
+.mcp-install { width: 540px; min-height: 130px; margin-top: 60px; font: 400 12px/16px "Geist Mono", ui-monospace, Menlo, Consolas, monospace; }
 /* Bare icons, centred over the pane; on a phone the row scrolls sideways. */
 .mcp-tabbar { display: flex; align-items: center; justify-content: safe center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
 .mcp-tabs { flex: none; display: flex; gap: 2px; }
@@ -4493,7 +4493,7 @@ a.hero-account-btn { text-decoration: none; }
   flex-direction: column;
   justify-content: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 12px; /* the same 12px the tab row keeps from the dither panel above */
   padding: 10px 10px 10px 14px;
   border: 1px solid var(--h-line);
   border-radius: 10px;
@@ -4548,12 +4548,12 @@ a.hero-account-btn { text-decoration: none; }
 @media (max-width: 900px) {
   .home-hero { padding: 56px var(--h-pad) 48px; }
   .home-hero h1 { font-size: 44px; line-height: 45px; }
-  .mcp-install { margin-top: 32px; }
+  .mcp-install { margin-top: 28px; } /* 12px clear of the dither panel, which runs 16px past the window here */
   .mcp-body { height: 520px; padding: 12px; font-size: 11px; line-height: 15px; }
   .mcp-rule { margin: 0 -12px 7px; }
 }
 @media (max-width: 640px) {
-  .mcp-install { min-height: 144px; } /* the Cursor and VS Code notes wrap to two lines */
+  .mcp-install { min-height: 150px; } /* the Cursor and VS Code notes wrap to two lines */
   .mcp-tab { padding: 0 6px; }
   .mcp-tab svg, .mcp-mask { width: 18px; height: 18px; } /* nine tabs and More fit a 390px phone */
   .home-search { height: 54px; padding-left: 18px; }
