@@ -1093,8 +1093,9 @@ def route_pipeline_status() -> dict:
     bucket = os.environ.get("DATA_BUCKET")
     if not bucket:
         empty = {"phase": "unknown", "detail": "", "at": None}
-        return {"scrape": {**empty, "run": None}, "merge": empty}
+        return {"scrape": {**empty, "run": None}, "merge": empty, "upstream": upstream_status()}
     return {
+        "upstream": upstream_status(),
         # Both pipelines finish well under this in practice (the
         # fast-poll in under a minute, discover in ~20).
         "scrape": _read_status(bucket, "status.json", stale_minutes=30),
@@ -1102,6 +1103,85 @@ def route_pipeline_status() -> dict:
         # headroom, not a guess at the actual duration.
         "merge": _read_status(bucket, "merge-status.json", stale_minutes=15),
     }
+
+
+# The services this site runs on, read off their public status pages and
+# kept only while something is wrong, each with what that means here.
+# frontend/upstream.js shows them as a warning badge; nothing otherwise.
+STATUSPAGES = [
+    ("https://www.githubstatus.com/api/v2/summary.json", "GitHub", {
+        "Actions": "site updates are delayed, this version may be outdated",
+    }),
+    ("https://www.cloudflarestatus.com/api/v2/summary.json", "Cloudflare", {
+        "CDN/Cache": "pages may load slowly or not at all",
+        "Network": "pages may load slowly or not at all",
+        "Authoritative DNS": "the site may be unreachable",
+        "Tunnel": "job search and the board may not load",
+        "Workers": "the MCP server may not respond",
+    }),
+]
+AWS_HEALTH = "https://health.aws.amazon.com/public/currentevents"
+UPSTREAM_TTL_S = 300
+_upstream = {"at": 0.0, "items": [], "busy": False}
+
+
+def statuspage_problems(summary: dict, vendor: str, effects: dict) -> list:
+    out = []
+    for c in summary.get("components") or []:
+        status = c.get("status")
+        if c.get("name") in effects and status != "operational":
+            out.append({"service": f"{vendor} {c['name']}",
+                         "level": "outage" if status in ("partial_outage", "major_outage") else "degraded",
+                         "effect": effects[c["name"]]})
+    return out
+
+
+def aws_problems(events: list) -> list:
+    # Everything but CloudFront runs in il-central-1: the box, the
+    # scrapers, S3 and the alert emails.
+    out = []
+    for e in events or []:
+        svc = e.get("service") or ""
+        if svc.endswith("-il-central-1"):
+            effect = "new listings and alert emails may be delayed"
+        elif svc.startswith("cloudfront"):
+            effect = "pages may load slowly or not at all"
+        else:
+            continue
+        out.append({"service": f"AWS {e.get('service_name') or svc}", "level": "degraded", "effect": effect})
+    return out
+
+
+def _fetch_json(url: str):
+    import urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": "oceanofjobs-status"})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        body = r.read()
+    # AWS answers in UTF-16 with a byte order mark.
+    return json.loads(body.decode("utf-16") if body[:2] in (b"\xff\xfe", b"\xfe\xff") else body)
+
+
+def _refresh_upstream():
+    items = []
+    for url, vendor, effects in STATUSPAGES:
+        try:
+            items += statuspage_problems(_fetch_json(url), vendor, effects)
+        except Exception:
+            pass  # a status page we cannot read reports nothing, not an outage
+    try:
+        items += aws_problems(_fetch_json(AWS_HEALTH))
+    except Exception:
+        pass
+    _upstream.update(items=items, at=time.time(), busy=False)
+
+
+def upstream_status() -> list:
+    """The last answer, refreshed in the background once it is older
+    than UPSTREAM_TTL_S, so no request waits on three outside sites."""
+    if time.time() - _upstream["at"] > UPSTREAM_TTL_S and not _upstream["busy"]:
+        _upstream["busy"] = True
+        threading.Thread(target=_refresh_upstream, daemon=True).start()
+    return _upstream["items"]
 
 
 def route_geo(event: dict) -> dict:
