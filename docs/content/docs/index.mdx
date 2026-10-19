@@ -1,21 +1,17 @@
 ---
 title: Overview
-description: Two ways to use the board's data from code or from an AI agent.
+description: There are three ways to use Ocean of Jobs
 ---
 
-Ocean of Jobs reads open jobs straight from each employer's own applicant tracking system (Greenhouse, Comeet, Workday and others), not from other job boards. Everything on the board is also open to code, with no key and no sign-up.
+- Browse the platform via a minimalistic and simple web UI.
+- Query JSON job data via a REST API
+- Use the MCP server with your AI agents.
 
 <Cards>
   <Card title="MCP server" href="/mcp">
-    Connect Claude, ChatGPT or any MCP client and let your agent search jobs, read descriptions and look up companies.
+    Connect Claude, ChatGPT or any MCP client and let your agents make the hard work for you.
   </Card>
   <Card title="REST API" href="/api">
-    Plain JSON over HTTPS. Jobs, companies and market data, the same data the board uses.
+    If you prefer to come up with your own solution you can use the free JSON API. Jobs, companies and market data are all included.
   </Card>
 </Cards>
-
-## Which one?
-
-Use the MCP server when a person is asking an agent for jobs in plain words. It returns small pages of results with the context an agent needs to rank them.
-
-Use the REST API for anything bulk or scheduled: exports, dashboards, your own alerts. The MCP server caps every call at 25 results, and the API pages up to 500.

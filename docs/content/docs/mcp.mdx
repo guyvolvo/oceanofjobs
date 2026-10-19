@@ -1,29 +1,27 @@
 ---
-title: MCP server
-description: Let an AI agent search Ocean of Jobs, read job descriptions and look up companies.
+title: MCP Server
+description: The Ocean of Jobs MCP server lets AI assistants search job listings, read job descriptions, and look up companies directly from Ocean of Jobs.
 ---
 
-The MCP server is at:
+**Server URL:** https://oceanofjobs.com/mcp
 
-```
-https://oceanofjobs.com/mcp
-```
-
-It speaks Streamable HTTP, needs no key, and only reads. Every tool is a thin layer over the public [REST API](/api), so the agent sees the same jobs the board shows.
+The server uses Streamable HTTP and requires no API key. All tools are read-only and use the same public data as the website.
 
 ## Connect a client
 
 ### Claude Code
 
+Run this in your terminal:
+
 ```bash
 claude mcp add --transport http oceanofjobs https://oceanofjobs.com/mcp
 ```
 
-Then start `claude` and ask for jobs in plain words. `/mcp` inside a session shows whether the server is connected.
+Start Claude Code and ask it to search for jobs. To check the connection, run `/mcp` inside a session.
 
-### Clients that take a JSON config
+### Other MCP clients
 
-Most MCP clients accept a config entry with the URL:
+For clients that accept a JSON configuration, add the following entry:
 
 ```json
 {
@@ -36,7 +34,7 @@ Most MCP clients accept a config entry with the URL:
 }
 ```
 
-A client that only runs local servers can reach it through `mcp-remote`:
+If your client only supports locally running MCP servers, you can connect through `mcp-remote` instead:
 
 ```json
 {
@@ -51,60 +49,83 @@ A client that only runs local servers can reach it through `mcp-remote`:
 
 ### Claude.ai and ChatGPT
 
-<Callout type="warn">
-Setup steps for these two are not written yet. They go here once the server has been tested in both.
-</Callout>
+Setup instructions for Claude.ai and ChatGPT will be added after both integrations have been tested.
 
-## Tools
+## Available tools
 
-All three are read-only.
+The server exposes three read-only tools.
 
-### search_jobs
+### `search_jobs`
 
-Searches open jobs. Give at least one of `query`, `company`, `city` or `country`. Results come best match first when there is a query, newest first otherwise, with the total number of matches.
+Search for open jobs by keyword, company, location, seniority, workplace type, posting age, or minimum salary.
 
-| Argument | Type | Meaning |
-| --- | --- | --- |
-| `query` | string | Words matched against titles, companies, locations and descriptions. Every word must match, so keep it to one or two, such as `devops` or `python`. Quotes keep a phrase together. |
-| `company` | string | A domain such as `wix.com`, or a name, which is looked up. |
-| `city` | string | A city name, such as `Tel Aviv`. |
-| `country` | string | A two-letter code, such as `IL` or `US`. Most listings are in the US. |
-| `seniority` | string | One of `intern`, `junior`, `mid`, `senior`, `staff`, `principal`, `lead`, `manager`, `director`, `exec`. |
-| `workplace` | string | `remote`, `hybrid` or `onsite`. |
-| `max_age_days` | integer | Only jobs posted within this many days. |
-| `salary_min` | integer | Lowest monthly gross salary in shekels. |
-| `limit` | integer | 1 to 25, default 10. |
-| `offset` | integer | 0 to 200, default 0. |
+At least one of `query`, `company`, `city`, or `country` is required. Results are ranked by relevance when a query is provided, and by posting recency otherwise.
 
-Rows that are the same posting listed twice are folded into one, and `duplicates_folded` says how many were.
+| Argument | Type | Description |
+|---|---|---|
+| `query` | string | Search job titles, company names, locations, and descriptions. Every word must match, so one or two keywords usually work best. Use quotes to keep a phrase together. |
+| `company` | string | Company name or domain, such as `wix.com`. |
+| `city` | string | City name, such as `Tel Aviv`. |
+| `country` | string | Two-letter country code, such as `IL` or `US`. |
+| `seniority` | string | `intern`, `junior`, `mid`, `senior`, `staff`, `principal`, `lead`, `manager`, `director`, or `exec`. |
+| `workplace` | string | `remote`, `hybrid`, or `onsite`. |
+| `max_age_days` | integer | Only return jobs posted within the specified number of days. |
+| `salary_min` | integer | Minimum monthly gross salary in shekels. |
+| `limit` | integer | Results per call, from 1 to 25. Defaults to 10. |
+| `offset` | integer | Pagination offset, from 0 to 200. Defaults to 0. |
 
-### get_job
+Duplicate listings for the same posting are combined into one result. The `duplicates_folded` field reports how many duplicates were removed.
 
-One job by its `id`, from `search_jobs` or `get_company`. Returns the description as plain text, cut at 6,000 characters (`description_truncated` says when), and `confidence`: `verified` when the data came from the employer's ATS API, `best_effort` when it came from the careers page markup.
+### `get_job`
 
-### get_company
+Fetch a job by its ID, returned by `search_jobs` or `get_company`.
 
-A company by name or domain (`company`). Returns how many jobs it has open, how many are new this week, how long it has been tracked, its newest jobs and its page on Ocean of Jobs. When the name matches more than one company, `other_matches` lists the rest.
+The response includes the job description as plain text, up to 6,000 characters. Check `description_truncated` to see whether any text was cut off.
 
-## What every job carries
+The `confidence` field indicates where the listing data came from:
 
-Each job has two links. `url` is its page on Ocean of Jobs and `apply_url` is the employer's own page.
+- `verified` — retrieved from the employer's applicant tracking system (ATS) API.
+- `best_effort` — extracted from the employer's careers page.
 
-Each job also has a `lifetime`:
+### `get_company`
 
-| Field | Meaning |
-| --- | --- |
-| `first_seen` | When Ocean of Jobs first found the listing on the employer's own applicant tracking system. |
-| `last_seen` | The last time a read of that board returned the listing with any change. A board that answers "unchanged" was still checked, so the listing may have been confirmed more recently than this says. |
-| `closed_at` | When a successful read of the board no longer included it. Null means it was still listed at the last read. |
-| `reappeared_at` | When the same listing, by its ATS id, was seen again after being missing from our reads for at least two days. Recorded since 2026-10-19. |
-| `posted_at` | The employer's own date, where the ATS gives one. Can be missing. |
-| `days_listed`, `status`, `summary` | How long it has been listed, `open` or `closed`, and one sentence saying both. |
+Look up a company by name or domain.
 
-`reappeared_at` records what we observed, not that the employer reposted the job. A failed read on our side can look the same. An old `first_seen` doesn't mean a repost either: it means the role has been open that long.
+The response includes its current open-job count, jobs added this week, how long it has been tracked, its newest listings, and its Ocean of Jobs page.
 
-## Limits
+If the name matches multiple companies, `other_matches` lists the alternatives.
 
-- Up to 25 results per call, and `offset` stops at 200. For more, use the [REST API](/api).
-- Answers are cached at the edge for up to five minutes, so the same question asked twice gets the same answer.
-- If the server is over its daily capacity, calls get a JSON-RPC error saying so, and it is back after 00:00 UTC.
+## Job data and history
+
+Each job includes two URLs:
+
+- `url` — the listing on Ocean of Jobs.
+- `apply_url` — the employer's application page.
+
+Job records also include fields that describe how the listing has changed over time.
+
+| Field | Description |
+|---|---|
+| `first_seen` | When Ocean of Jobs first discovered the listing on the employer's ATS. |
+| `last_seen` | The last time a read of the board returned the listing with a change. An unchanged response still confirms the board was checked, even if this timestamp doesn't advance. |
+| `closed_at` | When a successful check no longer found the listing. `null` means it was still present at the most recent check. |
+| `reappeared_at` | When the same ATS listing ID returned after being absent from our reads for at least two days. This field has been recorded since October 19, 2026. |
+| `posted_at` | The employer's original posting date, when provided by the ATS. |
+| `days_listed` | How long the listing has been tracked as listed. |
+| `status` | Whether the listing is open or closed. |
+| `summary` | A one-sentence description of the listing and its status. |
+
+A reappearance doesn't necessarily mean the employer reposted the job. A temporary failure when checking the employer's board can also make a listing appear to disappear and return. Likewise, an old `first_seen` date doesn't prove a job was reposted; it means Ocean of Jobs has been tracking that listing for that long.
+
+## Limits and caching
+
+- Each call returns at most 25 results.
+- Pagination is limited to an offset of 200. Use the REST API for larger result sets.
+- Responses may be cached at the edge for up to five minutes, so repeated calls can return the same data.
+- If the server reaches its daily capacity, it returns a JSON-RPC error. Capacity resets at 00:00 UTC.
+
+## REST API
+
+You can also access Ocean of Jobs data directly through the public [REST API](/api). It returns JSON over HTTPS and requires no API key or account.
+
+Use the REST API when you need larger result sets or more direct control over your requests.
