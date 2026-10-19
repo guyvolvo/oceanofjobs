@@ -32,4 +32,9 @@ SAME_COMPANY = {
     # board on 2026-09-18 just made the loader demote it as an alias
     # every day, so this says so once instead.
     "sentinelone.com": "sentinellabs.io",
+    # One SmartRecruiters board polled as "Wix2" under wix.com and "wix2"
+    # under wix2.com. The loader's exact token match kept both, so every
+    # Wix role showed twice. Confirmed 2026-10-19: the same 75 jobs with
+    # the same SmartRecruiters ids, apply URLs differing only in case.
+    "wix2.com": "wix.com",
 }

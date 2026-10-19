@@ -121,14 +121,15 @@ row = open_jobs(conn, "deloitte.com")[0]
 check("a workday posting keeps the frozen posted_at it had under the old domain",
       row["first_seen"] == ago(15) and row["posted_at"] == ago(15), repr(dict(row)))
 
-# 5. The same board under two spellings of its token. SmartRecruiters
-# answers "Wix2" and "wix2" alike, and the loader kept both as two companies.
+# 5. Tokens that differ only in case are not demoted automatically. They
+# may be one board (Wix), but that is reported by
+# scripts/audit_duplicate_boards.py and confirmed by hand in
+# api/same_company.py, never decided here.
 conn = fresh_db()
-resolved_company(conn, "wix2.com", "smartrecruiters", "wix2", [("x1", "UX Designer", ago(3), ago(3))])
-load(conn, [record("wix.com", "smartrecruiters", "Wix2", [("x1", "UX Designer", ago(0))])])
-check("a token differing only in case is the same board",
-      company(conn, "wix2.com")["ats"] is None and open_jobs(conn, "wix2.com") == []
-      and len(open_jobs(conn, "wix.com")) == 1)
+resolved_company(conn, "acme-two.com", "smartrecruiters", "acme2", [("x1", "UX Designer", ago(3), ago(3))])
+load(conn, [record("acme.com", "smartrecruiters", "Acme2", [("x1", "UX Designer", ago(0))])])
+check("a token differing only in case leaves both domains alone",
+      company(conn, "acme-two.com")["ats"] == "smartrecruiters" and company(conn, "acme.com")["ats"] == "smartrecruiters")
 
 # 6. The shape test itself.
 check("token-shaped domains, and only those",
