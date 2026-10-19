@@ -795,8 +795,15 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
     return covered
 
 
-def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confidence: str, ts: str, already_tracked_company: bool = True) -> None:
-    conn.execute(
+def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confidence: str, ts: str, already_tracked_company: bool = True) -> bool:
+    """Insert or refresh one listing. True when this call recorded it as
+    seen again after a qualifying absence (reopened_at set to this load's ts)."""
+    # Whether the row was closed going in. The SQL below decides whether
+    # the absence qualifies; this only stops a row that already carries
+    # this ts (a second load in the same second, or the same id twice in
+    # one payload) from being counted again.
+    was_closed = conn.execute("SELECT closed_at IS NOT NULL FROM jobs WHERE id = ?", (jid,)).fetchone()
+    row = conn.execute(
         """
         INSERT INTO jobs (id, company_domain, ats, external_id, title, location, department,
                            url, posted_at, description_chars, description, description_sha, seniority, workplace_type,
@@ -996,6 +1003,7 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
             -- below. Left in the statement so the column keeps existing
             -- for partitions that still carry values from before.
             raw_json = NULL
+        RETURNING reopened_at
         """,
         (jid, domain, j.get("ats"), j.get("external_id"), j.get("title") or "",
          j.get("location"), j.get("department"), http_url(j.get("url")),
@@ -1048,6 +1056,24 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
          # duplicate of data we already hold is not worth half the file
          # that every reader has to download inside a request.
          None),
+    ).fetchone()
+    reopened = bool(was_closed and was_closed[0]) and bool(row) and row[0] == ts
+    if reopened:
+        note_reopened(conn, jid, ts)
+    return reopened
+
+
+def note_reopened(conn: sqlite3.Connection, jid: str, ts: str) -> None:
+    """Keep a count and the latest reappearance in meta, so /api/health can
+    show the column is being written in production and name a job to read
+    back: the latest id and when. Rare, so one small write each."""
+    conn.execute(
+        """INSERT INTO meta (key, value) VALUES ('reopened_count', '1')
+           ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1"""
+    )
+    conn.executemany(
+        "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        [("reopened_last_at", ts), ("reopened_last_id", jid)],
     )
 
 

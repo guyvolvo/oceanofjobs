@@ -5,6 +5,7 @@ Run directly, no framework:  python tests/test_reopened.py
 """
 
 import json
+import os
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -12,8 +13,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "loader"))
+sys.path.insert(0, str(ROOT / "api"))
+for k, v in {"ALERTS_TABLE": "test-alerts", "DATA_BUCKET": "test-bucket", "DATA_KEY": "jobs.db",
+             "AWS_DEFAULT_REGION": "il-central-1", "AWS_ACCESS_KEY_ID": "testing", "AWS_SECRET_ACCESS_KEY": "testing"}.items():
+    os.environ.setdefault(k, v)
 
 from load_to_sqlite import load_resolved, open_db  # noqa: E402
+import handler  # noqa: E402
+import job_filters  # noqa: E402
 
 failures: list[str] = []
 
@@ -75,12 +82,37 @@ with tempfile.TemporaryDirectory() as td:
     # It stays marked while it stays listed, and moves if it goes and comes back again.
     when = r["1"]["reopened_at"]
     load(conn, tmp, [1, 2, 3])
+    load(conn, tmp, [1, 1, 2, 3])  # same second as the last load, and the same id twice
     check("the mark survives the next reads", rows(conn)["1"]["reopened_at"] == when)
     conn.execute("UPDATE jobs SET closed_at = ?, reopened_at = ? WHERE external_id = '1'", (ago(days=5), ago(days=30)))
     conn.commit()
     load(conn, tmp, [1, 2, 3])
     check("a second reappearance moves the mark to the latest", rows(conn)["1"]["reopened_at"] > ago(minutes=5), str(rows(conn)["1"]))
+
+    # The production check: what the loader wrote, read back through the API.
+    meta = dict(conn.execute("SELECT key, value FROM meta WHERE key LIKE 'reopened_%'").fetchall())
+    check("each reappearance is counted once in meta", meta.get("reopened_count") == "2", str(meta))
+    job_filters.register_functions(conn)
+    handler.get_connection = lambda: conn
+    handler._description_from_s3 = lambda job_id: None
+    health = handler.route_health()["reappeared"]
+    check("health says the column exists", health["column"] is True, str(health))
+    check("health reports the count and the latest job", health["recorded"] == 2 and health["last_job_id"], str(health))
+    job = handler.route_job_detail(health["last_job_id"])
+    check("that job, read through the API, carries the same time",
+          job and job["reopened_at"] == health["last_at"] == rows(conn)["1"]["reopened_at"], f"{job and job.get('reopened_at')} vs {health}")
     conn.close()
+
+# A database the loader has not migrated yet: health must say so, not guess.
+import sqlite3  # noqa: E402
+bare = sqlite3.connect(":memory:")
+bare.row_factory = sqlite3.Row
+bare.executescript("""CREATE TABLE jobs (id TEXT, closed_at TEXT); CREATE TABLE companies (domain TEXT, ats TEXT, last_checked TEXT);
+                      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);""")
+handler.get_connection = lambda: bare
+health = handler.route_health()["reappeared"]
+check("before the migration, health reports no column and nothing recorded",
+      health == {"column": False, "recorded": 0, "last_at": None, "last_job_id": None}, str(health))
 
 print()
 if failures:

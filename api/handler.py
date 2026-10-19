@@ -1191,6 +1191,14 @@ def route_health() -> dict:
     # much more there is. The full list is in the loader's own log,
     # which is where somebody debugging this actually reads it.
     clustering_warnings = all_warnings[:HEALTH_WARNING_SAMPLE]
+    # The proof that reopened_at works in production, which a null in a
+    # job cannot give: whether the live table has the column, and, from
+    # the loader's meta notes (note_reopened), how many reappearances it
+    # has written and the latest job and time. Reading that job back from
+    # /api/jobs/{id} closes the round trip.
+    reopened_meta = dict(conn.execute(
+        "SELECT key, value FROM meta WHERE key IN ('reopened_count', 'reopened_last_at', 'reopened_last_id')"
+    ).fetchall())
     return {
         "ok": True,
         "db_reachable": True,
@@ -1204,6 +1212,12 @@ def route_health() -> dict:
         "minutes_since_check": minutes_since_check,
         "timestamp_clustering_warnings": clustering_warnings,
         "timestamp_clustering_warning_count": len(all_warnings),
+        "reappeared": {
+            "column": _reopened_select(conn) == "reopened_at",
+            "recorded": int(reopened_meta.get("reopened_count") or 0),
+            "last_at": reopened_meta.get("reopened_last_at"),
+            "last_job_id": reopened_meta.get("reopened_last_id"),
+        },
     }
 
 
