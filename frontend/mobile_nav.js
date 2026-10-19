@@ -39,7 +39,8 @@
     chart: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 13.5h12M4 13V8M7.3 13V4.5M10.6 13V9.5M13.9 13V6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     bell: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 14a1.5 1.5 0 0 0 3 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
     chat: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2.5 3h11v8h-6l-3 2.5V11h-2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
-    code: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    building: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2.5 14V2.5h7V14M9.5 6h4v8M1.5 14h13M5 5h2M5 8h2M5 11h2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    book: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2.5 3.5c1.8-.9 3.8-.9 5.5.4 1.7-1.3 3.7-1.3 5.5-.4v9.5c-1.8-.9-3.8-.9-5.5.4-1.7-1.3-3.7-1.3-5.5-.4zM8 3.9v9.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
     board: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 6.5h12" stroke="currentColor" stroke-width="1.5"/></svg>',
     github: '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>',
     sun: '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9L13 13M13 3l-1.1 1.1M4.1 11.9L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
@@ -99,14 +100,16 @@
     } else {
       rows.push(`<button type="button" class="hero-nav-item hero-nav-signin" data-act="signin">${icons.person}Sign in</button>`);
     }
+    // The desktop header's menus, in its order: Jobs, Companies, Docs.
     if (!onBoard()) rows.push(`<a class="hero-nav-item" href="/board">${icons.board}Jobs</a>`);
+    if (location.pathname !== "/companies") rows.push(`<a class="hero-nav-item" href="/companies">${icons.building}Companies</a>`);
+    rows.push(`<a class="hero-nav-item" href="/docs">${icons.book}Docs</a>`);
     if (who) {
       rows.push(`<a class="hero-nav-item" href="/account">${icons.person}My profile</a>`);
       rows.push(`<a class="hero-nav-item" href="/board?starred=1">${icons.bookmark}Saved jobs</a>`);
       rows.push(`<a class="hero-nav-item" href="/account#alerts">${icons.bell}Alerts</a>`);
       rows.push(`<a class="hero-nav-item" href="/stats">${icons.chart}Statistics</a>`);
     }
-    rows.push(`<a class="hero-nav-item" href="/docs/api">${icons.code}API reference</a>`);
     rows.push(`<a class="hero-nav-item" href="/contact">${icons.chat}Contact</a>`);
     rows.push(`<a class="hero-nav-item" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">${icons.github}GitHub</a>`);
     rows.push(`<button type="button" class="hero-nav-item" data-act="theme">${isDark() ? icons.sun : icons.moon}${isDark() ? "Light mode" : "Dark mode"}</button>`);

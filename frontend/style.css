@@ -4724,6 +4724,13 @@ a.hero-account-btn { text-decoration: none; }
      no tab bar, so the menu is its only way around on a phone. */
   .home .hero-nav-toggle { display: inline-flex !important; color: var(--h-text); }
   .home .hero-nav-panel { display: flex !important; }
+  /* The menu in the homepage's own type and tokens, not the board's
+     display face and heavy ink rule. */
+  .home .hero-nav-panel { font: 400 17px/1.2 "Geist", var(--font); }
+  .home .hero-nav-list { background: var(--h-bg); border-bottom: 1px solid var(--h-line); }
+  .home .hero-nav-item { padding: 14px 0; border-bottom-color: var(--h-line); color: var(--h-text); }
+  .home .hero-nav-item:active { color: var(--h-link-hover); }
+  .home .hero-nav-item svg { width: 18px; height: 18px; color: var(--h-muted); }
   .home-brand { order: -1; }
   .home-section { padding-bottom: 80px; }
   .home-h2 { font-size: 32px; }
