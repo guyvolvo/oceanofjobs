@@ -75,9 +75,8 @@ const INSTRUCTIONS =
   "when the place matters. " +
   "Each job carries a lifetime: how long it has been listed and whether it is still open. Lead " +
   "with it when it matters, for example a role listed for months. " + LIFETIME_NOTE + " " +
-  "Search results are candidates, not answers. Before recommending a job or judging fit " +
-  "(seniority, required skills, where it can be done from), read it with get_job: a title is not " +
-  "enough. When you search several phrasings, merge the results by id. Answer with a short " +
+  "Search results are candidates, not answers: search_jobs says how to search in few calls, " +
+  "and a job is judged on its description from get_job, not its title. Answer with a short " +
   "ranked list, each entry giving title, company, location and the reason it fits, then url (the " +
   "Ocean of Jobs page) and apply_url (the employer's page) on their own lines, never inside a " +
   "table cell. Results are capped at 25 per call and offset 200; for " +
@@ -128,11 +127,23 @@ const TOOLS = [
     title: "Search jobs",
     description:
       "Search open jobs on Ocean of Jobs. Give at least one of query, company, city or country " +
-      "(IL for Israel; most listings are in the US). Put skills in query, e.g. \"rust backend\". " +
-      "Returns up to 25 jobs per call, best match first when there is a query, newest first " +
-      "otherwise, with the total number of matches. Every job includes its lifetime (days listed, " +
-      "first and last seen) and two links: url, the Ocean of Jobs page, to show first, and " +
-      "apply_url, the employer's page. Read promising results with get_job before judging fit.",
+      "(IL for Israel; most listings are in the US). Returns up to 25 jobs per call, best match " +
+      "first when there is a query, newest first otherwise, with the total number of matches. " +
+      "Every job includes its lifetime (days listed, first and last seen) and two links: url, the " +
+      "Ocean of Jobs page, to show first, and apply_url, the employer's page.\n\n" +
+      "How to search well:\n" +
+      "- Put one or two core title or skill words in query, such as \"backend\", \"python\" or " +
+      "\"devops\", and use the filters for place, seniority and dates. Every word in query must " +
+      "match, so a long description of the person returns little or nothing.\n" +
+      "- Search once. If that gives relevant candidates, do not search again for synonyms. If it " +
+      "gives nothing useful, change or broaden query once, keeping the same filters.\n" +
+      "- Across searches, treat the same id or the same apply_url as one job.\n" +
+      "- Open only the strongest few candidates with get_job, and read their descriptions for " +
+      "seniority, required skills and where the job can be done from before ranking them.\n" +
+      "- Give the number of recommendations asked for when enough jobs fit, and say so when " +
+      "fewer do.\n" +
+      "- Never call a listing reposted because of its age. Use lifetime.reappeared_at, and say " +
+      "when the tracked history is too short to tell.",
     inputSchema: {
       type: "object",
       properties: {
