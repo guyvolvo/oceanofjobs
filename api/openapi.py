@@ -139,9 +139,16 @@ JOB = {
         "posted_at": {"type": ["string", "null"], "format": "date-time"},
         "first_seen": {"type": "string", "format": "date-time",
                        "description": "When this project first saw the listing."},
-        "last_seen": {"type": "string", "format": "date-time"},
+        "last_seen": {"type": "string", "format": "date-time",
+                      "description": "The last read of the employer's board that wrote this listing. A board "
+                                     "that answers unchanged was still checked, so this can lag behind."},
         "closed_at": {"type": ["string", "null"], "format": "date-time",
                       "description": "Set once the listing left the employer's own board."},
+        "reopened_at": {"type": ["string", "null"], "format": "date-time",
+                        "description": "When this same listing (the same ATS id) last came back after being "
+                                       "gone from the employer's board for at least two days. Null means no "
+                                       "such return has been seen; recorded since 2026-10-19. A new posting "
+                                       "for the same role is a new listing, not a return."},
         "confidence": {"type": "string", "enum": ["verified", "best_effort"]},
         "skills": {"type": "string", "description": "Comma-separated, tagged from the description."},
         "salary_text": {"type": ["string", "null"]},

@@ -262,6 +262,15 @@ _NEW_COLUMNS = {
     # Measured before it existed: department=Security was a 33 second
     # query on 846k rows, a regex in Python for every one of them.
     "category": "TEXT",
+    # When this listing, the same ATS id, last came back after being gone
+    # from the employer's board for at least two days. NULL: listed
+    # without such a gap since first_seen, as far as our reads saw, or
+    # since 2026-10-19, when this started being recorded. The two days
+    # keep out a read that closed a board's listings by mistake and the
+    # next one that brought them back. A new id for the same role is a
+    # new listing, never a reappearance: nothing here guesses from titles
+    # or from an old first_seen.
+    "reopened_at": "TEXT",
 }
 
 
@@ -975,6 +984,12 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
             seniority = excluded.seniority,
             workplace_type = excluded.workplace_type,
             last_seen = excluded.last_seen,
+            -- closed_at here is the row's value before this update (SQLite
+            -- reads every SET expression against the old row), so this asks
+            -- whether the listing was gone, and for how long.
+            reopened_at = CASE
+                WHEN closed_at IS NOT NULL AND julianday(excluded.last_seen) - julianday(closed_at) >= 2
+                THEN excluded.last_seen ELSE reopened_at END,
             closed_at = NULL,
             -- raw_json is no longer written; see the NULL bound for it
             -- below. Left in the statement so the column keeps existing

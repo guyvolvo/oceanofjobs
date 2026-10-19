@@ -254,6 +254,7 @@ test("lifetime is computed, prominent, and the permalink comes before the ATS li
   assert.equal(open.lifetime.status, "open");
   assert.equal(open.lifetime.days_listed, 10);
   assert.match(open.lifetime.summary, /^Open: first seen 2026-10-09 \(10 days listed\), last seen 2026-10-18\.$/);
+  assert.equal(open.lifetime.reappeared_at, null);
   assert.equal(closed.lifetime.status, "closed");
   assert.equal(closed.lifetime.days_listed, 10, "a closed job counts to its closing, not to today");
   assert.equal(open.url, "https://oceanofjobs.com/job/67ff4ef965d91ef7?ref=mcp");
@@ -262,6 +263,18 @@ test("lifetime is computed, prominent, and the permalink comes before the ATS li
   assert.equal(out.more, null);
   const text = (await call("search_jobs", { query: "backend" })).result.content[0].text;
   assert.ok(text.indexOf('"url"') < text.indexOf('"apply_url"'));
+});
+
+test("a listing that came back says so, and only from reopened_at", async () => {
+  route("/api/jobs?", 200, { jobs: [
+    job({ id: "r1", reopened_at: "2026-10-15T00:00:00+00:00", first_seen: "2026-06-01T00:00:00+00:00" }),
+    job({ id: "o1", url: "https://x/old", first_seen: "2026-01-01T00:00:00+00:00" }),
+  ], total: 2 });
+  const [back, old] = (await call("search_jobs", { country: "IL" })).out.jobs;
+  assert.equal(back.lifetime.reappeared_at, "2026-10-15T00:00:00+00:00");
+  assert.match(back.lifetime.summary, /Came back on 2026-10-15 after being off the board\.$/);
+  assert.equal(old.lifetime.reappeared_at, null, "an old first_seen alone is not a return");
+  assert.doesNotMatch(old.lifetime.summary, /Came back/);
 });
 
 test("paging hints stop at the offset cap", async () => {

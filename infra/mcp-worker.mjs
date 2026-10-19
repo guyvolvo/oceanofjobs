@@ -60,8 +60,12 @@ const LIFETIME_NOTE =
   "tracking system. last_seen is the last time a read of that board returned the listing with " +
   "any change; a board that answers 'unchanged' was still checked, so the listing may have been " +
   "confirmed more recently than last_seen says. closed_at is when a successful read of the board " +
-  "no longer included it; null means it was still listed at the last successful read. posted_at " +
-  "is the employer's own date where the ATS gives one, and can be missing.";
+  "no longer included it; null means it was still listed at the last successful read. " +
+  "reappeared_at is when this same listing (the same ATS id) last came back after being gone " +
+  "from the board for at least two days; null means no such return was seen (recorded since " +
+  "2026-10-19). Do not call a listing reposted from an old first_seen alone, and a new posting " +
+  "for the same role is a new listing, not a return. posted_at is the employer's own date where " +
+  "the ATS gives one, and can be missing.";
 
 const INSTRUCTIONS =
   "Ocean of Jobs lists open jobs read directly from each employer's own applicant tracking " +
@@ -93,9 +97,10 @@ const JOB_PROPS = {
       first_seen: { type: ["string", "null"] },
       last_seen: { type: ["string", "null"] },
       closed_at: { type: ["string", "null"] },
+      reappeared_at: { type: ["string", "null"] },
       posted_at: { type: ["string", "null"] },
     },
-    required: ["summary", "status", "days_listed", "first_seen", "last_seen", "closed_at", "posted_at"],
+    required: ["summary", "status", "days_listed", "first_seen", "last_seen", "closed_at", "reappeared_at", "posted_at"],
   },
   url: { type: "string", description: "The listing's page on Ocean of Jobs. Show this first." },
   apply_url: { type: ["string", "null"], description: "The employer's own application page." },
@@ -320,9 +325,10 @@ function lifetime(job, now = Date.now()) {
   const end = job.closed_at ? Date.parse(job.closed_at) : now;
   const days = Number.isNaN(first) ? null : Math.max(0, Math.floor((end - first) / DAY_MS));
   const span = days === null ? "" : ` (${days} day${days === 1 ? "" : "s"} listed)`;
-  const summary = job.closed_at
+  const back = job.reopened_at ? ` Came back on ${day(job.reopened_at)} after being off the board.` : "";
+  const summary = (job.closed_at
     ? `Closed on ${day(job.closed_at)}, first seen ${day(job.first_seen)}${span}.`
-    : `Open: first seen ${day(job.first_seen)}${span}, last seen ${day(job.last_seen)}.`;
+    : `Open: first seen ${day(job.first_seen)}${span}, last seen ${day(job.last_seen)}.`) + back;
   return {
     summary,
     status: job.closed_at ? "closed" : "open",
@@ -330,6 +336,7 @@ function lifetime(job, now = Date.now()) {
     first_seen: job.first_seen ?? null,
     last_seen: job.last_seen ?? null,
     closed_at: job.closed_at ?? null,
+    reappeared_at: job.reopened_at ?? null,
     posted_at: job.posted_at ?? null,
   };
 }

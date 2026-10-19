@@ -100,6 +100,18 @@ GREENHOUSE_APPLY_URL_SQL = """CASE
     ELSE jobs.url END AS url"""
 
 
+def _reopened_select(conn) -> str:
+    """reopened_at once the loader has added it (load_to_sqlite._NEW_COLUMNS),
+    NULL until then. Code ships before the next apply migrates the file,
+    and NULL already means what the column says before it has seen a
+    listing come back."""
+    try:
+        has = any(r[1] == "reopened_at" for r in conn.execute("PRAGMA table_info(jobs)"))
+    except Exception:
+        has = False
+    return "reopened_at" if has else "NULL AS reopened_at"
+
+
 def _apply_url_select(conn) -> str:
     # Same deploy-skew guard as company_name and logo_url: a snapshot or a
     # test database without the companies columns gets the stored url.
@@ -896,7 +908,7 @@ def _route_jobs(conn, params: dict) -> dict:
         SELECT id, company_domain, ats, title, location, department,
                {category_sql(conn)} AS category, seniority, workplace_type,
                {_apply_url_select(conn)},
-               posted_at, confidence, first_seen, last_seen, closed_at,
+               posted_at, confidence, first_seen, last_seen, closed_at, {_reopened_select(conn)},
                skills, salary_text, salary_is_estimate, {salary_source_select(conn)},
                -- The company's own name as its ATS reports it.
                -- company_domain is often a hostname discovery guessed and
@@ -1010,7 +1022,7 @@ def route_job_detail(job_id: str) -> dict | None:
         SELECT id, company_domain, ats, external_id, title, location, department,
                {category_sql(conn)} AS category, seniority,
                workplace_type, {_apply_url_select(conn)},
-               posted_at, description, confidence, first_seen, last_seen, closed_at,
+               posted_at, description, confidence, first_seen, last_seen, closed_at, {_reopened_select(conn)},
                {company_name_select},
                {logo_select}
         FROM jobs WHERE id = ?
