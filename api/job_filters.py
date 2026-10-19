@@ -261,12 +261,16 @@ class SnapshotCaps:
     """
 
     __slots__ = ("fts", "fts_full", "category_col", "posted_at_utc", "board_indexes", "salary_ils", "place_index",
-                 "open_index_all")
+                 "open_index_all", "verified_index")
 
     def __init__(self, fts: bool = False, fts_full: bool = False,
                  category_col: str | None = None, posted_at_utc: bool = False,
                  board_indexes: bool = False, salary_ils: bool = False,
-                 place_index: bool = False, open_index_all: bool = False):
+                 place_index: bool = False, open_index_all: bool = False, verified_index: bool = False):
+        # idx_jobs_open_verified_posted exists, so a verified-only count can
+        # name it. Checked by name, not by board_indexes: the loader builds
+        # it on its next apply, which can come after the API ships.
+        self.verified_index = verified_index
         # The board indexes cover open rows of any confidence (meta
         # board_indexes = 3), so confidence=all can name one too.
         self.open_index_all = open_index_all
@@ -373,14 +377,15 @@ def _read_caps(conn) -> SnapshotCaps:
     # was, just answering more questions. The index's own CREATE text
     # says which columns it carries.
     try:
-        fts_sql, category, fts_complete, posted_at_utc, board_indexes, salary_ils, split = conn.execute(
+        fts_sql, category, fts_complete, posted_at_utc, board_indexes, salary_ils, split, verified_index = conn.execute(
             "SELECT (SELECT sql FROM main.sqlite_master WHERE type = 'table' AND name = 'jobs_fts'),"
             " (SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'category'),"
             " (SELECT value FROM main.meta WHERE key = 'fts_complete'),"
             " (SELECT value FROM main.meta WHERE key = 'posted_at_utc'),"
             " (SELECT value FROM main.meta WHERE key = 'board_indexes'),"
             " (SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'salary_min_ils'),"
-            " (SELECT COUNT(*) FROM pragma_database_list WHERE name = 'fts')"
+            " (SELECT COUNT(*) FROM pragma_database_list WHERE name = 'fts'),"
+            " (SELECT COUNT(*) FROM main.sqlite_master WHERE type = 'index' AND name = 'idx_jobs_open_verified_posted')"
         ).fetchone()
     except Exception:
         return SnapshotCaps()
@@ -408,6 +413,7 @@ def _read_caps(conn) -> SnapshotCaps:
         board_indexes=board_indexes in ("1", "2", "3"),
         salary_ils=bool(salary_ils),
         place_index=board_indexes in ("2", "3"),
+        verified_index=bool(verified_index),
         open_index_all=board_indexes == "3",
     )
 
@@ -464,6 +470,9 @@ def count_index_hint(params: dict, caps: "SnapshotCaps") -> str:
         return ""
     if bool_param(params, "include_closed"):
         return ""
+    # The same test build_jobs_where uses to add confidence = 'verified'.
+    if params.get("confidence", "verified") == "verified" and caps.verified_index:
+        return " INDEXED BY idx_jobs_open_verified_posted"
     return " INDEXED BY idx_jobs_open_posted"
 
 
@@ -952,6 +961,16 @@ def build_jobs_where(params: dict, has_fts=False,
         rowset = skill_rowset.get()
         if rowset:
             where.append(f"jobs.rowid IN (SELECT rid FROM temp.{rowset})")
+        elif not bool_param(params, "include_closed"):
+            # The matching rows found by a scan of idx_jobs_open_skills,
+            # which covers this subquery, and only those rows read whole.
+            # Left as a plain test, the page query walked
+            # idx_jobs_open_confidence and read the full row of every open
+            # verified job to look at its skills: 1.19M rows, past the
+            # box's 25s guard for Best matches (2026-10-19). Same rows
+            # either way; where the index is missing this is the same scan.
+            where.append("jobs.rowid IN (SELECT rowid FROM jobs WHERE closed_at IS NULL AND skill_hits(skills, ?) > 0)")
+            args.append(skill_key(wanted))
         else:
             where.append("skill_hits(skills, ?) > 0")
             args.append(skill_key(wanted))

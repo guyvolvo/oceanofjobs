@@ -1317,6 +1317,26 @@ BOX_INDEXES = (
     # tests; with skills alone it kept scanning the table.
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_skills ON jobs(skills, closed_at, confidence, posted_at)"
     " WHERE closed_at IS NULL",
+    # The count and page for a request that keeps confidence = 'verified',
+    # the REST API's default and what the MCP server sends. Since board
+    # indexes version 3, idx_jobs_open_posted covers open rows of every
+    # confidence and does not carry the column, so those requests read
+    # the whole row of every open job just to test it: 16.6s for
+    # country=US through the MCP, and the unfiltered count past the 25s
+    # guard (2026-10-19). On a copy of the snapshot this took the
+    # unfiltered count from 1.68s to 0.08s and US from 1.03s to 0.23s,
+    # same totals, no table reads.
+    #
+    # Verified-only by its WHERE, not by a confidence column, on purpose.
+    # SQLite may use an index for any query it fits, and a version that
+    # merely carried confidence was picked for requests that never asked
+    # for it: department=Security went from 0.10s to 1.75s, and
+    # ats=greenhouse with confidence=all from 0.47s to 1.67s (table rows
+    # read in posted_at order instead of rowid order). With the predicate,
+    # only a query that says confidence = 'verified' can use it, and of 30
+    # board requests compared none got slower (count_index_hint names it).
+    "CREATE INDEX IF NOT EXISTS idx_jobs_open_verified_posted ON jobs(posted_at, id, country, city)"
+    " WHERE closed_at IS NULL AND confidence = 'verified'",
     # The loader's own to-do lists. Each of these steps asked "which rows
     # still need X" with a scan of the whole table, every run, to find a
     # few dozen rows: roles 222s, categories 107s, meta 86s, and the
