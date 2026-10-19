@@ -1,22 +1,38 @@
 ---
 title: REST API
-description: Public JSON over HTTPS. No key, no sign-up.
+description: Access Ocean of Jobs data through a public JSON API. No API key or account is needed for public endpoints.
 ---
 
-The base URL is `https://oceanofjobs.com/api`. Public routes need no key. Routes under `/api/me` work on your own account and need a sign-in token.
+Base URL: `https://oceanofjobs.com/api`
 
-Fetch the 10 newest open jobs in the United States:
+For example, to fetch the 10 newest open jobs in the United States:
 
 ```bash
 curl "https://oceanofjobs.com/api/jobs?country=US&limit=10"
 ```
 
-Every endpoint is listed in the reference, with a "try it" panel that calls the live API from your browser. The same schema is at [/api/openapi.json](https://oceanofjobs.com/api/openapi.json) for code generators.
+Endpoints under `/api/me` are different: they access your own account and require a sign-in token.
+
+## API reference
+
+The [API reference](/api/reference/jobs/get-jobs) documents each endpoint and includes a panel for trying requests against the live API directly in your browser.
+
+For code generation and client integrations, you can also use the [OpenAPI specification](https://oceanofjobs.com/api/openapi.json).
 
 ## Rate limits and caching
 
-- 20 requests a second across all users, with bursts up to 40. Over that you get HTTP 429.
-- To export everything, page through `/api/jobs?limit=500` one request at a time, not in parallel.
-- Most GET routes are cached for 60 seconds in the browser and 180 at the edge. `/api/pipeline-status` and `/api/geo` are never cached.
-- GET and OPTIONS are allowed from any origin.
-- Errors are JSON with an `error` key.
+- Rate limit: 20 requests per second across all users, with bursts of up to 40. Exceeding the limit returns HTTP `429`.
+- Bulk exports: To retrieve a large number of jobs, paginate through `/api/jobs?limit=500` sequentially rather than sending parallel requests.
+- Caching: Most GET endpoints are cached for 60 seconds in the browser and 180 seconds at the edge. `/api/pipeline-status` and `/api/geo` are not cached.
+- Cross-origin requests: GET and OPTIONS requests are allowed from any origin.
+- Errors: Error responses return JSON with an `error` field.
+
+## Also available
+
+<Cards>
+  <Card title="MCP Server" href="/mcp">
+    Connect an AI assistant to Ocean of Jobs to search listings, read job descriptions, and look up companies.
+  </Card>
+</Cards>
+
+[Browse the API reference >](/api/reference/jobs/get-jobs)

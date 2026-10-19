@@ -92,7 +92,6 @@ jobs:
             --exclude "explore.json" \
             --exclude "explore/*" \
             --exclude "media/*" \
-            --exclude "og.jpg" \
             --exclude "docs/*" \
             --cache-control "no-cache"
 
