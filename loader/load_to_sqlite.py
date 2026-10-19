@@ -547,8 +547,11 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
         # showing a company nobody could look up. The guess-shaped one
         # yields whenever it meets a real name, whichever came first.
         if ats and token:
+            # COLLATE NOCASE: wix.com polled SmartRecruiters as "Wix2" and
+            # wix2.com as "wix2", the same board, and a case-sensitive match
+            # kept both, so every Wix role showed twice (2026-10-19).
             other = conn.execute(
-                "SELECT domain FROM companies WHERE ats = ? AND token = ? AND domain != ?",
+                "SELECT domain FROM companies WHERE ats = ? AND token = ? COLLATE NOCASE AND domain != ?",
                 (ats, token, domain),
             ).fetchone()
             if other:

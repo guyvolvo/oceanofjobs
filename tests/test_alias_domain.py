@@ -121,7 +121,16 @@ row = open_jobs(conn, "deloitte.com")[0]
 check("a workday posting keeps the frozen posted_at it had under the old domain",
       row["first_seen"] == ago(15) and row["posted_at"] == ago(15), repr(dict(row)))
 
-# 5. The shape test itself.
+# 5. The same board under two spellings of its token. SmartRecruiters
+# answers "Wix2" and "wix2" alike, and the loader kept both as two companies.
+conn = fresh_db()
+resolved_company(conn, "wix2.com", "smartrecruiters", "wix2", [("x1", "UX Designer", ago(3), ago(3))])
+load(conn, [record("wix.com", "smartrecruiters", "Wix2", [("x1", "UX Designer", ago(0))])])
+check("a token differing only in case is the same board",
+      company(conn, "wix2.com")["ats"] is None and open_jobs(conn, "wix2.com") == []
+      and len(open_jobs(conn, "wix.com")) == 1)
+
+# 6. The shape test itself.
 check("token-shaped domains, and only those",
       all(lts._is_token_domain(d, t) for d, t in (("wix2.com", "Wix2"), ("tenableinc.com", "tenableinc"), ("Irregular.com", "Irregular"), ("tulip.co", "tulip"), ("deloitte6.com", "deloitte6:wd1:External")))
       and not any(lts._is_token_domain(d, t) for d, t in (("tenable.com", "tenableinc"), ("ridewithvia.com", "via"), ("careers.riverside.com", "66.009:X"), ("exodigo.ai", "89.005:X"))))
