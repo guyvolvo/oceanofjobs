@@ -9,7 +9,15 @@ name: workers-quota
 on:
   schedule:
     - cron: "*/30 * * * *"
-  workflow_dispatch: {}
+  # alert_at, by hand only: a share of the allowance to alert at instead
+  # of 0.70. Set it below today's usage (e.g. 0.01) to see a real failed
+  # run, and the email that should come with it.
+  workflow_dispatch:
+    inputs:
+      alert_at:
+        description: "Alert threshold for a test run, e.g. 0.01 (empty = 0.70)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -23,3 +31,4 @@ jobs:
       - run: python3 scripts/workers_quota.py
         env:
           CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
+          WORKERS_ALERT_AT: ${{ inputs.alert_at }}

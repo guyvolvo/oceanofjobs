@@ -21,7 +21,9 @@ from datetime import datetime, timedelta, timezone
 
 ACCOUNT = "2f08a903f97b2824af964b0d4a85a1ed"
 DAILY_ALLOWANCE = 100_000
-ALERT_AT = 0.70
+# WORKERS_ALERT_AT overrides it for a controlled test of the alert, from
+# the workflow's alert_at input: a low value makes today's real number fail.
+ALERT_AT = float(os.environ.get("WORKERS_ALERT_AT") or 0.70)
 QUERY = """query($a: String!, $s: Time!, $e: Time!) { viewer { accounts(filter: {accountTag: $a}) {
   workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: $s, datetime_lt: $e}) {
     sum { requests errors } dimensions { scriptName } } } } }"""
