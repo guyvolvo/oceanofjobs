@@ -4461,7 +4461,7 @@ a.hero-account-btn { text-decoration: none; }
 /* The install lines follow the page theme, unlike the window above. */
 /* Each pane hugs its content; the block keeps the tallest pane's room
    (Cursor, VS Code) so switching tabs never moves what is below. */
-.mcp-install { width: 540px; min-height: 120px; margin-top: 64px; font: 400 12px/16px "Geist Mono", ui-monospace, Menlo, Consolas, monospace; }
+.mcp-install { width: 540px; min-height: 124px; margin-top: 64px; font: 400 12px/16px "Geist Mono", ui-monospace, Menlo, Consolas, monospace; }
 /* Bare icons, centred over the pane; on a phone the row scrolls sideways. */
 .mcp-tabbar { display: flex; align-items: center; justify-content: safe center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
 .mcp-tabs { flex: none; display: flex; gap: 2px; }
@@ -4471,7 +4471,7 @@ a.hero-account-btn { text-decoration: none; }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 32px;
+  height: 36px;
   padding: 0 9px;
   border: 0;
   border-radius: 7px;
@@ -4481,9 +4481,9 @@ a.hero-account-btn { text-decoration: none; }
   cursor: pointer;
   transition: color 150ms ease, background-color 150ms ease;
 }
-.mcp-tab svg { flex: none; fill: currentColor; }
+.mcp-tab svg { flex: none; width: 20px; height: 20px; fill: currentColor; }
 /* A logo too detailed to inline, drawn in the tab's ink through a mask. */
-.mcp-mask { flex: none; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
+.mcp-mask { flex: none; width: 20px; height: 20px; background: currentColor; -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
 .mcp-tab:hover,
 .home .mcp-more:hover { color: var(--h-text); }
 .home .mcp-more { color: var(--h-muted); } /* beats .home a */
@@ -4553,8 +4553,9 @@ a.hero-account-btn { text-decoration: none; }
   .mcp-rule { margin: 0 -12px 7px; }
 }
 @media (max-width: 640px) {
-  .mcp-install { min-height: 140px; } /* the Cursor and VS Code notes wrap to two lines */
-  .mcp-tab { padding: 0 7px; }
+  .mcp-install { min-height: 144px; } /* the Cursor and VS Code notes wrap to two lines */
+  .mcp-tab { padding: 0 6px; }
+  .mcp-tab svg, .mcp-mask { width: 18px; height: 18px; } /* nine tabs and More fit a 390px phone */
   .home-search { height: 54px; padding-left: 18px; }
   .home-search-input { font-size: 15px; }
   .home-search-go { width: 60px; height: 42px; }
