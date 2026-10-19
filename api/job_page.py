@@ -38,7 +38,7 @@ from page_chrome import (FOOT, SITE, ago, ago_short, ats_is_site, ats_name, fmt_
 from titles import split_title
 
 EXPIRED_KEEP_DAYS = 30
-CARD = f"{SITE}/og.jpg?v=2"  # bump v when og.jpg changes: link previews cache by URL
+CARD = f"{SITE}/og.jpg?v=3"  # bump v when og.jpg changes: link previews cache by URL
 
 SENIORITY_LABELS = {
     "intern": "Internship", "junior": "Junior", "mid": "Mid-level", "senior": "Senior", "staff": "Staff",

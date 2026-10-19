@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timezone
 
 SITE = "https://oceanofjobs.com"
-CARD = f"{SITE}/og.jpg?v=2"  # bump v when og.jpg changes: link previews cache by URL
+CARD = f"{SITE}/og.jpg?v=3"  # bump v when og.jpg changes: link previews cache by URL
 
 # The hiring system behind a listing, said the way its vendor says it.
 ATS_NAMES = {
