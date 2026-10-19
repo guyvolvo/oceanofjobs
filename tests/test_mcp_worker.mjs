@@ -247,7 +247,7 @@ test("the origin limiter stops misses but cached answers still serve", async () 
 });
 
 test("lifetime is computed, prominent, and the permalink comes before the ATS link", async () => {
-  route("/api/jobs?", 200, { jobs: [job(), job({ id: "c1", closed_at: "2026-10-12T00:00:00+00:00", first_seen: "2026-10-02T00:00:00+00:00" })], total: 2 });
+  route("/api/jobs?", 200, { jobs: [job(), job({ id: "c1", url: "https://boards.greenhouse.io/acme/jobs/2", closed_at: "2026-10-12T00:00:00+00:00", first_seen: "2026-10-02T00:00:00+00:00" })], total: 2 });
   const { out } = await call("search_jobs", { query: "backend" });
   const [open, closed] = out.jobs;
   assert.deepEqual(Object.keys(open).slice(0, 7), ["id", "title", "company", "company_domain", "lifetime", "url", "apply_url"]);
@@ -327,6 +327,22 @@ test("structured output carries every required field of its outputSchema", async
   }
 });
 
+test("rows that are one posting fold into one result, and paging still follows the API", async () => {
+  const ats = "https://jobs.example.com/acme/1";
+  route("/api/jobs?", 200, { jobs: [
+    job({ id: "a", url: ats, location: "Israel: Tel Aviv" }),
+    job({ id: "b", url: ats, location: "Israel: Jerusalem" }),
+    job({ id: "c", url: ats.toUpperCase().replace("HTTPS://", "https://"), location: "Israel: Tel Aviv" }),
+    job({ id: "d", url: "https://jobs.example.com/acme/2" }),
+  ], total: 40 });
+  const { out } = await call("search_jobs", { country: "IL", limit: 4 });
+  assert.deepEqual(out.jobs.map((j) => j.id), ["a", "d"]);
+  assert.deepEqual(out.jobs[0].other_locations, ["Israel: Jerusalem"]);
+  assert.deepEqual(out.jobs[1].other_locations, []);
+  assert.equal(out.duplicates_folded, 2);
+  assert.match(out.more, /offset 4\./, "the next page starts after the four rows the API sent, not the two kept");
+});
+
 test("analytics rows hold the method, tool and outcome, never the arguments", async () => {
   route("/api/jobs?", 200, { jobs: [], total: 0 });
   await call("search_jobs", { query: "secret project" });
@@ -334,6 +350,9 @@ test("analytics rows hold the method, tool and outcome, never the arguments", as
   assert.deepEqual(p.blobs.slice(0, 3), ["tools/call", "search_jobs", "ok"]);
   assert.ok(!JSON.stringify(p).includes("secret"));
   assert.equal(p.doubles[2], 1, "one miss");
+  assert.deepEqual(p.doubles.slice(4), [0, 0], "a search records its matches and jobs returned");
+  await call("get_job", { id: "zzzz" });
+  assert.deepEqual(points.at(-1).doubles.slice(4), [-1, -1], "other calls record -1");
 });
 
 test.after(() => { Date.now = realNow; });

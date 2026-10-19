@@ -70,8 +70,12 @@ const INSTRUCTIONS =
   "when the place matters. " +
   "Each job carries a lifetime: how long it has been listed and whether it is still open. Lead " +
   "with it when it matters, for example a role listed for months. " + LIFETIME_NOTE + " " +
-  "When you show a job, give its url (the Ocean of Jobs page) first and apply_url (the " +
-  "employer's application page) second. Results are capped at 25 per call and offset 200; for " +
+  "Search results are candidates, not answers. Before recommending a job or judging fit " +
+  "(seniority, required skills, where it can be done from), read it with get_job: a title is not " +
+  "enough. When you search several phrasings, merge the results by id. Answer with a short " +
+  "ranked list, each entry giving title, company, location and the reason it fits, then url (the " +
+  "Ocean of Jobs page) and apply_url (the employer's page) on their own lines, never inside a " +
+  "table cell. Results are capped at 25 per call and offset 200; for " +
   "bulk data use the public REST API documented at " + SITE + "/api/help.";
 
 const JOB_PROPS = {
@@ -103,8 +107,12 @@ const JOB_PROPS = {
 const JOB_REQUIRED = Object.keys(JOB_PROPS);
 const LISTED_JOB = {
   type: "object",
-  properties: { ...JOB_PROPS, salary: { type: ["string", "null"], description: "Monthly, in shekels, as listed or estimated." } },
-  required: [...JOB_REQUIRED, "salary"],
+  properties: {
+    ...JOB_PROPS,
+    other_locations: { type: "array", items: { type: "string" }, description: "Other places the same posting is listed for." },
+    salary: { type: ["string", "null"], description: "Monthly, in shekels, as listed or estimated." },
+  },
+  required: [...JOB_REQUIRED, "other_locations", "salary"],
 };
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
@@ -118,7 +126,7 @@ const TOOLS = [
       "Returns up to 25 jobs per call, best match first when there is a query, newest first " +
       "otherwise, with the total number of matches. Every job includes its lifetime (days listed, " +
       "first and last seen) and two links: url, the Ocean of Jobs page, to show first, and " +
-      "apply_url, the employer's page.",
+      "apply_url, the employer's page. Read promising results with get_job before judging fit.",
     inputSchema: {
       type: "object",
       properties: {
@@ -141,9 +149,10 @@ const TOOLS = [
         total: { type: "integer", description: "Every match, not only this page." },
         offset: { type: "integer" },
         jobs: { type: "array", items: LISTED_JOB },
+        duplicates_folded: { type: "integer", description: "Rows on this page that were the same posting as another, folded into it." },
         more: { type: ["string", "null"] },
       },
-      required: ["total", "offset", "jobs", "more"],
+      required: ["total", "offset", "jobs", "duplicates_folded", "more"],
     },
     annotations: { title: "Search jobs", ...READ_ONLY },
   },
@@ -343,7 +352,30 @@ function shapeJob(j, now) {
 
 function listedJob(j, now) {
   const salary = j.salary_text ? `${j.salary_text}${j.salary_is_estimate ? " (estimate)" : ""}` : null;
-  return { ...shapeJob(j, now), salary };
+  return { ...shapeJob(j, now), other_locations: [], salary };
+}
+
+// One posting can come back as several rows: a role open in two cities
+// is a row per city (Fullpath), and a board stored under two domains is
+// a row per domain until the loader demotes the twin (Wix, whose token
+// differed only in case). The employer's own URL is the same posting by
+// definition, so rows sharing it fold into the first, keeping the other
+// places. Within one page only; total and paging stay the API's.
+function listedJobs(rows, now) {
+  const out = [];
+  const byUrl = new Map();
+  for (const j of rows) {
+    const key = (j.url || "").toLowerCase();
+    const kept = key && byUrl.get(key);
+    if (kept) {
+      if (j.location && j.location !== kept.location && !kept.other_locations.includes(j.location)) kept.other_locations.push(j.location);
+      continue;
+    }
+    const shaped = listedJob(j, now);
+    if (key) byUrl.set(key, shaped);
+    out.push(shaped);
+  }
+  return out;
 }
 
 function str(args, name, max = 200) {
@@ -423,15 +455,18 @@ async function searchJobs(args, env, ctx, trace, now) {
     offset,
   };
   const { body } = await api("/api/jobs", params, env, ctx, trace);
-  const jobs = (body.jobs || []).map((j) => listedJob(j, now));
-  const next = offset + jobs.length;
+  const rows = body.jobs || [];
+  const jobs = listedJobs(rows, now);
+  trace.total = body.total;
+  trace.returned = jobs.length;
+  const next = offset + rows.length;
   let more = null;
   if (body.total > next) {
     more = next <= MAX_OFFSET
       ? `${body.total - next} more; call again with offset ${next}.`
       : `${body.total - next} more than this tool pages through; narrow the search or use the REST API at ${SITE}/api/help.`;
   }
-  return { total: body.total, offset, jobs, more };
+  return { total: body.total, offset, jobs, duplicates_folded: rows.length - jobs.length, more };
 }
 
 async function getJob(args, env, ctx, trace, now) {
@@ -472,7 +507,7 @@ async function getCompany(args, env, ctx, trace, now) {
     open_jobs: body.open_jobs ?? 0,
     new_jobs_7d: body.new_jobs_7d ?? 0,
     tracked_since: body.tracked_since ?? null,
-    newest_jobs: (recent.body.jobs || []).map((j) => listedJob(j, now)),
+    newest_jobs: listedJobs(recent.body.jobs || [], now),
     other_matches: others,
   };
 }
@@ -549,7 +584,7 @@ async function handle(request, env, ctx, trace) {
 export default {
   async fetch(request, env, ctx) {
     const started = Date.now();
-    const trace = { method: "", tool: "", client: "", outcome: "ok", hits: 0, misses: 0, limited: false };
+    const trace = { method: "", tool: "", client: "", outcome: "ok", hits: 0, misses: 0, limited: false, total: -1, returned: -1 };
     let response;
     try {
       response = await handle(request, env, ctx, trace);
@@ -559,13 +594,15 @@ export default {
       response = rpcError(null, -32603, "Internal error", 500);
     }
     response.headers.set("x-otj-cache", `hit=${trace.hits} miss=${trace.misses}`);
-    // One row per request for the adoption report (scripts/mcp_usage.py).
-    // Nothing about the person asking is kept: no address, no arguments.
+    // One row per request for the adoption report. Nothing about the
+    // person asking is kept: no address, no arguments. total and returned
+    // are a search's matches and the jobs it sent back, -1 for anything
+    // else, so zero-result and too-broad searches can be counted.
     if (env.MCP_EVENTS && trace.method) {
       env.MCP_EVENTS.writeDataPoint({
         indexes: [trace.tool || trace.method],
         blobs: [trace.method, trace.tool, trace.outcome, trace.client],
-        doubles: [Date.now() - started, trace.hits, trace.misses, response.status],
+        doubles: [Date.now() - started, trace.hits, trace.misses, response.status, trace.total, trace.returned],
       });
     }
     return response;
