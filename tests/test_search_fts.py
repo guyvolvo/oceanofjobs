@@ -46,14 +46,17 @@ ROWS = [
     ("react_dev", "React Developer", "Engineering", "build the web app"),
     ("a_reactor", "Reactor Operator Trainee", "Plant", "run the reactor safely"),
     ("react_desc", "Frontend Engineer", "Engineering", "our stack is react and typescript"),
+    ("cpp_dev", "C++ Developer", "Engineering", "low latency trading"),
+    ("csharp_dev", "C# Developer", "Engineering", "dotnet services"),
+    ("c_fw", "Embedded C Engineer", "Firmware", "bare metal c"),
 ]
 conn = sqlite3.connect(":memory:")
 conn.row_factory = sqlite3.Row
 conn.execute("""CREATE TABLE jobs (id TEXT PRIMARY KEY, title TEXT, company_domain TEXT, location TEXT,
-                department TEXT, closed_at TEXT, confidence TEXT, posted_at TEXT, first_seen TEXT)""")
+                department TEXT, closed_at TEXT, confidence TEXT, posted_at TEXT, first_seen TEXT, description TEXT)""")
 conn.execute("CREATE VIRTUAL TABLE jobs_fts USING fts5(title, company_domain, location, department, description, content='', contentless_delete=1)")
 for jid, title, dept, desc in ROWS:
-    cur = conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,NULL,'verified',NULL,'2026-10-01')",
+    cur = conn.execute("INSERT INTO jobs VALUES (?,?,?,?,?,NULL,'verified',NULL,'2026-10-01',NULL)",
                        (jid, title, "example.com", "Tel Aviv", dept))
     conn.execute("INSERT INTO jobs_fts(rowid, title, company_domain, location, department, description) VALUES (?,?,?,?,?,?)",
                  (cur.lastrowid, title, "example.com", "Tel Aviv", dept, desc))
@@ -123,10 +126,21 @@ check("exact title word > stem-only title > description only",
 got = run("reac")
 check("a half-typed word finds both titles", {"react_dev", "a_reactor"} <= set(got), got)
 
+# C++ and C# keep their substring test, but behind the index: FTS5 holds
+# them as "c", so the MATCH narrows first and a search never scans every
+# listing (25s per facet count live, 2026-10-19, and the board queued
+# behind it).
+check("c++ finds the C++ title only", run("c++") == ["cpp_dev"], run("c++"))
+check("c# finds the C# title only", run("c#") == ["csharp_dev"], run("c#"))
+check("c++ developer still needs both", run("c++ developer") == ["cpp_dev"], run("c++ developer"))
+check("c++ reads the index first", "MATCH" in J.build_jobs_where({"search": "c++"}, CAPS)[0])
+check("any-word mode does not let the bare c qualify",
+      sorted(run("c++ auditor", search_mode="any")) == ["cpp_dev", "soc2"], run("c++ auditor", search_mode="any"))
+
 # The facets' temp table (aggregates.search_rows) stands in for the MATCH
 # and must find exactly what the index finds, or the rail's counts would
 # describe a different list from the one beside them.
-for q in ("soc", "soc analyst tier 1", "security operations", "chip auditor"):
+for q in ("soc", "soc analyst tier 1", "security operations", "chip auditor", "c++", "c# developer"):
     params = {"search": q, **({"search_mode": "any"} if q == "chip auditor" else {})}
     plain = sorted(r["id"] for r in conn.execute(
         "SELECT id FROM jobs WHERE " + J.build_jobs_where(params, CAPS)[0], J.build_jobs_where(params, CAPS)[1]))

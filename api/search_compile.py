@@ -81,10 +81,20 @@ def _fts_in(expr_placeholder: str = "?") -> str:
 
 def match_expression(q: SearchQuery, near: int = SEARCH_NEAR_DISTANCE) -> str | None:
     """The whole query as one FTS5 MATCH over the five-column index, or
-    None when no group can go through FTS (all C++-style terms)."""
+    None when nothing in it can go through FTS."""
     groups = [g for g in q.groups if g.fts]
+    # C++ and C# still need a substring test (where_sql), but the index
+    # holds them as "c", which every row passing that test has in its
+    # title, department, company or location (the only columns the test
+    # can pass on: descriptions live in S3, not jobs). Read that first so
+    # the test runs on those rows, not every listing. A scan per
+    # facet count took 25s on the box and queued the whole board behind it.
+    # Only when every group is required; with any one enough, "c" alone
+    # would qualify rows.
+    narrow = [_superset(g) for g in q.groups if not g.fts] if q.combine == "all" else []
+    narrow = [n for n in narrow if n]
     if not groups:
-        return None
+        return " AND ".join(narrow) or None
     plain = [g for g in groups if _plain(g)]
     near_expr = None
     if q.expand and q.combine == "all" and len(plain) >= 2:
@@ -95,7 +105,16 @@ def match_expression(q: SearchQuery, near: int = SEARCH_NEAR_DISTANCE) -> str | 
         desc_alts = g.alternatives if RELATED_IN_DESCRIPTION else [a for a in g.alternatives if a.kind == "literal"]
         desc = near_expr if (near_expr and g in plain) else f"description : {alternatives(desc_alts, prefix=False)}"
         parts.append(f"({META} : {alts} OR {desc})")
-    return (" AND " if q.combine == "all" else " OR ").join(parts)
+    return (" AND " if q.combine == "all" else " OR ").join(parts + narrow)
+
+
+def _superset(group) -> str | None:
+    """A C++-style group as the words FTS5 indexed for it, or None when
+    a term is nothing but + and #."""
+    words = [" ".join(a.text.replace("+", " ").replace("#", " ").split()) for a in group.alternatives]
+    if not all(words):
+        return None
+    return f"{META} : (" + " OR ".join('"' + w.replace('"', '""') + '"' for w in words) + ")"
 
 
 def _like_group(group, caps) -> tuple[str, list]:
