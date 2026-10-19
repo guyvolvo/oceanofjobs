@@ -19,5 +19,8 @@ for (const f of files('out')) {
   copyFileSync(f, flat);
   copied++;
 }
-console.log(`flatten-segments: ${copied} files`);
-if (!copied) throw new Error('no nested __next segments found: did the Next export layout change?');
+// Some builds already write the dotted names (seen on the Linux runner,
+// not on Windows), so check for what the browser asks for, not for copies.
+const pages = files('out').filter((f) => /__next\.[^\/]*__PAGE__\.txt$/.test(f)).length;
+console.log(`flatten-segments: ${copied} copied, ${pages} dotted page segments`);
+if (!pages) throw new Error('no dotted __PAGE__ segments in out/: did the Next export layout change?');
