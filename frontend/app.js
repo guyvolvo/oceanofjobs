@@ -6195,7 +6195,7 @@ function renderAuthState() {
       <a role="menuitem" href="/board?starred=1">${MENU_ICONS.bookmark}Saved Jobs</a>
       <button role="menuitem" type="button" id="topbar-alert-btn">${MENU_ICONS.bell}Alerts</button>
       <a role="menuitem" href="/stats">${MENU_ICONS.chart}Statistics</a>
-      <a role="menuitem" href="/api/help">${MENU_ICONS.code}API reference</a>
+      <a role="menuitem" href="/docs/api">${MENU_ICONS.code}API reference</a>
       <a role="menuitem" href="/contact">${MENU_ICONS.chat}Contact</a>
       <button role="menuitem" type="button" id="topbar-menu-theme">${isDarkTheme() ? MENU_ICONS.sun : MENU_ICONS.moon}<span>${isDarkTheme() ? "Light mode" : "Dark mode"}</span></button>
       <button role="menuitem" type="button" class="hero-menu-out" id="auth-signout">${MENU_ICONS.out}Log Out</button>

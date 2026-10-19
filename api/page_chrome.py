@@ -170,7 +170,7 @@ def topbar(current: str = "") -> str:
   <header class="pg-bar">
     <div class="pg-bar-in">
       <a class="pg-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="24" height="24" alt="" /><span translate="no">oceanofjobs.com</span></a>
-      <nav class="pg-nav" aria-label="Site">{nav("jobs", "/board", "Jobs")}{nav("companies", "/companies", "Companies")}{nav("stats", "/stats", "Statistics")}{nav("api", "/api/help", "API")}</nav>
+      <nav class="pg-nav" aria-label="Site">{nav("jobs", "/board", "Jobs")}{nav("companies", "/companies", "Companies")}{nav("stats", "/stats", "Statistics")}{nav("api", "/docs/api", "API")}</nav>
       <form class="pg-search" action="/board" method="get" role="search">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
         <input type="search" name="search" aria-label="Search jobs" placeholder="Search jobs…" autocomplete="off" />
@@ -192,7 +192,7 @@ FOOT = """  <script src="/count.js"></script>
   </script>
   <footer class="pg-foot">
     <span>oceanofjobs.com · listings scraped from company hiring systems</span>
-    <span><a href="/board">Browse the board</a> · <a href="/api/help">API</a> · <a href="/privacy">Privacy</a></span>
+    <span><a href="/board">Browse the board</a> · <a href="/docs/api">API</a> · <a href="/privacy">Privacy</a></span>
   </footer>
 </body>
 </html>

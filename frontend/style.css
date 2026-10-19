@@ -4706,7 +4706,9 @@ a.hero-account-btn { text-decoration: none; }
   .home-privacy { grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; }
 }
 @media (max-width: 900px) {
-  .home .home-nav { gap: 18px; }
+  /* Tight enough for the five menus to fit a 744px tablet on one line. */
+  .home .home-nav { gap: 12px; }
+  .home .home-bar { column-gap: 12px; }
   .home-api { grid-template-columns: minmax(0, 1fr); gap: 32px; }
 }
 @media (max-width: 768px) {

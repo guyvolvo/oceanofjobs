@@ -228,6 +228,18 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
         return redirect(uri.substring(0, uri.length - 1) + queryOf(request));
       }
 
+      // The docs (docs/, a static Next.js export synced to docs/ in the
+      // bucket by deploy-frontend.yml) are many pages, so they get a
+      // prefix rule instead of PAGES entries: /docs/mcp -> docs/mcp.html.
+      if (uri === "/docs") {
+        request.uri = "/docs/index.html";
+        return request;
+      }
+      if (uri.indexOf("/docs/") === 0 && last.indexOf(".") === -1) {
+        request.uri = uri + ".html";
+        return request;
+      }
+
       // /account -> account.html on the way to S3, invisibly. Anything
       // with an extension is a real file (style.css, logo.png, the
       // vendored .mjs) and is already named correctly.

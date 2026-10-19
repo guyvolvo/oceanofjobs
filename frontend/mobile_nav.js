@@ -106,7 +106,7 @@
       rows.push(`<a class="hero-nav-item" href="/account#alerts">${icons.bell}Alerts</a>`);
       rows.push(`<a class="hero-nav-item" href="/stats">${icons.chart}Statistics</a>`);
     }
-    rows.push(`<a class="hero-nav-item" href="/api/help">${icons.code}API reference</a>`);
+    rows.push(`<a class="hero-nav-item" href="/docs/api">${icons.code}API reference</a>`);
     rows.push(`<a class="hero-nav-item" href="/contact">${icons.chat}Contact</a>`);
     rows.push(`<a class="hero-nav-item" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">${icons.github}GitHub</a>`);
     rows.push(`<button type="button" class="hero-nav-item" data-act="theme">${isDark() ? icons.sun : icons.moon}${isDark() ? "Light mode" : "Dark mode"}</button>`);

@@ -8,7 +8,7 @@ name: deploy-frontend
 on:
   push:
     branches: [main]
-    paths: ["frontend/**"]
+    paths: ["frontend/**", "docs/**"]
   workflow_dispatch: {}
 
 permissions:
@@ -28,6 +28,19 @@ jobs:
         with:
           role-to-assume: ${{ vars.FRONTEND_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      # The docs at /docs: a Next.js static export (docs/), built before
+      # anything is uploaded so a failed build stops the deploy whole. The
+      # API reference is generated from the live /api/openapi.json here.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Build the docs
+        working-directory: docs
+        run: npm ci && npm run build
 
       - name: Stamp asset URLs with the commit
         run: |
@@ -80,6 +93,14 @@ jobs:
             --exclude "explore/*" \
             --exclude "media/*" \
             --exclude "og.jpg" \
+            --exclude "docs/*" \
+            --cache-control "no-cache"
+
+      # Its own prefix; the frontend sync excludes docs/* so its --delete
+      # leaves these alone.
+      - name: Sync the docs to S3
+        run: |
+          aws s3 sync docs/out/ "s3://${{ vars.FRONTEND_BUCKET }}/docs/" --delete \
             --cache-control "no-cache"
 
       - name: Mark 404.html for a real 404 status
