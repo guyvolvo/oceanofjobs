@@ -145,10 +145,12 @@ JOB = {
         "closed_at": {"type": ["string", "null"], "format": "date-time",
                       "description": "Set once the listing left the employer's own board."},
         "reopened_at": {"type": ["string", "null"], "format": "date-time",
-                        "description": "When this same listing (the same ATS id) last came back after being "
-                                       "gone from the employer's board for at least two days. Null means no "
-                                       "such return has been seen; recorded since 2026-10-19. A new posting "
-                                       "for the same role is a new listing, not a return."},
+                        "description": "When this same listing (the same ATS id) was last observed again after "
+                                       "being missing from our reads of the employer's board for at least two "
+                                       "days. It records what was observed, not that the employer reposted it: "
+                                       "a board that failed to read for two days looks the same. Null means no "
+                                       "such absence was seen; recorded since 2026-10-19. A new posting for the "
+                                       "same role is a new listing."},
         "confidence": {"type": "string", "enum": ["verified", "best_effort"]},
         "skills": {"type": "string", "description": "Comma-separated, tagged from the description."},
         "salary_text": {"type": ["string", "null"]},

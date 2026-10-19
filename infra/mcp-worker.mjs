@@ -61,10 +61,11 @@ const LIFETIME_NOTE =
   "any change; a board that answers 'unchanged' was still checked, so the listing may have been " +
   "confirmed more recently than last_seen says. closed_at is when a successful read of the board " +
   "no longer included it; null means it was still listed at the last successful read. " +
-  "reappeared_at is when this same listing (the same ATS id) last came back after being gone " +
-  "from the board for at least two days; null means no such return was seen (recorded since " +
-  "2026-10-19). Do not call a listing reposted from an old first_seen alone, and a new posting " +
-  "for the same role is a new listing, not a return. posted_at is the employer's own date where " +
+  "reappeared_at is when this same listing (the same ATS id) was last seen again after being " +
+  "missing from our reads of the board for at least two days; null means no such absence was seen " +
+  "(recorded since 2026-10-19). It says what was observed, not that the employer reposted it: our " +
+  "own failed reads can look the same, so do not call a listing reposted on this or on an old " +
+  "first_seen. A new posting for the same role is a new listing. posted_at is the employer's own date where " +
   "the ATS gives one, and can be missing.";
 
 const INSTRUCTIONS =
@@ -325,7 +326,7 @@ function lifetime(job, now = Date.now()) {
   const end = job.closed_at ? Date.parse(job.closed_at) : now;
   const days = Number.isNaN(first) ? null : Math.max(0, Math.floor((end - first) / DAY_MS));
   const span = days === null ? "" : ` (${days} day${days === 1 ? "" : "s"} listed)`;
-  const back = job.reopened_at ? ` Came back on ${day(job.reopened_at)} after being off the board.` : "";
+  const back = job.reopened_at ? ` Seen again on ${day(job.reopened_at)} after at least two days missing from the board.` : "";
   const summary = (job.closed_at
     ? `Closed on ${day(job.closed_at)}, first seen ${day(job.first_seen)}${span}.`
     : `Open: first seen ${day(job.first_seen)}${span}, last seen ${day(job.last_seen)}.`) + back;

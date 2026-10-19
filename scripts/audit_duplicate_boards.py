@@ -19,7 +19,10 @@ so candidates come from the tokens and the verdict from the listings:
   verdict     the open jobs each domain has on Ocean of Jobs, compared
               by the employer's own job URL, ignoring case. Most shared:
               same board. None shared: different boards. Otherwise, or
-              when a side has no open jobs, unclear.
+              when a side has no open jobs, unclear. Only the 200 newest
+              jobs per domain are compared, so for a bigger board "none
+              shared" proves nothing and is reported as unclear too
+              (amazon.com / aws.amazon.com).
 """
 
 import json
@@ -38,6 +41,7 @@ sys.path.insert(0, str(ROOT / "api"))
 from same_company import SAME_COMPANY  # noqa: E402
 
 API = "https://oceanofjobs.com/api/jobs"
+SAMPLE = 200
 SUFFIX = re.compile(r"(inc|ltd|llc|jobs|careers|career|hr|group|global|io|co|\d+)$")
 
 
@@ -67,7 +71,7 @@ _jobs: dict[str, set[str] | None] = {}
 def job_urls(domain: str) -> set[str] | None:
     """The employer URLs of a domain's open jobs, or None if the API failed."""
     if domain not in _jobs:
-        q = urllib.parse.urlencode({"company": domain, "limit": 200, "sort": "age"})
+        q = urllib.parse.urlencode({"company": domain, "limit": SAMPLE, "sort": "age"})
         try:
             req = urllib.request.Request(f"{API}?{q}", headers={"User-Agent": "otj-duplicate-audit"})
             with urllib.request.urlopen(req, timeout=60) as r:
@@ -86,6 +90,8 @@ def verdict(a: str, b: str) -> tuple[str, str]:
     shared = len(ja & jb)
     small = min(len(ja), len(jb))
     detail = f"{shared} of {small} shared (open {len(ja)} / {len(jb)})"
+    if shared == 0 and max(len(ja), len(jb)) >= SAMPLE:
+        return "unclear", detail + f", sample capped at the {SAMPLE} newest"
     if shared == 0:
         return "different", detail
     if shared >= 0.8 * small:

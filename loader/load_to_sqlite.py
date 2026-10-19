@@ -262,14 +262,15 @@ _NEW_COLUMNS = {
     # Measured before it existed: department=Security was a 33 second
     # query on 846k rows, a regex in Python for every one of them.
     "category": "TEXT",
-    # When this listing, the same ATS id, last came back after being gone
-    # from the employer's board for at least two days. NULL: listed
-    # without such a gap since first_seen, as far as our reads saw, or
-    # since 2026-10-19, when this started being recorded. The two days
-    # keep out a read that closed a board's listings by mistake and the
-    # next one that brought them back. A new id for the same role is a
-    # new listing, never a reappearance: nothing here guesses from titles
-    # or from an old first_seen.
+    # When this listing, the same ATS id, was last observed again after
+    # being missing from our reads of the employer's board for at least two
+    # days. That is what we saw, not why: the employer may have reposted
+    # it, but a board that failed or read incompletely for two days looks
+    # the same. NULL: no such absence seen since first_seen, or since
+    # 2026-10-19, when this started being recorded. Two days keeps out the
+    # common case, one bad read closing listings and the next restoring
+    # them. A new id for the same role is a new listing, never a return:
+    # nothing here guesses from titles or from an old first_seen.
     "reopened_at": "TEXT",
 }
 

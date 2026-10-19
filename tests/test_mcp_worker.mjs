@@ -272,9 +272,9 @@ test("a listing that came back says so, and only from reopened_at", async () => 
   ], total: 2 });
   const [back, old] = (await call("search_jobs", { country: "IL" })).out.jobs;
   assert.equal(back.lifetime.reappeared_at, "2026-10-15T00:00:00+00:00");
-  assert.match(back.lifetime.summary, /Came back on 2026-10-15 after being off the board\.$/);
+  assert.match(back.lifetime.summary, /Seen again on 2026-10-15 after at least two days missing from the board\.$/);
   assert.equal(old.lifetime.reappeared_at, null, "an old first_seen alone is not a return");
-  assert.doesNotMatch(old.lifetime.summary, /Came back/);
+  assert.doesNotMatch(old.lifetime.summary, /Seen again/);
 });
 
 test("paging hints stop at the offset cap", async () => {
