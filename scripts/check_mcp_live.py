@@ -32,9 +32,9 @@ def http(url: str, body=None, method=None, headers=None) -> tuple[int, dict, str
         "Accept": "application/json, text/event-stream", **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            return r.status, dict(r.headers), r.read().decode("utf-8")
+            return r.status, {k.lower(): v for k, v in r.headers.items()}, r.read().decode("utf-8")
     except urllib.error.HTTPError as e:
-        return e.code, dict(e.headers), e.read().decode("utf-8")
+        return e.code, {k.lower(): v for k, v in e.headers.items()}, e.read().decode("utf-8")
 
 
 _id = 0
@@ -45,7 +45,7 @@ def rpc(method: str, params=None, version="2025-11-25"):
     _id += 1
     status, headers, text = http(MCP, {"jsonrpc": "2.0", "id": _id, "method": method, **({"params": params} if params is not None else {})},
                                  headers={"MCP-Protocol-Version": version})
-    return status, {k.lower(): v for k, v in headers.items()}, (json.loads(text) if text else None)
+    return status, headers, (json.loads(text) if text else None)
 
 
 def tool(name: str, args: dict):
@@ -55,7 +55,7 @@ def tool(name: str, args: dict):
 
 def site_unchanged() -> None:
     status, headers, text = http("https://oceanofjobs.com/")
-    check("homepage still 200 HTML", status == 200 and "text/html" in headers.get("Content-Type", ""), str(status))
+    check("homepage still 200 HTML", status == 200 and "text/html" in headers.get("content-type", ""), str(status))
     status, headers, _ = http("https://oceanofjobs.com/board")
     check("board still 200", status == 200, str(status))
     status, headers, text = http(f"https://oceanofjobs.com/api/health?r={time.time_ns()}")
@@ -71,8 +71,8 @@ def down() -> None:
     body = json.loads(text) if text.startswith("{") else {}
     check("POST /mcp answers 503", status == 503, str(status))
     check("the body is a JSON-RPC error", body.get("jsonrpc") == "2.0" and body.get("error", {}).get("code") == -32000, text[:200])
-    check("Retry-After is set", int(headers.get("Retry-After", "0")) >= 60, str(headers.get("Retry-After")))
-    check("served by CloudFront, not the Worker", "x-otj-cache" not in {k.lower() for k in headers}, str(headers))
+    check("Retry-After is set", int(headers.get("retry-after", "0")) >= 60, str(headers.get("retry-after")))
+    check("served by CloudFront, not the Worker", "x-otj-cache" not in headers and "cloudfront" in headers.get("x-cache", "").lower(), str(headers))
     site_unchanged()
 
 
