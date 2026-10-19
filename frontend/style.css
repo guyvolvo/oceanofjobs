@@ -4561,7 +4561,30 @@ a.hero-account-btn { text-decoration: none; }
   .home-search-go { width: 60px; height: 42px; }
 }
 
-.home-face { width: 380px; max-width: 100%; height: auto; justify-self: end; color: var(--ill-ink); }
+.home-face { display: block; width: 100%; height: auto; }
+/* The face sits on a dither panel, treated like the hero's and the job
+   cards': 0.9 opacity, and brightness(0.68) brings this lighter picture
+   down to the hero's average (122 -> 83 of 255). The panel stays dark in
+   both themes, so the sketch is always the light ink. A 135 x 240 PNG at
+   exactly 5x. */
+.home-face-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 40px 36px;
+  border-radius: 16px;
+  color: rgba(242, 240, 239, 0.9);
+}
+.home-face-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url(/img/dither-face.png) center / 675px 1200px;
+  image-rendering: pixelated;
+  filter: brightness(0.68);
+  opacity: 0.9;
+}
 
 /* The ticker between the first screen and the privacy section. */
 .home .hero-band { padding: 16px 0 175px; }
@@ -4585,10 +4608,7 @@ a.hero-account-btn { text-decoration: none; }
   color: var(--h-text);
 }
 .home-privacy .home-h2 { max-width: none; }
-/* One line on a desktop, as designed: the heading may run into the gap
-   beside the face, where nothing else sits. */
-@media (min-width: 1181px) { .home-privacy .home-h2 { margin-right: -64px; } }
-.home-privacy { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 64px; align-items: center; }
+.home-privacy { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 64px; align-items: center; }
 .home-body { max-width: 620px; margin: 12px 0 0; font-size: 17px; line-height: 1.55; color: var(--h-body); }
 .home-h2 + .home-body { margin-top: 14px; }
 
@@ -4768,7 +4788,7 @@ a.hero-account-btn { text-decoration: none; }
 
 @media (max-width: 1024px) {
   .home-features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .home-privacy { grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; }
+  .home-privacy { grid-template-columns: 300px minmax(0, 1fr); gap: 40px; }
 }
 @media (max-width: 900px) {
   /* Tight enough for the five menus to fit a 744px tablet on one line. */
@@ -4778,7 +4798,7 @@ a.hero-account-btn { text-decoration: none; }
 }
 @media (max-width: 768px) {
   .home-privacy { grid-template-columns: minmax(0, 1fr); }
-  .home-face { width: 260px; justify-self: start; }
+  .home-face-panel { width: 300px; max-width: 100%; padding: 32px 28px; }
   .home-foot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .home-foot-grid > :first-child { grid-column: 1 / -1; }
 }
