@@ -4628,12 +4628,27 @@ a.hero-account-btn { text-decoration: none; }
    on the page the band's tail is shorter; they carry the gap to privacy. */
 .home .hero-band:has(+ .home-hot:not([hidden])) { padding-bottom: 96px; }
 .home-section.home-hot { padding-bottom: 175px; }
-.home-hot-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.home-hot-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 48px; } /* 24px clear above the dither panel, the same as the panel shows above the cards */
 .home-shuffle { gap: 8px; border: 0; cursor: pointer; }
 .home-shuffle svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 300ms cubic-bezier(0.2, 0, 0, 1); }
 .home-shuffle:hover svg { transform: rotate(180deg); }
 .home-shuffle:disabled { cursor: progress; }
-.home-hot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.home-hot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; position: relative; isolation: isolate; }
+/* A dither panel behind the cards, treated like the hero's: 0.9 opacity,
+   and brightness(0.64) brings this lighter picture down to that one's
+   average (129 -> 83 of 255). A 384 x 215 PNG at exactly 5x. */
+.home-hot-grid::before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  z-index: -1;
+  border-radius: 16px;
+  background: url(/img/dither-hot.png) center 55% / 1920px 1075px;
+  image-rendering: pixelated;
+  filter: brightness(0.64);
+  opacity: 0.9;
+  pointer-events: none;
+}
 .hot-card {
   display: flex;
   flex-direction: column;
