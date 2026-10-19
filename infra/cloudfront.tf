@@ -83,6 +83,43 @@ resource "aws_cloudfront_function" "not_found_status" {
   EOT
 }
 
+# What /mcp answers when the MCP Worker (infra/mcp-worker.mjs) is not
+# running: its route deleted, or the account's free daily Workers
+# allowance spent, in which case the route fails open and the request
+# lands here. A JSON-RPC error a client can show, not the frontend's
+# 404 page. A viewer-request function cannot read the POST body, so the
+# id is null, which JSON-RPC allows when the id cannot be known.
+# Retry-After counts to 00:00 UTC, when the allowance resets.
+resource "aws_cloudfront_function" "mcp_unavailable" {
+  name    = "${var.project_name}-mcp-unavailable"
+  runtime = "cloudfront-js-2.0"
+  comment = "JSON-RPC 503 for /mcp when the MCP Worker is off"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var now = Date.now();
+      var wait = Math.max(60, Math.round((Math.ceil(now / 86400000) * 86400000 - now) / 1000));
+      var message = "The Ocean of Jobs MCP server is not running right now. Either its free daily " +
+        "Cloudflare Workers allowance is used up, which resets at 00:00 UTC, or it is switched off " +
+        "for maintenance. The website and the REST API at https://oceanofjobs.com/api/help still work.";
+      return {
+        statusCode: 503,
+        statusDescription: "Service Unavailable",
+        headers: {
+          "content-type": { value: "application/json" },
+          "retry-after": { value: String(wait) },
+          "cache-control": { value: "no-store" },
+          "access-control-allow-origin": { value: "*" }
+        },
+        body: {
+          encoding: "text",
+          data: JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32000, message: message, data: { retry_after_seconds: wait } } })
+        }
+      };
+    }
+  EOT
+}
+
 resource "aws_cloudfront_function" "legacy_domain_redirect" {
   name    = "${var.project_name}-legacy-domain-redirect"
   runtime = "cloudfront-js-2.0"
@@ -528,6 +565,24 @@ resource "aws_cloudfront_distribution" "main" {
     function_association {
       event_type   = "viewer-request"
       function_arn = aws_cloudfront_function.legacy_domain_redirect.arn
+    }
+  }
+
+  # /mcp reaches CloudFront only when the MCP Worker is not running, and
+  # then the function answers before any origin is asked. The origin
+  # named here is never contacted.
+  ordered_cache_behavior {
+    path_pattern           = "/mcp*"
+    target_origin_id       = "frontend-s3"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_disabled.id
+    compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.mcp_unavailable.arn
     }
   }
 
