@@ -37,7 +37,9 @@ NAMESPACE = "OceanOfJobs"
 METRIC = "Events"
 # What a page may report. Anything else is refused, so a caller can't
 # mint new metrics, each of which CloudWatch bills for by the month.
-PAGE_EVENTS = frozenset({"visit", "new_visitor", "search", "job_view", "apply", "signin"})
+# mcp_view and mcp_apply are the same two, for pages reached from a link
+# the MCP server gave an AI assistant (frontend/count.js).
+PAGE_EVENTS = frozenset({"visit", "new_visitor", "search", "job_view", "apply", "signin", "mcp_view", "mcp_apply"})
 # Counted by the server itself, never accepted from a page.
 SERVER_EVENTS = frozenset({"alert_created"})
 # Per event, per worker, per minute. Real traffic is a small fraction of

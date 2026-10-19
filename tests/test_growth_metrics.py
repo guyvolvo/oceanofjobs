@@ -62,6 +62,8 @@ check("one Events datum per name, in the OceanOfJobs namespace",
       and all(d["MetricName"] == "Events" and d["Dimensions"][0]["Name"] == "event" for d in datums), repr(datums))
 cw2 = FakeCW()
 check("a second flush with nothing counted sends nothing", events.flush(cw2) == {} and not cw2.calls)
+check("MCP referrals count as their own events", events.record("mcp_view") and events.record("mcp_apply")
+      and events.take() == {"mcp_view": 1, "mcp_apply": 1})
 for _ in range(events.MAX_PER_MINUTE + 50):
     events.record("search")
 check("one minute is capped per event", events.take().get("search") == events.MAX_PER_MINUTE)
