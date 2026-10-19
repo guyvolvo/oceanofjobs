@@ -57,7 +57,8 @@ FEED_ITEMS = 100
 MAX_AGE_S = 6 * 3600
 
 # (path, lastmod follows the snapshot?)
-PAGES = [("/", False), ("/board", True), ("/stats", True), ("/api/help", False), ("/contact", False), ("/privacy", False)]
+PAGES = [("/", False), ("/board", True), ("/stats", True), ("/companies", True),
+         ("/docs", False), ("/docs/mcp", False), ("/docs/api", False), ("/contact", False), ("/privacy", False)]
 
 # Tech roles only, which is what the board itself shows by default
 # (frontend/app.js opens on roles=tech) and what the product claims to
