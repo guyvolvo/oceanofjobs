@@ -4459,18 +4459,14 @@ a.hero-account-btn { text-decoration: none; }
 @keyframes mcp-blink { 50% { opacity: 0; } }
 
 /* The install lines follow the page theme, unlike the window above. */
-.mcp-install { width: 540px; margin-top: 64px; font: 400 12px/16px "Geist Mono", ui-monospace, Menlo, Consolas, monospace; }
-.mcp-tabs {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  border: 1px solid var(--h-line);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--h-text) 3%, var(--h-bg));
-}
-.mcp-tab {
+/* Each pane hugs its content; the block keeps the tallest pane's room
+   (Cursor, VS Code) so switching tabs never moves what is below. */
+.mcp-install { width: 540px; min-height: 120px; margin-top: 64px; font: 400 12px/16px "Geist Mono", ui-monospace, Menlo, Consolas, monospace; }
+/* Bare icons, centred over the pane; on a phone the row scrolls sideways. */
+.mcp-tabbar { display: flex; align-items: center; justify-content: safe center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.mcp-tabs { flex: none; display: flex; gap: 2px; }
+.mcp-tab,
+.mcp-more {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -4486,20 +4482,19 @@ a.hero-account-btn { text-decoration: none; }
   transition: color 150ms ease, background-color 150ms ease;
 }
 .mcp-tab svg { flex: none; fill: currentColor; }
-.mcp-tab:hover { color: var(--h-text); }
+/* A logo too detailed to inline, drawn in the tab's ink through a mask. */
+.mcp-mask { flex: none; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
+.mcp-tab:hover,
+.home .mcp-more:hover { color: var(--h-text); }
+.home .mcp-more { color: var(--h-muted); } /* beats .home a */
 .mcp-tab[aria-selected="true"] { background: var(--h-soft-hover); color: var(--h-text); }
-/* Only the picked tab spells its name: Claude and Claude Code, ChatGPT
-   and Codex would otherwise be told apart by icon alone. */
-.mcp-tab-name { display: none; }
-.mcp-tab[aria-selected="true"] .mcp-tab-name { display: inline; }
 .mcp-pane {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
-  height: 108px;
+  gap: 8px;
   margin-top: 6px;
-  padding: 12px 10px 12px 14px;
+  padding: 10px 10px 10px 14px;
   border: 1px solid var(--h-line);
   border-radius: 10px;
   background: color-mix(in srgb, var(--h-text) 3%, var(--h-bg));
@@ -4508,7 +4503,7 @@ a.hero-account-btn { text-decoration: none; }
 .mcp-pane[hidden] { display: none; }
 .mcp-line { display: flex; align-items: center; gap: 10px; }
 .mcp-line .mcp-cmd { flex: 1; }
-.mcp-prompt { flex: none; align-self: flex-start; color: var(--h-dim); }
+.mcp-prompt { flex: none; color: var(--h-dim); }
 .mcp-note { font: 400 13px/18px "Geist", var(--font); color: var(--h-muted); }
 .home .mcp-add { /* beats .home a, which would inherit the pane's ink */
   display: inline-flex;
@@ -4558,6 +4553,8 @@ a.hero-account-btn { text-decoration: none; }
   .mcp-rule { margin: 0 -12px 7px; }
 }
 @media (max-width: 640px) {
+  .mcp-install { min-height: 140px; } /* the Cursor and VS Code notes wrap to two lines */
+  .mcp-tab { padding: 0 7px; }
   .home-search { height: 54px; padding-left: 18px; }
   .home-search-input { font-size: 15px; }
   .home-search-go { width: 60px; height: 42px; }
