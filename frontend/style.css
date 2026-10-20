@@ -6013,7 +6013,7 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 }
 
 .job-detail-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.job-detail-star {
+.job-detail-star, .job-detail-queue {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -6026,9 +6026,9 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   font: 400 13px var(--font-ui);
   cursor: pointer;
 }
-.job-detail-star:hover { border-color: var(--green-text); color: var(--green-text); }
-.job-detail-star.on { color: var(--green-text); border-color: var(--green-text); }
-.job-detail-star.on .star-mark { fill: currentColor; }
+.job-detail-star:hover, .job-detail-queue:hover { border-color: var(--green-text); color: var(--green-text); }
+.job-detail-star.on, .job-detail-queue.on { color: var(--green-text); border-color: var(--green-text); }
+.job-detail-star.on .star-mark, .job-detail-queue.on .queue-mark { fill: currentColor; }
 .job-detail-permalink {
   border: 0;
   background: none;

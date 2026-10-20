@@ -252,6 +252,55 @@ async function syncSavedFromServer() {
   if (selectedJobId) paintStar(selectedJobId, union); // open detail panel may be a job the current page does not list
 }
 
+// The account's auto apply queue (/me/apply/queue). Unlike stars it
+// lives on the server only: the extension reads it from there, so a
+// signed-out queue would be one nothing ever applies to.
+let applyQueue = new Set();
+
+async function syncQueueFromServer() {
+  if (!getAuthTokens()) return;
+  try {
+    const data = await authedFetch("/me/apply/queue");
+    applyQueue = new Set((data?.queue || []).map((r) => r.job_id));
+  } catch {
+    return; // same as the saved sync: nothing on screen changes
+  }
+  document.querySelectorAll("[data-queue]").forEach((btn) => paintQueue(btn.dataset.queue));
+}
+
+function paintQueue(id) {
+  const on = applyQueue.has(id);
+  document.querySelectorAll(`[data-queue="${id}"]`).forEach((btn) => {
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", String(on));
+  });
+}
+
+// Flipped before the request, like a star, and put back if the server
+// says no. A 422 carries the reason the job can't be queued, and that
+// goes in the same error line a failed save uses.
+async function toggleQueue(id) {
+  if (!getAuthTokens()) {
+    window.openSignIn();
+    return;
+  }
+  const on = !applyQueue.has(id);
+  on ? applyQueue.add(id) : applyQueue.delete(id);
+  paintQueue(id);
+  try {
+    await authedFetch(`/me/apply/queue/${encodeURIComponent(id)}`, { method: on ? "PUT" : "DELETE" });
+    announce(on ? "Queued for auto apply. The extension applies on its next check." : "Removed from your auto apply queue.");
+  } catch (err) {
+    if (applyQueue.has(id) !== on) return; // clicked again since, and that click owns the button now
+    on ? applyQueue.delete(id) : applyQueue.add(id);
+    paintQueue(id);
+    const errEl = document.getElementById("jobs-error");
+    if (!errEl) return;
+    errEl.textContent = on ? `Could not queue that listing. ${err.message}` : `Could not take that listing off your queue. ${err.message}`;
+    errEl.style.display = "block";
+  }
+}
+
 // fetch helpers
 
 // A failed call is tried again before anyone hears of it: three more
@@ -2496,6 +2545,21 @@ const STAR_SVG =
   + '<path d="M8 1.6l1.95 3.95 4.35.63-3.15 3.07.74 4.33L8 11.53l-3.89 2.05.74-4.33L1.7 6.18l4.35-.63z"'
   + ' fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
+// The auto apply queue's mark, filled when queued the way the star is.
+const QUEUE_SVG =
+  '<svg class="queue-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">'
+  + '<path d="M9.2 1.5 3.2 9h4.3l-.9 5.5 6.2-7.6H8.4z"'
+  + ' fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+
+// The extension fills Greenhouse forms only (api/handler.py route_apply
+// answers 422 for the rest), so no other listing gets the button.
+function queueButtonHtml(job, cls, label) {
+  if (job.ats !== "greenhouse") return "";
+  const on = applyQueue.has(job.id);
+  return `<button type="button" class="${cls} job-detail-queue ${on ? "on" : ""}" data-queue="${job.id}" aria-pressed="${on}"
+    title="Queue for auto apply" aria-label="Queue for auto apply">${QUEUE_SVG}${label ? `<span>${label}</span>` : ""}</button>`;
+}
+
 const MATCH_TICK_SVG =
   '<svg class="match-tick" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">'
   + '<path d="M2 5.3 4.1 7.4 8 3.2" fill="none" stroke="currentColor" stroke-width="1.7"'
@@ -2789,6 +2853,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
     <div class="job-detail-actions">
       <a class="job-detail-apply" href="${safeHref(job.url)}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
       <button type="button" class="job-detail-star ${starred ? "on" : ""}" data-star="${job.id}" aria-pressed="${starred}">${STAR_SVG}<span>${starred ? "Saved" : "Save"}</span></button>
+      ${queueButtonHtml(job, "", "Auto apply")}
       <button type="button" class="link job-detail-permalink" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}" title="Copy a link to this listing">Copy link</button>
     </div>
 
@@ -3377,6 +3442,7 @@ function wireStickyActions(job) {
   bar.innerHTML = `
     <button type="button" class="pane-act job-detail-star ${starred ? "on" : ""}" data-star="${job.id}"
             aria-pressed="${starred}" aria-label="${starred ? "Saved" : "Save"}">${STAR_SVG}</button>
+    ${queueButtonHtml(job, "pane-act", "")}
     <button type="button" class="pane-act" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}"
             aria-label="Copy a link to this listing"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 5.5v-1a1.5 1.5 0 0 0-1.5-1.5H4a1.5 1.5 0 0 0-1.5 1.5v5A1.5 1.5 0 0 0 4 11h1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
     <a class="job-detail-apply pane-apply" href="${safeHref(job.url)}" target="_blank" rel="noopener">Apply on ${escapeHtml(companyLabel(job))} ${EXTERNAL_ARROW_SVG}</a>`;
@@ -3396,6 +3462,7 @@ function wireStickyActions(job) {
     pushStar(job.id, on);
     if (state.starred_only) loadJobs();
   });
+  bar.querySelector("[data-queue]")?.addEventListener("click", () => toggleQueue(job.id));
   bar.hidden = true;
   paneStickyObserver = new IntersectionObserver(
     ([entry]) => { bar.hidden = entry.isIntersecting; },
@@ -3420,6 +3487,7 @@ function wireJobDetailPanel(job) {
     pushStar(job.id, on);
     if (state.starred_only) loadJobs();
   });
+  panel.querySelector(".job-detail-actions [data-queue]")?.addEventListener("click", () => toggleQueue(job.id));
   const permalinkBtn = panel.querySelector("[data-copy-permalink]");
   if (permalinkBtn) permalinkBtn.addEventListener("click", () => copyToClipboard(permalinkBtn, permalinkBtn.dataset.copyPermalink));
 }
@@ -6985,6 +7053,7 @@ async function boot() {
   // signed in or out, and the merged-in stars from other devices flip
   // themselves on whenever /me/saved gets back.
   syncSavedFromServer();
+  syncQueueFromServer();
   wireFilters();
   applyStateToFilterUI();
   wireJobDetail();
