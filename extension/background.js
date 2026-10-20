@@ -1,7 +1,9 @@
 importScripts('lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js', 'ats/generic.js');
 
 const API = 'https://oceanofjobs.com/api';
-const PER_RUN = 3;
+// One job at a time, so a full run is a few minutes; the plan and the
+// user's own daily limit still cap the day.
+const PER_RUN = 20;
 const RUN_MINUTES = 15;
 // Dedicated fillers first; generic is the fallback for every other page.
 const ATS_FILES = {

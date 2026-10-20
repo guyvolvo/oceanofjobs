@@ -151,11 +151,13 @@
     // (1 run in 3 on the phone country, 2026-10-20; a burst of slow loads
     // needed more than 5 s). Bounded by the clock,
     // since a background tab's timers fire at most once a second.
+    // Location lists nothing until a city is typed, so it skips the wait.
     let opts = null;
-    for (const until = Date.now() + 10000; !opts && Date.now() < until;) {
+    for (const until = Date.now() + (key === 'location' ? 0 : 10000); !opts && Date.now() < until;) {
       openMenu(input);
       opts = await waitFor(listed, 500);
     }
+    if (key === 'location') openMenu(input);
     if (!opts) {
       // Location is looked up as you type and has no options until then.
       setValue(input, key === 'location' ? value.split(',')[0] : value);
