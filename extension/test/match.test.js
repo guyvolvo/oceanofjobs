@@ -29,6 +29,37 @@ test('classify by Greenhouse name, then by label', () => {
   assert.equal(m.classify({ name: 'country', label: 'Country' }), 'phone_country');
 });
 
+test('classify contact fields by label alone, for any form', () => {
+  const c = (label, type = 'text') => m.classify({ name: 'ooj-1', label, type });
+  assert.equal(c('First name'), 'first_name');
+  assert.equal(c('Legal last name'), 'last_name');
+  assert.equal(c('Full name'), 'full_name');
+  assert.equal(c('Name'), 'full_name');
+  assert.equal(c('E-mail address'), 'email');
+  assert.equal(c('Mobile phone number'), 'phone');
+  assert.equal(c('Current location'), 'location');
+  assert.equal(c('Country of residence'), 'country');
+  // Anchored: questions that only mention these stay questions.
+  assert.equal(c('What name do you go by at work?'), null);
+  assert.equal(c('Email address of your referrer'), null);
+  assert.equal(c('Volledige naam'), 'full_name');
+  assert.equal(c('E-mailadres'), 'email');
+  // Language-free hints: the autocomplete token, then the input type.
+  assert.equal(m.classify({ name: 'ooj-1', label: 'Imię', type: 'text', autocomplete: 'given-name' }), 'first_name');
+  assert.equal(c('Correo', 'email'), 'email');
+  assert.equal(c('Numer', 'tel'), 'phone');
+  assert.equal(c('Referee email', 'email'), null);
+  assert.equal(m.profileValue('full_name', { contact: { first_name: 'Dana', last_name: 'Levi' } }), 'Dana Levi');
+  assert.equal(m.profileValue('country', { contact: { location: 'Tel Aviv, Israel' } }), 'Israel');
+});
+
+test('only a file input takes the CV', () => {
+  assert.equal(m.classify({ name: 'ooj-1', label: 'Resume/CV', type: 'file' }), 'resume');
+  assert.equal(m.classify({ name: 'ooj-2', label: 'Cover letter', type: 'file' }), 'cover_letter');
+  assert.equal(m.classify({ name: 'ooj-3', label: 'Photo', type: 'file' }), null);
+  assert.equal(m.classify({ name: 'ooj-4', label: 'Resume', type: 'textarea' }), null);
+});
+
 test('pickOption handles yes/no, decline and partial labels', () => {
   assert.equal(m.pickOption(['Yes', 'No'], 'No'), 1);
   assert.equal(m.pickOption(['Yes, I am authorized', 'No, I am not'], 'Yes'), 0);

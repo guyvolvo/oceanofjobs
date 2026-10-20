@@ -41,21 +41,42 @@
     [/salary|compensation expectation|expected (pay|compensation)|desired (pay|compensation)/, 'salary'],
     [/notice period|earliest .*start|when can you start|available to start|start date/, 'notice'],
     [/preferred (first )?name/, 'preferred_name'],
-    [/^(personal |other )?(website|portfolio|blog)( url| link)?$/, 'website'],
+    [/^(personal |other )?(website|portfolio|blog)( url| link)?$|^website blog or portfolio$/, 'website'],
     [/^gender\b/, 'gender'],
     [/hispanic|latino/, 'hispanic'],
     [/^(race|ethnicity)\b/, 'race'],
     [/\bveteran\b/, 'veteran'],
     [/\bdisability\b/, 'disability'],
+    // Contact fields by label alone, for forms whose field names mean nothing.
+    // Anchored, so a custom question that mentions an email is left alone.
+    [/^(legal )?(first|given) name$|^forename$|^(vorname|voornaam|prénom|prenom)$/, 'first_name'],
+    [/^(legal )?(last|family) name$|^surname$|^(nachname|achternaam|apellidos?)$/, 'last_name'],
+    [/^(your |full |full legal |legal )?name$|^name surname$|^first and last name$|^(volledige naam|vollständiger name|nom complet|nombre completo|nome completo)$/, 'full_name'],
+    [/^(your )?e ?mail( address| adresse| adres)?$|^e ?mailadres$/, 'email'],
+    [/^(your )?(mobile |cell |contact )?(phone|telephone|mobile|telefon|telefonnummer|handynummer|telefoonnummer|téléphone|teléfono)( number)?$/, 'phone'],
+    [/^(current )?(location|city)( city)?$|^where are you (currently )?(based|located)$/, 'location'],
+    [/^country( of residence)?$/, 'country'],
   ];
+
+  // The HTML autocomplete tokens a form may set, whatever its language.
+  const BY_AUTOCOMPLETE = {
+    'given-name': 'first_name', 'family-name': 'last_name', name: 'full_name', email: 'email', tel: 'phone', 'tel-national': 'phone', 'country-name': 'country',
+  };
 
   // Never sent to an AI provider: the user sets these or they stay blank.
   const EEO = new Set(['gender', 'race', 'hispanic', 'veteran', 'disability']);
 
   function classify(field) {
     if (BY_NAME[field.name]) return BY_NAME[field.name];
+    if (BY_AUTOCOMPLETE[field.autocomplete]) return BY_AUTOCOMPLETE[field.autocomplete];
     const label = normalise(field.label);
+    // Only a file input takes the CV: "Tell us about your resume" is a question.
+    if (field.type === 'file') return /cover letter|motivati|lettre/.test(label) ? 'cover_letter' : /resume|lebenslauf/.test(label) ? 'resume' : null;
     for (const [re, key] of BY_LABEL) if (re.test(label)) return key;
+    // An email or phone input labelled in a language the rules above miss.
+    if (/refer|recommend|manager|emergency/.test(label)) return null;
+    if (field.type === 'email') return 'email';
+    if (field.type === 'tel') return 'phone';
     return null;
   }
 
@@ -81,10 +102,11 @@
     switch (key) {
       case 'first_name': case 'preferred_name': return blank(c.first_name);
       case 'last_name': return blank(c.last_name);
+      case 'full_name': return blank(`${c.first_name || ''} ${c.last_name || ''}`.trim());
       case 'email': return blank(c.email);
       case 'phone': return blank(c.phone);
       case 'location': return blank(c.location);
-      case 'phone_country': return countryOf(c.location);
+      case 'phone_country': case 'country': return countryOf(c.location);
       case 'linkedin': return blank(l.linkedin);
       case 'github': return blank(l.github);
       case 'website': return blank(l.website);

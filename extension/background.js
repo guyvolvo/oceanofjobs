@@ -1,9 +1,14 @@
-importScripts('lib/match.js', 'ats/greenhouse.js');
+importScripts('lib/match.js', 'ats/greenhouse.js', 'ats/generic.js');
 
 const API = 'https://oceanofjobs.com/api';
 const PER_RUN = 3;
 const RUN_MINUTES = 15;
-const ATS_FILES = { greenhouse: ['lib/match.js', 'ats/greenhouse.js'] };
+// Dedicated fillers first; generic is the fallback for every other page.
+const ATS_FILES = { greenhouse: ['lib/match.js', 'ats/greenhouse.js'], generic: ['lib/match.js', 'ats/generic.js'] };
+
+function adapterFor(url) {
+  return Object.keys(ATS_FILES).find((n) => n !== 'generic' && globalThis.oojAts[n].onSite(url)) || 'generic';
+}
 
 class HttpError extends Error {
   constructor(status, body) {
@@ -241,14 +246,16 @@ async function fetchJob(id) {
 }
 
 async function autoCandidates(preferences) {
-  const p = new URLSearchParams({ ats: 'greenhouse', limit: '25', max_age_days: '14', count: 'skip' });
+  // Only sites with a dedicated filler: the generic one never applies on its own.
+  const dedicated = Object.keys(ATS_FILES).filter((n) => n !== 'generic');
+  const p = new URLSearchParams({ ats: dedicated.join(','), limit: '25', max_age_days: '14', count: 'skip' });
   if (preferences.skills && preferences.skills.length) p.set('skills', preferences.skills.join(','));
   if (preferences.seniority) p.set('seniority', preferences.seniority);
   if (preferences.workplace && preferences.workplace.length) p.set('workplace', preferences.workplace.join(','));
   if (preferences.country && preferences.country.length) p.set('country', preferences.country.join(','));
   if (preferences.city && preferences.city.length) p.set('city', preferences.city.join(','));
   const { jobs = [] } = await api('/jobs?' + p, { auth: false });
-  return jobs.filter((j) => j.ats === 'greenhouse');
+  return jobs.filter((j) => dedicated.includes(j.ats));
 }
 
 let running = false;
@@ -341,7 +348,7 @@ async function account() {
 // says what stands in the way rather than staying silent.
 const ACCOUNT_URL = 'https://oceanofjobs.com/account#autoapply';
 async function offerHere(url) {
-  if (!globalThis.oojAts.greenhouse.matches(url)) return { show: false };
+  if (!globalThis.oojAts[adapterFor(url)].matches(url)) return { show: false };
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
   if (!st.token || st.authError) {
     return { show: true, blocked: 'Connect the extension to your Ocean of Jobs account to fill this form.', action: { label: 'Connect', url: ACCOUNT_URL } };
@@ -367,27 +374,14 @@ async function fillHere(msg, tabId, frameId) {
   if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
   accountCache = null;
   const a = await account();
+  const name = adapterFor(msg.url);
   const job = { id: await pageJobId(msg.url), url: msg.url, title: msg.title, company_name: msg.company, company_domain: msg.company,
-    location: msg.location || '', ats: 'greenhouse' };
-  const ats = globalThis.oojAts.greenhouse;
-  const target = frameId ? { tabId, frameIds: [frameId] } : { tabId };
-  const [main] = await chrome.scripting.executeScript({ target, world: 'MAIN', func: ats.pageData });
-  const page = await inTab(tabId, 'greenhouse', 'read', [main ? main.result : null], frameId);
+    location: msg.location || '', ats: name };
+  const page = await readForm(tabId, name, frameId);
   if (!page || page.error) return { error: (page && page.error) || 'Could not read this form.' };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: ['basic', 'pro'].includes(a.usage.plan) };
-  const plan = oojMatch.planFill(page.fields, ctx.profile, job);
-  // The user checks this form before submitting, so every question with no
-  // saved answer gets the AI's best suggestion, outlined for review.
-  const suggested = [];
-  for (const f of [...plan.missing]) {
-    if (f.type === 'file' || oojMatch.isEeo(f)) continue;
-    const answer = await suggestAnswer(f, job, ctx);
-    if (answer === undefined) continue;
-    plan.missing.splice(plan.missing.indexOf(f), 1);
-    plan.fills.push({ ...f, value: answer });
-    suggested.push(f);
-  }
+  const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   try {
     await api('/me/apply/claim', { method: 'POST', body: { job_id: job.id, company: job.company_domain, title: job.title, url: job.url } });
   } catch (e) {
@@ -395,26 +389,107 @@ async function fillHere(msg, tabId, frameId) {
     if (e.status === 409) return { error: 'You already applied to this job.' };
     throw e;
   }
-  const filled = await inTab(tabId, 'greenhouse', 'fill', [plan.fills, ctx.cv], frameId);
-  // Amber: the AI suggested it, check it. Red: still needs the user.
-  await chrome.scripting.executeScript({
-    target, args: [suggested.map((f) => f.name), plan.missing.map((f) => f.name)],
-    func: (amber, red) => [[amber, '#e0a43a'], [red, '#ff6b5e']].forEach(([names, color]) => names.forEach((n) => {
-      const el = document.getElementById(n) || document.getElementById(n.replace(/_/g, '-')) || document.querySelector(`[name="${CSS.escape(n)}"]`);
-      const box = el && (el.closest('.select__control') || el.closest('fieldset') || el);
-      if (box) { box.style.outline = `2px solid ${color}`; box.style.outlineOffset = '2px'; }
-    })),
-  });
+  const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
   const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
   pendingHere[tabId] = job.id;
   await chrome.storage.local.set({ pendingHere });
+  return result;
+}
+
+async function readForm(tabId, name, frameId) {
+  const ats = globalThis.oojAts[name];
+  const target = frameId ? { tabId, frameIds: [frameId] } : { tabId };
+  const [main] = ats.pageData ? await chrome.scripting.executeScript({ target, world: 'MAIN', func: ats.pageData }) : [];
+  return inTab(tabId, name, 'read', [main ? main.result : null], frameId);
+}
+
+// The user checks this form before submitting, so every question with no
+// saved answer gets the AI's best suggestion, outlined for review. Never a
+// lone checkbox: those are consent and terms boxes the user ticks.
+async function planWithSuggestions(page, job, ctx) {
+  const plan = oojMatch.planFill(page.fields, ctx.profile, job);
+  const suggested = [];
+  for (const f of [...plan.missing]) {
+    if (f.type === 'file' || oojMatch.isEeo(f) || (f.type === 'checkbox' && !f.options.length)) continue;
+    const answer = await suggestAnswer(f, job, ctx);
+    if (answer === undefined) continue;
+    plan.missing.splice(plan.missing.indexOf(f), 1);
+    plan.fills.push({ ...f, value: answer });
+    suggested.push(f);
+  }
+  return { plan, suggested };
+}
+
+async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
+  const filled = await inTab(tabId, name, 'fill', [plan.fills, cv], frameId);
+  // Amber: the AI suggested it, check it. Red: still needs the user.
+  await chrome.scripting.executeScript({
+    target: frameId ? { tabId, frameIds: [frameId] } : { tabId },
+    args: [suggested.map((f) => f.name), plan.missing.map((f) => f.name)],
+    func: (amber, red) => [[amber, '#e0a43a'], [red, '#ff6b5e']].forEach(([names, color]) => names.forEach((n) => {
+      const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } }).filter(Boolean)];
+      const el = docs.map((d) => d.querySelector(`[data-ooj-box="${CSS.escape(n)}"]`)).find(Boolean)
+        || document.getElementById(n) || document.getElementById(n.replace(/_/g, '-')) || document.querySelector(`[name="${CSS.escape(n)}"]`);
+      const box = el && (el.hasAttribute('data-ooj-box') ? el : el.closest('.select__control') || el.closest('fieldset') || el);
+      if (box) { box.style.outline = `2px solid ${color}`; box.style.outlineOffset = '2px'; }
+    })),
+  });
+  const errors = (filled && filled.errors) || ['could not fill the form'];
   const statement = /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that/i;
   return {
-    filled: plan.fills.length - ((filled && filled.errors.length) || 0),
+    filled: plan.fills.length - errors.length,
     suggested: suggested.length,
     statements: suggested.filter((f) => statement.test(f.label)).map((f) => f.label),
     missing: plan.missing.map((f) => f.label),
+    errors,
   };
+}
+
+// "Fill in this page" in the popup, on whatever site the tab shows. The
+// popup's click grants activeTab, which is all the access this needs. No
+// credit is claimed: the user reviews and submits the form themselves.
+async function fillTab(tabId) {
+  const st = await chrome.storage.local.get(['token', 'authError', 'cv', 'ai']);
+  if (!st.token || st.authError) return { error: 'Connect the extension to your Ocean of Jobs account first.' };
+  if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
+  let tab = await chrome.tabs.get(tabId);
+  let name, page;
+  // A posting page links to its form, or the Apply button reloads the
+  // page: read again once it loads. activeTab does not follow the tab to
+  // another site, so there the read fails and the user clicks again.
+  let moved = false;
+  for (let hop = 0; hop < 3; hop++) {
+    name = adapterFor(tab.url);
+    page = await readForm(tabId, name).catch(() => null);
+    if (page && !page.openUrl) break;
+    const before = tab.url;
+    if (page) await chrome.tabs.update(tabId, { url: page.openUrl });
+    await new Promise((r) => setTimeout(r, 1000));
+    await waitForLoad(tabId);
+    tab = await chrome.tabs.get(tabId);
+    if (!page && tab.url === before) {
+      // Nothing to inject into and nothing moved: a browser page, the Web Store.
+      if (!moved) return { error: 'This page cannot be filled.' };
+      break;
+    }
+    moved = true;
+  }
+  if (!page || page.openUrl) return { error: 'Opened the application form. Click "Fill in this page" again.' };
+  if (page.error) return { error: page.error };
+  let a;
+  try {
+    accountCache = null;
+    a = await account();
+  } catch (e) {
+    return { error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Ocean of Jobs could not be reached.' };
+  }
+  const u = new URL(tab.url);
+  const job = { id: await pageJobId(tab.url), url: tab.url, title: tab.title || '', company_name: u.hostname, company_domain: u.hostname, location: '', ats: name };
+  const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
+    serverAi: ['basic', 'pro'].includes(a.usage.plan) };
+  const { plan, suggested } = await planWithSuggestions(page, job, ctx);
+  const result = await fillAndMark(tabId, 0, name, plan, suggested, ctx.cv);
+  return { ...result, ats: name, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
 }
 
 // The AI's best answer for a page the user will review: our server on
@@ -515,6 +590,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     fillHere(msg, sender.tab.id, sender.frameId)
       .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))
       .then(reply);
+    return true;
+  }
+  if (msg.type === 'fillTab') {
+    fillTab(msg.tabId).catch(() => ({ error: 'Could not fill this page. Reload it and try again.' })).then(reply);
     return true;
   }
   if (msg.type === 'confirmedHere') { settleHere(sender.tab.id, 'submitted', '').then(() => reply({ ok: true })); return true; }

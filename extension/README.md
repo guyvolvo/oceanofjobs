@@ -1,6 +1,6 @@
 # Ocean of Jobs Chrome extension
 
-Applies to jobs for you, in your own browser. It reads your apply profile from your Ocean of Jobs account, opens a Greenhouse job in a background tab, fills in the form, attaches your CV and sends it. Version 1 handles Greenhouse only (`boards.greenhouse.io`, `job-boards.greenhouse.io`, and the `embed/job_app` links the API hands out).
+Applies to jobs for you, in your own browser. It reads your apply profile from your Ocean of Jobs account, opens a Greenhouse job in a background tab, fills in the form, attaches your CV and sends it. It applies on its own to Greenhouse jobs only (`boards.greenhouse.io`, `job-boards.greenhouse.io`, and the `embed/job_app` links the API hands out). On any other site, "Fill in this page" in the popup fills the form for you to check and send.
 
 Plain JavaScript, Manifest V3, no build step and no dependencies.
 
@@ -32,11 +32,18 @@ For each job, one at a time:
 
 The tab is closed afterwards. The badge shows how many applications went out today.
 
+## Fill in this page
+
+The popup's "Fill in this page" button fills the application form in the current tab, on any site. Opening the popup grants `activeTab`, which is the only access it needs; the extension has no host permission for other sites. The page goes to the dedicated filler when one knows the site (Greenhouse today), otherwise to `ats/generic.js`. If the page is a job posting, the filler follows its Apply link or presses its Apply button first. A careers page that embeds the form from another site is sent to that site; `activeTab` does not follow, so the user clicks the button once more there.
+
+It plans the answers like a run does, asks the AI for the questions your saved answers don't cover (outlined in amber), and outlines the required ones still empty in red. Consent and terms checkboxes are never ticked for you, and EEO questions never go to an AI. Nothing is submitted and no credit is claimed: you check the form and send it yourself. A run never uses the generic filler, and the card on Greenhouse forms is unchanged.
+
 ## Files
 
 - `manifest.json`, `background.js` (alarm, API calls, run loop)
 - `connect.js` (token handoff on oceanofjobs.com)
-- `ats/greenhouse.js` (the Greenhouse filler). Another ATS goes in its own file with the same functions: `matches`, `onSite`, `pageData`, `read`, `fill`, `submit`, `outcome`.
+- `ats/greenhouse.js` (the Greenhouse filler). Another ATS goes in its own file with the same functions: `matches`, `onSite`, `pageData`, `read`, `fill`, `submit`, `outcome`, and gets an entry in `ATS_FILES` in `background.js`.
+- `ats/generic.js` (the fallback filler for any other page: finds the form, reads labels from the DOM, fills text, selects, radios, checkboxes, comboboxes and file inputs)
 - `lib/match.js` (pure functions: normalising labels, classifying fields, saved answer lookup, option picking, guardrails)
 - `popup.*`, `options.*`, `ui.css`
 - `test/` (node:test, with Greenhouse pages saved under `test/fixtures/`)
@@ -51,11 +58,12 @@ Your CV and AI key are kept in `chrome.storage.local`. The CV is only sent to th
 node --test extension/test/
 ```
 
-There is no DOM library in this repo, so the tests cover the pure parts and run the saved Greenhouse pages through the JSON reader and the planner.
+There is no DOM library in this repo, so the tests cover the pure parts and run the saved Greenhouse pages through the JSON reader and the planner. The generic filler is tested in a browser: `node tests/e2e/_ext_generic_fixtures.mjs` on small forms built in the test, and `node tests/e2e/_ext_generic_fill.mjs` on live forms across a dozen ATSes, with every write to another site blocked.
 
 ## Not supported yet
 
-- Lever, Ashby and every other ATS. Their jobs are reported as `skipped` with "unsupported site".
+- Applying on its own anywhere but Greenhouse. Other jobs in a run are reported as `skipped` with "unsupported site"; "Fill in this page" covers them by hand.
+- With "Fill in this page": forms behind a sign-in or a CAPTCHA, multi-step wizards past their first step, and upload menus that keep the file input outside the form (Jobvite).
 - Greenhouse jobs whose link points at the company's own careers site rather than greenhouse.io.
 - Cover letters. A job that requires one is skipped.
 - Education sections, if a board turns them on.

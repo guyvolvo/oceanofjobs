@@ -6,6 +6,31 @@ for (const a of document.querySelectorAll('.open-options')) {
 }
 $('connect').addEventListener('click', () => chrome.tabs.create({ url: ACCOUNT }));
 
+// Fills the form in the tab the popup was opened on. Opening the popup
+// is what grants access to that tab (activeTab).
+$('fill').addEventListener('click', async () => {
+  const btn = $('fill'), out = $('fill-result');
+  btn.disabled = true;
+  btn.textContent = 'Filling in…';
+  out.hidden = true;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const r = tab ? await chrome.runtime.sendMessage({ type: 'fillTab', tabId: tab.id }) : { error: 'No page to fill.' };
+  btn.disabled = false;
+  btn.textContent = 'Fill in this page';
+  out.className = !r || r.error ? 'note error' : 'note ok';
+  out.textContent = !r || r.error ? (r && r.error) || 'Something went wrong.' : fillSummary(r);
+  out.hidden = false;
+});
+
+function fillSummary(r) {
+  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  let s = `Filled ${n(r.filled, 'field', 'fields')}.`;
+  if (r.suggested) s += ` ${n(r.suggested, 'answer', 'answers')} suggested by AI, outlined in amber.`;
+  if (r.missing.length) s += ` ${r.missing.length} ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.`;
+  if (r.errors.length) s += ` ${r.errors.length} could not be filled.`;
+  return s + ' Check the form, then submit it yourself.';
+}
+
 let paused = false;
 $('pause').addEventListener('click', async () => {
   await chrome.runtime.sendMessage({ type: 'pause', paused: !paused });

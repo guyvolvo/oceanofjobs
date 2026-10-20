@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Ocean of Jobs",
-  "version": "1.6.1",
-  "description": "Fills in and sends Greenhouse job applications with your Ocean of Jobs profile.",
+  "version": "1.7.0",
+  "description": "Fills in job applications with your Ocean of Jobs profile, and sends Greenhouse ones for you.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -27,7 +27,8 @@
     "storage",
     "alarms",
     "tabs",
-    "scripting"
+    "scripting",
+    "activeTab"
   ],
   "host_permissions": [
     "https://oceanofjobs.com/*",
