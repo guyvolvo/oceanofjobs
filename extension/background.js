@@ -40,8 +40,9 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
   return data;
 }
 
+// The history shows the reason as written here; the codes stay in the extension.
 const report = (job_id, status, reason) =>
-  api('/me/apply/result', { method: 'POST', body: { job_id, status, reason } }).catch(() => {});
+  api('/me/apply/result', { method: 'POST', body: { job_id, status, reason: oojMatch.reasonText(reason) } }).catch(() => {});
 
 function setBadge(n) {
   chrome.action.setBadgeText({ text: n ? String(n) : '' });
@@ -355,41 +356,49 @@ async function account() {
 // Whether to offer filling this page, and if not, why: the card always
 // says what stands in the way rather than staying silent.
 const ACCOUNT_URL = 'https://oceanofjobs.com/account#autoapply';
+const NOT_CONNECTED = 'Connect Ocean of Jobs to fill out this application.';
+const EXPIRED = 'Your connection has expired. Connect again to continue.';
+const NO_CV = 'Add your CV in extension settings before applying.';
+const ALREADY = "You've already applied to this job with Ocean of Jobs.";
+const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
+const READ_ERROR = "Couldn't read the application form on this page.";
+const BOT_CHECK = "This site requires you to submit the form yourself. Review your answers and use the site's Submit button.";
+const unreachable = (e) => `Ocean of Jobs couldn't be reached${e && e.status ? ` (HTTP ${e.status})` : ''}. Try again shortly.`;
 async function offerHere(url) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
   if (!st.token || st.authError) {
-    return { show: true, blocked: 'Connect the extension to your Ocean of Jobs account to fill this form.', action: { label: 'Connect', url: ACCOUNT_URL } };
+    return { show: true, blocked: st.authError ? EXPIRED : NOT_CONNECTED, action: { label: 'Connect account', url: ACCOUNT_URL } };
   }
   // No dedicated filler: fill only, which needs no account check.
   if (!globalThis.oojAts[adapterFor(url)].matches(url)) {
-    return st.cv ? { show: true, assist: true } : { show: true, assist: true, blocked: 'Add your CV in the extension settings first.', action: { label: 'Add a CV', options: true } };
+    return st.cv ? { show: true, assist: true } : { show: true, assist: true, blocked: NO_CV, action: { label: 'Add CV', options: true } };
   }
   let a;
   try {
     a = await account();
   } catch (e) {
-    if (e.status === 401) return { show: true, blocked: 'Your connection expired. Connect the extension again.', action: { label: 'Connect', url: ACCOUNT_URL } };
-    return { show: true, blocked: `Ocean of Jobs could not be reached (${e.status ? 'HTTP ' + e.status : String(e.message || e).slice(0, 80)}).` };
+    if (e.status === 401) return { show: true, blocked: EXPIRED, action: { label: 'Connect account', url: ACCOUNT_URL } };
+    return { show: true, blocked: unreachable(e) };
   }
   if (!((a.profile.settings || {}).sources || []).includes('ats_pages')) {
-    return { show: true, blocked: 'Turn on "Jobs I view anywhere on the web" in your auto apply settings, then reload this page.', action: { label: 'Open settings', url: ACCOUNT_URL } };
+    return { show: true, blocked: 'Enable "Jobs I view anywhere on the web" in your auto-apply settings, then reload this page.', action: { label: 'Open settings', url: ACCOUNT_URL } };
   }
-  if (!st.cv) return { show: true, blocked: 'Add your CV in the extension settings first.', action: { label: 'Add a CV', options: true } };
+  if (!st.cv) return { show: true, blocked: NO_CV, action: { label: 'Add CV', options: true } };
   const id = await pageJobId(url);
-  if (a.history.some((h) => h.job_id === id && h.status === 'submitted')) return { show: true, blocked: 'You already applied to this job with Ocean of Jobs.' };
+  if (a.history.some((h) => h.job_id === id && h.status === 'submitted')) return { show: true, blocked: ALREADY };
   return { show: true, remaining: a.usage.remaining };
 }
 
 async function fillHere(msg, tabId, frameId) {
   const st = await chrome.storage.local.get(['cv', 'ai']);
-  if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
+  if (!st.cv) return { error: NO_CV };
   accountCache = null;
   const a = await account();
   const name = adapterFor(msg.url);
   const job = { id: await pageJobId(msg.url), url: msg.url, title: msg.title, company_name: msg.company, company_domain: msg.company,
     location: msg.location || '', ats: name };
   const page = await readForm(tabId, name, frameId);
-  if (!page || page.error) return { error: (page && page.error) || 'Could not read this form.' };
+  if (!page || page.error) return { error: (page && page.error) || READ_ERROR };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: ['basic', 'pro'].includes(a.usage.plan) };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
@@ -397,7 +406,7 @@ async function fillHere(msg, tabId, frameId) {
     await api('/me/apply/claim', { method: 'POST', body: { job_id: job.id, company: job.company_domain, title: job.title, url: job.url } });
   } catch (e) {
     if (e.status === 402) return { error: (e.body && e.body.error) || 'Your plan has no applications left.' };
-    if (e.status === 409) return { error: 'You already applied to this job.' };
+    if (e.status === 409) return { error: ALREADY };
     throw e;
   }
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
@@ -474,8 +483,8 @@ async function frameWithForm(tabId, ms) {
 // reviews and submits the form themselves.
 async function fillTab(tabId) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
-  if (!st.token || st.authError) return { error: 'Connect the extension to your Ocean of Jobs account first.' };
-  if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
+  if (!st.token || st.authError) return { error: st.authError ? EXPIRED : NOT_CONNECTED };
+  if (!st.cv) return { error: NO_CV };
   let tab = await chrome.tabs.get(tabId);
   let name, page, frameId = 0;
   // A posting page links to its form, or the Apply button reloads the
@@ -497,7 +506,7 @@ async function fillTab(tabId) {
         frameId = f.frameId;
         name = adapterFor(f.url);
         page = await readForm(tabId, name, frameId).catch(() => null);
-        if (page && page.openUrl) page = { error: 'Could not read the form on this page.' };
+        if (page && page.openUrl) page = { error: READ_ERROR };
         tab = { ...tab, url: f.url };
       }
     }
@@ -509,12 +518,12 @@ async function fillTab(tabId) {
     tab = await chrome.tabs.get(tabId);
     if (!page && tab.url === before) {
       // Nothing to inject into and nothing moved: a browser page, the Web Store.
-      if (!moved) return { error: 'This page cannot be filled.' };
+      if (!moved) return { error: "This page isn't supported." };
       break;
     }
     moved = true;
   }
-  if (!page || page.openUrl) return { error: 'Opened the application form. Click "Fill in this page" again.' };
+  if (!page || page.openUrl) return { error: 'Application form opened. Click "Fill in this page" again to continue.' };
   return assist(tabId, frameId, name, page, tab.url, tab.title);
 }
 
@@ -527,7 +536,7 @@ async function assist(tabId, frameId, name, page, url, title) {
     accountCache = null;
     a = await account();
   } catch (e) {
-    return { error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Ocean of Jobs could not be reached.' };
+    return { error: e.status === 401 ? EXPIRED : unreachable(e) };
   }
   const u = new URL(url);
   const job = { id: await pageJobId(url), url, title: title || '', company_name: u.hostname, company_domain: u.hostname, location: '', ats: name };
@@ -547,8 +556,8 @@ const site = (url) => new URL(url).hostname.split('.').slice(-2).join('.');
 // The result names the frame and address the card submits to.
 async function assistHere(msg, sender) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
-  if (!st.token || st.authError) return { error: 'Connect the extension to your Ocean of Jobs account first.' };
-  if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
+  if (!st.token || st.authError) return { error: st.authError ? EXPIRED : NOT_CONNECTED };
+  if (!st.cv) return { error: NO_CV };
   const tabId = sender.tab.id;
   let frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   let url = msg.url;
@@ -566,7 +575,7 @@ async function assistHere(msg, sender) {
     page = await readForm(tabId, 'generic', 0).catch(() => null);
     moved = true;
   }
-  if (!page || page.openUrl) return { error: 'Could not read this form. Use "Fill in this page" in the extension menu.' };
+  if (!page || page.openUrl) return { error: READ_ERROR };
   const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
   if (r.error) return r;
   const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
@@ -587,16 +596,14 @@ async function submitHere(msg, sender) {
   const tabId = sender.tab.id;
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
-  if (info && info.botCheck) return { error: 'This site checks that a person sends the form, so press its own Submit button.' };
-  if (!info || !info.text) {
-    return { error: 'Could not find the form\'s submit button. Press it on the form.' };
-  }
+  if (info && info.botCheck) return { error: BOT_CHECK };
+  if (!info || !info.text) return { error: "Couldn't find the Submit button. Submit the application using the form." };
   const id = await pageJobId(msg.url);
   try {
     await api('/me/apply/claim', { method: 'POST', body: { job_id: id, company: msg.company, title: msg.title, url: msg.url } });
   } catch (e) {
     if (e.status === 402) return { error: (e.body && e.body.error) || 'Your plan has no applications left.' };
-    if (e.status === 409) return { error: 'You already applied to this job.' };
+    if (e.status === 409) return { error: ALREADY };
     throw e;
   }
   accountCache = null;
@@ -656,7 +663,7 @@ async function queueView() {
   const items = await Promise.all(queue.slice(0, 25).map(async (q) => {
     const job = await fetchJob(q.job_id).catch(() => null);
     return {
-      id: q.job_id, title: job ? job.title : 'Listing no longer open', company: job ? (job.company_name || job.company_domain) : '',
+      id: q.job_id, title: job ? job.title : oojMatch.reasonText('job closed'), company: job ? (job.company_name || job.company_domain) : '',
       supported: !!(job && globalThis.oojAts[job.ats] && globalThis.oojAts[job.ats].matches(job.url)),
     };
   }));
@@ -707,7 +714,7 @@ async function syncAllSites() {
   if (!on) return;
   await chrome.scripting.registerContentScripts([{
     id: 'detect-all', matches: [ALL_SITES], excludeMatches: ['https://oceanofjobs.com/*', ...chrome.runtime.getManifest().content_scripts[1].matches],
-    js: ['ats/generic.js', 'detect.js'], allFrames: true, runAt: 'document_idle', persistAcrossSessions: true,
+    js: ['lib/match.js', 'ats/generic.js', 'detect.js'], allFrames: true, runAt: 'document_idle', persistAcrossSessions: true,
   }]).catch(() => {});
 }
 
@@ -733,7 +740,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   }
   if (msg.type === 'pause') { chrome.storage.local.set({ paused: !!msg.paused }).then(() => reply({ ok: true })); return true; }
   if (msg.type === 'offerHere') {
-    offerHere(msg.url).catch((e) => ({ show: true, blocked: 'Something went wrong: ' + String(e.message || e).slice(0, 80) })).then(reply);
+    offerHere(msg.url).catch(() => ({ show: true, blocked: UNEXPECTED })).then(reply);
     return true;
   }
   if (msg.type === 'openOptions') { chrome.runtime.openOptionsPage(); reply({ ok: true }); return false; }
@@ -760,18 +767,18 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   }
   if (msg.type === 'fillHere') {
     (globalThis.oojAts[adapterFor(msg.url)].matches(msg.url) ? fillHere(msg, sender.tab.id, sender.frameId) : assistHere(msg, sender))
-      .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))
+      .catch((e) => ({ error: e.status === 401 ? EXPIRED : UNEXPECTED }))
       .then(reply);
     return true;
   }
   if (msg.type === 'submitHere') {
     submitHere(msg, sender)
-      .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))
+      .catch((e) => ({ error: e.status === 401 ? EXPIRED : UNEXPECTED }))
       .then(reply);
     return true;
   }
   if (msg.type === 'fillTab') {
-    fillTab(msg.tabId).catch(() => ({ error: 'Could not fill this page. Reload it and try again.' })).then(reply);
+    fillTab(msg.tabId).catch(() => ({ error: "Couldn't fill in this page. Reload it and try again." })).then(reply);
     return true;
   }
   if (msg.type === 'confirmedHere') { settleHere(sender.tab.id, 'submitted', '').then(() => reply({ ok: true })); return true; }

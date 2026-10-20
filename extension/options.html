@@ -23,22 +23,24 @@
 <main>
   <div class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs</div>
   <h1>Extension settings</h1>
-  <p class="lede">Your CV and any AI key stay in this browser. The CV goes only to the employer you apply to, and your key only to the AI provider you pick here. Neither is sent to Ocean of Jobs.</p>
+  <p class="lede">Your CV and AI key stay in this browser. Your CV is sent only to the employer you're applying to, and your AI key is used only with the provider you select. Neither is sent to Ocean of Jobs.</p>
 
   <section class="card">
-    <h2>CV</h2>
+    <h2>Your CV</h2>
     <p id="cv-now" class="note">No CV saved yet.</p>
     <div class="file">
       <input type="file" id="cv" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <label for="cv" class="btn primary">Choose a CV</label>
-      <span class="note">PDF or DOCX, up to 5 MB</span>
+      <span class="note">PDF or DOCX, up to 5 MB.</span>
     </div>
     <p id="cv-msg" class="note" role="status" style="margin-top:10px"></p>
   </section>
 
   <section class="card">
     <h2>Your own AI key</h2>
-    <p class="note">AI answers are included on Basic and Pro, so you only need a key on Free. When a required question has no saved answer and your account is set to use AI, the extension drafts one with this key and saves it to your answers. Basic and Pro also use it once the month's included AI answers run out. Without either, the job is skipped and listed as needing your answer.</p>
+    <p class="note">AI-generated answers are included with Basic and Pro. On the Free plan, you can add your own API key to generate answers to application questions.</p>
+    <p class="note" style="margin-top:8px">When a required question has no saved answer and your account is set to use AI, the extension can draft an answer and save it to your profile. Basic and Pro users can also use their own key after their monthly AI allowance runs out.</p>
+    <p class="note" style="margin-top:8px">Without an available AI answer or a saved answer, the application will be marked as needing your input.</p>
     <label class="field" for="provider">Provider
       <select class="input" id="provider">
         <option value="">None</option>
@@ -59,17 +61,18 @@
   </section>
 
   <section class="card">
-    <h2>Every site</h2>
-    <p class="note">The fill button shows on the job sites Ocean of Jobs lists. With access to every site it also shows on company careers pages, and "Fill in this page" can fill a form a page embeds from another site. Each page is checked in this browser for an application form. Pages without one are left alone, and nothing about the pages you visit is sent anywhere.</p>
+    <h2>Show the fill button on every careers page</h2>
+    <p class="note">By default, the fill button appears on job listings supported by Ocean of Jobs. Enable access to all sites to use it on company career pages and forms embedded from other websites.</p>
+    <p class="note" style="margin-top:8px">Pages are checked locally in your browser for application forms. Page content isn't sent to Ocean of Jobs.</p>
     <label class="toggle" for="all-sites"><input type="checkbox" id="all-sites"> Show the fill button on every careers page</label>
     <p id="all-sites-msg" class="note" role="status" style="margin-top:10px"></p>
   </section>
 
   <section class="card">
     <h2>Account</h2>
-    <p id="account-now" class="note">Not connected.</p>
+    <p id="account-now" class="note">Not connected to an Ocean of Jobs account.</p>
     <div class="actions row">
-      <button class="btn" id="disconnect">Disconnect</button>
+      <button class="btn" id="disconnect">Disconnect account</button>
     </div>
   </section>
 </main>

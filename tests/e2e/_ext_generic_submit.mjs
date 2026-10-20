@@ -206,7 +206,7 @@ async function cardState(tab) {
   const go = host && find(host, (n) => n.nodeName === "BUTTON" && /\bgo\b/.test(attrs(n).class || ""));
   return { msg: msg && text(msg), submitShown: !!go && !("hidden" in attrs(go)) && /submit/i.test(text(go)) };
 }
-const HUMAN = "This site checks that a person sends the form, so press its own Submit button.";
+const HUMAN = "This site requires you to submit the form yourself. Review your answers and use the site's Submit button.";
 // submitHere as the card's button calls it, on the frame the fill used.
 const askSubmit = (url) => sw.evaluate((url) => submitHere({ url, frameId: __assist.frameId, title: "test", company: "test" }, __sender), url);
 

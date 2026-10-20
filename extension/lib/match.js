@@ -327,9 +327,64 @@
     return best;
   }
 
+  // The word for a count: plural(1, 'field') is 'field', plural(3, 'field') 'fields'.
+  const plural = (n, one, many = one + 's') => (n === 1 ? one : many);
+
+  // The fillers and the run compare these reasons and log them, so they
+  // stay as they are; the user reads them through reasonText().
+  const REASONS = {
+    'No application form on this page.': 'No application form found on this page.',
+    'A CAPTCHA stands in front of the form. Solve it, then try again.': 'Complete the CAPTCHA, then try again.',
+    'application form not found': "Couldn't find the application form.",
+    'not on the page': "The application form isn't available on this page.",
+    'job closed': 'This job is no longer accepting applications.',
+    'job not found': "Couldn't find this job listing.",
+    'no options to pick from': 'No matching option was available.',
+    'no dropdown on the page': "Couldn't find the dropdown for this question.",
+    'no input to type into': "Couldn't find the field for this answer.",
+    'no phone box on the page': "Couldn't find the phone number field.",
+    'the phone country did not stick': "Couldn't set the phone country. Please check it manually.",
+    'no file input': "Couldn't find the file upload field.",
+    'needs a date': 'Enter the required date manually.',
+    'sections like this one are not filled': 'This section needs to be completed manually.',
+    'no CV saved in the extension': 'Add your CV in extension settings, then try again.',
+    captcha: 'Complete the CAPTCHA before submitting.',
+    'no confirmation after submitting': "We couldn't confirm that the application was submitted. Check the page.",
+    'no confirmation': "We couldn't confirm that the application was submitted. Check the page.",
+    'Greenhouse asked for an email security code': 'Greenhouse sent an email security code. Enter it on the page to continue.',
+    'unsupported site': "This site isn't supported for applications yet.",
+  };
+  const PREFIXES = [
+    ['form errors: ', 'The form needs your attention: '],
+    ['Ashby will not take this application: ', "Ashby couldn't submit this application: "],
+    ['needs answer: ', 'Answer this question before continuing: '],
+  ];
+
+  // An internal reason as the popup, the card and the application history
+  // show it. A field's own reason keeps its label ("Country: ..."), and a
+  // reason with no wording of its own comes back unchanged.
+  function reasonText(reason) {
+    const r = String(reason == null ? '' : reason);
+    if (REASONS[r]) return REASONS[r];
+    for (const [code, text] of PREFIXES) if (r.startsWith(code)) return text + r.slice(code.length);
+    if (r.startsWith('could not fill ')) return "Couldn't fill in " + r.slice(15).split('; ').map(reasonText).join('; ');
+    const field = /^(.+): ([^:]+)$/.exec(r);
+    return field && REASONS[field[2]] ? `${field[1]}: ${REASONS[field[2]]}` : r;
+  }
+
+  // What a fill did, for the popup and the card. Counts of zero are left out.
+  function filledText(r) {
+    const s = [`Filled in ${r.filled} ${plural(r.filled, 'field')}.`];
+    if (r.suggested) s.push(`Suggested ${r.suggested} ${plural(r.suggested, 'answer')} with AI (outlined in amber).`);
+    const missing = (r.missing || []).length, errors = (r.errors || []).length;
+    if (missing) s.push(`${missing} ${plural(missing, 'needs', 'need')} your input.`);
+    if (errors) s.push(`${errors} couldn't be filled.`);
+    return s.join(' ');
+  }
+
   const api = {
     pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, suggestable,
-    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf,
+    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf, plural, reasonText, filledText,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.oojMatch = api;

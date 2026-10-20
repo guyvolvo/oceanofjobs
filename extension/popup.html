@@ -19,6 +19,7 @@
     .links a { font-size: 13px; color: var(--muted); text-decoration: none; padding: 0 4px; }
     .links { flex-wrap: nowrap; gap: 4px; }
     .links a:hover { color: var(--text); }
+    .connect h1 { margin: 0 0 6px; font: 500 14px/1.4 "Geist", sans-serif; }
     .connect p { margin-bottom: 14px; }
     .queue { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
     .queue summary { padding: 10px 12px; cursor: pointer; font-size: 13px; font-weight: 500; }
@@ -40,22 +41,24 @@
   <header class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs <span class="chip" id="plan" hidden>free</span></header>
 
   <section id="out" class="card connect" hidden>
-    <p id="out-text">Connect the extension to your Ocean of Jobs account to start applying.</p>
-    <button class="btn primary full" id="connect">Connect</button>
+    <h1>Connect Ocean of Jobs</h1>
+    <p id="out-text">Connect the extension to your Ocean of Jobs account to start applying for jobs.</p>
+    <button class="btn primary full" id="connect">Connect account</button>
   </section>
 
   <section id="in" hidden>
-    <p id="no-cv" class="card error" hidden>Add your CV in <a href="#" class="open-options">settings</a> before the extension can apply.</p>
+    <p id="no-cv" class="card error" hidden>Add your CV in <a href="#" class="open-options">settings</a> before applying.</p>
     <div class="stats">
-      <div class="stat"><b id="left">…</b><span id="left-label">Left this month</span></div>
-      <div class="stat"><b id="today">…</b><span>Applied today</span></div>
-      <div class="stat"><b id="needs">0</b><span>Need your answer</span></div>
+      <div class="stat"><b id="left">…</b><span id="left-label">applications left this month</span></div>
+      <div class="stat"><b id="today">…</b><span>applied today</span></div>
+      <div class="stat"><b id="needs">0</b><span id="needs-label">need your input</span></div>
     </div>
     <button class="btn primary full" id="fill">Fill in this page</button>
-    <p id="fill-why" class="note" hidden>Allow Ocean of Jobs on all sites to fill forms embedded from other sites and show the fill button on any careers page.</p>
+    <p id="fill-why" class="note" hidden>Allow access to all sites to fill out forms on company career pages and show the fill button outside the job board.</p>
     <p id="fill-result" class="note" hidden></p>
+    <p id="needs-head" class="note" hidden style="margin-top:12px">Questions you need to answer:</p>
     <ul id="needs-list" hidden></ul>
-    <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these on your account page and the next run uses them.</p>
+    <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these on your account page, then try again.</p>
     <details id="queue-box" class="queue">
       <summary>Queue <span id="queue-n" class="muted"></span></summary>
       <ul id="queue-list"></ul>
@@ -68,6 +71,7 @@
     <p id="state" class="note" style="margin-top:12px"></p>
   </section>
 
+  <script src="lib/match.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

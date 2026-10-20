@@ -11,6 +11,9 @@
   if (window.__oojDetect) return;
   window.__oojDetect = true;
   const all = globalThis.oojAts || {};
+  const { reasonText, filledText, plural } = globalThis.oojMatch;
+  const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
+  const SUBMITTED = 'Application submitted. You can find it in your application history.';
   const send = (msg) => chrome.runtime.sendMessage(msg).catch(() => null);
   const site = Object.keys(all).find((n) => n !== 'generic' && all[n].onSite(location.href));
 
@@ -101,6 +104,7 @@
     building = shown = true;
     if (await send({ type: 'hidden', host: location.hostname })) return;
     const icon = (await send({ type: 'icon' })) || '';
+    const name = dedicated ? 'Apply with Ocean of Jobs' : 'Fill with Ocean of Jobs';
     const host = document.createElement('div');
     host.setAttribute('data-ooj-fill', '');
     host.style.cssText = `position:fixed;top:${topOffset()}px;right:16px;z-index:2147483647;`;
@@ -129,12 +133,12 @@
       .warn { color: #ff6b5e; }
       .ok { color: #2fae60; }
     </style>
-    <button class="fab" aria-label="Fill this application with Ocean of Jobs" title="Fill this application with Ocean of Jobs"><img src="${icon}" alt=""></button>
-    <div class="c" role="dialog" aria-label="Fill with Ocean of Jobs" hidden>
-      <div class="h"><img src="${icon}" alt=""><span class="t">Fill with Ocean of Jobs</span><button class="x" aria-label="Close">×</button></div>
+    <button class="fab" aria-label="${name}" title="${name}"><img src="${icon}" alt=""></button>
+    <div class="c" role="dialog" aria-label="${name}" hidden>
+      <div class="h"><img src="${icon}" alt=""><span class="t">${name}</span><button class="x" aria-label="Close">×</button></div>
       <p class="msg"></p>
       <button class="go">Fill in this form</button>
-      <p class="frame" hidden>Turn on <button class="link">every careers page</button> in Settings to show this at the top of the site.</p>
+      <p class="frame" hidden>To show this card at the top of career pages, enable access to all sites in <button class="link">Settings</button>.</p>
       <button class="hide">Hide on this site until Chrome restarts</button>
     </div>`;
     document.documentElement.appendChild(host);
@@ -151,7 +155,7 @@
       return first;
     };
     fab.addEventListener('click', async () => {
-      if (open()) card(root, await send({ type: 'offerHere', url: target.url }) || { blocked: 'Something went wrong. Reload the page and try again.' }, target);
+      if (open()) card(root, await send({ type: 'offerHere', url: target.url }) || { blocked: UNEXPECTED }, target);
     });
     // Drawn inside a form's frame only when the page around it has no
     // Ocean of Jobs access, which Settings can grant.
@@ -179,14 +183,14 @@
     }
     const title = String((document.querySelector('h1') || {}).textContent || document.title).trim().slice(0, 300);
     if (offer.assist) {
-      msg.textContent = 'Fills this application from your profile. You check it before it is sent.';
+      msg.textContent = 'Fill out this application using your profile. Review your answers before submitting.';
       go.addEventListener('click', async () => {
         go.disabled = true;
         go.textContent = 'Filling in…';
         const r = await send({ type: 'fillHere', url: target.url, frameId: target.frameId, title });
         if (!r || r.error) {
           msg.className = 'msg warn';
-          msg.textContent = (r && r.error) || 'Something went wrong. Reload the page and try again.';
+          msg.textContent = reasonText((r && r.error) || UNEXPECTED);
           go.disabled = false;
           go.textContent = 'Try again';
           return;
@@ -208,12 +212,10 @@
     old.replaceWith(go);
     const to = { frameId: r.frameId != null ? r.frameId : target.frameId, url: r.url || target.url };
     msg.className = 'msg ok';
-    msg.textContent = `Filled in ${r.filled} fields.`
-      + (r.suggested ? ` ${r.suggested} suggested by AI, outlined in amber.` : '')
-      + (r.missing.length ? ` ${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.` : '')
-      + (r.submit ? ' Check the form, then submit it from here.'
-        : r.botCheck ? ' This site checks that a person sends the form, so press its own Submit button.'
-          : ' Check the form, then send it yourself.');
+    msg.textContent = filledText(r) + ' '
+      + (r.submit ? 'Review your answers, then submit the application here.'
+        : r.botCheck ? "This site requires you to submit the form yourself. Review your answers and use the site's Submit button."
+          : 'Review your answers, then submit the application on the page.');
     go.hidden = !r.submit;
     go.disabled = false;
     go.textContent = 'Submit application';
@@ -225,19 +227,19 @@
       const s = await send({ type: 'submitHere', url: to.url, frameId: to.frameId, title, company: location.hostname });
       if (s && s.submitted) {
         msg.className = 'msg ok';
-        msg.textContent = 'Applied. It is in your application history.';
+        msg.textContent = SUBMITTED;
         go.hidden = true;
         return;
       }
       msg.className = 'msg warn';
       if (s && s.unknown) {
         // Pressing again could send it twice.
-        msg.textContent = 'Sent? Check the page; it isn\'t counted.';
+        msg.textContent = "We couldn't confirm whether the application was submitted. Check the page before trying again.";
         go.hidden = true;
         return;
       }
-      msg.textContent = s && s.failed ? `Not sent: ${s.failed}. The credit is back. Fix it on the form, then press Submit application.`
-        : (s && s.error) || 'Something went wrong. Reload the page and try again.';
+      msg.textContent = s && s.failed ? `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. Your credit has been returned. Fix the issue on the form, then try again.`
+        : reasonText((s && s.error) || UNEXPECTED);
       go.disabled = false;
       go.textContent = 'Submit application';
     });
@@ -245,10 +247,9 @@
 
   function dedicatedCard(root, offer, title, msg, go) {
     const ats = dedicated;
-    root.querySelector('.t').textContent = 'Apply with Ocean of Jobs';
     go.textContent = 'Fill in this application';
-    msg.textContent = 'Fill in this application from your profile, check it, then submit it from here.'
-      + (offer.remaining != null ? ` ${offer.remaining} applications left on your plan.` : '');
+    msg.textContent = 'Fill out the application using your profile, review your answers, then submit it here.'
+      + (offer.remaining != null ? ` ${offer.remaining} ${plural(offer.remaining, 'application')} left on your plan.` : '');
     let submitting = false;
     go.addEventListener('click', async () => {
       if (submitting) return;
@@ -259,14 +260,13 @@
       const r = await send({ type: 'fillHere', url: location.href, title, company, location: where.trim().slice(0, 200) });
       if (!r || r.error) {
         msg.className = 'msg warn';
-        msg.textContent = (r && r.error) || 'Something went wrong. Reload the page and try again.';
+        msg.textContent = reasonText((r && r.error) || UNEXPECTED);
         go.disabled = false;
         go.textContent = 'Try again';
         return;
       }
       msg.className = 'msg ok';
-      msg.textContent = `Filled in ${r.filled} fields.`
-        + (r.missing.length ? ` ${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.` : '');
+      msg.textContent = filledText(r) + ' Review your answers, then submit the application here.';
       // The same button now submits; one listener, so a second click can't fill again.
       submitting = true;
       go.disabled = false;
@@ -278,7 +278,7 @@
       go.textContent = 'Submitting…';
       if (!(await ats.submit())) {
         msg.className = 'msg warn';
-        msg.textContent = 'Could not find the form\'s submit button. Press it on the form.';
+        msg.textContent = "Couldn't find the Submit button. Submit the application using the form.";
         go.hidden = true;
         return;
       }
@@ -289,12 +289,14 @@
           clearInterval(watch);
           send({ type: 'confirmedHere' });
           msg.className = 'msg ok';
-          msg.textContent = 'Applied. It is in your application history.';
+          msg.textContent = SUBMITTED;
           go.hidden = true;
         } else if ((out && out.failed) || Date.now() - started > 30000) {
           clearInterval(watch);
           msg.className = 'msg warn';
-          msg.textContent = out && out.failed ? `Not sent: ${out.failed}. Fix it on the form, then press Submit application.` : 'No confirmation yet. Check the form.';
+          // The credit the fill claimed comes back only when the tab closes unsent, so no word of it here.
+          msg.textContent = out && out.failed ? `Not submitted: ${reasonText(out.failed).replace(/\.$/, '')}. Fix the issue on the form, then try again.`
+            : 'No confirmation received yet. Check the page to see whether the application went through.';
           go.disabled = false;
           go.textContent = 'Submit application';
         }

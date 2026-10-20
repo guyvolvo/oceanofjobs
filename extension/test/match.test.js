@@ -227,3 +227,34 @@ test('suggestable: optional Yes/No radio questions get an AI suggestion, consent
   const plan = m.planFill(fields, { ...profile, eeo: {} }, {});
   assert.deepEqual(m.suggestable(fields, plan).map((f) => f.name).sort(), ['b', 'c', 'h', 'p']);
 });
+
+test('plural picks the word for a count', () => {
+  assert.equal(m.plural(1, 'field'), 'field');
+  assert.equal(m.plural(0, 'field'), 'fields');
+  assert.equal(m.plural(3, 'needs', 'need'), 'need');
+});
+
+test('reasonText: internal reasons as the user reads them', () => {
+  assert.equal(m.reasonText('captcha'), 'Complete the CAPTCHA before submitting.');
+  assert.equal(m.reasonText('needs answer: Why us?; Salary?'), 'Answer this question before continuing: Why us?; Salary?');
+  assert.equal(m.reasonText('form errors: Email, Phone'), 'The form needs your attention: Email, Phone');
+  assert.equal(m.reasonText('Ashby will not take this application: closed'), "Ashby couldn't submit this application: closed");
+  assert.equal(m.reasonText('Country: no options to pick from'), 'Country: No matching option was available.');
+  assert.equal(m.reasonText('could not fill Phone: no phone box on the page; CV: no file input'),
+    "Couldn't fill in Phone: Couldn't find the phone number field.; CV: Couldn't find the file upload field.");
+  assert.equal(m.reasonText('no confirmation after submitting'), "We couldn't confirm that the application was submitted. Check the page.");
+  assert.equal(m.reasonText('unsupported site'), "This site isn't supported for applications yet.");
+  // Already user-facing, or with no wording of its own: unchanged.
+  assert.equal(m.reasonText('tab closed'), 'tab closed');
+  assert.equal(m.reasonText("Couldn't find the application form."), "Couldn't find the application form.");
+  assert.equal(m.reasonText(''), '');
+  assert.equal(m.reasonText(undefined), '');
+});
+
+test('filledText counts in the singular and plural and leaves out zeros', () => {
+  assert.equal(m.filledText({ filled: 1, suggested: 0, missing: [], errors: [] }), 'Filled in 1 field.');
+  assert.equal(m.filledText({ filled: 3, suggested: 1, missing: ['a'], errors: ['x', 'y'] }),
+    "Filled in 3 fields. Suggested 1 answer with AI (outlined in amber). 1 needs your input. 2 couldn't be filled.");
+  assert.equal(m.filledText({ filled: 5, suggested: 2, missing: ['a', 'b'], errors: [] }),
+    'Filled in 5 fields. Suggested 2 answers with AI (outlined in amber). 2 need your input.');
+});

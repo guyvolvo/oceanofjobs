@@ -183,7 +183,7 @@ async function runJob({ job, form }, { supplyAnswers }) {
   check(`${tag}: reported one result, not submitted`, state.results.length === 1 && result.status !== "submitted", JSON.stringify(state.results));
   check(`${tag}: the job tab was closed`, (await sw.evaluate(async () => (await chrome.tabs.query({ url: "https://jobs.ashbyhq.com/*" })).length)) === 0);
   if (!supplyAnswers) {
-    if (row.missing.length) check(`${tag}: skipped, asking for the open questions`, result.status === "skipped" && /^needs answer: /.test(result.reason || ""), result.reason);
+    if (row.missing.length) check(`${tag}: skipped, asking for the open questions`, result.status === "skipped" && /^Answer this question before continuing: /.test(result.reason || ""), result.reason);
     return;
   }
   if (open.some((f) => f.type === "file")) {

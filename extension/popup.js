@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const ACCOUNT = 'https://oceanofjobs.com/account#autoapply';
+const { plural, reasonText, filledText } = oojMatch;
 
 for (const a of document.querySelectorAll('.open-options')) {
   a.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
@@ -34,22 +35,13 @@ $('fill').addEventListener('click', async () => {
   btn.textContent = 'Filling in…';
   out.hidden = true;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const r = tab ? await chrome.runtime.sendMessage({ type: 'fillTab', tabId: tab.id }) : { error: 'No page to fill.' };
+  const r = tab ? await chrome.runtime.sendMessage({ type: 'fillTab', tabId: tab.id }) : { error: 'No application form found on this page.' };
   btn.disabled = false;
   btn.textContent = 'Fill in this page';
   out.className = !r || r.error ? 'note error' : 'note ok';
-  out.textContent = !r || r.error ? (r && r.error) || 'Something went wrong.' : fillSummary(r);
+  out.textContent = !r || r.error ? reasonText((r && r.error) || "Couldn't fill in this page. Reload it and try again.") : filledText(r);
   out.hidden = false;
 });
-
-function fillSummary(r) {
-  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-  let s = `Filled ${n(r.filled, 'field', 'fields')}.`;
-  if (r.suggested) s += ` ${n(r.suggested, 'answer', 'answers')} suggested by AI, outlined in amber.`;
-  if (r.missing.length) s += ` ${r.missing.length} ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.`;
-  if (r.errors.length) s += ` ${r.errors.length} could not be filled.`;
-  return s + ' Check the form, then submit it yourself.';
-}
 
 let paused = false;
 $('pause').addEventListener('click', async () => {
@@ -62,31 +54,31 @@ function render(s) {
   $('in').hidden = !s.connected;
   if (!s.connected) {
     $('out-text').textContent = s.authError
-      ? 'Your connection to Ocean of Jobs was revoked or expired.'
-      : 'Connect the extension to your Ocean of Jobs account to start applying.';
-    $('connect').textContent = s.authError ? 'Reconnect' : 'Connect';
+      ? 'Your connection has expired. Connect your account again to continue.'
+      : 'Connect the extension to your Ocean of Jobs account to start applying for jobs.';
     return;
   }
   paused = s.paused;
   $('no-cv').hidden = s.hasCv;
   if (s.usage) {
-    $('plan').textContent = `${s.usage.plan[0].toUpperCase()}${s.usage.plan.slice(1)} plan`;
+    $('plan').textContent = `${s.usage.plan[0].toUpperCase()}${s.usage.plan.slice(1)}`;
     $('plan').hidden = false;
-    $('left-label').textContent = `of ${s.usage.limit} left ${s.usage.period === 'day' ? 'today' : 'this month'}`;
+    $('left-label').textContent = `${plural(s.usage.remaining, 'application')} left ${s.usage.period === 'day' ? 'today' : 'this month'}`;
     $('left').textContent = String(s.usage.remaining);
   }
   $('today').textContent = s.appliedToday == null ? '…' : String(s.appliedToday);
   $('needs').textContent = String(s.needs.length);
+  $('needs-label').textContent = `${plural(s.needs.length, 'needs', 'need')} your input`;
   const list = $('needs-list');
   list.replaceChildren(...s.needs.slice(0, 5).map((n) => {
     const li = document.createElement('li');
     li.textContent = n.question;
     return li;
   }));
-  list.hidden = $('needs-help').hidden = !s.needs.length;
+  list.hidden = $('needs-head').hidden = $('needs-help').hidden = !s.needs.length;
   $('pause').textContent = paused ? 'Resume' : 'Pause';
   $('state').textContent = paused
-    ? 'Paused. Nothing is sent until you resume.'
+    ? 'Auto-apply is paused. Nothing will be sent until you resume.'
     : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString()}. Checks every 15 minutes.` : 'Checks every 15 minutes.';
 }
 
@@ -96,11 +88,11 @@ async function renderQueue() {
   const note = $('queue-note');
   if (!q || q.error) {
     $('queue-n').textContent = '';
-    note.textContent = 'Could not load the queue.';
+    note.textContent = "Couldn't load the queue.";
     note.hidden = false;
     return;
   }
-  $('queue-n').textContent = String(q.total);
+  $('queue-n').textContent = `(${q.total})`;
   $('queue-list').replaceChildren(...q.items.map((j) => {
     const li = document.createElement('li');
     const a = document.createElement('a');
@@ -109,7 +101,7 @@ async function renderQueue() {
     a.rel = 'noopener';
     a.textContent = j.title;
     const sub = document.createElement('small');
-    sub.textContent = j.supported ? j.company : `${j.company ? j.company + ' · ' : ''}can't apply on this site yet`;
+    sub.textContent = j.supported ? j.company : reasonText('unsupported site');
     if (!j.supported) sub.className = 'warn';
     a.append(sub);
     const rm = document.createElement('button');
@@ -124,7 +116,7 @@ async function renderQueue() {
     return li;
   }));
   note.hidden = q.total > 0 && q.total <= q.items.length;
-  note.textContent = q.total ? `Showing the first ${q.items.length}.` : 'Nothing queued. Queue jobs from your AI assistant.';
+  note.textContent = q.total ? `Showing the first ${q.items.length} ${plural(q.items.length, 'job')}.` : 'No jobs in your queue. Add jobs from the extension or your AI assistant.';
 }
 
 chrome.runtime.sendMessage({ type: 'status' }).then((s) => {

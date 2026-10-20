@@ -17,8 +17,8 @@ $('cv').addEventListener('change', async () => {
   const file = $('cv').files[0];
   if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!CV_TYPES[ext]) { $('cv-msg').textContent = 'Use a PDF or DOCX file.'; return; }
-  if (file.size > MAX_CV) { $('cv-msg').textContent = 'That file is over 5 MB.'; return; }
+  if (!CV_TYPES[ext]) { $('cv-msg').textContent = 'Please choose a PDF or DOCX file.'; return; }
+  if (file.size > MAX_CV) { $('cv-msg').textContent = 'This file exceeds the 5 MB limit.'; return; }
   const bytes = new Uint8Array(await file.arrayBuffer());
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -39,15 +39,15 @@ $('save-ai').addEventListener('click', async () => {
   if (!provider) {
     await chrome.storage.local.remove('ai');
     $('key').value = $('model').value = '';
-    $('ai-msg').textContent = 'AI answers are off.';
+    $('ai-msg').textContent = 'AI answers are turned off.';
     return;
   }
-  if (!key) { $('ai-msg').textContent = 'Paste your API key first.'; return; }
+  if (!key) { $('ai-msg').textContent = 'Enter your API key first.'; return; }
   const model = $('model').value.trim() || PROVIDERS[provider].model;
-  if (!model) { $('ai-msg').textContent = 'Type the model name to use.'; return; }
+  if (!model) { $('ai-msg').textContent = 'Enter a model name.'; return; }
   // Asked here, on a click, because Chrome only grants host access from a user gesture.
   const granted = await chrome.permissions.request({ origins: [PROVIDERS[provider].origin] });
-  if (!granted) { $('ai-msg').textContent = 'Chrome did not allow access to the provider, so nothing was saved.'; return; }
+  if (!granted) { $('ai-msg').textContent = "Couldn't connect to the provider. Nothing was saved."; return; }
   await chrome.storage.local.set({ ai: { provider, key, model } });
   $('ai-msg').textContent = 'Saved.';
 });
@@ -59,8 +59,8 @@ $('all-sites').addEventListener('change', async () => {
   const on = $('all-sites').checked;
   const ok = on ? await chrome.permissions.request(ALL_SITES) : await chrome.permissions.remove(ALL_SITES);
   $('all-sites').checked = await chrome.permissions.contains(ALL_SITES);
-  $('all-sites-msg').textContent = !ok ? 'Chrome did not change the access.'
-    : on ? 'On. Reload a careers page to see the button.' : 'Off. The button shows only on the job sites Ocean of Jobs lists.';
+  $('all-sites-msg').textContent = !ok ? "Chrome couldn't update site access."
+    : on ? 'Enabled. Reload a careers page to show the button.' : 'Disabled. The button will only appear on job listings supported by Ocean of Jobs.';
 });
 chrome.permissions.contains(ALL_SITES).then((on) => { $('all-sites').checked = on; });
 
@@ -76,6 +76,6 @@ chrome.storage.local.get(['cv', 'ai', 'token']).then(({ cv, ai, token }) => {
     $('key').value = ai.key;
     $('model').value = ai.model;
   }
-  $('account-now').textContent = token ? 'Connected to your Ocean of Jobs account.' : 'Not connected.';
+  $('account-now').textContent = token ? 'Connected to your Ocean of Jobs account.' : 'Not connected to an Ocean of Jobs account.';
   $('disconnect').disabled = !token;
 });

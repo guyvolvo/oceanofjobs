@@ -318,7 +318,7 @@ need(ats.length === 2, "c: both ATS pages tried");
 for (const x of rows.filter((x) => x.part === "c" && !("apiBeforeClick" in x))) need(x.button === "none" && x.apiCalls === 0, `c: no button and no API call on ${x.host}`);
 const d = rows.filter((x) => x.part === "d");
 need(d[0] && !d[0].error && d[0].held.email && d[0].button === "none" && d[0].registered.length === 0, "d: fills the page activeTab grants; no button, no every-site script");
-need(d[1] && d[1].error === "This page cannot be filled.", "d: no access, nothing filled");
+need(d[1] && d[1].error === "This page isn't supported.", "d: no access, nothing filled");
 console.log(`\nclaims made: ${rows.reduce((n, x) => n + x.claims, 0)} (must be 0)`);
 console.log(`writes to other hosts, all aborted or answered in the browser: ${rows.reduce((n, x) => n + x.blocked.length, 0)}`);
 for (const x of rows) for (const w of x.blocked) console.log(`  ${x.part} ${x.host}: ${w}`);
