@@ -1,7 +1,7 @@
 // Fill assist for any application form no dedicated ATS file knows. Same
 // shape as ats/greenhouse.js, read from the DOM alone. matches() is always
-// false: a page is never offered or applied to on its own, only filled when
-// the user asks from the popup, and the user presses submit.
+// false: a run never applies through it. A form is filled when the user
+// asks, and sent only when the user presses Submit application on the card.
 (function (root) {
   const onSite = () => true;
   const matches = () => false;
@@ -232,18 +232,32 @@
   const APPLY = /(?<!\p{L})(apply|bewerben|postuler|postular|postularme|inscribirme|aplicar|candidatar|candidatura|candidati|solliciteer|solliciteren|søk|sök|ansök|hae|aplikuj|jelentkezem|i['’]?m interested)(?!\p{L})/iu;
   const NOT_APPLY = /linkedin|indeed|seek|xing|google|facebook|filter|later|share|save|how to/i;
 
-  // An "Apply" link or button that leads to the form. Never a form's own
+  // "Apply" links and buttons that lead to the form. Never a form's own
   // submit button: that would send an application.
-  function applyControl() {
-    const ok = (el) => !(el.form && el.type === 'submit') && !el.disabled && shown(el);
-    for (const el of document.querySelectorAll('a, button, [role="button"], input[type="button"]')) {
+  const canApply = (el) => !(el.form && el.type === 'submit') && !el.disabled && shown(el);
+  function applyControls() {
+    return [...document.querySelectorAll('a, button, [role="button"], input[type="button"]')].filter((el) => {
       const t = clean(el.textContent || el.value);
-      if (t.length < 40 && APPLY.test(t) && !NOT_APPLY.test(t) && ok(el)) return el;
-    }
+      return t.length < 40 && APPLY.test(t) && !NOT_APPLY.test(t) && canApply(el);
+    });
+  }
+
+  function applyControl() {
+    const first = applyControls()[0];
+    if (first) return first;
     // A button with its own wording ("Join our Kingdom!") still says what
     // it does in its markup.
     const marked = 'a[href*="/apply"], a[href*="/applications/new"], button[class*="apply" i], button[id*="apply" i], [data-action*="apply" i], [data-action*="form-overlay" i]';
-    return [...document.querySelectorAll(marked)].find((el) => ok(el) && !NOT_APPLY.test(el.textContent)) || null;
+    return [...document.querySelectorAll(marked)].find((el) => canApply(el) && !NOT_APPLY.test(el.textContent)) || null;
+  }
+
+  // A single job posting: its Apply controls (one at the top, one at the
+  // bottom) all lead to one place. A list of jobs has one per job.
+  function postingHere() {
+    const els = applyControls();
+    const here = location.href.split('#')[0];
+    const to = new Set(els.map((el) => (el.href && el.href.split('#')[0] !== here ? el.href.split('#')[0] : 'here')));
+    return els.length > 0 && els.length <= 3 && to.size === 1;
   }
 
   // A careers page that embeds the ATS form from another site: the caller
@@ -261,7 +275,8 @@
   // page an Apply link or a form frame points at; an Apply button is
   // clicked here.
   async function read() {
-    form = await waitFor(() => findForm() || formFrame(), 6000);
+    // A posting shows its Apply control at once; a form page may still be rendering.
+    form = await waitFor(() => findForm() || formFrame(), postingHere() ? 1500 : 6000);
     if (!form) {
       const apply = applyControl();
       if (apply) {
@@ -274,6 +289,9 @@
     if (form && form.tagName === 'IFRAME') return { openUrl: form.src, frame: true };
     if (!form && captcha()) return { error: 'A CAPTCHA stands in front of the form. Solve it, then try again.' };
     if (!form) return { error: 'No application form on this page.' };
+    // Each call injects this file again and starts with no form, so the page keeps it.
+    for (const doc of docs()) for (const old of doc.querySelectorAll('[data-ooj-form]')) old.removeAttribute('data-ooj-form');
+    form.setAttribute('data-ooj-form', '');
     const fields = fieldsOf(form);
     for (const f of fields) if (f.type === 'combobox') f.options = await peekOptions(find(f.name)[0]);
     return { fields };
@@ -410,24 +428,118 @@
     return { errors };
   }
 
-  function submit() {
-    const f = form || findForm();
-    const button = f && (f.querySelector('button[type="submit"], input[type="submit"]')
-      || [...f.querySelectorAll('button')].reverse().find((b) => /submit|apply|send/i.test(b.textContent)));
-    if (!button) return false;
-    button.click();
-    return true;
+  // What a final submit button says, whole: "Submit", "Send application",
+  // "Bewerbung absenden", "Envoyer ma candidature", "שלח מועמדות".
+  const FINAL = new RegExp(`^(${[
+    '(submit|send)( (my|your|the))?( application| candidacy)?( now)?', 'apply( now| for (this|the) (job|position|role))?',
+    '(bewerbung )?(absenden|abschicken|senden)', '(jetzt )?bewerben',
+    '(sollicitatie )?(versturen|verzenden|indienen)', 'verstuur( je)?( sollicitatie)?', 'solliciteer( nu)?', 'solliciteren',
+    '(envoyer|soumettre|valider)( (ma|la|votre) candidature)?', 'postuler( maintenant)?',
+    'enviar( (mi |la |tu )?(solicitud|candidatura|postulación))?', 'postular(me)?', 'aplicar',
+    '(שלח|שליחה|הגש|הגשת|שליחת)( מועמדות| קורות חיים)?', 'הגשה',
+  ].join('|')})$`, 'iu');
+  // A button that leads to more questions, not to sending.
+  const STEP = /^(next|continue|weiter|fortfahren|suivant|continuer|siguiente|continuar|volgende|verder|הבא|המשך)/iu;
+  const SOCIAL = /linkedin|indeed|google|facebook|xing|seek|github/i;
+  const words = (s) => clean(String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' '));
+  const buttonKind = (text) => (STEP.test(words(text)) ? 'step' : FINAL.test(words(text)) ? 'final' : 'other');
+
+  const markedForm = () => docs().map((d) => d.querySelector('[data-ooj-form]')).find(Boolean) || null;
+
+  const captchaIn = (f) => [...f.ownerDocument.querySelectorAll('iframe')].some((x) => /captcha|challenges\.cloudflare/.test(x.src)
+    && !/size=invisible/.test(x.src) && x.getBoundingClientRect().width > 50 && shown(x));
+
+  // The form's own button that sends it, or null when that is not clear:
+  // none, two of equal weight, a step button (a wizard has more pages), or
+  // a CAPTCHA the user has to solve. Only buttons inside the form, so never
+  // a cookie banner, a link or "Apply with LinkedIn".
+  function submitButton() {
+    const f = markedForm() || findForm();
+    if (!f || captchaIn(f)) return null;
+    // A div form's button often sits just outside its fields' box.
+    let box = f;
+    const n = controls(f).length;
+    for (let i = 0; f.tagName !== 'FORM' && i < 3 && box.parentElement && box.parentElement !== f.ownerDocument.body
+      && controls(box.parentElement).length === n; i++) box = box.parentElement;
+    const buttons = [...box.querySelectorAll('button, input[type="submit"], [role="button"]:not(a)')]
+      .filter((b) => !b.disabled && b.getAttribute('aria-disabled') !== 'true' && shown(b) && !SOCIAL.test(b.textContent || b.value));
+    const kinds = buttons.map((b) => buttonKind(b.textContent || b.value || b.getAttribute('aria-label')));
+    if (kinds.includes('step')) return null;
+    // A final wording beats a plain submit type ("Save draft", "Upload").
+    const weight = buttons.map((b, i) => (kinds[i] === 'final' ? 2 : f.tagName === 'FORM' && b.type === 'submit' && b.form === f ? 1 : 0));
+    const top = Math.max(0, ...weight);
+    const best = buttons.filter((b, i) => weight[i] === top);
+    return top && best.length === 1 ? best[0] : null;
   }
 
-  const SENT = /thank you for (applying|your application|your interest)|application (was |has been )?(received|submitted|sent)|we('ve| have) received your application/i;
+  // The button for the card and the logs, not the element.
+  function submitInfo() {
+    const b = submitButton();
+    if (!b) return null;
+    const sel = b.tagName.toLowerCase() + (b.id ? '#' + CSS.escape(b.id) : '') + (b.getAttribute('type') ? `[type="${b.getAttribute('type')}"]` : '')
+      + [...b.classList].slice(0, 2).map((c) => '.' + CSS.escape(c)).join('');
+    return { text: clean(b.textContent || b.value || b.getAttribute('aria-label')).slice(0, 60), selector: sel };
+  }
 
-  function outcome() {
-    if (!findForm() && SENT.test(document.body.innerText)) return 'submitted';
-    const captcha = [...document.querySelectorAll('iframe')].some((f) => /recaptcha\/(api2|enterprise)\/bframe|hcaptcha|challenges\.cloudflare/.test(f.src)
-      && f.getBoundingClientRect().width > 50 && shown(f));
-    if (captcha) return { failed: 'captcha' };
-    const errored = [...document.querySelectorAll('[aria-invalid="true"]')].filter(shown).map((el) => tidy(labelOf(el)));
-    return errored.length ? { failed: 'form errors: ' + errored.slice(0, 3).join(', ') } : null;
+  // A confirmation, in a few languages. Counted, since a posting can say
+  // "thank you for your interest" before anything is sent.
+  const SENT = /thank(s| you)( so much)? for (applying|your application|your interest|submitting)|application (was |has been )?(successfully )?(received|submitted|sent)|we('ve| have) received your application|we.?ll be in touch|vielen dank für ihre bewerbung|ihre bewerbung (wurde|ist) (erfolgreich )?(eingegangen|versendet|übermittelt|gesendet)|bedankt voor (je|uw) sollicitatie|(je|uw) sollicitatie is (verzonden|ontvangen)|merci (pour|de) votre candidature|votre candidature a (bien )?été (envoyée|reçue|transmise)|gracias por (tu|su) (postulación|candidatura|solicitud)|(tu|su) (candidatura|solicitud|postulación) (ha sido|fue) (enviada|recibida)|תודה על (פנייתך|הגשת|מועמדותך|ההגשה)|מועמדותך (נשלחה|התקבלה)|קורות החיים (נשלחו|התקבלו)/giu;
+  const sentCount = (text) => (String(text || '').match(SENT) || []).length;
+  const SENT_URL = /thank|success|confirm|submitted|applied/i;
+
+  // Presses submitButton(); what it returns is what outcome() compares with.
+  function submit() {
+    const b = submitButton();
+    if (!b) return null;
+    const doc = b.ownerDocument;
+    const f = markedForm() || findForm();
+    // The browser itself holds back a form with an empty required field.
+    const checked = b.type === 'submit' && b.form && !b.form.noValidate && !b.formNoValidate;
+    const held = checked ? [...b.form.querySelectorAll(':invalid')].filter((el) => el.matches(CONTROLS) && usable(el)).map((el) => tidy(labelOf(el, b.form))) : [];
+    const before = { url: doc.defaultView.location.href, sent: sentCount(doc.body.innerText), errors: fieldErrors(f), held };
+    b.click();
+    return before;
+  }
+
+  // What the form flags: fields marked invalid, else visible error text.
+  function fieldErrors(f) {
+    const bad = [...f.querySelectorAll('[aria-invalid="true"]')].filter(shown).map((el) => tidy(labelOf(el, f)));
+    if (!bad.length) {
+      bad.push(...[...f.querySelectorAll('[role="alert"], [class*="error" i], [class*="invalid" i]')]
+        .filter((el) => shown(el) && !el.querySelector(CONTROLS)).map((el) => clean(el.innerText)).filter((t) => t.length < 200));
+    }
+    return [...new Set(bad.filter(Boolean))];
+  }
+
+  // After submit(): 'submitted' when the form went away for good, the
+  // address moved to a thank-you page or a confirmation appeared; {failed}
+  // when the browser held it back or the form flags something new; null
+  // when ms pass with neither. An error already showing before the click
+  // ("Unable to fetch address suggestions") says nothing about the send.
+  // After a navigation it runs again on the new page with the same before.
+  async function outcome(before = {}, ms = 20000) {
+    const failed = (errors) => ({ failed: 'form errors: ' + errors.slice(0, 3).join(', ') });
+    if (before.held && before.held.length) return failed(before.held);
+    const f = markedForm();
+    const until = Date.now() + ms;
+    let goneSince = 0;
+    for (;;) {
+      await sleep(500);
+      const doc = f ? f.ownerDocument : document;
+      const href = doc.defaultView.location.href;
+      const u = new URL(href);
+      if (before.url && href !== before.url && SENT_URL.test(u.pathname + u.hash)) return 'submitted';
+      if (sentCount(doc.body ? doc.body.innerText : '') > (before.sent || 0)) return 'submitted';
+      // A form can hide while it sends and come back; a sent one stays gone.
+      const there = f && f.isConnected && shown(f);
+      if (f && !there) {
+        goneSince = goneSince || Date.now();
+        if (Date.now() - goneSince >= 2000) return 'submitted';
+      } else goneSince = 0;
+      const fresh = there ? fieldErrors(f).filter((e) => !(before.errors || []).includes(e)) : [];
+      if (fresh.length) return failed(fresh);
+      if (Date.now() >= until) return null;
+    }
   }
 
   // For the fill button and for picking the frame to fill: how strongly
@@ -439,5 +551,6 @@
   }
 
   root.oojAts = root.oojAts || {};
-  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere };
+  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo };
+  if (typeof module === 'object' && module.exports) module.exports = { buttonKind, sentCount };
 })(globalThis);

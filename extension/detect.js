@@ -2,9 +2,11 @@
 // form a dedicated filler knows (Greenhouse, Ashby, Workable) the card
 // fills it, then submits it from the card; the credit counts only once
 // sent, and only when the account has "Jobs I view anywhere on the web"
-// turned on. On any other form the card only fills: the user checks it
-// and presses the site's own submit. Nothing goes over the network until
-// the button is clicked, and pages without a form get nothing at all.
+// turned on. On any other form the card fills, and submits too when the
+// form has one clear submit button; that credit counts only when the site
+// confirms. On those sites a job posting whose Apply button opens the
+// form gets the button as well. Nothing goes over the network until the
+// button is clicked, and pages without a form get nothing at all.
 (function () {
   if (window.__oojDetect) return;
   window.__oojDetect = true;
@@ -22,22 +24,32 @@
   let shown = false;
 
   // A form in an iframe shows its button on the page around it, where the
-  // user sees it, and the fill goes to that frame.
+  // user sees it, and the fill goes to that frame. A fill that followed a
+  // posting's Apply link to this page shows its result here.
   if (isTop) {
     chrome.runtime.onMessage.addListener((msg, sender, reply) => {
-      if (msg.type !== 'formBelow') return false;
-      show({ frameId: msg.frameId, url: msg.url });
+      if (msg.type === 'formBelow') show({ frameId: msg.frameId, url: msg.url });
+      else if (msg.type === 'filledHere') {
+        show({ frameId: msg.result.frameId, url: msg.result.url }, msg.result).then(reply);
+        return true;
+      } else return false;
       reply({ ok: true });
       return false;
     });
   }
 
-  // A form that asks for a CV, or any form on a page that says it is about a job.
+  // A form that asks for a CV, or any form on a page that says it is about
+  // a job. On a site no dedicated filler knows, also a job posting whose
+  // Apply button opens the form.
   const JOBISH = /job|career|apply|application|position|vacanc|opening|recruit|resume|\bcv\b|hiring|talent|bewerb|stelle|emploi|empleo|משר|דרוש/i;
+  // Some forms keep a hidden "Application submitted" heading ready.
+  const heading = () => ([...document.querySelectorAll('h1')].find((h) => h.checkVisibility()) || {}).textContent || '';
   function look() {
     if (shown || !all.generic) return shown;
     const p = all.generic.formHere();
-    if (!(p.score > 0 && (p.file || dedicated || JOBISH.test(location.href + ' ' + document.title)))) return false;
+    const jobish = () => JOBISH.test(location.href + ' ' + document.title + ' ' + heading());
+    const form = p.score > 0 && (p.file || dedicated || jobish());
+    if (!form && !(isTop && !site && all.generic.postingHere() && jobish())) return false;
     found();
     return true;
   }
@@ -73,8 +85,18 @@
   }
 
   // The page's own form and one in a frame below can both ask for it.
+  // With a result, the card opens on it. False when nothing shows yet.
   let building = false;
-  async function show(target) {
+  let built = null;
+  async function show(target, result) {
+    if (!built) await build(target);
+    if (!built || !result) return !!built;
+    built.open();
+    filled(built.root, result, target);
+    return true;
+  }
+
+  async function build(target) {
     if (building || (shown && target.frameId == null)) return;
     building = shown = true;
     if (await send({ type: 'hidden', host: location.hostname })) return;
@@ -118,13 +140,17 @@
     root.querySelector('.hide').addEventListener('click', () => { send({ type: 'hide', host: location.hostname }); host.remove(); });
     root.querySelector('.x').addEventListener('click', () => { c.hidden = true; fab.hidden = false; fab.focus(); });
     let ready = false;
-    fab.addEventListener('click', async () => {
+    const open = () => {
       fab.hidden = true;
       c.hidden = false;
-      if (ready) return;
+      const first = !ready;
       ready = true;
-      card(root, await send({ type: 'offerHere', url: target.url }) || { blocked: 'Something went wrong. Reload the page and try again.' }, target);
+      return first;
+    };
+    fab.addEventListener('click', async () => {
+      if (open()) card(root, await send({ type: 'offerHere', url: target.url }) || { blocked: 'Something went wrong. Reload the page and try again.' }, target);
     });
+    built = { root, open };
   }
 
   function card(root, offer, target) {
@@ -142,7 +168,7 @@
     }
     const title = String((document.querySelector('h1') || {}).textContent || document.title).trim().slice(0, 300);
     if (offer.assist) {
-      msg.textContent = 'Fills this form from your profile. Check it, then send it with the site\'s own button.';
+      msg.textContent = 'Fills this application from your profile. You check it before it is sent.';
       go.addEventListener('click', async () => {
         go.disabled = true;
         go.textContent = 'Filling in…';
@@ -154,15 +180,57 @@
           go.textContent = 'Try again';
           return;
         }
-        msg.className = 'msg ok';
-        msg.textContent = `Filled in ${r.filled} fields.`
-          + (r.suggested ? ` ${r.suggested} suggested by AI, outlined in amber.` : '')
-          + (r.missing.length ? ` ${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.` : '')
-          + ' Check the form, then send it yourself.';
-        go.hidden = true;
+        filled(root, r, target);
       });
       return;
     }
+    dedicatedCard(root, offer, title, msg, go);
+  }
+
+  // After a fill on a site no dedicated filler knows. With one clear
+  // submit button on the form, the card sends it: the credit is claimed
+  // first and given back unless the site confirms within 20 seconds.
+  function filled(root, r, target) {
+    const msg = root.querySelector('.msg');
+    const old = root.querySelector('.go');
+    const go = old.cloneNode(true);
+    old.replaceWith(go);
+    const to = { frameId: r.frameId != null ? r.frameId : target.frameId, url: r.url || target.url };
+    msg.className = 'msg ok';
+    msg.textContent = `Filled in ${r.filled} fields.`
+      + (r.suggested ? ` ${r.suggested} suggested by AI, outlined in amber.` : '')
+      + (r.missing.length ? ` ${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.` : '')
+      + (r.submit ? ' Check the form, then submit it from here.' : ' Check the form, then send it yourself.');
+    go.hidden = !r.submit;
+    go.disabled = false;
+    go.textContent = 'Submit application';
+    go.addEventListener('click', async () => {
+      if (go.disabled) return;
+      go.disabled = true;
+      go.textContent = 'Submitting…';
+      const title = String(heading() || document.title).trim().slice(0, 300);
+      const s = await send({ type: 'submitHere', url: to.url, frameId: to.frameId, title, company: location.hostname });
+      if (s && s.submitted) {
+        msg.className = 'msg ok';
+        msg.textContent = 'Applied. It is in your application history.';
+        go.hidden = true;
+        return;
+      }
+      msg.className = 'msg warn';
+      if (s && s.unknown) {
+        // Pressing again could send it twice.
+        msg.textContent = 'Sent? Check the page; it isn\'t counted.';
+        go.hidden = true;
+        return;
+      }
+      msg.textContent = s && s.failed ? `Not sent: ${s.failed}. The credit is back. Fix it on the form, then press Submit application.`
+        : (s && s.error) || 'Something went wrong. Reload the page and try again.';
+      go.disabled = false;
+      go.textContent = 'Submit application';
+    });
+  }
+
+  function dedicatedCard(root, offer, title, msg, go) {
     const ats = dedicated;
     root.querySelector('.t').textContent = 'Apply with Ocean of Jobs';
     go.textContent = 'Fill in this application';

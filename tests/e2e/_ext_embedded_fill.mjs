@@ -34,7 +34,8 @@ async function liveForm(ats, suffix) {
   for (const j of jobs.slice(0, 4)) {
     const url = j.url.replace(/\/$/, "") + suffix;
     const page = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) }).catch(() => null);
-    if (page && page.ok && !/404|not found/i.test((/<title>([^<]*)/i.exec(await page.text()) || [])[1] || "")) return url;
+    // A redirect to a custom domain leaves the host permissions behind.
+    if (page && page.ok && new URL(page.url).hostname === new URL(url).hostname && !/404|not found/i.test((/<title>([^<]*)/i.exec(await page.text()) || [])[1] || "")) return url;
     await sleep(1500);
   }
   throw new Error(`no open ${ats} form`);

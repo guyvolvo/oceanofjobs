@@ -539,16 +539,92 @@ async function assist(tabId, frameId, name, page, url, title) {
   return { ...result, ats: name, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
 }
 
-// The fill button on a page with no dedicated filler: fill only, like
-// "Fill in this page". The form may sit in a frame below the button.
+const site = (url) => new URL(url).hostname.split('.').slice(-2).join('.');
+
+// The fill button on a page with no dedicated filler, like "Fill in this
+// page". The form may sit in a frame below the button. On a job posting
+// the Apply button loads the form, in the page or in a frame, or links to
+// it on the same site; the tab goes there and the new page shows the card.
+// The result names the frame and address the card submits to.
 async function assistHere(msg, sender) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
   if (!st.token || st.authError) return { error: 'Connect the extension to your Ocean of Jobs account first.' };
   if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
-  const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
-  const page = await readForm(sender.tab.id, 'generic', frameId).catch(() => null);
+  const tabId = sender.tab.id;
+  let frameId = msg.frameId != null ? msg.frameId : sender.frameId;
+  let url = msg.url;
+  let page = await readForm(tabId, 'generic', frameId).catch(() => null);
+  let moved = false;
+  if (page && page.frame) {
+    const f = await frameWithForm(tabId, 10000);
+    page = f && f.frameId !== frameId ? await readForm(tabId, 'generic', f.frameId).catch(() => null) : null;
+    if (f) ({ frameId, url } = f);
+  } else if (page && page.openUrl && frameId === 0 && site(page.openUrl) === site(url)) {
+    url = page.openUrl;
+    await chrome.tabs.update(tabId, { url });
+    await new Promise((r) => setTimeout(r, 1000));
+    await waitForLoad(tabId);
+    page = await readForm(tabId, 'generic', 0).catch(() => null);
+    moved = true;
+  }
   if (!page || page.openUrl) return { error: 'Could not read this form. Use "Fill in this page" in the extension menu.' };
-  return assist(sender.tab.id, frameId, 'generic', page, msg.url, msg.title);
+  const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
+  if (r.error) return r;
+  const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  const out = { ...r, frameId, url, submit: submit && submit.text };
+  // The card that asked went with the old page. detect.js on the new one
+  // may still be starting, so try for a few seconds.
+  for (let i = 0; moved && i < 10; i++) {
+    if (await chrome.tabs.sendMessage(tabId, { type: 'filledHere', result: out }, { frameId: 0 }).catch(() => false)) break;
+    await new Promise((res) => setTimeout(res, 500));
+  }
+  return out;
+}
+
+// "Submit application" on the card of a page with no dedicated filler:
+// claim a credit, press the form's own button, watch for a confirmation.
+// The credit counts only when one shows; otherwise it is given back.
+async function submitHere(msg, sender) {
+  const tabId = sender.tab.id;
+  const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
+  if (!(await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null))) {
+    return { error: 'Could not find the form\'s submit button. Press it on the form.' };
+  }
+  const id = await pageJobId(msg.url);
+  try {
+    await api('/me/apply/claim', { method: 'POST', body: { job_id: id, company: msg.company, title: msg.title, url: msg.url } });
+  } catch (e) {
+    if (e.status === 402) return { error: (e.body && e.body.error) || 'Your plan has no applications left.' };
+    if (e.status === 409) return { error: 'You already applied to this job.' };
+    throw e;
+  }
+  accountCache = null;
+  // Claimed from here on, so every way out reports a result.
+  let out;
+  try {
+    const before = await inTab(tabId, 'generic', 'submit', [], frameId);
+    out = before ? await watchHere(tabId, frameId, before) : { failed: 'submit button not found' };
+  } catch (e) {
+    out = { failed: String(e.message || e).slice(0, 200) };
+  }
+  if (out === 'submitted') {
+    await report(id, 'submitted', '');
+    return { submitted: true };
+  }
+  await report(id, 'failed', out ? out.failed : 'no confirmation');
+  return out ? { failed: out.failed } : { unknown: true };
+}
+
+// generic.outcome() in the form's frame for up to 20 seconds. A navigation
+// ends the script early with no answer, so it goes in again on the new page.
+async function watchHere(tabId, frameId, before) {
+  const until = Date.now() + 20000;
+  while (Date.now() < until) {
+    const r = await inTab(tabId, 'generic', 'outcome', [before, until - Date.now()], frameId).catch(() => null);
+    if (r) return r;
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+  return null;
 }
 
 // The AI's best answer for a page the user will review: our server on
@@ -683,6 +759,12 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   }
   if (msg.type === 'fillHere') {
     (globalThis.oojAts[adapterFor(msg.url)].matches(msg.url) ? fillHere(msg, sender.tab.id, sender.frameId) : assistHere(msg, sender))
+      .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))
+      .then(reply);
+    return true;
+  }
+  if (msg.type === 'submitHere') {
+    submitHere(msg, sender)
       .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))
       .then(reply);
     return true;

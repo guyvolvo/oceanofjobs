@@ -164,6 +164,95 @@ await check("formHere: an application form counts, a comment form does not", asy
   assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 0 });
 });
 
+// The submit button submitButton() picks, as "text|tag", or null.
+const FIELDS = `<label>Full name <input name="a"></label><label>Email <input type="email" name="b"></label><label>Phone <input type="tel" name="c"></label>`;
+const picked = () => page.evaluate(() => {
+  const b = globalThis.oojAts.generic.submitButton();
+  return b && `${(b.textContent || b.value).trim()}|${b.tagName.toLowerCase()}`;
+});
+const BUTTONS = [
+  ["a classic form's submit button", `<form>${FIELDS}<button type="submit">Submit</button></form>`, "Submit|button"],
+  ["a div form's single Apply button", `<div id="app"><div>${FIELDS}</div><div><button class="btn">Apply</button></div></div>`, "Apply|button"],
+  ["a form with only Next", `<form>${FIELDS}<button type="submit">Next</button></form>`, null],
+  ["Submit application over Save draft", `<form>${FIELDS}<button type="submit">Save draft</button><button type="submit">Submit application</button></form>`, "Submit application|button"],
+  ["the real Submit, not Apply with LinkedIn", `<form>${FIELDS}<button type="button">Apply with LinkedIn</button><input type="submit" value="Submit"></form>`, "Submit|input"],
+  ["two submit buttons of equal weight", `<form>${FIELDS}<button type="submit">Send</button><button type="submit">Submit</button></form>`, null],
+  ["a cookie banner's Accept outside the form", `<div class="cookie-banner"><button>Accept</button><button>Reject</button></div><form>${FIELDS}<button>Submit</button></form>`, "Submit|button"],
+  ["a form with no button and a cookie Accept", `<div class="cookies"><button>Accept all</button></div><form>${FIELDS}</form>`, null],
+  ["a German form", `<form>${FIELDS}<button type="button">Zurück</button><button type="submit">Bewerbung absenden</button></form>`, "Bewerbung absenden|button"],
+  ["a Hebrew step button", `<form>${FIELDS}<button type="submit">הבא</button></form>`, null],
+  ["a form behind a CAPTCHA", `<form>${FIELDS}<iframe src="https://www.google.com/recaptcha/api2/anchor?k=x" style="width:304px;height:78px"></iframe><button>Submit</button></form>`, null],
+];
+for (const [name, html, want] of BUTTONS) {
+  await check(`submitButton: ${name}`, async () => {
+    await load(html);
+    await page.evaluate(() => globalThis.oojAts.generic.read());
+    assert.equal(await picked(), want);
+  });
+}
+
+// Pages at a real address, so the URL can change.
+async function serve(html, at = "https://fixture.test/jobs/1") {
+  await page.unroute("https://fixture.test/**");
+  await page.route("https://fixture.test/**", (r) => r.fulfill({ contentType: "text/html", body: html }));
+  await page.goto(at);
+  await page.addScriptTag({ path: path.resolve("extension/lib/match.js") });
+  await page.addScriptTag({ path: path.resolve("extension/ats/generic.js") });
+}
+const sendAndWatch = (ms) => page.evaluate(async (ms) => {
+  const g = globalThis.oojAts.generic;
+  await g.read();
+  const before = g.submit();
+  const started = Date.now();
+  const out = await g.outcome(before, ms);
+  return { out, took: Date.now() - started };
+}, ms);
+const OUTCOMES = [
+  ["a thank-you message replaces the form", `<p>Thank you for your interest in Acme.</p><form id="f" onsubmit="event.preventDefault(); setTimeout(() => f.outerHTML = '<h2>Thank you for applying!</h2>', 300)">${FIELDS}<button>Submit</button></form>`, "submitted"],
+  ["the address moves to /thank-you", `<form onsubmit="event.preventDefault(); history.pushState({}, '', '/jobs/1/thank-you')">${FIELDS}<button>Submit</button></form>`, "submitted"],
+  ["a required field the browser holds back", `<form>${FIELDS}<label>Why us? <textarea required></textarea></label><button>Submit</button></form>`, { failed: "form errors: Why us?" }],
+  ["a field the site marks invalid", `<form novalidate onsubmit="event.preventDefault(); const e = document.querySelector('[type=email]'); e.value = ''; e.setAttribute('aria-invalid', 'true')">${FIELDS}<button>Submit</button></form>`, { failed: "form errors: Email" }],
+  ["error text and nothing sent", `<form novalidate onsubmit="event.preventDefault(); document.getElementById('err').hidden = false">${FIELDS}<p id="err" class="form-error" hidden>Something went wrong, please try again</p><button>Submit</button></form>`, { failed: "form errors: Something went wrong, please try again" }],
+  ["an error already showing before the click", `<form novalidate onsubmit="event.preventDefault()">${FIELDS}<p class="field-error">Unable to fetch address suggestions</p><button>Submit</button></form>`, null],
+  ["a required field with a JavaScript submit button", `<form>${FIELDS}<label>Why us? <textarea required></textarea></label><button type="button">Submit application</button></form>`, null],
+  ["a form that hides while sending and comes back", `<form id="f" onsubmit="event.preventDefault(); f.hidden = true; setTimeout(() => f.hidden = false, 1000)">${FIELDS}<button>Submit</button></form>`, null],
+  ["nothing happens", `<form onsubmit="event.preventDefault()">${FIELDS}<button>Submit</button></form>`, null],
+];
+for (const [name, html, want] of OUTCOMES) {
+  await check(`outcome: ${name}`, async () => {
+    await serve(html);
+    const { out, took } = await sendAndWatch(2500);
+    assert.deepEqual(out, want);
+    if (want === null) assert.ok(took >= 2500 && took < 4000, `waited ${took} ms`);
+  });
+}
+
+// detect.js on a posting page, with chrome.runtime stubbed: the button
+// shows before the form exists, and not on a list of jobs.
+async function detectOn(html, at) {
+  await serve(html, at);
+  await page.evaluate(() => Object.defineProperty(window, "chrome", { value: { runtime: { sendMessage: async () => null, onMessage: { addListener() {} } } } }));
+  await page.addScriptTag({ path: path.resolve("extension/detect.js") });
+  await page.waitForTimeout(1500);
+  return page.evaluate(() => !!document.querySelector("[data-ooj-fill]"));
+}
+await check("posting page with one Apply button (top and bottom): button shown", async () => {
+  assert.equal(await detectOn(`<title>Backend Engineer</title><button>Apply for this job</button><h1>Backend Engineer</h1><p>About the role.</p><button>Apply for this job</button>`, "https://fixture.test/jobs/backend-engineer"), true);
+});
+await check("posting page whose Apply link leads to the form: button shown", async () => {
+  assert.equal(await detectOn(`<title>Acme - Backend Engineer</title><h1>Backend Engineer</h1><a href="/careers/acme/123/apply">Apply for this job</a><p>About.</p><a href="/careers/acme/123/apply">Apply for this job</a>`, "https://fixture.test/careers/acme/123"), true);
+});
+await check("jobs list with an Apply link per job: no button", async () => {
+  const rows = [1, 2, 3, 4, 5].map((i) => `<li>Engineer ${i} <a href="/jobs/${i}/apply">Apply</a></li>`).join("");
+  assert.equal(await detectOn(`<title>Careers at Acme</title><h1>Open positions</h1><ul>${rows}</ul>`, "https://fixture.test/careers"), false);
+});
+await check("page with only Apply with LinkedIn: no button", async () => {
+  assert.equal(await detectOn(`<title>Backend Engineer</title><h1>Backend Engineer</h1><button>Apply with LinkedIn</button>`, "https://fixture.test/jobs/backend-engineer"), false);
+});
+await check("an article that is not about a job: no button", async () => {
+  assert.equal(await detectOn(`<title>How to bake bread</title><h1>Bread</h1><button>Apply</button>`, "https://fixture.test/blog/bread"), false);
+});
+
 await browser.close();
 console.log(failed ? `${failed} failed` : "all passed");
 process.exit(failed ? 1 : 0);
