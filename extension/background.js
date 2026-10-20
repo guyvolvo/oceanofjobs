@@ -332,13 +332,28 @@ async function account() {
   return accountCache;
 }
 
+// Whether to offer filling this page, and if not, why: the card always
+// says what stands in the way rather than staying silent.
+const ACCOUNT_URL = 'https://oceanofjobs.com/account#autoapply';
 async function offerHere(url) {
-  const st = await chrome.storage.local.get(['token', 'authError']);
-  if (!st.token || st.authError || !globalThis.oojAts.greenhouse.matches(url)) return { show: false };
-  const a = await account();
-  if (!((a.profile.settings || {}).sources || []).includes('ats_pages')) return { show: false };
+  if (!globalThis.oojAts.greenhouse.matches(url)) return { show: false };
+  const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
+  if (!st.token || st.authError) {
+    return { show: true, blocked: 'Connect the extension to your Ocean of Jobs account to fill this form.', action: { label: 'Connect', url: ACCOUNT_URL } };
+  }
+  let a;
+  try {
+    a = await account();
+  } catch (e) {
+    if (e.status === 401) return { show: true, blocked: 'Your connection expired. Connect the extension again.', action: { label: 'Connect', url: ACCOUNT_URL } };
+    return { show: true, blocked: `Ocean of Jobs could not be reached (${e.status ? 'HTTP ' + e.status : String(e.message || e).slice(0, 80)}).` };
+  }
+  if (!((a.profile.settings || {}).sources || []).includes('ats_pages')) {
+    return { show: true, blocked: 'Turn on "Jobs I view anywhere on the web" in your auto apply settings, then reload this page.', action: { label: 'Open settings', url: ACCOUNT_URL } };
+  }
+  if (!st.cv) return { show: true, blocked: 'Add your CV in the extension settings first.', action: { label: 'Add a CV', options: true } };
   const id = await pageJobId(url);
-  if (a.history.some((h) => h.job_id === id && h.status === 'submitted')) return { show: false };
+  if (a.history.some((h) => h.job_id === id && h.status === 'submitted')) return { show: true, blocked: 'You already applied to this job with Ocean of Jobs.' };
   return { show: true, remaining: a.usage.remaining };
 }
 
@@ -436,7 +451,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;
   if (msg.type === 'status') { status().then(reply); return true; }
   if (msg.type === 'pause') { chrome.storage.local.set({ paused: !!msg.paused }).then(() => reply({ ok: true })); return true; }
-  if (msg.type === 'offerHere') { offerHere(msg.url).catch(() => ({ show: false })).then(reply); return true; }
+  if (msg.type === 'offerHere') {
+    offerHere(msg.url).catch((e) => ({ show: true, blocked: 'Something went wrong: ' + String(e.message || e).slice(0, 80) })).then(reply);
+    return true;
+  }
+  if (msg.type === 'openOptions') { chrome.runtime.openOptionsPage(); reply({ ok: true }); return false; }
   if (msg.type === 'fillHere') {
     fillHere(msg, sender.tab.id, sender.frameId)
       .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))

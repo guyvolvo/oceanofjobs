@@ -43,13 +43,25 @@
     </style>
     <div class="c" role="dialog" aria-label="Apply with Ocean of Jobs">
       <div class="h"><img src="${chrome.runtime.getURL('icons/icon-32.png')}" alt="">Apply with Ocean of Jobs<button class="x" aria-label="Close">×</button></div>
-      <p class="msg">Fill in this application from your profile. You check it and press Submit.${offer.remaining != null ? ` ${offer.remaining} applications left on your plan.` : ''}</p>
+      <p class="msg"></p>
       <button class="go">Fill in this application</button>
     </div>`;
     document.documentElement.appendChild(host);
     const msg = root.querySelector('.msg');
     const go = root.querySelector('.go');
     root.querySelector('.x').addEventListener('click', () => host.remove());
+    if (offer.blocked) {
+      msg.className = 'msg warn';
+      msg.textContent = offer.blocked;
+      if (!offer.action) go.hidden = true;
+      else {
+        go.textContent = offer.action.label;
+        go.addEventListener('click', () => (offer.action.options ? send({ type: 'openOptions' }) : window.open(offer.action.url, '_blank', 'noopener')));
+      }
+      return;
+    }
+    msg.textContent = 'Fill in this application from your profile. You check it and press Submit.'
+      + (offer.remaining != null ? ` ${offer.remaining} applications left on your plan.` : '');
     go.addEventListener('click', async () => {
       go.disabled = true;
       go.textContent = 'Filling in…';
