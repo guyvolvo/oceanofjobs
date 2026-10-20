@@ -88,7 +88,7 @@
     if (state.ats.size) out = out.filter((r) => r.ats && state.ats.has(atsKey(r.ats)));
     if (state.q) {
       const q = state.q.toLowerCase();
-      out = out.filter((r) => r.name.toLowerCase().includes(q) || r.domain.includes(q) || atsName(r.ats).toLowerCase().includes(q));
+      out = out.filter((r) => r.name.toLowerCase().includes(q) || r.domain.includes(q.replace(/ /g, "")) || atsName(r.ats).toLowerCase().includes(q));
     }
     const byName = (a, b) => a.name.localeCompare(b.name);
     out.sort(state.sort === "name" ? byName

@@ -131,8 +131,8 @@ with tempfile.TemporaryDirectory() as td:
     check("a day the box already wrote is kept, not recomputed", precompute.record_company_day(db) is False)
     named = lambda q: [c["domain"] for c in aggregates.company_directory_daily(conn, 50, q)["companies"]]
     check("the daily directory finds a company by its name, by its domain, and treats % as a letter",
-          named("wiz") == ["wiz.io"] and named("acme.c") == ["acme.com"] and named("%") == [],
-          repr((named("wiz"), named("acme.c"), named("%"))))
+          named("wiz") == ["wiz.io"] and named("acme.c") == ["acme.com"] and named("%") == [] and named("mon day") == ["monday.com"],
+          repr((named("wiz"), named("acme.c"), named("%"), named("mon day"))))
     conn.close()
 
 print()

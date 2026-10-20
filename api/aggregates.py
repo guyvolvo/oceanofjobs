@@ -261,7 +261,8 @@ def company_directory_daily(conn, limit: int = 500, name: str = "") -> dict | No
         by_name = (" OR domain IN (SELECT domain FROM companies WHERE LOWER(company_name) LIKE ? ESCAPE '\\')"
                    if "company_name" in _company_columns(conn) else "")
         match = f" AND (domain LIKE ? ESCAPE '\\'{by_name})"
-        margs = [needle] * (2 if by_name else 1)
+        # Domains have no spaces: "capital one" is capitalone.com.
+        margs = [needle.replace(" ", "")] + ([needle] if by_name else [])
     rows = [dict(r) for r in conn.execute(
         "SELECT domain, open_n AS n FROM company_daily WHERE day = ? AND domain != '' AND open_n > 0"
         f"{match} ORDER BY open_n DESC, domain LIMIT ?", (day, *margs, limit))]
