@@ -9,7 +9,14 @@
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
 
-  function get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  // A browser that blocks this site's storage (Brave Shields blocking
+  // cookies, some private windows) can't remember the choice, so the banner
+  // came back on every page. Such a browser is treated as having declined:
+  // Google Analytics stays off and nobody is asked again.
+  function canStore() {
+    try { localStorage.setItem(KEY + "_test", "1"); localStorage.removeItem(KEY + "_test"); return true; } catch (e) { return false; }
+  }
+  function get() { try { return localStorage.getItem(KEY) || (canStore() ? null : "no"); } catch (e) { return "no"; } }
   function set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* the choice lasts this page only */ } }
 
   var loaded = false;
