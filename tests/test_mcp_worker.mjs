@@ -109,12 +109,15 @@ test("notifications get 202 with no body", async () => {
   assert.equal(await res.text(), "");
 });
 
-test("tools/list has the three public read-only tools and the three saved-job tools", async () => {
+test("tools/list has the three public read-only tools, the saved-job tools and the queue tools", async () => {
   const body = await (await post({ jsonrpc: "2.0", id: 2, method: "tools/list" })).json();
   assert.deepEqual(body.result.tools.map((t) => t.name),
-    ["search_jobs", "get_job", "get_company", "save_job", "list_saved_jobs", "remove_saved_job"]);
+    ["search_jobs", "get_job", "get_company", "save_job", "list_saved_jobs", "remove_saved_job",
+      "queue_for_auto_apply", "list_auto_apply_queue", "remove_from_auto_apply_queue"]);
   const hints = Object.fromEntries(body.result.tools.map((t) => [t.name, t.annotations]));
-  for (const n of ["search_jobs", "get_job", "get_company", "list_saved_jobs"]) assert.equal(hints[n].readOnlyHint, true, n);
+  for (const n of ["search_jobs", "get_job", "get_company", "list_saved_jobs", "list_auto_apply_queue"]) assert.equal(hints[n].readOnlyHint, true, n);
+  assert.equal(hints.queue_for_auto_apply.readOnlyHint, false);
+  assert.equal(hints.remove_from_auto_apply_queue.destructiveHint, true);
   assert.equal(hints.save_job.readOnlyHint, false);
   assert.equal(hints.remove_saved_job.destructiveHint, true);
   for (const t of body.result.tools) {
@@ -126,7 +129,8 @@ test("tools/list has the three public read-only tools and the three saved-job to
 const TOKEN = "ooj_dTE.0a1b2c3d.abcdefghijklmnopqrstuvwxyz012345";
 
 test("saved-job tools need a token and say how to get one", async () => {
-  for (const [name, args] of [["save_job", { id: "67ff4ef965d91ef7" }], ["list_saved_jobs", {}], ["remove_saved_job", { id: "67ff4ef965d91ef7" }]]) {
+  for (const [name, args] of [["save_job", { id: "67ff4ef965d91ef7" }], ["list_saved_jobs", {}], ["remove_saved_job", { id: "67ff4ef965d91ef7" }],
+    ["queue_for_auto_apply", { id: "67ff4ef965d91ef7" }], ["list_auto_apply_queue", {}], ["remove_from_auto_apply_queue", { id: "67ff4ef965d91ef7" }]]) {
     const { result } = await call(name, args);
     assert.equal(result.isError, true, name);
     assert.match(result.content[0].text, /personal access token/);
@@ -155,6 +159,27 @@ test("save, list and remove send the token to the box and are never cached", asy
   }
   assert.equal(calls.filter((c) => c.url.endsWith("/api/me/saved")).length, 2, "the saved list is asked for every time, never served from the cache");
   assert.ok(![...store.keys()].some((k) => k.includes("/api/me/")), "nothing personal is in the shared cache");
+});
+
+test("queue, list and remove send the token to the box, and a refusal reads as the box's reason", async () => {
+  route("/api/me/apply/queue/", 204, null);
+  route("/api/me/apply/queue", 200, { queue: [{ job_id: "67ff4ef965d91ef7", added_at: "2026-10-20T10:00:00+00:00" }] }, { "content-type": "application/json" });
+  route("/api/jobs/67ff4ef965d91ef7", 200, job());
+  const auth = { authorization: "Bearer " + TOKEN };
+  const tool = async (id, name, args) => (await (await post({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }, auth)).json()).result;
+  const queued = await tool(70, "queue_for_auto_apply", { id: "67ff4ef965d91ef7" });
+  assert.deepEqual(queued.structuredContent, { id: "67ff4ef965d91ef7", queued: true, url: "https://oceanofjobs.com/job/67ff4ef965d91ef7?ref=mcp" });
+  assert.equal(calls[0].url, "https://box.oceanofjobs.com/api/me/apply/queue/67ff4ef965d91ef7");
+  assert.equal(calls[0].headers.authorization, "Bearer " + TOKEN);
+  const list = await tool(71, "list_auto_apply_queue", {});
+  assert.deepEqual(list.structuredContent.jobs.map((j) => [j.id, j.added_at]), [["67ff4ef965d91ef7", "2026-10-20T10:00:00+00:00"]]);
+  const removed = await tool(72, "remove_from_auto_apply_queue", { id: "67ff4ef965d91ef7" });
+  assert.deepEqual(removed.structuredContent, { id: "67ff4ef965d91ef7", queued: false });
+  assert.ok(![...store.keys()].some((k) => k.includes("/api/me/")), "nothing personal is in the shared cache");
+  routes.unshift({ prefix: "/api/me/apply/queue/", status: 403, body: { error: "Turn on \"Jobs queued by my AI assistant through MCP\" in your auto apply settings at https://oceanofjobs.com/account#aa-settings" }, headers: { "content-type": "application/json" } });
+  const refused = await tool(73, "queue_for_auto_apply", { id: "67ff4ef965d91ef7" });
+  assert.equal(refused.isError, true);
+  assert.match(refused.content[0].text, /Turn on "Jobs queued by my AI assistant through MCP".*#aa-settings/);
 });
 
 test("a revoked token is a readable tool error, and other Authorization headers are ignored", async () => {

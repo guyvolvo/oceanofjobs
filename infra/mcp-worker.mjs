@@ -81,9 +81,9 @@ const INSTRUCTIONS =
   "Ocean of Jobs page) and apply_url (the employer's page) on their own lines, never inside a " +
   "table cell. Results are capped at 25 per call and offset 200; for " +
   "bulk data use the public REST API documented at " + SITE + "/api/help. " +
-  "save_job, list_saved_jobs and remove_saved_job work on the user's own Ocean of Jobs account " +
-  "and need a personal access token sent as Authorization: Bearer ooj_...; save a job only when " +
-  "the user asks for it.";
+  "save_job, list_saved_jobs, remove_saved_job and the three auto apply queue tools work on the " +
+  "user's own Ocean of Jobs account and need a personal access token sent as Authorization: " +
+  "Bearer ooj_...; save or queue a job only when the user asks for it.";
 
 const JOB_PROPS = {
   id: { type: "string" },
@@ -289,6 +289,69 @@ const TOOLS = [
     },
     annotations: { title: "Remove a saved job", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   },
+  {
+    name: "queue_for_auto_apply",
+    title: "Queue a job for auto apply",
+    description:
+      "Queue a job for the Ocean of Jobs Chrome extension to apply to with the user's profile and CV. " +
+      "The extension applies to queued jobs on its next check, every 15 minutes, so the user needs " +
+      "the extension installed and connected. The user must also turn on \"Jobs queued by my AI " +
+      "assistant through MCP\" in their auto apply settings. This sends a real application, so " +
+      "queue a job only when the user asks for it. Needs the user's personal access token. " +
+      "Queueing the same job twice is harmless.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "The job's id, e.g. 67ff4ef965d91ef7." } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, queued: { type: "boolean" }, url: { type: "string" } },
+      required: ["id", "queued", "url"],
+    },
+    annotations: { title: "Queue a job for auto apply", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  },
+  {
+    name: "list_auto_apply_queue",
+    title: "List the auto apply queue",
+    description:
+      "The jobs waiting in the user's auto apply queue, oldest first, with the same fields as " +
+      "search results and when each was queued. A job leaves the queue once the extension has " +
+      "tried it. Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "How many, 1 to 25. Default 10." } },
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        total: { type: "integer", description: "Every queued job, not only this list." },
+        jobs: { type: "array", items: { ...LISTED_JOB, properties: { ...LISTED_JOB.properties, added_at: { type: ["string", "null"] } } } },
+        gone: { type: "array", items: { type: "string" }, description: "Queued ids that no longer have a listing." },
+      },
+      required: ["total", "jobs", "gone"],
+    },
+    annotations: { title: "List the auto apply queue", ...READ_ONLY },
+  },
+  {
+    name: "remove_from_auto_apply_queue",
+    title: "Remove a job from the auto apply queue",
+    description: "Take a job out of the user's auto apply queue before the extension applies to it. Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "The job's id." } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, queued: { type: "boolean" } },
+      required: ["id", "queued"],
+    },
+    annotations: { title: "Remove from the auto apply queue", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
 ];
 
 // Thrown inside a tool for anything the model should read and act on:
@@ -404,7 +467,8 @@ async function me(method, path, token, env) {
     throw new ToolError("Ocean of Jobs could not be reached. Try again shortly.");
   }
   if (res.status === 401) throw new ToolError("The personal access token was not accepted: it may be revoked or expired. " + NEEDS_TOKEN);
-  if (res.status === 400) {
+  // 403 carries the reason too, such as auto apply not being turned on for MCP.
+  if (res.status === 400 || res.status === 403) {
     const err = await res.json().catch(() => ({}));
     throw new ToolError(`Ocean of Jobs refused that: ${err.error || "bad request"}.`);
   }
@@ -637,25 +701,50 @@ async function removeSavedJob(args, env, ctx, trace, now, token) {
   return { id, saved: false };
 }
 
-async function listSavedJobs(args, env, ctx, trace, now, token) {
-  const limit = int(args, "limit", 1, MAX_LIMIT, 10);
-  const saved = ((await me("GET", "/api/me/saved", token, env)) || {}).saved || [];
-  // The listings themselves are public, so these go through the shared
-  // cache like any get_job.
-  const rows = await Promise.all(saved.slice(0, limit).map(async (s) => {
+// The jobs behind a list of {job_id, <stamp>} rows from the user's account.
+// The listings themselves are public, so these go through the shared
+// cache like any get_job.
+async function withListings(items, limit, stamp, env, ctx, trace, now) {
+  const rows = await Promise.all(items.slice(0, limit).map(async (s) => {
     const { status, body } = await api(`/api/jobs/${encodeURIComponent(s.job_id)}`, {}, env, ctx, trace);
     return { s, job: status === 404 ? null : body };
   }));
   return {
-    total: saved.length,
-    jobs: rows.filter((r) => r.job).map((r) => ({ ...listedJob(r.job, now), saved_at: r.s.saved_at ?? null })),
+    total: items.length,
+    jobs: rows.filter((r) => r.job).map((r) => ({ ...listedJob(r.job, now), [stamp]: r.s[stamp] ?? null })),
     gone: rows.filter((r) => !r.job).map((r) => r.s.job_id),
   };
+}
+
+async function listSavedJobs(args, env, ctx, trace, now, token) {
+  const limit = int(args, "limit", 1, MAX_LIMIT, 10);
+  const saved = ((await me("GET", "/api/me/saved", token, env)) || {}).saved || [];
+  return withListings(saved, limit, "saved_at", env, ctx, trace, now);
+}
+
+async function queueForAutoApply(args, env, ctx, trace, now, token) {
+  const id = jobId(args);
+  await me("PUT", `/api/me/apply/queue/${id}`, token, env);
+  return { id, queued: true, url: link(`/job/${encodeURIComponent(id)}`) };
+}
+
+async function removeFromAutoApplyQueue(args, env, ctx, trace, now, token) {
+  const id = jobId(args);
+  await me("DELETE", `/api/me/apply/queue/${id}`, token, env);
+  return { id, queued: false };
+}
+
+async function listAutoApplyQueue(args, env, ctx, trace, now, token) {
+  const limit = int(args, "limit", 1, MAX_LIMIT, 10);
+  const queue = ((await me("GET", "/api/me/apply/queue", token, env)) || {}).queue || [];
+  return withListings(queue, limit, "added_at", env, ctx, trace, now);
 }
 
 const HANDLERS = {
   search_jobs: searchJobs, get_job: getJob, get_company: getCompany,
   save_job: saveJob, list_saved_jobs: listSavedJobs, remove_saved_job: removeSavedJob,
+  queue_for_auto_apply: queueForAutoApply, list_auto_apply_queue: listAutoApplyQueue,
+  remove_from_auto_apply_queue: removeFromAutoApplyQueue,
 };
 
 // The personal access token, if the client sent one. Anything else in
