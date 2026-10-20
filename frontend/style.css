@@ -6585,7 +6585,10 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
    above it and the applied list below, on the account page's rhythm. */
 .aa-status { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; padding: 0 0 18px; margin-bottom: 24px; border-bottom: 1px solid var(--grey-line); }
 .aa-connect { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-#aa-form .pref-group { padding-bottom: 8px; }
+/* Each group in its own box, so a long form reads as separate steps. */
+#autoapply .pref-group { padding: 20px 22px 22px; border: 1px solid var(--grey-line); border-radius: 10px; }
+#autoapply .pref-group + .pref-group { margin-top: 16px; }
+#autoapply .aa-history-group { margin-top: 16px; }
 #aa-form .pref-group > .acct-row-note { margin: 4px 0 0; }
 .aa-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; margin-top: 14px; }
 .aa-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font: 500 13px var(--font); color: var(--black); }
@@ -6644,6 +6647,8 @@ textarea.aa-input { resize: vertical; }
 .token-form input:focus-visible, .token-form select:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .token-made { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--grey-line); }
 .token-made p { margin: 0; }
+/* The homepage's client tabs, in the account page's ink. */
+.token-agents { --h-muted: var(--grey); --h-text: var(--black); --h-soft-hover: var(--grey-line); flex-wrap: wrap; }
 .token-copy { display: flex; align-items: center; gap: 10px; }
 .token-copy code {
   flex: 1;

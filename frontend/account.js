@@ -1028,8 +1028,12 @@ function wireTokens() {
         method: "POST",
         body: JSON.stringify({ name: $("token-name").value, expires_in_days: days ? Number(days) : null }),
       });
-      $("token-value").textContent = made.token;
-      $("token-cmd").textContent = `claude mcp add --transport http oceanofjobs https://oceanofjobs.com/mcp --header "Authorization: Bearer ${made.token}"`;
+      // Shown masked so it stays out of screenshots and screen shares;
+      // Copy puts the whole value on the clipboard.
+      madeToken = made.token;
+      fullText["token-value"] = made.token;
+      $("token-value").textContent = made.token.slice(0, 12) + "…";
+      showAgent();
       $("token-made").hidden = false;
       $("token-name").value = "";
       close();
@@ -1040,11 +1044,40 @@ function wireTokens() {
       btn.classList.remove("btn-busy");
     }
   });
+  const fullText = {};
+  // The one line each client needs to add the server with the token, in
+  // the same order as the homepage's install tabs (docs/content/docs/mcp.mdx).
+  const MCP = "https://oceanofjobs.com/mcp";
+  const json = (tok) => JSON.stringify({ mcpServers: { oceanofjobs: { url: MCP, headers: { Authorization: `Bearer ${tok}` } } } });
+  const AGENTS = {
+    cc: { cmd: (tok) => `claude mcp add --transport http oceanofjobs ${MCP} --header "Authorization: Bearer ${tok}"` },
+    cursor: { cmd: json, where: "Paste it into ~/.cursor/mcp.json." },
+    vscode: { cmd: (tok) => `code --add-mcp '${JSON.stringify({ name: "oceanofjobs", type: "http", url: MCP, headers: { Authorization: `Bearer ${tok}` } })}'` },
+    gemini: { cmd: (tok) => `gemini mcp add -s user --transport http -H "Authorization: Bearer ${tok}" oceanofjobs ${MCP}` },
+    codex: { cmd: () => `codex mcp add oceanofjobs --url ${MCP} --bearer-token-env-var OOJ_TOKEN`, where: "Then set OOJ_TOKEN to the token above wherever you start Codex." },
+    kimi: { cmd: json, where: "In Kimi Code, run /mcp-config and paste it, or add it to its mcp.json." },
+  };
+  let madeToken = "";
+  let agent = "cc";
+  const showAgent = () => {
+    const a = AGENTS[agent];
+    fullText["token-cmd"] = a.cmd(madeToken);
+    $("token-cmd").textContent = a.cmd(madeToken.slice(0, 12) + "…");
+    $("token-where").textContent = a.where || "";
+    $("token-where").hidden = !a.where;
+    document.querySelectorAll(".token-agents [data-agent]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.agent === agent)));
+  };
+  document.querySelector(".token-agents")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-agent]");
+    if (!b) return;
+    agent = b.dataset.agent;
+    showAgent();
+  });
   $("token-made").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-copy]");
     if (!b) return;
     try {
-      await navigator.clipboard.writeText($(b.dataset.copy).textContent);
+      await navigator.clipboard.writeText(fullText[b.dataset.copy] || $(b.dataset.copy).textContent);
       b.textContent = "Copied";
       setTimeout(() => { b.textContent = "Copy"; }, 1500);
     } catch {
