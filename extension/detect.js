@@ -1,15 +1,16 @@
-// On a Greenhouse application form the user is looking at: offer to fill
+// On an application form of a site with a dedicated filler: offer to fill
 // it in from their Ocean of Jobs profile. The user checks the form, then
 // submits it from the card or the form; the credit counts only once sent. Runs
 // only when the account has "Jobs I view anywhere on the web" turned on.
 (function () {
-  const gh = globalThis.oojAts && globalThis.oojAts.greenhouse;
-  if (!gh || window.__oojDetect) return;
+  const all = globalThis.oojAts || {};
+  const ats = all[Object.keys(all).find((n) => n !== 'generic' && all[n].onSite(location.href))];
+  if (!ats || window.__oojDetect) return;
   window.__oojDetect = true;
   const send = (msg) => chrome.runtime.sendMessage(msg).catch(() => null);
 
   // The confirmation page after a form we filled: tell the extension.
-  if (gh.outcome() === 'submitted') {
+  if (ats.outcome() === 'submitted') {
     send({ type: 'confirmedHere' });
     return;
   }
@@ -91,7 +92,7 @@
       if (!submitting || go.disabled) return;
       go.disabled = true;
       go.textContent = 'Submitting…';
-      if (!gh.submit()) {
+      if (!ats.submit()) {
         msg.className = 'msg warn';
         msg.textContent = 'Could not find the form\'s submit button. Press it on the form.';
         go.hidden = true;
@@ -99,7 +100,7 @@
       }
       const started = Date.now();
       const watch = setInterval(() => {
-        const out = gh.outcome();
+        const out = ats.outcome();
         if (out === 'submitted') {
           clearInterval(watch);
           send({ type: 'confirmedHere' });

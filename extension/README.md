@@ -1,6 +1,6 @@
 # Ocean of Jobs Chrome extension
 
-Applies to jobs for you, in your own browser. It reads your apply profile from your Ocean of Jobs account, opens a Greenhouse, Ashby or Workable job in a background tab, fills in the form, attaches your CV and sends it. It handles Greenhouse (`boards.greenhouse.io`, `job-boards.greenhouse.io`, and the `embed/job_app` links the API hands out), Ashby (`jobs.ashbyhq.com`) and Workable (`apply.workable.com/j/<shortcode>`, opened at its `/apply/` form page). Filling a form you opened yourself, from the card on the page, is Greenhouse only for now.
+Applies to jobs for you, in your own browser. It reads your apply profile from your Ocean of Jobs account, opens a Greenhouse, Ashby or Workable job in a background tab, fills in the form, attaches your CV and sends it. It handles Greenhouse (`boards.greenhouse.io`, `job-boards.greenhouse.io`, and the `embed/job_app` links the API hands out), Ashby (`jobs.ashbyhq.com`) and Workable (`apply.workable.com/j/<shortcode>`, opened at its `/apply/` form page). On any other site, "Fill in this page" in the popup fills the form for you to check and send. The card on the page itself is Greenhouse only for now.
 
 Plain JavaScript, Manifest V3, no build step and no dependencies.
 
@@ -32,11 +32,18 @@ For each job, one at a time:
 
 The tab is closed afterwards. The badge shows how many applications went out today.
 
+## Fill in this page
+
+The popup's "Fill in this page" button fills the application form in the current tab, on any site. Opening the popup grants `activeTab`, which is the only access it needs; the extension has no host permission for other sites. The page goes to the dedicated filler when one knows the site (Greenhouse today), otherwise to `ats/generic.js`. If the page is a job posting, the filler follows its Apply link or presses its Apply button first. A careers page that embeds the form from another site is sent to that site; `activeTab` does not follow, so the user clicks the button once more there.
+
+It plans the answers like a run does, asks the AI for the questions your saved answers don't cover (outlined in amber), and outlines the required ones still empty in red. Consent and terms checkboxes are never ticked for you, and EEO questions never go to an AI. Nothing is submitted and no credit is claimed: you check the form and send it yourself. A run never uses the generic filler, and the card on Greenhouse forms is unchanged.
+
 ## Files
 
 - `manifest.json`, `background.js` (alarm, API calls, run loop)
 - `connect.js` (token handoff on oceanofjobs.com)
-- `ats/greenhouse.js`, `ats/ashby.js` and `ats/workable.js` (the fillers). Another ATS goes in its own file with the same functions: `matches`, `onSite`, `pageData`, `read`, `fill`, `submit`, `outcome`, plus `formUrl` when the form lives at another address than the job.
+- `ats/greenhouse.js`, `ats/ashby.js` and `ats/workable.js` (the fillers that also send). Another ATS goes in its own file with the same functions: `matches`, `onSite`, `pageData`, `read`, `fill`, `submit`, `outcome`, plus `formUrl` when the form lives at another address than the job, and gets an entry in `ATS_FILES` in `background.js`.
+- `ats/generic.js` (the fallback filler for any other page: finds the form, reads labels from the DOM, fills text, selects, radios, checkboxes, comboboxes and file inputs; it never sends)
 - `lib/match.js` (pure functions: normalising labels, classifying fields, saved answer lookup, option picking, guardrails)
 - `popup.*`, `options.*`, `ui.css`
 - `test/` (node:test, with Greenhouse pages, Ashby form definitions and Workable form specs saved under `test/fixtures/`)
@@ -51,12 +58,13 @@ Your CV and AI key are kept in `chrome.storage.local`. The CV is only sent to th
 node --test extension/test/
 ```
 
-There is no DOM library in this repo, so the tests cover the pure parts and run the saved Greenhouse pages and Ashby form definitions through the readers and the planner. `tests/e2e/_ext_background_run.mjs` and `tests/e2e/_ext_ashby_run.mjs` load the extension in Chromium and run it against live forms with every write blocked.
+There is no DOM library in this repo, so the tests cover the pure parts and run the saved Greenhouse pages, Ashby form definitions and Workable form specs through the readers and the planner. `tests/e2e/_ext_background_run.mjs`, `_ext_ashby_run.mjs` and `_ext_workable_run.mjs` load the extension in Chromium and run it against live forms with every write blocked. The generic filler is tested in a browser too: `_ext_generic_fixtures.mjs` on small forms built in the test, and `_ext_generic_fill.mjs` on live forms across a dozen ATSes.
 
 ## Not supported yet
 
-- Lever and every other ATS but Greenhouse, Ashby and Workable. Their jobs are reported as `skipped` with "unsupported site".
+- Applying on its own anywhere but Greenhouse, Ashby and Workable. Other jobs in a run are reported as `skipped` with "unsupported site"; "Fill in this page" covers them by hand.
 - Ashby file questions other than the CV, and Ashby's optional survey forms (demographic questions, never required in a survey of 30 boards).
+- With "Fill in this page": forms behind a sign-in or a CAPTCHA, multi-step wizards past their first step, and upload menus that keep the file input outside the form (Jobvite).
 - Greenhouse jobs whose link points at the company's own careers site rather than greenhouse.io.
 - Cover letters. A job that requires one is skipped.
 - Education and experience sections, if a board makes them required. Optional ones are left empty.
