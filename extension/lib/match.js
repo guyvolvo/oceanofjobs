@@ -287,8 +287,20 @@
     return Math.max(0, left);
   }
 
+  // The frame holding the application form, from executeScript results
+  // over every frame of a tab ({frameId, result: generic formHere()}).
+  // The highest score wins; null when no frame has a form.
+  function pickFrame(results) {
+    let best = null;
+    for (const r of results || []) {
+      const s = (r && r.result && r.result.score) || 0;
+      if (s > 0 && (!best || s > best.result.score)) best = r;
+    }
+    return best;
+  }
+
   const api = {
-    normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo,
+    pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

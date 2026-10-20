@@ -53,8 +53,8 @@
 
   const controls = (container) => [...container.querySelectorAll(CONTROLS)].filter(usable);
 
-  // Login, search and newsletter forms are never the application.
-  const UNRELATED = /search|login|log-in|signin|sign-in|newsletter|subscribe/i;
+  // Login, search, newsletter and comment forms are never the application.
+  const UNRELATED = /search|login|log-in|signin|sign-in|newsletter|subscribe|comment/i;
   function unrelated(form) {
     return !!form.querySelector('input[type="password"]') || form.matches('[role="search"]')
       || UNRELATED.test(`${form.id} ${form.className} ${form.getAttribute('action') || ''}`);
@@ -271,7 +271,7 @@
         form = await waitFor(() => findForm() || formFrame(), 10000);
       }
     }
-    if (form && form.tagName === 'IFRAME') return { openUrl: form.src };
+    if (form && form.tagName === 'IFRAME') return { openUrl: form.src, frame: true };
     if (!form && captcha()) return { error: 'A CAPTCHA stands in front of the form. Solve it, then try again.' };
     if (!form) return { error: 'No application form on this page.' };
     const fields = fieldsOf(form);
@@ -430,6 +430,14 @@
     return errored.length ? { failed: 'form errors: ' + errored.slice(0, 3).join(', ') } : null;
   }
 
+  // For the fill button and for picking the frame to fill: how strongly
+  // this document looks like an application form, 0 for not at all.
+  function formHere() {
+    if (!document.body || document.querySelectorAll('input:not([type="hidden"]), textarea, select').length < 3) return { score: 0 };
+    const f = findForm();
+    return f ? { score: score(controls(f)), file: !!f.querySelector('input[type="file"]') } : { score: 0 };
+  }
+
   root.oojAts = root.oojAts || {};
-  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome };
+  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere };
 })(globalThis);

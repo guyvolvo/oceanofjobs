@@ -155,6 +155,15 @@ await check("a form's own Apply submit button is never pressed", async () => {
   assert.equal(await page.evaluate(() => window.__sent || false), false);
 });
 
+await check("formHere: an application form counts, a comment form does not", async () => {
+  await load(FORM);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 16, file: true });
+  await load(`<form id="commentform" action="/wp-comments-post.php"><input name="author"><input type="email" name="email"><input name="url"><textarea name="comment"></textarea></form>`);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 0 });
+  await load(`<input placeholder="Search"><button>Go</button>`);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 0 });
+});
+
 await browser.close();
 console.log(failed ? `${failed} failed` : "all passed");
 process.exit(failed ? 1 : 0);

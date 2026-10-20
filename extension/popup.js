@@ -6,9 +6,29 @@ for (const a of document.querySelectorAll('.open-options')) {
 }
 $('connect').addEventListener('click', () => chrome.tabs.create({ url: ACCOUNT }));
 
+// On a site outside our host permissions, the first click also asks for
+// access to every site. Asked once: after a no, only Settings asks again.
+const ALL_SITES = 'https://*/*';
+let ask = false;
+chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
+  if (!tab || !/^https:/.test(tab.url || '')) return;
+  const { allSitesAsked } = await chrome.storage.local.get('allSitesAsked');
+  ask = !allSitesAsked && !(await chrome.permissions.contains({ origins: [new URL(tab.url).origin + '/*'] }));
+  $('fill-why').hidden = !ask;
+});
+
 // Fills the form in the tab the popup was opened on. Opening the popup
 // is what grants access to that tab (activeTab).
 $('fill').addEventListener('click', async () => {
+  // Before any await: Chrome shows the prompt only during the click.
+  const asking = ask && chrome.permissions.request({ origins: [ALL_SITES] });
+  if (asking) {
+    ask = false;
+    // Saved before the answer, since the prompt can close the popup.
+    chrome.storage.local.set({ allSitesAsked: true });
+    await asking.catch(() => false);
+    $('fill-why').hidden = true;
+  }
   const btn = $('fill'), out = $('fill-result');
   btn.disabled = true;
   btn.textContent = 'Filling in…';

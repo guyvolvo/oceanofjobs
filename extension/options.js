@@ -52,6 +52,18 @@ $('save-ai').addEventListener('click', async () => {
   $('ai-msg').textContent = 'Saved.';
 });
 
+// The background registers or drops the fill button for every site when
+// the permission changes (chrome.permissions.onAdded and onRemoved).
+const ALL_SITES = { origins: ['https://*/*'] };
+$('all-sites').addEventListener('change', async () => {
+  const on = $('all-sites').checked;
+  const ok = on ? await chrome.permissions.request(ALL_SITES) : await chrome.permissions.remove(ALL_SITES);
+  $('all-sites').checked = await chrome.permissions.contains(ALL_SITES);
+  $('all-sites-msg').textContent = !ok ? 'Chrome did not change the access.'
+    : on ? 'On. Reload a careers page to see the button.' : 'Off. The button shows only on the job sites Ocean of Jobs lists.';
+});
+chrome.permissions.contains(ALL_SITES).then((on) => { $('all-sites').checked = on; });
+
 $('disconnect').addEventListener('click', async () => {
   await chrome.storage.local.remove(['token', 'authError', 'needs']);
   $('account-now').textContent = 'Disconnected. Connect again from your account page.';

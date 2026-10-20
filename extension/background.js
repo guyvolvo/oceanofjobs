@@ -354,10 +354,13 @@ async function account() {
 // says what stands in the way rather than staying silent.
 const ACCOUNT_URL = 'https://oceanofjobs.com/account#autoapply';
 async function offerHere(url) {
-  if (!globalThis.oojAts[adapterFor(url)].matches(url)) return { show: false };
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
   if (!st.token || st.authError) {
     return { show: true, blocked: 'Connect the extension to your Ocean of Jobs account to fill this form.', action: { label: 'Connect', url: ACCOUNT_URL } };
+  }
+  // No dedicated filler: fill only, which needs no account check.
+  if (!globalThis.oojAts[adapterFor(url)].matches(url)) {
+    return st.cv ? { show: true, assist: true } : { show: true, assist: true, blocked: 'Add your CV in the extension settings first.', action: { label: 'Add a CV', options: true } };
   }
   let a;
   try {
@@ -451,15 +454,31 @@ async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
   };
 }
 
+// The frame of the tab that holds an application form, among the frames
+// we may script: the page itself (activeTab or a host permission) and
+// iframes on hosts we have a permission for. Waits up to ms for a frame
+// that is still loading.
+async function frameWithForm(tabId, ms) {
+  const target = { tabId, allFrames: true };
+  for (const until = Date.now() + ms; ; await new Promise((r) => setTimeout(r, 500))) {
+    const res = await chrome.scripting.executeScript({ target, files: ['ats/generic.js'] })
+      .then(() => chrome.scripting.executeScript({ target, func: () => ({ ...globalThis.oojAts.generic.formHere(), url: location.href }) }))
+      .catch(() => []);
+    const best = oojMatch.pickFrame(res);
+    if (best || Date.now() >= until) return best && { frameId: best.frameId, url: best.result.url };
+  }
+}
+
 // "Fill in this page" in the popup, on whatever site the tab shows. The
-// popup's click grants activeTab, which is all the access this needs. No
-// credit is claimed: the user reviews and submits the form themselves.
+// popup's click grants activeTab for the page; a form in an iframe is
+// reached through the host permissions. No credit is claimed: the user
+// reviews and submits the form themselves.
 async function fillTab(tabId) {
-  const st = await chrome.storage.local.get(['token', 'authError', 'cv', 'ai']);
+  const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
   if (!st.token || st.authError) return { error: 'Connect the extension to your Ocean of Jobs account first.' };
   if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
   let tab = await chrome.tabs.get(tabId);
-  let name, page;
+  let name, page, frameId = 0;
   // A posting page links to its form, or the Apply button reloads the
   // page: read again once it loads. activeTab does not follow the tab to
   // another site, so there the read fails and the user clicks again.
@@ -471,6 +490,18 @@ async function fillTab(tabId) {
     let form = null;
     try { form = globalThis.oojAts[name].formUrl ? globalThis.oojAts[name].formUrl(tab.url) : null; } catch { /* not a single job */ }
     page = form && form !== tab.url ? { openUrl: form } : await readForm(tabId, name).catch(() => null);
+    // The form is in an iframe (embedded from another site, or opened by
+    // the Apply button): fill it there when we may, rather than leave the page.
+    if (!form && (!page || page.error || page.frame)) {
+      const f = await frameWithForm(tabId, page && page.frame ? 10000 : 0);
+      if (f && f.frameId !== 0) {
+        frameId = f.frameId;
+        name = adapterFor(f.url);
+        page = await readForm(tabId, name, frameId).catch(() => null);
+        if (page && page.openUrl) page = { error: 'Could not read the form on this page.' };
+        tab = { ...tab, url: f.url };
+      }
+    }
     if (page && !page.openUrl) break;
     const before = tab.url;
     if (page) await chrome.tabs.update(tabId, { url: page.openUrl });
@@ -485,7 +516,13 @@ async function fillTab(tabId) {
     moved = true;
   }
   if (!page || page.openUrl) return { error: 'Opened the application form. Click "Fill in this page" again.' };
+  return assist(tabId, frameId, name, page, tab.url, tab.title);
+}
+
+// Plans and fills a form the user will check and send themselves.
+async function assist(tabId, frameId, name, page, url, title) {
   if (page.error) return { error: page.error };
+  const st = await chrome.storage.local.get(['cv', 'ai']);
   let a;
   try {
     accountCache = null;
@@ -493,13 +530,25 @@ async function fillTab(tabId) {
   } catch (e) {
     return { error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Ocean of Jobs could not be reached.' };
   }
-  const u = new URL(tab.url);
-  const job = { id: await pageJobId(tab.url), url: tab.url, title: tab.title || '', company_name: u.hostname, company_domain: u.hostname, location: '', ats: name };
+  const u = new URL(url);
+  const job = { id: await pageJobId(url), url, title: title || '', company_name: u.hostname, company_domain: u.hostname, location: '', ats: name };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: ['basic', 'pro'].includes(a.usage.plan) };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
-  const result = await fillAndMark(tabId, 0, name, plan, suggested, ctx.cv);
+  const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
   return { ...result, ats: name, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
+}
+
+// The fill button on a page with no dedicated filler: fill only, like
+// "Fill in this page". The form may sit in a frame below the button.
+async function assistHere(msg, sender) {
+  const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
+  if (!st.token || st.authError) return { error: 'Connect the extension to your Ocean of Jobs account first.' };
+  if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
+  const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
+  const page = await readForm(sender.tab.id, 'generic', frameId).catch(() => null);
+  if (!page || page.openUrl) return { error: 'Could not read this form. Use "Fill in this page" in the extension menu.' };
+  return assist(sender.tab.id, frameId, 'generic', page, msg.url, msg.title);
 }
 
 // The AI's best answer for a page the user will review: our server on
@@ -572,8 +621,23 @@ function schedule() {
   chrome.alarms.create('run', { periodInMinutes: RUN_MINUTES, delayInMinutes: 1 });
 }
 
-chrome.runtime.onInstalled.addListener(schedule);
+// With the optional access to every site, the fill button comes to every
+// https page too. The ATS sites in the manifest already have it.
+const ALL_SITES = 'https://*/*';
+async function syncAllSites() {
+  const on = await chrome.permissions.contains({ origins: [ALL_SITES] });
+  await chrome.scripting.unregisterContentScripts({ ids: ['detect-all'] }).catch(() => {});
+  if (!on) return;
+  await chrome.scripting.registerContentScripts([{
+    id: 'detect-all', matches: [ALL_SITES], excludeMatches: ['https://oceanofjobs.com/*', ...chrome.runtime.getManifest().content_scripts[1].matches],
+    js: ['ats/generic.js', 'detect.js'], allFrames: true, runAt: 'document_idle', persistAcrossSessions: true,
+  }]).catch(() => {});
+}
+
+chrome.runtime.onInstalled.addListener(() => { schedule(); syncAllSites(); });
 chrome.runtime.onStartup.addListener(schedule);
+chrome.permissions.onAdded.addListener(syncAllSites);
+chrome.permissions.onRemoved.addListener(syncAllSites);
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'run') run(); });
 
 chrome.storage.onChanged.addListener((changes) => {
@@ -596,8 +660,29 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     return true;
   }
   if (msg.type === 'openOptions') { chrome.runtime.openOptionsPage(); reply({ ok: true }); return false; }
+  if (msg.type === 'formBelow') {
+    // Ask the page itself to show the button; a page we have no access to
+    // runs no detect.js, so the frame shows it.
+    chrome.tabs.sendMessage(sender.tab.id, { type: 'formBelow', frameId: sender.frameId, url: sender.url }, { frameId: 0 })
+      .then((r) => reply({ shown: !!(r && r.ok) }), () => reply({ shown: false }));
+    return true;
+  }
+  if (msg.type === 'icon') {
+    // As a data URL: a web accessible icon would let any site detect the extension.
+    fetch(chrome.runtime.getURL('icons/icon-48.png')).then((r) => r.arrayBuffer())
+      .then((b) => reply('data:image/png;base64,' + btoa(String.fromCharCode(...new Uint8Array(b)))), () => reply(''));
+    return true;
+  }
+  if (msg.type === 'hidden' || msg.type === 'hide') {
+    // Hidden sites last for the browser session, so session storage.
+    chrome.storage.session.get('hidden').then(async ({ hidden = [] }) => {
+      if (msg.type === 'hide' && !hidden.includes(msg.host)) await chrome.storage.session.set({ hidden: [...hidden, msg.host] });
+      reply(hidden.includes(msg.host) || msg.type === 'hide');
+    });
+    return true;
+  }
   if (msg.type === 'fillHere') {
-    fillHere(msg, sender.tab.id, sender.frameId)
+    (globalThis.oojAts[adapterFor(msg.url)].matches(msg.url) ? fillHere(msg, sender.tab.id, sender.frameId) : assistHere(msg, sender))
       .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))
       .then(reply);
     return true;

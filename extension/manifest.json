@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ocean of Jobs",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Fills in job applications with your Ocean of Jobs profile, and sends Greenhouse, Ashby and Workable ones for you.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -34,9 +34,42 @@
     "https://boards.greenhouse.io/*",
     "https://job-boards.greenhouse.io/*",
     "https://jobs.ashbyhq.com/*",
-    "https://apply.workable.com/*"
+    "https://apply.workable.com/*",
+    "https://*.lever.co/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.recruitee.com/*",
+    "https://*.jobs.personio.de/*",
+    "https://*.jobs.personio.com/*",
+    "https://*.teamtailor.com/*",
+    "https://*.breezy.hr/*",
+    "https://*.comeet.com/*",
+    "https://*.comeet.co/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.myworkdaysite.com/*",
+    "https://*.oraclecloud.com/*",
+    "https://jobs.deel.com/*",
+    "https://*.applytojob.com/*",
+    "https://*.pinpointhq.com/*",
+    "https://*.bamboohr.com/*",
+    "https://jobs.jobvite.com/*",
+    "https://*.careers.hibob.com/*",
+    "https://jobs.gem.com/*",
+    "https://*.eightfold.ai/*",
+    "https://*.hunterhrms.com/*",
+    "https://www.amazon.jobs/*",
+    "https://apply.careers.microsoft.com/*",
+    "https://jobs.apple.com/*",
+    "https://careers.checkpoint.com/*",
+    "https://www.ness-tech.co.il/*",
+    "https://experis.co.il/*",
+    "https://www.matrix.co.il/*",
+    "https://www.nogamy.co.il/*",
+    "https://yaelgroup.com/*",
+    "https://jobs.clalitapps.co.il/*",
+    "https://jobs.iai.co.il/*"
   ],
   "optional_host_permissions": [
+    "https://*/*",
     "https://api.anthropic.com/*",
     "https://api.openai.com/*"
   ],
@@ -53,26 +86,52 @@
     {
       "matches": [
         "https://boards.greenhouse.io/*",
-        "https://job-boards.greenhouse.io/*"
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://apply.workable.com/*",
+        "https://*.lever.co/*",
+        "https://*.smartrecruiters.com/*",
+        "https://*.recruitee.com/*",
+        "https://*.jobs.personio.de/*",
+        "https://*.jobs.personio.com/*",
+        "https://*.teamtailor.com/*",
+        "https://*.breezy.hr/*",
+        "https://*.comeet.com/*",
+        "https://*.comeet.co/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.myworkdaysite.com/*",
+        "https://*.oraclecloud.com/*",
+        "https://jobs.deel.com/*",
+        "https://*.applytojob.com/*",
+        "https://*.pinpointhq.com/*",
+        "https://*.bamboohr.com/*",
+        "https://jobs.jobvite.com/*",
+        "https://*.careers.hibob.com/*",
+        "https://jobs.gem.com/*",
+        "https://*.eightfold.ai/*",
+        "https://*.hunterhrms.com/*",
+        "https://www.amazon.jobs/*",
+        "https://apply.careers.microsoft.com/*",
+        "https://jobs.apple.com/*",
+        "https://careers.checkpoint.com/*",
+        "https://www.ness-tech.co.il/*",
+        "https://experis.co.il/*",
+        "https://www.matrix.co.il/*",
+        "https://www.nogamy.co.il/*",
+        "https://yaelgroup.com/*",
+        "https://jobs.clalitapps.co.il/*",
+        "https://jobs.iai.co.il/*"
       ],
       "js": [
         "lib/match.js",
         "ats/greenhouse.js",
+        "ats/ashby.js",
+        "ats/workable.js",
+        "ats/generic.js",
         "detect.js"
       ],
       "all_frames": true,
       "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "icons/icon-32.png"
-      ],
-      "matches": [
-        "https://boards.greenhouse.io/*",
-        "https://job-boards.greenhouse.io/*"
-      ]
     }
   ],
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA06yv7Yz4McCh0ZAMN0ZTDeCMLbtGbrbK5+ipmBgoiwQVvjfQaQMcmsj3T7qTGfQep5kktjR43g1mLFAqfu9EpWo6iBtm0FD8BaBRCeBlQIP87Iex+4oXn7/KMAKne1NJNRXYIQXo77/dGMZAK2RIwX/nM1Bh2wex/JAoWCnaYP4G8Mdf390VPBk2yhEjo+5V9u8vjX8Cd1NoLQbGqmlPHBKxB+A164BxGoooYy/HDIK6nQoQVxfyMtLpAWfr1XZQFI7pF956bvpv53qxpAjrR7c1hIogINkSTYt4xmOQ4uzY6DNPuswdtg1bT6racH9ILtMw9cogBjUBTUZWWu7jxwIDAQAB"

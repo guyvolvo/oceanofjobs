@@ -187,3 +187,11 @@ test('demographic questions are recognised however they are worded, so AI never 
     assert.equal(m.isEeo({ label, type: 'text' }), false, label);
   }
 });
+
+test('pickFrame takes the frame with the strongest form, else none', () => {
+  const r = (frameId, score) => ({ frameId, result: { score } });
+  assert.equal(m.pickFrame([r(0, 0), r(7, 12), r(9, 4)]).frameId, 7);
+  assert.equal(m.pickFrame([r(0, 6), r(3, 6)]).frameId, 0);
+  assert.equal(m.pickFrame([r(0, 0), { frameId: 2, result: null }, { frameId: 4 }]), null);
+  assert.equal(m.pickFrame(undefined), null);
+});

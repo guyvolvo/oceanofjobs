@@ -15,6 +15,8 @@
     .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
     .file input:focus-visible + label { outline: 2px solid var(--good); outline-offset: 2px; }
     .actions { margin-top: 18px; }
+    .toggle { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; font-weight: 500; cursor: pointer; }
+    .toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--good); }
   </style>
 </head>
 <body>
@@ -54,6 +56,13 @@
       <button class="btn primary" id="save-ai">Save</button>
       <span id="ai-msg" class="note" role="status"></span>
     </div>
+  </section>
+
+  <section class="card">
+    <h2>Every site</h2>
+    <p class="note">The fill button shows on the job sites Ocean of Jobs lists. With access to every site it also shows on company careers pages, and "Fill in this page" can fill a form a page embeds from another site. Each page is checked in this browser for an application form. Pages without one are left alone, and nothing about the pages you visit is sent anywhere.</p>
+    <label class="toggle" for="all-sites"><input type="checkbox" id="all-sites"> Show the fill button on every careers page</label>
+    <p id="all-sites-msg" class="note" role="status" style="margin-top:10px"></p>
   </section>
 
   <section class="card">

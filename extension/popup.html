@@ -33,7 +33,7 @@
     #queue-list button:hover { color: var(--text); }
     #queue-note { margin: 0; padding: 0 12px 10px; }
     #fill { margin-top: 12px; font-size: 13px; }
-    #fill-result { margin-top: 8px; }
+    #fill-result, #fill-why { margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -52,6 +52,7 @@
       <div class="stat"><b id="needs">0</b><span>Need your answer</span></div>
     </div>
     <button class="btn primary full" id="fill">Fill in this page</button>
+    <p id="fill-why" class="note" hidden>Allow Ocean of Jobs on all sites to fill forms embedded from other sites and show the fill button on any careers page.</p>
     <p id="fill-result" class="note" hidden></p>
     <ul id="needs-list" hidden></ul>
     <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these on your account page and the next run uses them.</p>
