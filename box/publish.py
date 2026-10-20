@@ -120,11 +120,6 @@ def _publish() -> int:
     s3 = boto3.client("s3")
     done: list[str] = []
 
-    t = time.monotonic()
-    written = precompute.publish(BUCKET, DB, FRONTEND_BUCKET, pause=let_through)
-    if written:
-        done.append(f"precomputed {len(written)} in {time.monotonic() - t:.0f}s")
-
     # The companies directory's daily row per company. Here rather than
     # in precompute.publish because that returns early while its
     # artifacts are fresh, and this is about the day, not the artifacts.
@@ -156,6 +151,15 @@ def _publish() -> int:
                 done.append(f"sitemap {len(parts)} in {time.monotonic() - t:.0f}s")
         except Exception as e:  # noqa: BLE001
             print(f"sitemap failed: {e!r}", file=sys.stderr)
+
+    # Precompute goes last. At 1.25M open rows it took 3h09m
+    # (2026-10-16), and while it ran first, a run killed by the service
+    # timeout never reached the bootstrap, sitemap or companies pages,
+    # which take minutes: the site froze from Oct 16 to Oct 20.
+    t = time.monotonic()
+    written = precompute.publish(BUCKET, DB, FRONTEND_BUCKET, pause=let_through)
+    if written:
+        done.append(f"precomputed {len(written)} in {time.monotonic() - t:.0f}s")
 
     print(f"published: {', '.join(done) if done else 'nothing was due'} "
           f"(total {time.monotonic() - started:.0f}s)")

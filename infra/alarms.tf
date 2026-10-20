@@ -68,16 +68,18 @@ resource "aws_cloudwatch_metric_alarm" "source_stale" {
 # (box/metrics.py heartbeat), so silence is a stopped timer, a hung run,
 # or a crash. Missing data is the alarm: on 2026-10-16 the timer was
 # stopped and the sitemap, bootstrap and stats froze for four days while
-# every other alarm stayed green.
+# every other alarm stayed green. Six hours, past the service's 5h
+# timeout: one pass with precompute in it ran 3h09m (2026-10-16), so
+# two hours would alarm on every one.
 resource "aws_cloudwatch_metric_alarm" "publish_stopped" {
   alarm_name          = "${var.project_name}-publish-stopped"
-  alarm_description   = "The box's publisher (otj-publish) has not finished a pass in two hours: the sitemap, the board's first page and the stats are going stale. box/watchdog.sh should restart a stopped timer; check journalctl -u otj-publish."
+  alarm_description   = "The box's publisher (otj-publish) has not finished a pass in six hours: the sitemap, the board's first page and the stats are going stale. box/watchdog.sh should restart a stopped timer; check journalctl -u otj-publish."
   namespace           = "OceanOfJobs"
   metric_name         = "PublishRuns"
   statistic           = "Sum"
   period              = 3600
-  evaluation_periods  = 2
-  datapoints_to_alarm = 2
+  evaluation_periods  = 6
+  datapoints_to_alarm = 6
   threshold           = 1
   comparison_operator = "LessThanThreshold"
   treat_missing_data  = "breaching"

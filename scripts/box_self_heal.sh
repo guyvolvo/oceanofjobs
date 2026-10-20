@@ -27,7 +27,7 @@ read -r -d '' REMOTE <<'EOF' || true
 set -e
 test -x /srv/otj/app/box/watchdog.sh || chmod +x /srv/otj/app/box/watchdog.sh
 mkdir -p /etc/systemd/system/otj-publish.service.d /var/lib/otj/pause
-printf '[Service]\nTimeoutStartSec=2h\n' > /etc/systemd/system/otj-publish.service.d/timeout.conf
+printf '[Service]\nTimeoutStartSec=5h\n' > /etc/systemd/system/otj-publish.service.d/timeout.conf
 printf '[Unit]\nDescription=Restart stopped otj timers (box/watchdog.sh)\n[Service]\nType=oneshot\nExecStart=/bin/sh /srv/otj/app/box/watchdog.sh\n' > /etc/systemd/system/otj-watchdog.service
 printf '[Unit]\nDescription=Check the otj timers every 15 minutes\n[Timer]\nOnBootSec=5min\nOnUnitActiveSec=15min\n[Install]\nWantedBy=timers.target\n' > /etc/systemd/system/otj-watchdog.timer
 systemctl daemon-reload
