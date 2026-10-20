@@ -171,7 +171,7 @@ _DIRECTORY_CACHE: dict = {}
 _DIRECTORY_TTL_S = 1800
 
 
-def company_directory(conn, params: dict, limit: int = 500) -> dict:
+def company_directory(conn, params: dict, limit: int = 500, domains: list[str] | None = None) -> dict:
     """The companies directory (/companies): who has open roles under the
     board's filters, busiest first, with how many of those roles were
     first seen in the past week. The same WHERE as /api/jobs minus the
@@ -181,6 +181,9 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
 
     Capped, and says so: the facets' company list is capped the same
     way, and a page of 20,000 rows is not a directory anyone reads.
+
+    `domains` counts only those companies: the page's search in a
+    country, whose names company_directory_daily has already matched.
     """
     from datetime import datetime, timedelta, timezone
 
@@ -191,7 +194,7 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
     # every open row by company, a walk of the whole company index, 10s
     # idle and 100s under an apply (2026-10-02); the list barely moves
     # in that time and every visitor asks the same question first.
-    ckey = (limit, tuple(sorted((k, v) for k, v in scoped.items() if v not in (None, ""))))
+    ckey = (limit, None if domains is None else tuple(domains), tuple(sorted((k, v) for k, v in scoped.items() if v not in (None, ""))))
     now = datetime.now(timezone.utc)
     hit = _DIRECTORY_CACHE.get(ckey)
     if hit and (now - hit[0]).total_seconds() < _DIRECTORY_TTL_S:
@@ -200,6 +203,9 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
     from expensive import guard
     with guard("directory"), place_rows(conn, scoped):
         where_sql, args = build_jobs_where(scoped, has_fts_index(conn), has_places(conn))
+        if domains is not None:
+            where_sql += f" AND company_domain IN ({','.join('?' * len(domains)) or 'NULL'})"
+            args = [*args, *domains]
         rows = [dict(r) for r in conn.execute(
             f"""
             SELECT company_domain AS domain, COUNT(*) AS n,
@@ -232,21 +238,33 @@ def company_directory(conn, params: dict, limit: int = 500) -> dict:
     return out
 
 
-def company_directory_daily(conn, limit: int = 500) -> dict | None:
+def company_directory_daily(conn, limit: int = 500, name: str = "") -> dict | None:
     """The directory for everywhere, read from company_daily rather than
     by grouping the open rows: the publish run's own count per company,
     written once a day, about 20,000 rows against 1.2M. The live GROUP BY
     ran past the request deadline at that size and the page answered 503
     (2026-10-13). Counts are as of the day's row. None when the table is
-    missing or empty, so the caller can fall back to the live count."""
+    missing or empty, so the caller can fall back to the live count.
+
+    `name` narrows it to companies whose domain or name contains it: the
+    page only holds the top `limit`, so its own filter could never find
+    anyone past that line. This reads the day's 20,000 rows, where
+    search_companies groups 1.2M listings and took 2 to 5 s (2026-10-20)."""
     if not conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'company_daily'").fetchone():
         return None
     day = conn.execute("SELECT MAX(day) FROM company_daily").fetchone()[0]
     if not day:
         return None
+    match, margs = "", []
+    if name:
+        needle = "%" + name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        by_name = (" OR domain IN (SELECT domain FROM companies WHERE LOWER(company_name) LIKE ? ESCAPE '\\')"
+                   if "company_name" in _company_columns(conn) else "")
+        match = f" AND (domain LIKE ? ESCAPE '\\'{by_name})"
+        margs = [needle] * (2 if by_name else 1)
     rows = [dict(r) for r in conn.execute(
-        "SELECT domain, open_n AS n FROM company_daily WHERE day = ? AND domain != '' AND open_n > 0 "
-        "ORDER BY open_n DESC, domain LIMIT ?", (day, limit))]
+        "SELECT domain, open_n AS n FROM company_daily WHERE day = ? AND domain != '' AND open_n > 0"
+        f"{match} ORDER BY open_n DESC, domain LIMIT ?", (day, *margs, limit))]
     if rows:
         domains = [r["domain"] for r in rows]
         marks = ",".join("?" * len(domains))

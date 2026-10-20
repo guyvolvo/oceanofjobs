@@ -39,6 +39,7 @@
   try { savedCountry = localStorage.getItem(COUNTRY_KEY) || ""; } catch { /* as above */ }
   const state = { country: savedCountry, ats: new Set(), view: "hiring", q: "", sort: "roles", selected: null, shown: 50 };
   let directory = null;   // the API's list for the current country
+  let found = [];         // the server's matches for the search, past the top 500
   let countries = [];     // every country with its open-role count, once
   let loadSeq = 0;
 
@@ -59,6 +60,7 @@
   async function loadDirectory() {
     const seq = ++loadSeq;
     directory = null;
+    found = [];
     renderList();
     renderPills();
     let data;
@@ -79,7 +81,9 @@
   }
 
   function rows() {
-    let out = (directory?.companies || []).map((c) => ({ ...c, name: c.name || c.domain }));
+    const base = directory?.companies || [];
+    const have = new Set(base.map((c) => c.domain));
+    let out = [...base, ...(state.q ? found.filter((c) => !have.has(c.domain)) : [])].map((c) => ({ ...c, name: c.name || c.domain }));
     if (state.view === "following") out = out.filter((r) => following.has(r.domain));
     if (state.ats.size) out = out.filter((r) => r.ats && state.ats.has(atsKey(r.ats)));
     if (state.q) {
@@ -174,7 +178,7 @@
     const list = rows();
     $("#dir-count").textContent = state.view === "following"
       ? `${fmt(list.length)} companies you follow${where()}`
-      : `Top ${fmt(list.length)} companies by open jobs${where()}`;
+      : state.q ? `${fmt(list.length)} companies match${where()}` : `Top ${fmt(list.length)} companies by open jobs${where()}`;
     $("#dir-sub").textContent = "";
     body.innerHTML = list.slice(0, state.shown).map((r) => `
       <div class="dir-row${r.domain === state.selected ? " selected" : ""}" data-domain="${esc(r.domain)}" role="listitem">
@@ -305,7 +309,23 @@
       state.shown = 50; renderAll();
     });
     const search = $("#dir-search");
-    search.addEventListener("input", () => { state.q = search.value.trim(); state.shown = 50; renderList(); renderPills(); });
+    // The list holds the top 500, filtered here as you type; the server
+    // adds the rest a moment later.
+    let findTimer;
+    search.addEventListener("input", () => {
+      state.q = search.value.trim(); state.shown = 50; renderList(); renderPills();
+      clearTimeout(findTimer);
+      const q = state.q.toLowerCase();
+      if (q.length < 2) return;
+      findTimer = setTimeout(async () => {
+        try {
+          const country = state.country;
+          const r = await fetch(`${API}/companies/directory?confidence=all&name=${encodeURIComponent(q)}${country ? `&country=${encodeURIComponent(country)}` : ""}`);
+          const data = r.ok ? await r.json() : null;
+          if (data && state.q.toLowerCase() === q && state.country === country) { found = data.companies || []; renderList(); }
+        } catch { /* the list's own matches stand */ }
+      }, 150);
+    });
     document.addEventListener("keydown", (e) => {
       if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "")) { e.preventDefault(); search.focus(); }
     });

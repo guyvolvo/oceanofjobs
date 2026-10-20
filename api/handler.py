@@ -452,6 +452,19 @@ def lambda_handler(event, context):
             # The page's first request, everywhere, reads the daily
             # per-company counts (company_directory_daily); a country or
             # any other filter is counted live.
+            if "name" in params and set(params) <= {"confidence", "name", "country"} and params.get("confidence") == "all":
+                # The page's search past its top 500. Names are matched in
+                # the daily table (20,000 rows); in a country, only those
+                # matches are then counted live. Two characters at least,
+                # as search_companies asks.
+                name = str(params["name"]).strip().lower()[:60]
+                found = company_directory_daily(get_connection(), limit=50 if not params.get("country") else 200,
+                                                name=name) if len(name) >= 2 else None
+                if found and params.get("country"):
+                    found = company_directory(get_connection(), {"confidence": "all", "country": params["country"]},
+                                              limit=50, domains=[c["domain"] for c in found["companies"]])
+                return _response(200, json.dumps(found or {"companies": []}, default=str), cache_seconds=300,
+                                 edge="s-maxage=3600, stale-while-revalidate=86400")
             if set(params) <= {"confidence"} and params.get("confidence") == "all":
                 daily = company_directory_daily(get_connection())
                 if daily is not None:

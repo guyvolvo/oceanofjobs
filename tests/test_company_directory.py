@@ -91,6 +91,9 @@ with tempfile.TemporaryDirectory() as td:
     d_il = aggregates.company_directory(conn, {"confidence": "verified", "country": "IL"})
     by_il = {c["domain"]: c for c in d_il["companies"]}
     check("a country narrows it to the roles there", by_il["wiz.io"]["n"] == 3 and "acme.com" not in by_il, repr(by_il))
+    only = lambda ds: [c["domain"] for c in aggregates.company_directory(conn, {"confidence": "verified", "country": "IL"}, domains=ds)["companies"]]
+    check("domains counts only those companies, and none when there are none",
+          only(["wiz.io", "acme.com"]) == ["wiz.io"] and only([]) == [], repr(only(["wiz.io", "acme.com"])))
     d_cap = aggregates.company_directory(conn, {"confidence": "verified"}, limit=2)
     check("a smaller limit caps and says so", len(d_cap["companies"]) == 2 and d_cap["capped"] is True)
 
@@ -126,6 +129,10 @@ with tempfile.TemporaryDirectory() as td:
     check("the directory carries a seven-day trend per company, oldest first, today last",
           len(t["wiz.io"]) == 7 and t["wiz.io"][-1] == 4 and t["wiz.io"][0] == 1 and t["monday.com"][-1] == 2, repr(t["wiz.io"]))
     check("a day the box already wrote is kept, not recomputed", precompute.record_company_day(db) is False)
+    named = lambda q: [c["domain"] for c in aggregates.company_directory_daily(conn, 50, q)["companies"]]
+    check("the daily directory finds a company by its name, by its domain, and treats % as a letter",
+          named("wiz") == ["wiz.io"] and named("acme.c") == ["acme.com"] and named("%") == [],
+          repr((named("wiz"), named("acme.c"), named("%"))))
     conn.close()
 
 print()
