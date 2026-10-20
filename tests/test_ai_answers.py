@@ -67,7 +67,7 @@ check("and nothing was sent to the model", sent == [])
 
 t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
 out = ai_answers.draft(t, "u", body, {"skills": ["Python"]}, run=run("30 days"), report=reported.append, now=NOW)
-check("a Basic user gets an answer and how many remain this month", out == {"answer": "30 days", "remaining": 299}, repr(out))
+check("a Basic user gets an answer and how many remain this month", out == {"answer": "30 days", "remaining": 299, "suggested": False}, repr(out))
 check("the answer becomes a saved answer", apply.get_profile(t, "u")["answers"][0] == {"question": "What is your notice period?", "answer": "30 days"})
 prompt = sent[-1][1]["content"]
 check("the model sees the profile and the job", "30 days" in prompt and "Haifa" in prompt and "Engineer at Acme" in prompt, prompt[:300])
@@ -99,6 +99,12 @@ check("a new month starts again", ai_answers.draft(t, "u", body, {}, run=run("30
 ai_answers.draft(t, "u", {"question": "Are you authorized to work in Israel?", "options": ["Yes", "No"]}, {}, run=run("Yes"), report=reported.append, now=NOW)
 check("a multiple-choice question sends its options and asks for one exactly",
       'Options (answer with exactly one of these): ["Yes", "No"]' in sent[-1][1]["content"], sent[-1][1]["content"][-120:])
+before = len(apply.get_profile(t, "u")["answers"])
+out = ai_answers.draft(t, "u", {"question": "Have you been employed by Nebius before?", "options": ["Yes", "No"], "mode": "suggest",
+                                "job": {"title": "SRE", "company": "Nebius", "location": "Amsterdam"}}, {}, run=run("No"), report=reported.append, now=NOW)
+check("a suggestion uses the suggest prompt and the job's location", out["suggested"] is True and "best helps the applicant" in sent[-1][0]["content"]
+      and "SRE at Nebius (Amsterdam)" in sent[-1][1]["content"], sent[-1][1]["content"][-160:])
+check("and is not saved as a saved answer", len(apply.get_profile(t, "u")["answers"]) == before)
 try:
     ai_answers.draft(t, "u", {"question": "  "}, {}, run=run("x"), report=reported.append, now=NOW)
     check("an empty question is refused", False)

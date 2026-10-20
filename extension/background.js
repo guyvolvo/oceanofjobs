@@ -362,7 +362,8 @@ async function fillHere(msg, tabId, frameId) {
   if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
   accountCache = null;
   const a = await account();
-  const job = { id: await pageJobId(msg.url), url: msg.url, title: msg.title, company_name: msg.company, company_domain: msg.company, ats: 'greenhouse' };
+  const job = { id: await pageJobId(msg.url), url: msg.url, title: msg.title, company_name: msg.company, company_domain: msg.company,
+    location: msg.location || '', ats: 'greenhouse' };
   const ats = globalThis.oojAts.greenhouse;
   const target = frameId ? { tabId, frameIds: [frameId] } : { tabId };
   const [main] = await chrome.scripting.executeScript({ target, world: 'MAIN', func: ats.pageData });
@@ -371,14 +372,16 @@ async function fillHere(msg, tabId, frameId) {
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: ['basic', 'pro'].includes(a.usage.plan) };
   const plan = oojMatch.planFill(page.fields, ctx.profile, job);
-  if (plan.missing.length && ctx.settings.unknowns === 'ai') {
-    for (const f of [...plan.missing]) {
-      if (f.type === 'file' || oojMatch.isEeo(f)) continue;
-      const answer = await answerUnknown(f, job, ctx);
-      if (answer === undefined) continue;
-      plan.missing.splice(plan.missing.indexOf(f), 1);
-      plan.fills.push({ ...f, value: answer });
-    }
+  // The user checks this form before submitting, so every question with no
+  // saved answer gets the AI's best suggestion, outlined for review.
+  const suggested = [];
+  for (const f of [...plan.missing]) {
+    if (f.type === 'file' || oojMatch.isEeo(f)) continue;
+    const answer = await suggestAnswer(f, job, ctx);
+    if (answer === undefined) continue;
+    plan.missing.splice(plan.missing.indexOf(f), 1);
+    plan.fills.push({ ...f, value: answer });
+    suggested.push(f);
   }
   try {
     await api('/me/apply/claim', { method: 'POST', body: { job_id: job.id, company: job.company_domain, title: job.title, url: job.url } });
@@ -388,18 +391,46 @@ async function fillHere(msg, tabId, frameId) {
     throw e;
   }
   const filled = await inTab(tabId, 'greenhouse', 'fill', [plan.fills, ctx.cv], frameId);
-  // Outline what the user still has to answer.
+  // Amber: the AI suggested it, check it. Red: still needs the user.
   await chrome.scripting.executeScript({
-    target, args: [plan.missing.map((f) => f.name)],
-    func: (names) => names.forEach((n) => {
-      const el = document.getElementById(n) || document.querySelector(`[name="${CSS.escape(n)}"]`);
-      if (el) { el.style.outline = '2px solid #ff6b5e'; el.style.outlineOffset = '2px'; }
-    }),
+    target, args: [suggested.map((f) => f.name), plan.missing.map((f) => f.name)],
+    func: (amber, red) => [[amber, '#e0a43a'], [red, '#ff6b5e']].forEach(([names, color]) => names.forEach((n) => {
+      const el = document.getElementById(n) || document.getElementById(n.replace(/_/g, '-')) || document.querySelector(`[name="${CSS.escape(n)}"]`);
+      const box = el && (el.closest('.select__control') || el.closest('fieldset') || el);
+      if (box) { box.style.outline = `2px solid ${color}`; box.style.outlineOffset = '2px'; }
+    })),
   });
   const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
   pendingHere[tabId] = job.id;
   await chrome.storage.local.set({ pendingHere });
-  return { filled: plan.fills.length - ((filled && filled.errors.length) || 0), missing: plan.missing.map((f) => f.label) };
+  const statement = /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that/i;
+  return {
+    filled: plan.fills.length - ((filled && filled.errors.length) || 0),
+    suggested: suggested.length,
+    statements: suggested.filter((f) => statement.test(f.label)).map((f) => f.label),
+    missing: plan.missing.map((f) => f.label),
+  };
+}
+
+// The AI's best answer for a page the user will review: our server on
+// Basic and Pro, else the user's own key. Not saved as a saved answer.
+async function suggestAnswer(field, job, ctx) {
+  if (ctx.serverAi) {
+    try {
+      const { answer } = await api('/me/apply/draft', {
+        method: 'POST',
+        body: { question: field.label, options: field.options || [], mode: 'suggest',
+          job: { title: job.title, company: job.company_name, location: job.location } },
+      });
+      return fits(field, answer) ? answer : undefined;
+    } catch (e) {
+      if (e.status === 422) return undefined;
+      ctx.serverAi = false;
+    }
+  }
+  if (!ctx.ai || !ctx.ai.key) return undefined;
+  const answer = await draftAnswer(field, ctx.profile, ctx.preferences, job, ctx.ai).catch(() => undefined);
+  return fits(field, answer) ? answer : undefined;
 }
 
 // The user submitted a form we filled, or closed it without submitting.

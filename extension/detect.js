@@ -67,7 +67,9 @@
       go.textContent = 'Filling in…';
       const title = (document.querySelector('h1') || {}).textContent || document.title;
       const company = new URL(location.href).searchParams.get('for') || location.pathname.split('/')[1] || '';
-      const r = await send({ type: 'fillHere', url: location.href, title: String(title).trim().slice(0, 300), company });
+      const where = (document.querySelector('.job__location, .location, [class*="location"]') || {}).textContent || '';
+      go.textContent = 'Filling in and suggesting answers…';
+      const r = await send({ type: 'fillHere', url: location.href, title: String(title).trim().slice(0, 300), company, location: where.trim().slice(0, 200) });
       if (!r || r.error) {
         msg.className = 'msg warn';
         msg.textContent = (r && r.error) || 'Something went wrong. Reload the page and try again.';
@@ -76,9 +78,12 @@
         return;
       }
       msg.className = 'msg ok';
-      msg.textContent = r.missing.length
-        ? `Filled in ${r.filled} fields. ${r.missing.length} need your answer, outlined on the form. Check everything, then press Submit.`
-        : `Filled in ${r.filled} fields. Check everything, then press Submit.`;
+      const parts = [`Filled in ${r.filled} fields.`];
+      if (r.suggested) parts.push(`AI suggested ${r.suggested} ${r.suggested === 1 ? 'answer' : 'answers'}, outlined in amber: check ${r.suggested === 1 ? 'it' : 'them'}.`);
+      if (r.statements && r.statements.length) parts.push(`Agreed for you: ${r.statements.map((x) => `"${x.slice(0, 60)}"`).join(', ')}.`);
+      if (r.missing.length) parts.push(`${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.`);
+      parts.push('Then press Submit.');
+      msg.textContent = parts.join(' ');
       go.hidden = true;
       // A form that confirms without leaving the page.
       const watch = setInterval(() => {
