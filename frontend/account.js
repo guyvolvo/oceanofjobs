@@ -1067,6 +1067,15 @@ function wireTokens() {
     $("token-where").hidden = !a.where;
     document.querySelectorAll(".token-agents [data-agent]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.agent === agent)));
   };
+  // Copying the masked text by hand (select, Ctrl+C) must still give the
+  // real value: a pasted "ooj_ZmEwMzAy…" adds a server that never works.
+  for (const id of ["token-value", "token-cmd"]) {
+    $(id).addEventListener("copy", (e) => {
+      if (!fullText[id]) return;
+      e.preventDefault();
+      e.clipboardData.setData("text/plain", fullText[id]);
+    });
+  }
   document.querySelector(".token-agents")?.addEventListener("click", (e) => {
     const b = e.target.closest("[data-agent]");
     if (!b) return;
