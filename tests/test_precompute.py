@@ -62,7 +62,16 @@ def seed(tmp: Path) -> Path:
 
 with tempfile.TemporaryDirectory() as td:
     tmp = Path(td)
-    built = precompute.build(seed(tmp))
+    db = seed(tmp)
+    built = precompute.build(db)
+
+    # The narrow copy must answer exactly what the full file does: a
+    # column a count reads but NARROW_JOBS left out shows up here.
+    full = precompute.build(db, narrow=False)
+    check("the narrow copy gives the same artifacts as the full file",
+          json.dumps(built, sort_keys=True, default=str) == json.dumps(full, sort_keys=True, default=str),
+          "they differ")
+    check("and the work file is cleaned up", not (tmp / "precompute-work.db").exists())
 
     check("both artifacts are produced",
           sorted(built) == ["facets.json", "stats.json"], str(sorted(built)))

@@ -147,11 +147,60 @@ def record_company_day(db_path: Path) -> bool:
         conn.close()
 
 
-def build(db_path: Path, pause=None) -> dict[str, dict]:
+# The jobs columns the passes below read. The rest of the 3.9GB file is
+# descriptions and raw JSON, and each of the ~50 passes read all of it:
+# 3h09m on 2026-10-16 (2M rows on a 3.8GB box, so every pass came off the
+# disk). Copied once into a ~1GB narrow file that stays in the page cache,
+# the same passes run from memory. A column added to a count must be added
+# here too; test_precompute compares this against the full file.
+NARROW_JOBS = (
+    "id", "company_domain", "ats", "title", "location", "department", "posted_at", "seniority",
+    "workplace_type", "skills", "salary_text", "salary_is_estimate", "confidence", "first_seen",
+    "closed_at", "salary_source", "country", "city", "role_class", "category", "salary_min_ils",
+    "salary_max_ils",
+)
+
+
+def narrow_copy(db_path: Path, out: Path) -> Path:
+    """A copy of db_path with only what build() reads: the NARROW_JOBS
+    columns, the small tables whole, and every index whose columns
+    survive, because which indexes exist changes what aggregates answer
+    (the salary facet, the disclosed count)."""
+    out.unlink(missing_ok=True)
+    conn = sqlite3.connect(f"file:{out}", uri=True)  # so ATTACH takes the read-only URI
+    try:
+        conn.execute("PRAGMA journal_mode = OFF")
+        conn.execute("PRAGMA synchronous = OFF")
+        conn.execute("ATTACH ? AS src", (f"file:{db_path}?mode=ro",))
+        have = {r[1] for r in conn.execute("PRAGMA src.table_info(jobs)")}
+        cols = ", ".join(c for c in NARROW_JOBS if c in have)
+        conn.execute(f"CREATE TABLE jobs AS SELECT {cols} FROM src.jobs")
+        for table in ("companies", "meta", "company_daily"):
+            if conn.execute("SELECT 1 FROM src.sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone():
+                conn.execute(f"CREATE TABLE {table} AS SELECT * FROM src.{table}")
+        for (sql,) in conn.execute("SELECT sql FROM src.sqlite_master WHERE type = 'index' AND sql IS NOT NULL "
+                                   "AND tbl_name IN ('jobs', 'companies', 'company_daily')").fetchall():
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass  # names a column left out above, so no count uses it
+        conn.commit()
+    finally:
+        conn.close()
+    return out
+
+
+def build(db_path: Path, pause=None, narrow: bool = True) -> dict[str, dict]:
     """{filename: payload} for everything worth precomputing.
 
     `pause`, when given, is called between passes: the box's publisher
     uses it to step aside for a waiting apply (box/lock.py let_through)."""
+    if narrow:
+        work = narrow_copy(db_path, db_path.with_name("precompute-work.db"))
+        try:
+            return build(work, pause, narrow=False)
+        finally:
+            work.unlink(missing_ok=True)
     pause = pause or (lambda: None)
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
