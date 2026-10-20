@@ -13,9 +13,11 @@ snapshot on a cold start, and API Gateway's integration timeout is a
 fixed 29 seconds that no setting raises.
 
 So closed listings older than RETAIN_DAYS leave the snapshot. Everything
-that reads a closed job reads a recent one: the 24h and 7d throughput
-counters, time-to-fill, and the 14-day reconstructed history. Thirty
-days is comfortably past all of them.
+that reads a closed job row reads a recent one: the 24h and 7d
+throughput counters, time-to-fill, and the 14-day reconstructed history,
+all inside 14 days. The one longer reader, the account page's 90-day
+skills chart, keeps what it needs in closed_history: two dates, the
+skills and the country, about 35 bytes a listing (db/schema.sql).
 
 They are written to S3 first and deleted only after that write returns,
 one immutable object per run under the month they closed in. Appending
@@ -32,8 +34,20 @@ from datetime import datetime, timedelta, timezone
 PREFIX = "archive/closed/"
 MARKER_KEY = "archive/last-prune.json"
 
-# Well past the 14-day window every consumer of a closed job uses.
-RETAIN_DAYS = 30
+# The 14-day window every consumer of a closed job row uses. Was 30;
+# the extra 16 days were 380,195 rows (2026-10-20) that every
+# board query walked past (box/SPLIT-TEXT.md).
+RETAIN_DAYS = 14
+
+# closed_history's own horizon: aggregates.skills_history's 90 days.
+HISTORY_DAYS = 90
+
+# Rows retired per run. A cut in retention makes one run's worth weeks of
+# closings (380,195 rows going from 30 days to 14), and each run holds the
+# apply's write lock while it deletes them and their index entries. A run
+# that hits this leaves the marker alone, so the next apply takes the next
+# batch until the backlog is gone.
+MAX_PER_RUN = 20000
 
 # How often this is worth doing. Only ~3,000 listings cross the
 # threshold on any given day, so running it every 5 minutes would write
@@ -84,7 +98,7 @@ def _mark(s3, bucket: str, archived: int, objects: list) -> None:
 
 
 def prune(conn, s3, bucket: str, retain_days: int = RETAIN_DAYS,
-          fts_rowid_delete: bool = True) -> dict:
+          fts_rowid_delete: bool = True, limit: int = MAX_PER_RUN) -> dict:
     """Archive and remove listings closed longer than retain_days ago.
 
     Returns a summary. Raises nothing the caller has to handle: on any
@@ -119,12 +133,16 @@ def prune(conn, s3, bucket: str, retain_days: int = RETAIN_DAYS,
     # for all 143,000 rows on every single apply.
     cutoff = (datetime.now(timezone.utc) - timedelta(days=retain_days)).isoformat()
     ceiling = conn.execute("SELECT MAX(rowid) FROM jobs").fetchone()[0] or 0
+    # No ORDER BY: the box has no closed_at index, and with one missing
+    # an ORDER BY sorts every match before the LIMIT applies. Unordered,
+    # the scan stops at the limit.
     rows = conn.execute(
-        f"""SELECT rowid, {_COLUMNS} FROM jobs
+        f"""SELECT rowid, {_COLUMNS}, country FROM jobs
             WHERE closed_at IS NOT NULL
               AND closed_at < ?
-              AND rowid < ?""",
-        (cutoff, ceiling),
+              AND rowid < ?
+            LIMIT ?""",
+        (cutoff, ceiling, limit),
     ).fetchall()
     if not rows:
         # Record that the check happened. Without this the marker is
@@ -139,7 +157,7 @@ def prune(conn, s3, bucket: str, retain_days: int = RETAIN_DAYS,
     # browsable and a reader can fetch one period without scanning all.
     by_month: dict[str, list[dict]] = {}
     for r in rows:
-        record = {k: r[k] for k in r.keys() if k != "rowid"}
+        record = {k: r[k] for k in r.keys() if k not in ("rowid", "country")}
         by_month.setdefault((record["closed_at"] or "")[:7] or "unknown", []).append(record)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -159,6 +177,9 @@ def prune(conn, s3, bucket: str, retain_days: int = RETAIN_DAYS,
         print(f"archive write failed, keeping every row in the snapshot: {e!r}", file=sys.stderr)
         return {"archived": 0, "objects": len(written), "error": repr(e)}
 
+    conn.executemany(
+        "INSERT INTO closed_history (first_seen, closed_at, skills, country) VALUES (date(?), date(?), ?, ?)",
+        [(r["first_seen"], r["closed_at"], r["skills"], r["country"]) for r in rows])
     ids = [r["rowid"] for r in rows]
     for i in range(0, len(ids), 500):
         chunk = ids[i:i + 500]
@@ -171,7 +192,11 @@ def prune(conn, s3, bucket: str, retain_days: int = RETAIN_DAYS,
             conn.execute(f"DELETE FROM jobs_fts WHERE rowid IN ({marks})", chunk)
         conn.execute(f"DELETE FROM jobs WHERE rowid IN ({marks})", chunk)
 
-    _mark(s3, bucket, len(rows), written)
+    capped = len(rows) >= limit
+    if not capped:
+        # With the day's last batch: one scan of a narrow table.
+        conn.execute("DELETE FROM closed_history WHERE closed_at < date('now', ?)", (f"-{HISTORY_DAYS} days",))
+        _mark(s3, bucket, len(rows), written)
 
     # Entries the runtime could not remove. Inert, but they accumulate at
     # roughly 2.9KB each, so rebuild_fts.py exists to clear them.
@@ -188,4 +213,4 @@ def prune(conn, s3, bucket: str, retain_days: int = RETAIN_DAYS,
         except sqlite3.Error:
             orphaned = 0
     return {"archived": len(rows), "objects": len(written), "months": sorted(by_month),
-            "orphaned_index_rows": orphaned}
+            "orphaned_index_rows": orphaned, "more": capped}

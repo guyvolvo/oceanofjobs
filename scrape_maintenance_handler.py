@@ -55,10 +55,10 @@ import sitemap
 import precompute
 
 # Listings closed longer ago than this leave the snapshot for S3. Every
-# reader of a closed job works inside 14 days (the 24h/7d throughput
-# counters, time-to-fill, the reconstructed history), so 30 is well past
-# all of them. See loader/archive.py for what this is protecting against.
-ARCHIVE_CLOSED_DAYS = 30
+# reader of a closed job row works inside 14 days (the 24h/7d throughput
+# counters, time-to-fill, the reconstructed history). See loader/archive.py
+# for what this is protecting against and what the 90-day chart keeps.
+ARCHIVE_CLOSED_DAYS = 14
 
 # How much delta JSON one apply will parse into memory at once.
 #

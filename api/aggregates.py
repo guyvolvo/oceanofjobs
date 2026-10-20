@@ -104,10 +104,16 @@ def skills_history(conn, params: dict, days: int = 90) -> dict:
     # GROUP BYs each scanned the table; this scans it once.
     from expensive import guard
     baseline, seen, closed = 0, {}, {}
+    sql = (f"SELECT date(first_seen), date(closed_at) FROM jobs WHERE {scope} "
+           f"AND (closed_at IS NULL OR date(closed_at) >= ?)")
+    sql_args = [*args, start_iso]
+    # Listings retired past 14 days (loader/archive.py) leave their dates
+    # and skills here, or the older days of the chart would read low.
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'closed_history'").fetchone():
+        sql += f" UNION ALL SELECT first_seen, closed_at FROM closed_history WHERE {scope} AND closed_at >= ?"
+        sql_args += sql_args
     with guard("live_aggregate"):
-        for first, last in conn.execute(
-                f"SELECT date(first_seen), date(closed_at) FROM jobs WHERE {scope} "
-                f"AND (closed_at IS NULL OR date(closed_at) >= ?)", [*args, start_iso]):
+        for first, last in conn.execute(sql, sql_args):
             if first is None:
                 continue
             if first < start_iso:

@@ -157,6 +157,19 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_domain);
 
+-- What is left of a closed listing once loader/archive.py retires it
+-- (14 days after it closed): the two days and the two columns the
+-- account page's 90-day skills chart (aggregates.skills_history) needs
+-- to say how many matching roles were open on a past day. Dates, not
+-- timestamps; named like the jobs columns so one WHERE fits both. Kept
+-- 90 days.
+CREATE TABLE IF NOT EXISTS closed_history (
+    first_seen TEXT,
+    closed_at  TEXT,
+    skills     TEXT,
+    country    TEXT
+);
+
 -- One row per company per day: open roles, and how many were first seen
 -- in the last day. Written by the box's publish run
 -- (loader/precompute.py record_company_day); read by the companies

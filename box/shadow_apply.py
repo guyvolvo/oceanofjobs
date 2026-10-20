@@ -88,9 +88,10 @@ MAX_APPLY_BYTES = 96 * 1024 * 1024
 PRIMARY = os.environ.get("OTJ_PRIMARY") == "1"
 # Listings closed longer ago than this leave the snapshot for S3. Same
 # number the Lambda applier uses, and for the same reason: every reader
-# of a closed job works inside 14 days. Paced to once a day inside
-# archive.py, not once per apply.
-ARCHIVE_CLOSED_DAYS = 30
+# of a closed job row works inside 14 days (loader/archive.py). Paced to
+# once a day inside archive.py, not once per apply, except while a
+# backlog is draining in batches.
+ARCHIVE_CLOSED_DAYS = 14
 # Alerts are evaluated at most this often. Each alert keeps its own
 # watermark, so a later evaluation sends everything an earlier one would
 # have; the cost was 78 to 100 seconds on every apply (2026-10-02), which
