@@ -124,6 +124,8 @@
       button.go:disabled { opacity: .6; cursor: progress; }
       .hide { display: block; margin: 10px auto 0; border: 0; background: none; color: #9a9ca3; font: 400 12px system-ui, sans-serif; cursor: pointer; }
       .hide:hover { color: #f2f0ef; }
+      .frame { margin: 10px 0 0; font-size: 12px; color: #9a9ca3; }
+      .link { border: 0; padding: 0; background: none; color: #f2f0ef; font: inherit; text-decoration: underline; cursor: pointer; }
       .warn { color: #ff6b5e; }
       .ok { color: #2fae60; }
     </style>
@@ -132,6 +134,7 @@
       <div class="h"><img src="${icon}" alt=""><span class="t">Fill with Ocean of Jobs</span><button class="x" aria-label="Close">×</button></div>
       <p class="msg"></p>
       <button class="go">Fill in this form</button>
+      <p class="frame" hidden>Turn on <button class="link">every careers page</button> in Settings to show this at the top of the site.</p>
       <button class="hide">Hide on this site until Chrome restarts</button>
     </div>`;
     document.documentElement.appendChild(host);
@@ -150,7 +153,15 @@
     fab.addEventListener('click', async () => {
       if (open()) card(root, await send({ type: 'offerHere', url: target.url }) || { blocked: 'Something went wrong. Reload the page and try again.' }, target);
     });
+    // Drawn inside a form's frame only when the page around it has no
+    // Ocean of Jobs access, which Settings can grant.
+    if (!isTop) {
+      root.querySelector('.frame').hidden = false;
+      root.querySelector('.link').addEventListener('click', () => send({ type: 'openOptions' }));
+    }
     built = { root, open };
+    // Opened straight away: the user came here to apply.
+    fab.click();
   }
 
   function card(root, offer, target) {
