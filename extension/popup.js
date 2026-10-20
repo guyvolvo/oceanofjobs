@@ -45,4 +45,44 @@ function render(s) {
     : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString()}. Checks every 15 minutes.` : 'Checks every 15 minutes.';
 }
 
-chrome.runtime.sendMessage({ type: 'status' }).then(render);
+// The queue: the count on open, the jobs once expanded.
+async function renderQueue() {
+  const q = await chrome.runtime.sendMessage({ type: 'queue' });
+  const note = $('queue-note');
+  if (!q || q.error) {
+    $('queue-n').textContent = '';
+    note.textContent = 'Could not load the queue.';
+    note.hidden = false;
+    return;
+  }
+  $('queue-n').textContent = String(q.total);
+  $('queue-list').replaceChildren(...q.items.map((j) => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = `https://oceanofjobs.com/job/${encodeURIComponent(j.id)}`;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = j.title;
+    const sub = document.createElement('small');
+    sub.textContent = j.supported ? j.company : `${j.company ? j.company + ' · ' : ''}can't apply on this site yet`;
+    if (!j.supported) sub.className = 'warn';
+    a.append(sub);
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.textContent = 'Remove';
+    rm.addEventListener('click', async () => {
+      rm.disabled = true;
+      await chrome.runtime.sendMessage({ type: 'unqueue', id: j.id });
+      renderQueue();
+    });
+    li.append(a, rm);
+    return li;
+  }));
+  note.hidden = q.total > 0 && q.total <= q.items.length;
+  note.textContent = q.total ? `Showing the first ${q.items.length}.` : 'Nothing queued. Queue jobs from your AI assistant.';
+}
+
+chrome.runtime.sendMessage({ type: 'status' }).then((s) => {
+  render(s);
+  if (s.connected) renderQueue();
+});

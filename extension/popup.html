@@ -20,6 +20,18 @@
     .links { flex-wrap: nowrap; gap: 4px; }
     .links a:hover { color: var(--text); }
     .connect p { margin-bottom: 14px; }
+    .queue { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .queue summary { padding: 10px 12px; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .queue .muted { color: var(--muted); font-weight: 400; }
+    #queue-list { margin: 0; padding: 0 6px 6px; list-style: none; max-height: 220px; overflow-y: auto; }
+    #queue-list li { display: flex; align-items: center; gap: 8px; padding: 8px 6px; border-top: 1px solid var(--line); font-size: 13px; }
+    #queue-list a { flex: 1; min-width: 0; color: var(--text); text-decoration: none; }
+    #queue-list a:hover { text-decoration: underline; }
+    #queue-list small { display: block; color: var(--muted); font-size: 11.5px; }
+    #queue-list small.warn { color: var(--warn); }
+    #queue-list button { flex: none; border: 0; background: none; color: var(--muted); font: inherit; font-size: 11.5px; cursor: pointer; }
+    #queue-list button:hover { color: var(--text); }
+    #queue-note { margin: 0; padding: 0 12px 10px; }
   </style>
 </head>
 <body>
@@ -39,6 +51,11 @@
     </div>
     <ul id="needs-list" hidden></ul>
     <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these on your account page and the next run uses them.</p>
+    <details id="queue-box" class="queue">
+      <summary>Queue <span id="queue-n" class="muted"></span></summary>
+      <ul id="queue-list"></ul>
+      <p id="queue-note" class="note" hidden></p>
+    </details>
     <div class="actions">
       <button class="btn" id="pause">Pause</button>
       <span class="links row"><a href="https://oceanofjobs.com/account#aa-settings" target="_blank" rel="noopener">Preferences</a><a href="https://oceanofjobs.com/account#autoapply" target="_blank" rel="noopener">History</a><a href="#" class="open-options">Settings</a></span>

@@ -438,6 +438,20 @@ async function suggestAnswer(field, job, ctx) {
   return fits(field, answer) ? answer : undefined;
 }
 
+// The auto apply queue for the popup, with each job's title and whether
+// the extension can fill its site yet.
+async function queueView() {
+  const { queue = [] } = await api('/me/apply/queue');
+  const items = await Promise.all(queue.slice(0, 25).map(async (q) => {
+    const job = await fetchJob(q.job_id).catch(() => null);
+    return {
+      id: q.job_id, title: job ? job.title : 'Listing no longer open', company: job ? (job.company_name || job.company_domain) : '',
+      supported: !!(job && globalThis.oojAts[job.ats] && globalThis.oojAts[job.ats].matches(job.url)),
+    };
+  }));
+  return { total: queue.length, items };
+}
+
 // The user submitted a form we filled, or closed it without submitting.
 async function settleHere(tabId, status, reason) {
   const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
@@ -486,6 +500,11 @@ chrome.storage.onChanged.addListener((changes) => {
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;
   if (msg.type === 'status') { status().then(reply); return true; }
+  if (msg.type === 'queue') { queueView().catch((e) => ({ error: e.message || String(e) })).then(reply); return true; }
+  if (msg.type === 'unqueue') {
+    api(`/me/apply/queue/${encodeURIComponent(msg.id)}`, { method: 'DELETE' }).then(() => reply({ ok: true }), (e) => reply({ error: e.message || String(e) }));
+    return true;
+  }
   if (msg.type === 'pause') { chrome.storage.local.set({ paused: !!msg.paused }).then(() => reply({ ok: true })); return true; }
   if (msg.type === 'offerHere') {
     offerHere(msg.url).catch((e) => ({ show: true, blocked: 'Something went wrong: ' + String(e.message || e).slice(0, 80) })).then(reply);
