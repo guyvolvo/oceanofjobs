@@ -32,7 +32,7 @@ LIMITS = {"free": ("month", 30), "basic": ("month", 100), "pro": ("day", 50)}
 # A claim that never got a result stops holding its credit after this.
 CLAIM_HOLD_S = 1800
 # Application sites the extension can fill, one per extension/ats/*.js.
-FILLABLE_ATS = frozenset({"greenhouse", "ashby"})
+FILLABLE_ATS = frozenset({"greenhouse", "ashby", "workable"})
 
 MODES = ("queue", "auto")
 SOURCES = ("board", "matches", "ats_pages", "mcp")

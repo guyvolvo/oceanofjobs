@@ -1,9 +1,13 @@
-importScripts('lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js');
+importScripts('lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js');
 
 const API = 'https://oceanofjobs.com/api';
 const PER_RUN = 3;
 const RUN_MINUTES = 15;
-const ATS_FILES = { greenhouse: ['lib/match.js', 'ats/greenhouse.js'], ashby: ['lib/match.js', 'ats/ashby.js'] };
+const ATS_FILES = {
+  greenhouse: ['lib/match.js', 'ats/greenhouse.js'],
+  ashby: ['lib/match.js', 'ats/ashby.js'],
+  workable: ['lib/match.js', 'ats/workable.js'],
+};
 
 class HttpError extends Error {
   constructor(status, body) {

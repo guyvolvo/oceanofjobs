@@ -645,6 +645,12 @@ def lambda_handler(event, context):
         return _response(500, json.dumps({"error": "internal error", "detail": str(e)}))
 
 
+def _and(words) -> str:
+    """"A, B and C"."""
+    words = list(words)
+    return ", ".join(words[:-1]) + " and " + words[-1] if len(words) > 1 else "".join(words)
+
+
 def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) -> dict:
     """/api/me/apply/*: automatic applications (apply.py). Used by the
     account page with the user's session, by the browser extension
@@ -722,7 +728,7 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
                 return ok(404, {"error": "no job with that id"})
             if row[0] not in apply.FILLABLE_ATS:
                 return ok(422, {"error": f"The extension can't apply on this job's site ({row[0] or 'unknown'}) yet. "
-                                         f"It fills {', '.join(sorted(apply.FILLABLE_ATS)).title()} forms for now."})
+                                         f"It fills {_and(a.title() for a in sorted(apply.FILLABLE_ATS))} forms for now."})
             apply.enqueue(_alerts_table, user_id, job_id)
             return ok(204)
         if method == "DELETE":

@@ -2553,10 +2553,11 @@ const QUEUE_SVG =
   + '<path d="M9.2 1.5 3.2 9h4.3l-.9 5.5 6.2-7.6H8.4z"'
   + ' fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
-// The extension fills Greenhouse and Ashby forms only (api/handler.py
+// The extension fills Greenhouse, Ashby and Workable forms only (api/handler.py
 // route_apply answers 422 for the rest), so no other listing gets the button.
+const FILLABLE_ATS = new Set(["greenhouse", "ashby", "workable"]);
 function queueButtonHtml(job, cls, label) {
-  if (job.ats !== "greenhouse" && job.ats !== "ashby") return "";
+  if (!FILLABLE_ATS.has(job.ats)) return "";
   const on = applyQueue.has(job.id);
   return `<button type="button" class="${cls} job-detail-queue ${on ? "on" : ""}" data-queue="${job.id}" aria-pressed="${on}"
     title="Queue for auto apply" aria-label="Queue for auto apply">${QUEUE_SVG}${label ? `<span>${on ? "Queued" : label}</span>` : ""}</button>`;

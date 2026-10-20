@@ -33,6 +33,8 @@
     // Ashby's system fields.
     _systemfield_name: 'full_name', _systemfield_email: 'email',
     _systemfield_resume: 'resume', _systemfield_location: 'location',
+    // Workable's.
+    firstname: 'first_name', lastname: 'last_name', address: 'location',
   };
 
   // Order matters: "require sponsorship to work" must not read as authorization.
@@ -174,9 +176,13 @@
       const key = classify(f);
       if (key === 'resume') { fills.push({ ...f, key, value: 'cv' }); continue; }
       if (key === 'cover_letter') { if (f.required) missing.push({ ...f, key }); continue; }
+      // Any other file, or a Workable section (education, experience), is
+      // nothing a saved answer can fill in.
+      if (f.type === 'file' || f.type === 'group') { if (f.required) missing.push({ ...f, key }); continue; }
       const fits = (v) => v !== undefined && !(f.options && f.options.length && pickOption(f.options, v) < 0) && fitsType(f, v);
-      // A profile value the field cannot take ("30 days" for a start date)
-      // gives way to a saved answer for this exact question.
+      // A profile value the field cannot take ("30 days" against a notice
+      // period list or a start date) gives way to a saved answer for this
+      // exact question.
       let value = key ? profileValue(key, profile, job) : undefined;
       if (!fits(value)) value = findAnswer(f.label, profile.answers);
       if (!fits(value)) value = undefined;

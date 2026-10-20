@@ -1,0 +1,160 @@
+{
+ "form": [
+  {
+   "fields": [
+    {
+     "id": "firstname",
+     "label": "First name",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "lastname",
+     "label": "Last name",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "email",
+     "label": "Email",
+     "required": true,
+     "maxLength": 255,
+     "type": "email"
+    },
+    {
+     "id": "headline",
+     "label": "Headline",
+     "required": false,
+     "maxLength": 255,
+     "type": "text"
+    },
+    {
+     "id": "phone",
+     "label": "Phone",
+     "required": true,
+     "helper": "The hiring team may use this number to contact you about this job.",
+     "maxLength": 255,
+     "type": "phone"
+    },
+    {
+     "id": "address",
+     "label": "Address",
+     "required": true,
+     "helper": "Include your city, region, and country, so that employers can easily manage your application.",
+     "type": "text",
+     "value": "Ramat Gan, Israel",
+     "prefilledByLocation": true
+    },
+    {
+     "id": "CA_38690",
+     "label": "Are you currently serving or have you previously served in the armed forces?",
+     "required": true,
+     "options": [
+      {
+       "name": "378126",
+       "value": "Currently serving"
+      },
+      {
+       "name": "378127",
+       "value": "Previously served"
+      },
+      {
+       "name": "378128",
+       "value": "Never served"
+      }
+     ],
+     "singleOption": true,
+     "type": "multiple"
+    },
+    {
+     "id": "CA_55753",
+     "label": "Are you currently a serving Cadet?",
+     "required": true,
+     "options": [
+      {
+       "name": "619041",
+       "value": "Yes, I am currently a Cadet"
+      },
+      {
+       "name": "619042",
+       "value": "No, but I have previously been a Cadet"
+      },
+      {
+       "name": "619043",
+       "value": "No, I have never been a Cadet"
+      }
+     ],
+     "singleOption": true,
+     "type": "multiple"
+    }
+   ],
+   "name": "Personal information"
+  },
+  {
+   "fields": [
+    {
+     "id": "resume",
+     "label": "Resume",
+     "required": true,
+     "maxFileSize": 12000000,
+     "supportedFileTypes": [
+      ".pdf",
+      ".doc",
+      ".docx",
+      ".odt",
+      ".rtf"
+     ],
+     "supportedMimeTypes": [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.oasis.opendocument.text",
+      "application/rtf"
+     ],
+     "type": "file"
+    }
+   ],
+   "name": "Profile"
+  },
+  {
+   "fields": [
+    {
+     "id": "QA_12658542",
+     "label": " Full, valid UK driving licence (able to drive vehicles up to 3.5T).",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658543",
+     "label": "What salary expectations do you have?",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "QA_12658544",
+     "label": "What has attracted you to this role?",
+     "required": true,
+     "type": "paragraph"
+    }
+   ],
+   "name": "Details"
+  },
+  {
+   "fields": [
+    {
+     "id": "gdpr",
+     "onlyTrueAllowed": true,
+     "required": true,
+     "type": "boolean",
+     "url": "https://apply.workable.com/biffa/gdpr_policy"
+    }
+   ]
+  }
+ ],
+ "labels": {
+  "gdpr": "I have read, understand and accept the content of the Privacy Notice and consent to the processing of my data as part of this application."
+ }
+}
