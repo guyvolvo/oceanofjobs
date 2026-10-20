@@ -26,7 +26,6 @@
   "permissions": [
     "storage",
     "alarms",
-    "tabs",
     "scripting",
     "activeTab"
   ],

@@ -177,3 +177,13 @@ test('withQueued puts queued jobs before picked ones, without repeats', () => {
   assert.deepEqual(m.withQueued(queued, picked, { one_per_company_days: 30 }).map((j) => j.id), ['q1', 'c3']);
   assert.deepEqual(m.withQueued([], picked, {}).map((j) => j.id), ['q1', 'c2', 'c3']);
 });
+
+test('demographic questions are recognised however they are worded, so AI never answers them', () => {
+  for (const label of ['I identify my gender as', 'What is your ethnicity?', 'Race', 'Gender', 'Are you a veteran?',
+    'Do you have a disability?', 'What is your sexual orientation?', 'Your pronouns', 'Do you identify as transgender?']) {
+    assert.equal(m.isEeo({ label, type: 'select' }), true, label);
+  }
+  for (const label of ['First name', 'Why do you want to work here?', 'Years of Python experience']) {
+    assert.equal(m.isEeo({ label, type: 'text' }), false, label);
+  }
+});

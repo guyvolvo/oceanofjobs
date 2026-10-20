@@ -62,8 +62,9 @@ async function pruneNeeds(answers) {
 
 async function draftAnswer(field, profile, preferences, job, ai) {
   const c = profile.contact || {};
+  // Never who the applicant is (name, email, phone): no answer needs it.
   const facts = {
-    name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), location: c.location,
+    location: c.location,
     links: profile.links, work: profile.work, skills: preferences.skills, seniority: preferences.seniority,
     saved_answers: (profile.answers || []).slice(0, 30),
   };
@@ -465,7 +466,11 @@ async function fillTab(tabId) {
   let moved = false;
   for (let hop = 0; hop < 3; hop++) {
     name = adapterFor(tab.url);
-    page = await readForm(tabId, name).catch(() => null);
+    // Ashby and Workable keep the form at its own address, and their
+    // readers find nothing on the posting page the user is looking at.
+    let form = null;
+    try { form = globalThis.oojAts[name].formUrl ? globalThis.oojAts[name].formUrl(tab.url) : null; } catch { /* not a single job */ }
+    page = form && form !== tab.url ? { openUrl: form } : await readForm(tabId, name).catch(() => null);
     if (page && !page.openUrl) break;
     const before = tab.url;
     if (page) await chrome.tabs.update(tabId, { url: page.openUrl });

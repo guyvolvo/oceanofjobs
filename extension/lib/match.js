@@ -50,9 +50,10 @@
     [/^(legal )?(last name|surname|family name)$/, 'last_name'],
     [/^cover letter$/, 'cover_letter'],
     [/^(personal |other )?(website|portfolio|blog)( url| link)?$|^website blog or portfolio$/, 'website'],
-    [/^gender\b/, 'gender'],
+    // Anywhere in the label: "I identify my gender as", "What is your ethnicity?".
+    [/\bgender\b/, 'gender'],
     [/hispanic|latino/, 'hispanic'],
-    [/^(race|ethnicity)\b/, 'race'],
+    [/\b(race|ethnicity|ethnic (origin|background|group))\b/, 'race'],
     [/\bveteran\b/, 'veteran'],
     [/\bdisability\b/, 'disability'],
     // Contact fields by label alone, for forms whose field names mean nothing.
@@ -213,8 +214,11 @@
     return { fills, missing };
   }
 
+  // Demographic questions are answered only from what the user set, never
+  // by AI. Some have no profile key to map to; their wording marks them.
   function isEeo(field) {
-    return EEO.has(field.key || classify(field));
+    return EEO.has(field.key || classify(field))
+      || /\b(sexual orientation|transgender|lgbt|pronouns?)\b/.test(normalise(field.label));
   }
 
   function sameDay(a, b) {
