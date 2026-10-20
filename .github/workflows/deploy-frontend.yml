@@ -91,6 +91,7 @@ jobs:
             --exclude "hot.json" \
             --exclude "explore.json" \
             --exclude "explore/*" \
+            --exclude "companies/*" \
             --exclude "media/*" \
             --exclude "docs/*" \
             --cache-control "no-cache"

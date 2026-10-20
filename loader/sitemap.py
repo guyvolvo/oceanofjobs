@@ -31,6 +31,13 @@ feed.xml is the newest hundred, the same ordering as bootstrap.json,
 for readers, aggregators and anyone who wants the new listings without
 polling the API.
 
+companies/<letter>.html is the same company list as plain links, one
+page per first letter, served at /companies/a and so on. /companies
+itself is drawn in the browser, so without these a crawler had no way
+from the homepage to a company page except the sitemap, and Google
+left 258,032 sitemap-only URLs at "Discovered, not indexed"
+(2026-10-20). Company pages link on to every job they list.
+
 Publishing is best effort and rate limited to once an hour: the
 generation reads every open row, and a five-minute cadence would spend
 most of the applier's time rewriting files a crawler reads daily.
@@ -48,6 +55,7 @@ sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "api"))
 
 from job_filters import FRESH_CLAUSE  # noqa: E402
+from page_chrome import FOOT, fmt_int, head, topbar  # noqa: E402
 
 SITE = "https://oceanofjobs.com"
 SHARD = 40_000
@@ -59,6 +67,10 @@ MAX_AGE_S = 6 * 3600
 # (path, lastmod follows the snapshot?)
 PAGES = [("/", False), ("/board", True), ("/stats", True), ("/companies", True),
          ("/docs", False), ("/docs/mcp", False), ("/docs/api", False), ("/contact", False), ("/privacy", False)]
+
+# The directory's pages: a to z, and one for names that start with a
+# digit or anything else.
+LETTERS = [chr(c) for c in range(ord("a"), ord("z") + 1)] + ["0-9"]
 
 # Tech roles only, which is what the board itself shows by default
 # (frontend/app.js opens on roles=tech) and what the product claims to
@@ -119,7 +131,8 @@ def _url(loc: str, lastmod: str | None) -> str:
 
 def pages_sitemap(now: datetime) -> str:
     stamp = now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    body = "".join(_url(SITE + path, stamp if follows else None) for path, follows in PAGES)
+    body = "".join(_url(SITE + path, stamp if follows else None)
+                   for path, follows in PAGES + [(f"/companies/{k}", True) for k in LETTERS])
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n")
 
@@ -136,19 +149,65 @@ def job_shards(conn: sqlite3.Connection) -> list[str]:
     return shards
 
 
-def company_shards(conn: sqlite3.Connection) -> list[str]:
-    """Companies with an open listing, at /company/<domain>."""
-    rows = conn.execute(
+def company_rows(conn: sqlite3.Connection) -> list[tuple]:
+    """(domain, newest arrival, open listings, name) per company with an
+    open listing, read once for both the sitemap and the directory."""
+    has_name = any(r[1] == "company_name" for r in conn.execute("PRAGMA table_info(companies)"))
+    name_sql = ("(SELECT company_name FROM companies WHERE domain = jobs.company_domain)" if has_name else "NULL")
+    return [tuple(r) for r in conn.execute(
         f"""
-        SELECT company_domain, MAX(first_seen) FROM jobs WHERE {open_clause(conn)}
+        SELECT company_domain, MAX(first_seen), COUNT(*), {name_sql} FROM jobs WHERE {open_clause(conn)}
         GROUP BY company_domain ORDER BY company_domain
-        """).fetchall()
+        """).fetchall() if r[0]]
+
+
+def company_shards(rows: list[tuple]) -> list[str]:
+    """Companies with an open listing, at /company/<domain>."""
     shards = []
     for start in range(0, len(rows), SHARD):
-        body = "".join(_url(f"{SITE}/company/{r[0]}", _w3c(r[1])) for r in rows[start:start + SHARD] if r[0])
+        body = "".join(_url(f"{SITE}/company/{r[0]}", _w3c(r[1])) for r in rows[start:start + SHARD])
         shards.append('<?xml version="1.0" encoding="UTF-8"?>\n'
                       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n")
     return shards
+
+
+def _letter(name: str) -> str:
+    c = name.strip()[:1].lower()
+    return c if "a" <= c <= "z" else "0-9"
+
+
+def directory_pages(rows: list[tuple]) -> dict[str, str]:
+    """{letter: HTML}: every company, by name, as a link to its page."""
+    by_letter: dict[str, list[tuple[str, str, int]]] = {k: [] for k in LETTERS}
+    for domain, _, n, name in rows:
+        label = (name or "").strip() or domain
+        by_letter[_letter(label)].append((label, domain, n))
+    pages = {}
+    for key, items in by_letter.items():
+        items.sort(key=lambda t: (t[0].casefold(), t[1]))
+        shown = "0 to 9" if key == "0-9" else key.upper()
+        nav = "".join(
+            f'<a href="/companies/{k}"' + (' aria-current="page"' if k == key else "") + f">{'0-9' if k == '0-9' else k.upper()}</a>"
+            for k in LETTERS)
+        body = "".join(
+            f'<li><a href="/company/{html.escape(d, quote=True)}">{html.escape(label)}</a>'
+            f' <span>{fmt_int(n)} open</span></li>' for label, d, n in items)
+        title = f"Companies hiring, {shown} | Ocean of Jobs"
+        what = (f"{fmt_int(len(items))} companies starting with {shown} that have open roles on Ocean of Jobs."
+                if items else f"No company starting with {shown} has open roles right now.")
+        pages[key] = (head(title, what, f"{SITE}/companies/{key}", robots=None if items else "noindex,follow",
+                           og_type="website")
+                      + topbar("companies")
+                      + f"""  <main class="pg-main" id="main" tabindex="-1">
+    <div class="pg-article dir-az-page">
+      <h1 class="job-page-title pg-title">Companies hiring, {shown}</h1>
+      <p>{html.escape(what)} <a href="/companies">Search and filter all companies</a>.</p>
+      <nav class="dir-az" aria-label="Companies by first letter">{nav}</nav>
+      <ul class="dir-az-list">{body}</ul>
+    </div>
+  </main>
+{FOOT}""")
+    return pages
 
 
 def index(shard_count: int, now: datetime, company_shard_count: int = 0) -> str:
@@ -211,7 +270,8 @@ def build(db_path: Path, now: datetime | None = None) -> dict[str, tuple[bytes, 
     conn.row_factory = sqlite3.Row
     try:
         shards = job_shards(conn)
-        companies = company_shards(conn)
+        rows = company_rows(conn)
+        companies = company_shards(rows)
         rss = feed(conn, now)
     finally:
         conn.close()
@@ -225,6 +285,8 @@ def build(db_path: Path, now: datetime | None = None) -> dict[str, tuple[bytes, 
         out[f"sitemap-jobs-{i}.xml"] = (doc.encode("utf-8"), xml)
     for i, doc in enumerate(companies, 1):
         out[f"sitemap-companies-{i}.xml"] = (doc.encode("utf-8"), xml)
+    for key, page in directory_pages(rows).items():
+        out[f"companies/{key}.html"] = (page.encode("utf-8"), "text/html; charset=utf-8")
     return out
 
 

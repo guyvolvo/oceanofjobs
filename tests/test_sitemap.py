@@ -52,8 +52,17 @@ conn.commit()
 conn.close()
 
 docs = sitemap.build(db, NOW)
+pages_az = {k: docs.pop(f"companies/{k}.html") for k in sitemap.LETTERS}
 check("an index, a pages sitemap, the feed, two job shards and a company shard",
       sorted(docs) == ["feed.xml", "sitemap-companies-1.xml", "sitemap-jobs-1.xml", "sitemap-jobs-2.xml", "sitemap-pages.xml", "sitemap.xml"], repr(sorted(docs)))
+w = pages_az["w"][0].decode("utf-8")
+check("the directory links each company under its name's first letter, with its open count",
+      '<a href="/company/wix.com">Wix</a> <span>4 open</span>' in w and "noindex" not in w
+      and '<link rel="canonical" href="https://oceanofjobs.com/companies/w" />' in w, w[-900:])
+check("every letter has a page that links to every other letter",
+      all(p[1].startswith("text/html") and p[0].count(b'href="/companies/') == len(sitemap.LETTERS) for p in pages_az.values()))
+check("a letter with no company is kept out of the index but still followed",
+      b'content="noindex,follow"' in pages_az["q"][0] and b"/company/" not in pages_az["q"][0])
 companies = docs["sitemap-companies-1.xml"][0].decode("utf-8")
 check("the company page is listed once, with the newest open listing's arrival as lastmod",
       companies.count("<loc>https://oceanofjobs.com/company/wix.com</loc>") == 1
@@ -89,7 +98,8 @@ check("the site pages, with the board and Explore dated to the snapshot and the 
                   "https://oceanofjobs.com/stats": "2026-09-18T12:00:00Z", "https://oceanofjobs.com/companies": "2026-09-18T12:00:00Z",
                   "https://oceanofjobs.com/docs": None, "https://oceanofjobs.com/docs/mcp": None,
                   "https://oceanofjobs.com/docs/api": None,
-                  "https://oceanofjobs.com/contact": None, "https://oceanofjobs.com/privacy": None}, repr(entries))
+                  "https://oceanofjobs.com/contact": None, "https://oceanofjobs.com/privacy": None,
+                  **{f"https://oceanofjobs.com/companies/{k}": "2026-09-18T12:00:00Z" for k in sitemap.LETTERS}}, repr(entries))
 
 rss = ET.fromstring(docs["feed.xml"][0])
 items = rss.findall("channel/item")

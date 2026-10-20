@@ -239,6 +239,12 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
         request.uri = uri + ".html";
         return request;
       }
+      // The company directory by first letter, written to the bucket
+      // with the sitemap (loader/sitemap.py): /companies/a -> companies/a.html.
+      if (uri.indexOf("/companies/") === 0 && last.indexOf(".") === -1) {
+        request.uri = uri + ".html";
+        return request;
+      }
 
       // /account -> account.html on the way to S3, invisibly. Anything
       // with an extension is a real file (style.css, logo.png, the
