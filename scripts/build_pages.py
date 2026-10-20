@@ -82,7 +82,7 @@ def main():
     # The section's heading is the page's h1 here.
     section = section.replace('<h2 class="home-h2" id="pricing-title">', '<h1 class="home-h2" id="pricing-title">', 1)
     section = section.replace("</h2>", "</h1>", 1)
-    out = {"pricing": shell(home, "pricing", "Pricing",
+    out = {"pricing": shell(home, "pricing", "Pricing plans",
                             "Ocean of Jobs is free to search. Basic and Pro add automatic job applications through the browser extension.",
                             section + FAQ)}
     for name, (title, desc, noindex) in LEGAL.items():

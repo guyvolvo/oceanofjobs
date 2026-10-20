@@ -11,12 +11,14 @@
           // After the page, because auth.js loads at the end of it.
           document.addEventListener("DOMContentLoaded", function () {
             // Paddle client-side token: public by design. A test_ token runs
-            // against Paddle's sandbox. Empty until plans go on sale.
-            var TOKEN = "";
-            var PRICES = { basic: "pri_01m5c6nb2wc9df6hk0hqkwdr1r", pro: "pri_01m5c6q394qkj6pfxekj6t37sh" };
+            // against Paddle's sandbox, which is what this is until the live
+            // account is approved; then the live token and these go back:
+            // basic pri_01m5c6nb2wc9df6hk0hqkwdr1r, pro pri_01m5c6q394qkj6pfxekj6t37sh.
+            var TOKEN = "test_5a348c8bde3ec8221103236f0ca";
+            var PRICES = { basic: "pri_01m5cqee0n7wygn2e6whf2t616", pro: "pri_01m5cqeeesvyw1a0d4ftz9jhsx" };
             // 50% off the first payment. It has no code, so Paddle only
             // applies it when the checkout names it (dsc_... from Paddle).
-            var FIRST_MONTH_DISCOUNT = "";
+            var FIRST_MONTH_DISCOUNT = "dsc_01m5cqeemxw9zvh20tym4s60x0";
             var msg = document.getElementById("co-msg");
             var say = function (html) { msg.innerHTML = html; };
             if (!TOKEN || !window.Paddle) {
