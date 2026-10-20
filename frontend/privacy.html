@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="theme-color" content="#f2f0ef" />
-  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Urbanist-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-500-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- Google Analytics only after consent (consent.js). -->
   <script src="/consent.js"></script>
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Privacy | Ocean of Jobs</title>
-  <link rel="canonical" href="https://oceanofjobs.com/privacy" />
   <meta name="description" content="What Ocean of Jobs collects, why, and how to remove it." />
-  <!-- Link preview, same card as the board: a pasted link to any page
-       shows the site, not a blank. Absolute URLs, for crawlers. -->
+  <!-- Share previews. Same static card as the board, for the reason
+       given there: a crawler that renders this page live catches it
+       mid-fetch. -->
+  <link rel="canonical" href="https://oceanofjobs.com/privacy" />
+  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="https://oceanofjobs.com/feed.xml" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/privacy" />
   <meta property="og:title" content="Privacy | Ocean of Jobs" />
@@ -25,42 +28,93 @@
   <meta name="twitter:title" content="Privacy | Ocean of Jobs" />
   <meta name="twitter:description" content="What Ocean of Jobs collects, why, and how to remove it." />
   <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=3" />
-  <link rel="icon" href="favicon.ico?v=3" sizes="any" />
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png?v=3" />
-  <link rel="stylesheet" href="style.css" />
+  <script>
+    // GitHub sign-in hands its tokens back in the fragment, which never
+    // reaches CloudFront, so the edge cannot forward it the way it
+    // forwards /?country=IL. github_auth_handler.py sends people to
+    // /board now. This catches anyone who started signing in before
+    // that shipped and would otherwise land here with their tokens.
+    if (/(^|[#&])(id_token|auth_error)=/.test(location.hash)) {
+      location.replace("/board" + location.hash);
+    }
+  </script>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=3" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
+  <link rel="stylesheet" href="/style.css" />
+  <!-- The board's theme choice is honoured here too. Dark is this page's
+       own deeper ground, #0e0f11, rather than the board's #17181c. -->
   <script>
     if (localStorage.getItem("iljobs_theme") !== "light") {
-      document.querySelector('meta[name="theme-color"]').content = "#17181c";
+      document.querySelector('meta[name="theme-color"]').content = "#0e0f11";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
-<body>
+<body class="home">
 <a class="skip-link" href="#main">Skip to content</a>
 
-  <div class="topbar">
-    <div class="container">
-      <div class="topbar-left"><a class="topbar-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><nav class="topbar-nav" aria-label="Site"><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a href="/docs/api">API</a></nav></div>
+  <!-- The brand at the left, the menus in the middle, theme and account at
+       the right. Jobs, Companies and API resources open small panels
+       (hero_nav.js) holding only pages that exist; About goes to the
+       contact page until there is an about page. On a phone mobile_nav.js
+       folds the menus and the right side into its one list. -->
+  <header class="home-bar hero-bar-head">
+    <a class="home-brand" href="/" aria-label="Ocean of Jobs home">
+      <img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" />
+      <span translate="no">Ocean of Jobs</span>
+    </a>
+    <nav class="site-menus home-nav" aria-label="Main">
+      <div class="site-menu" data-menu="jobs">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-jobs">Jobs<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-jobs" hidden>
+          <a class="site-menu-item" href="/board?roles=all"><span class="site-menu-name">All jobs</span></a>
+          <a class="site-menu-item" href="/board?roles=tech"><span class="site-menu-name">Tech jobs</span></a>
+          <a class="site-menu-item" href="/board?roles=all&amp;workplace=remote"><span class="site-menu-name">Remote jobs</span></a>
+          <a class="site-menu-item" href="/board?starred=1"><span class="site-menu-name">Saved jobs</span></a>
+        </div>
+      </div>
+      <div class="site-menu" data-menu="companies">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-companies">Companies<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-companies" hidden>
+          <a class="site-menu-item" href="/companies"><span class="site-menu-name">Directory</span></a>
+        </div>
+      </div>
+      <div class="site-menu" data-menu="api">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-api">API resources<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-api" hidden>
+          <a class="site-menu-item" href="/docs/api"><span class="site-menu-name">API docs</span></a>
+          <a class="site-menu-item" href="/api/openapi.json"><span class="site-menu-name">OpenAPI spec</span></a>
+          <a class="site-menu-item" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener"><span class="site-menu-name">GitHub</span></a>
+        </div>
+      </div>
+      <a class="site-menu-link" href="/docs">Docs</a>
+      <a class="site-menu-link" href="/pricing">Pricing</a>
+      <a class="site-menu-link" href="/contact">About</a>
+    </nav>
+    <div class="hero-bar-right" id="hero-bar-right">
+      <button type="button" class="hero-theme" id="hero-theme">Dark</button>
+      <div class="hero-account" id="hero-account"><a class="hero-bar-name" href="/account">Log in</a></div>
     </div>
-  </div>
+  </header>
 
-  <div class="workspace" id="main" role="main" tabindex="-1">
-    <section class="section legal">
-      <div class="container">
-        <h1 class="section-title">Privacy Policy</h1>
+  <main id="main" tabindex="-1">
+    <div class="price-page-top"></div>
+    <section class="home-section">
+      <div class="home-wrap legal-doc">
+        <h1 class="home-h2">Privacy Policy</h1>
         <p class="legal-updated">Last updated: October 2026</p>
 
         <p>Ocean of Jobs is an open-source job board. You can browse, search and filter every listing without an account. This policy explains what data we collect when you use the site anonymously and when you sign in.</p>
 
-        <h3>Anonymous Use</h3>
+        <h3>Anonymous use</h3>
         <p id="cookies"><strong>Cookies and analytics.</strong> Ocean of Jobs does not set first-party cookies or display advertising. If you accept analytics cookies, pages load Google Analytics, which sets its own cookies to measure visits and page views. If you decline, Google Analytics is never loaded and nothing is sent to Google. Your choice is kept in your browser, and you can change it at any time: <button type="button" class="cookie-link" data-cookie-settings>cookie settings</button>.</p>
         <p><strong>Usage metrics.</strong> We record anonymous counts of visits, searches, listing views and apply clicks to track the site's growth. Each event contains only its type and, for searches, the search terms. No cookies, identifiers or IP addresses are attached. Events are aggregated into per-minute totals. Search terms are retained for 90 days, and terms that resemble an email address or phone number are discarded before storage.</p>
         <p><strong>Location.</strong> To show relevant local jobs, we use the country your connection originates from, as reported by our content delivery network. It is used only to render the current page and is not stored.</p>
 
-        <h3>Browser Storage</h3>
+        <h3>Browser storage</h3>
         <p>The following data is kept in your browser's local storage and is not sent to our servers: theme, filters, saved searches, panel layout, starred jobs, cached results, flags that prevent duplicate visit counts, and your response to the location prompt.</p>
         <p>Once you sign in, two exceptions apply. Your authentication tokens are sent with each request to verify your identity, and your starred jobs are synced to your account so they are available across devices.</p>
 
@@ -77,10 +131,10 @@
         <p><strong>CV parsing.</strong> If you use a CV to extract skills, it is processed entirely in your browser and never uploaded. Only the skills you choose to keep are saved.</p>
         <p><strong>Email digests.</strong> Digests are sent only to verified email addresses. Each digest includes a link to disable the alert.</p>
 
-        <h3>Personal Access Tokens</h3>
+        <h3>Personal access tokens</h3>
         <p>If you create a personal access token for the MCP server, we store its name, its last four characters, when it was created and last used, and a one-way hash of it. The token itself is shown to you once and is not stored. Revoking a token deletes its record.</p>
 
-        <h3>Browser Extension and Automatic Applications</h3>
+        <h3>Browser extension and automatic applications</h3>
         <p>If you use automatic applications, your account also stores your application profile: contact details, links, work authorization, salary expectations, the answers you save for application questions, and, only if you choose to fill them in, demographic answers such as gender or veteran status. It is kept so the extension can use it on any computer you sign in on, and you can edit or delete it on your account page.</p>
         <p>Your CV file and any AI provider key stay in the extension on your device and are never sent to us. When the extension applies to a job, it sends your details and CV only to that employer's application form. If you add an AI provider key, the extension sends application questions and relevant profile details to that provider using your key. We record which jobs you applied to and how many applications you have used, so you can see your history and your plan's monthly limit can be counted.</p>
         <p>On Basic and Pro, if you choose AI answers, a question you haven't answered is sent from our server to Cloudflare Workers AI together with the job's title and company and the parts of your application profile needed to answer it. Your demographic answers are never sent. The drafted answer is saved to your saved answers, where you can edit or delete it.</p>
@@ -88,10 +142,10 @@
         <h3>Payments</h3>
         <p>Paid plans are sold by Paddle.com, our Merchant of Record. Paddle collects and processes your payment details, billing address and tax information under its own privacy policy, and we never see your card details. Paddle tells us your email address, plan, subscription status and the country used for tax, so we can give your account its plan.</p>
 
-        <h3>Contact Form</h3>
+        <h3>Contact form</h3>
         <p>Messages submitted through the contact form are delivered to the maintainer by email, along with the name and email address you provide, so we can respond. They are not stored anywhere else.</p>
 
-        <h3>Service Providers</h3>
+        <h3>Service providers</h3>
         <ul>
           <li>Cloudflare and Amazon CloudFront: request delivery</li>
           <li>Cloudflare Workers AI: AI answers to application questions, on Basic and Pro</li>
@@ -108,20 +162,20 @@
         <h3>Logs</h3>
         <p>Cloudflare and CloudFront log requests, including IP addresses, for security and operational purposes. Our application server logs the requested URL, timestamp and user agent of each request. Because traffic reaches the server through a tunnel, it never receives your IP address. Server logs are retained for approximately one week.</p>
 
-        <h3>Retention and Deletion</h3>
+        <h3>Retention and deletion</h3>
         <p>Alerts are retained while active and removed immediately when deleted. Delete account removes your alerts, revokes your personal access tokens and clears your profile. Your sign-in record, starred jobs and generated overview are retained until you request their removal, at which point they are deleted in full. You may also request a copy of all data we hold about you.</p>
 
-        <h3>Job Listings</h3>
+        <h3>Job listings</h3>
         <p>Listings are collected from companies' public career pages and public applicant tracking system APIs. This is publicly available corporate information, not user data.</p>
 
-        <h3>Who Is Responsible</h3>
+        <h3>Who is responsible</h3>
         <p>Ocean of Jobs is run by Guy Voloshin, Israel, who is the controller of the personal data described here. Contact: <a class="link" href="mailto:guyvoloshin@oceanofjobs.com">guyvoloshin@oceanofjobs.com</a>.</p>
 
-        <h3>Why We Use Your Data</h3>
+        <h3>Why we use your data</h3>
         <p>We use account data, alerts, saved jobs and plan details to provide the service you signed up for. We use anonymous metrics and logs because we have a legitimate interest in keeping the service secure, working and improving. Paddle processes payment data to complete your purchase and meet its legal obligations.</p>
         <p>Our servers and account storage are in Amazon Web Services' Israel region. Israel is recognised by the European Commission as giving adequate protection to personal data. Some providers listed above, such as Cloudflare, Google and Paddle, may process data in other countries under their own safeguards.</p>
 
-        <h3>Your Rights</h3>
+        <h3>Your rights</h3>
         <p>Wherever you live, you can ask us to:</p>
         <ul>
           <li>give you a copy of the personal data we hold about you, in a portable format;</li>
@@ -137,12 +191,29 @@
 
         <h3>Contact</h3>
         <p>For privacy questions or data requests, email <a class="link" href="mailto:guyvoloshin@oceanofjobs.com">guyvoloshin@oceanofjobs.com</a>, open an issue on our <a class="link" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">GitHub repository</a> or use the <a class="link" href="/contact">contact page</a>.</p>
-
-        <p class="legal-back"><a class="link" href="/board">&larr; Back to the job board</a></p>
       </div>
     </section>
-  </div>
+  </main>
 
+  <footer class="home-foot">
+    <div class="home-wrap home-foot-grid">
+      <div class="home-foot-brand">
+        <div class="home-brand"><img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" /><span translate="no">Ocean of Jobs</span></div>
+      </div>
+      <nav aria-labelledby="foot-product"><h2 class="home-foot-h" id="foot-product">Product</h2><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a></nav>
+      <nav aria-labelledby="foot-dev"><h2 class="home-foot-h" id="foot-dev">Developers</h2><a href="/docs/api">API docs</a><a href="/api/openapi.json">OpenAPI spec</a><a href="https://github.com/guyvolvo/oceanofjobs">GitHub</a></nav>
+      <nav aria-labelledby="foot-site"><h2 class="home-foot-h" id="foot-site">Site</h2><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/refunds">Refunds</a><a href="/privacy#cookies" data-cookie-settings>Cookie settings</a></nav>
+    </div>
+    <div class="home-wrap home-foot-base">
+      <span>© 2026 Ocean of Jobs</span>
+      <span class="home-poll" id="home-poll" hidden><span class="home-poll-dot" aria-hidden="true"></span><span id="home-poll-text"></span></span>
+    </div>
+  </footer>
+
+  <script src="auth.js"></script>
+  <script src="signin_dialog.js"></script>
+  <script src="hero_account.js"></script>
+  <script src="hero_nav.js"></script>
   <script src="mobile_nav.js"></script>
   <script src="upstream.js"></script>
 </body>

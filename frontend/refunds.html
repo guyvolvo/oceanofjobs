@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="theme-color" content="#f2f0ef" />
-  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Urbanist-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-500-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- Google Analytics only after consent (consent.js). -->
   <script src="/consent.js"></script>
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Refund Policy | Ocean of Jobs</title>
-  <link rel="canonical" href="https://oceanofjobs.com/refunds" />
   <meta name="description" content="Full refund within 14 days of any payment for Ocean of Jobs plans." />
-  <!-- Link preview, same card as the board: a pasted link to any page
-       shows the site, not a blank. Absolute URLs, for crawlers. -->
+  <!-- Share previews. Same static card as the board, for the reason
+       given there: a crawler that renders this page live catches it
+       mid-fetch. -->
+  <link rel="canonical" href="https://oceanofjobs.com/refunds" />
+  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="https://oceanofjobs.com/feed.xml" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/refunds" />
   <meta property="og:title" content="Refund Policy | Ocean of Jobs" />
@@ -25,32 +28,83 @@
   <meta name="twitter:title" content="Refund Policy | Ocean of Jobs" />
   <meta name="twitter:description" content="Full refund within 14 days of any payment for Ocean of Jobs plans." />
   <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=3" />
-  <link rel="icon" href="favicon.ico?v=3" sizes="any" />
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png?v=3" />
-  <link rel="stylesheet" href="style.css" />
+  <script>
+    // GitHub sign-in hands its tokens back in the fragment, which never
+    // reaches CloudFront, so the edge cannot forward it the way it
+    // forwards /?country=IL. github_auth_handler.py sends people to
+    // /board now. This catches anyone who started signing in before
+    // that shipped and would otherwise land here with their tokens.
+    if (/(^|[#&])(id_token|auth_error)=/.test(location.hash)) {
+      location.replace("/board" + location.hash);
+    }
+  </script>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=3" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
+  <link rel="stylesheet" href="/style.css" />
+  <!-- The board's theme choice is honoured here too. Dark is this page's
+       own deeper ground, #0e0f11, rather than the board's #17181c. -->
   <script>
     if (localStorage.getItem("iljobs_theme") !== "light") {
-      document.querySelector('meta[name="theme-color"]').content = "#17181c";
+      document.querySelector('meta[name="theme-color"]').content = "#0e0f11";
       document.documentElement.setAttribute("data-theme", "dark");
     }
   </script>
 </head>
-<body>
+<body class="home">
 <a class="skip-link" href="#main">Skip to content</a>
 
-  <div class="topbar">
-    <div class="container">
-      <div class="topbar-left"><a class="topbar-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><nav class="topbar-nav" aria-label="Site"><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a href="/docs/api">API</a></nav></div>
+  <!-- The brand at the left, the menus in the middle, theme and account at
+       the right. Jobs, Companies and API resources open small panels
+       (hero_nav.js) holding only pages that exist; About goes to the
+       contact page until there is an about page. On a phone mobile_nav.js
+       folds the menus and the right side into its one list. -->
+  <header class="home-bar hero-bar-head">
+    <a class="home-brand" href="/" aria-label="Ocean of Jobs home">
+      <img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" />
+      <span translate="no">Ocean of Jobs</span>
+    </a>
+    <nav class="site-menus home-nav" aria-label="Main">
+      <div class="site-menu" data-menu="jobs">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-jobs">Jobs<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-jobs" hidden>
+          <a class="site-menu-item" href="/board?roles=all"><span class="site-menu-name">All jobs</span></a>
+          <a class="site-menu-item" href="/board?roles=tech"><span class="site-menu-name">Tech jobs</span></a>
+          <a class="site-menu-item" href="/board?roles=all&amp;workplace=remote"><span class="site-menu-name">Remote jobs</span></a>
+          <a class="site-menu-item" href="/board?starred=1"><span class="site-menu-name">Saved jobs</span></a>
+        </div>
+      </div>
+      <div class="site-menu" data-menu="companies">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-companies">Companies<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-companies" hidden>
+          <a class="site-menu-item" href="/companies"><span class="site-menu-name">Directory</span></a>
+        </div>
+      </div>
+      <div class="site-menu" data-menu="api">
+        <button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-api">API resources<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="site-menu-panel" id="site-menu-api" hidden>
+          <a class="site-menu-item" href="/docs/api"><span class="site-menu-name">API docs</span></a>
+          <a class="site-menu-item" href="/api/openapi.json"><span class="site-menu-name">OpenAPI spec</span></a>
+          <a class="site-menu-item" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener"><span class="site-menu-name">GitHub</span></a>
+        </div>
+      </div>
+      <a class="site-menu-link" href="/docs">Docs</a>
+      <a class="site-menu-link" href="/pricing">Pricing</a>
+      <a class="site-menu-link" href="/contact">About</a>
+    </nav>
+    <div class="hero-bar-right" id="hero-bar-right">
+      <button type="button" class="hero-theme" id="hero-theme">Dark</button>
+      <div class="hero-account" id="hero-account"><a class="hero-bar-name" href="/account">Log in</a></div>
     </div>
-  </div>
+  </header>
 
-  <div class="workspace" id="main" role="main" tabindex="-1">
-    <section class="section legal">
-      <div class="container">
-        <h1 class="section-title">Refund Policy</h1>
+  <main id="main" tabindex="-1">
+    <div class="price-page-top"></div>
+    <section class="home-section">
+      <div class="home-wrap legal-doc">
+        <h1 class="home-h2">Refund Policy</h1>
         <p class="legal-updated">Last updated: October 2026</p>
 
         <p>Payments for Ocean of Jobs subscriptions are handled by Paddle.com, our reseller and Merchant of Record. Refunds are processed through Paddle.</p>
@@ -82,12 +136,29 @@
         <p>This policy doesn't limit any rights you may have under the consumer protection laws that apply where you live, including any statutory rights to cancel a purchase or receive a refund.</p>
 
         <p>See also our <a class="link" href="/terms">Terms of Service</a> and <a class="link" href="/pricing">pricing page</a>.</p>
-
-        <p class="legal-back"><a class="link" href="/board">&larr; Back to the job board</a></p>
       </div>
     </section>
-  </div>
+  </main>
 
+  <footer class="home-foot">
+    <div class="home-wrap home-foot-grid">
+      <div class="home-foot-brand">
+        <div class="home-brand"><img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" /><span translate="no">Ocean of Jobs</span></div>
+      </div>
+      <nav aria-labelledby="foot-product"><h2 class="home-foot-h" id="foot-product">Product</h2><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a></nav>
+      <nav aria-labelledby="foot-dev"><h2 class="home-foot-h" id="foot-dev">Developers</h2><a href="/docs/api">API docs</a><a href="/api/openapi.json">OpenAPI spec</a><a href="https://github.com/guyvolvo/oceanofjobs">GitHub</a></nav>
+      <nav aria-labelledby="foot-site"><h2 class="home-foot-h" id="foot-site">Site</h2><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/refunds">Refunds</a><a href="/privacy#cookies" data-cookie-settings>Cookie settings</a></nav>
+    </div>
+    <div class="home-wrap home-foot-base">
+      <span>© 2026 Ocean of Jobs</span>
+      <span class="home-poll" id="home-poll" hidden><span class="home-poll-dot" aria-hidden="true"></span><span id="home-poll-text"></span></span>
+    </div>
+  </footer>
+
+  <script src="auth.js"></script>
+  <script src="signin_dialog.js"></script>
+  <script src="hero_account.js"></script>
+  <script src="hero_nav.js"></script>
   <script src="mobile_nav.js"></script>
   <script src="upstream.js"></script>
 </body>

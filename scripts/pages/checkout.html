@@ -1,0 +1,51 @@
+        <h1 class="home-h2">Checkout</h1>
+        <p id="co-msg" aria-live="polite">Opening the secure checkout…</p>
+        <p class="legal-updated"><a href="/pricing">Back to pricing</a></p>
+        <p class="legal-updated">Payments are handled by Paddle, our Merchant of Record. See the <a class="link" href="/terms">terms</a> and <a class="link" href="/refunds">refund policy</a>.</p>
+        <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+        <script>
+          // Paddle's default payment link is this page. Paddle.js opens the
+          // checkout by itself when the address carries _ptxn (a transaction
+          // made in Paddle); ?plan=basic or ?plan=pro starts one from the
+          // pricing page, for the signed-in account.
+          // After the page, because auth.js loads at the end of it.
+          document.addEventListener("DOMContentLoaded", function () {
+            // Paddle client-side token: public by design. A test_ token runs
+            // against Paddle's sandbox. Empty until plans go on sale.
+            var TOKEN = "";
+            var PRICES = { basic: "pri_01m5c6nb2wc9df6hk0hqkwdr1r", pro: "pri_01m5c6q394qkj6pfxekj6t37sh" };
+            // 50% off the first payment. It has no code, so Paddle only
+            // applies it when the checkout names it (dsc_... from Paddle).
+            var FIRST_MONTH_DISCOUNT = "";
+            var msg = document.getElementById("co-msg");
+            var say = function (html) { msg.innerHTML = html; };
+            if (!TOKEN || !window.Paddle) {
+              say("Checkout isn't open yet. Plans go on sale when the Ocean of Jobs browser extension launches.");
+              return;
+            }
+            if (TOKEN.indexOf("test_") === 0) Paddle.Environment.set("sandbox");
+            Paddle.Initialize({
+              token: TOKEN,
+              // Light or dark to match the page; the brand colour is set in Paddle.
+              checkout: { settings: { theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light" } },
+              eventCallback: function (e) {
+                if (e.name === "checkout.completed") location.href = "/account#settings";
+              },
+            });
+            var q = new URLSearchParams(location.search);
+            if (q.has("_ptxn")) return;
+            var price = PRICES[q.get("plan")];
+            if (!price) { say('Pick a plan on the <a class="link" href="/pricing">pricing page</a>.'); return; }
+            // The plan belongs to an account, so the buyer signs in first and
+            // the checkout carries who they are for the webhook to match.
+            var tokens = typeof getAuthTokens === "function" ? getAuthTokens() : null;
+            if (!tokens) { say('Sign in first, so the plan is added to your account. <a class="link" href="/account">Sign in</a>'); return; }
+            var claims = JSON.parse(atob(tokens.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+            Paddle.Checkout.open({
+              items: [{ priceId: price, quantity: 1 }],
+              customer: claims.email ? { email: claims.email } : undefined,
+              customData: { user_id: claims.sub },
+              discountId: FIRST_MONTH_DISCOUNT || undefined,
+            });
+          });
+        </script>
