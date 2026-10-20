@@ -899,8 +899,8 @@ function wireAutoApply() {
   }
 
   function paintUsage(u) {
-    $("aa-plan").textContent = PLAN[u.plan] || "Free plan";
-    $("aa-usage").textContent = `${u.used} of ${u.limit} automatic applications used this ${u.period}. Automatic applications launch with the extension.`;
+    $("aa-plan").textContent = `${PLAN[u.plan] || "Free plan"} · ${u.used} of ${u.limit} applications used ${u.period === "day" ? "today" : "this month"}`;
+    $("aa-usage").textContent = "";
   }
 
   function paintHistory(rows) {
