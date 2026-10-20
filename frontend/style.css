@@ -4627,6 +4627,22 @@ a.hero-account-btn { text-decoration: none; }
 .home-h2 + .home-api-p { margin-top: 18px; }
 .home-api .home-actions { margin-top: 26px; }
 .home-code { min-width: 0; border-radius: 12px; background: var(--h-surface); overflow: hidden; }
+/* A dither panel behind the API sample, treated like the job cards':
+   0.9 opacity, and brightness(0.52) brings this lighter picture down to
+   the hero's average (161 -> 83 of 255). A 384 x 215 PNG at exactly 5x. */
+.home-code-panel { position: relative; isolation: isolate; min-width: 0; }
+.home-code-panel::before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  z-index: -1;
+  border-radius: 16px;
+  background: url(/img/dither-api.png) center / 1920px 1075px;
+  image-rendering: pixelated;
+  filter: brightness(0.52);
+  opacity: 0.9;
+  pointer-events: none;
+}
 .home-code-pane { position: relative; }
 .home-code-pane + .home-code-pane { border-top: 1px solid var(--h-line); }
 .home-code-label {
@@ -4805,6 +4821,8 @@ a.hero-account-btn { text-decoration: none; }
 }
 @media (max-width: 640px) {
   .home { --h-pad: 16px; }
+  /* The dither panels stop at the 16px gutter, not 8px past the window. */
+  .home-hot-grid::before, .home-code-panel::before { inset: -24px -16px; }
   .home .home-nav { display: none; }
   /* The app pages hide this under 800px for their tab bar. This page has
      no tab bar, so the menu is its only way around on a phone. */
