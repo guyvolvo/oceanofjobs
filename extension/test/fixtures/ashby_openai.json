@@ -1,0 +1,236 @@
+{
+ "data": {
+  "jobPosting": {
+   "id": "cfa6bf43-bc06-4f33-a889-7f962c86fc26",
+   "applicationForm": {
+    "sections": [
+     {
+      "isHidden": null,
+      "fieldEntries": [
+       {
+        "field": {
+         "id": "8e896746-de24-41b6-b78c-1f5eb1a489db",
+         "path": "_systemfield_name",
+         "humanReadablePath": "Name",
+         "title": "Legal Name",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "String",
+         "__autoSerializationID": "StringField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "7f866599-bb85-44b3-a4f9-57730340673c",
+         "path": "72d6921b-c7b8-4a5e-a5f2-b19fd3f5acb3",
+         "humanReadablePath": "",
+         "title": "Preferred Name (if applicable)",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "String",
+         "__autoSerializationID": "StringField"
+        },
+        "isRequired": false,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "92ef7d65-10c1-48d8-be8b-23e1c639f5b3",
+         "path": "_systemfield_email",
+         "humanReadablePath": "Email",
+         "title": "Email",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Email",
+         "__autoSerializationID": "EmailField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "c952c98d-76bc-44e7-9df7-cc60f2b04ee8",
+         "path": "_systemfield_resume",
+         "humanReadablePath": "Resume",
+         "title": "Resume",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "File",
+         "__autoSerializationID": "FileField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "c67cd3fd-6398-44f7-be66-8796b1226924",
+         "path": "c67cd3fd-6398-44f7-be66-8796b1226924",
+         "humanReadablePath": "",
+         "title": "Phone Number",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Phone",
+         "__autoSerializationID": "PhoneField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "e3d1a61f-0bdb-4327-8b6c-633239580f70",
+         "path": "_systemfield_location",
+         "humanReadablePath": "Location",
+         "title": "Where are you currently located?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Location",
+         "locationTypes": [
+          "Country",
+          "City"
+         ],
+         "__autoSerializationID": "LocationField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "5571dd0e-0f88-4c34-ae89-3c51b28aceb8",
+         "path": "5571dd0e-0f88-4c34-ae89-3c51b28aceb8",
+         "humanReadablePath": "",
+         "title": "When can you start a new role?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Date",
+         "__autoSerializationID": "DateField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "0ef321b7-1d6f-465a-89e0-888e583b7bea",
+         "path": "560934d0-e3af-416f-a8fe-70d74811db72",
+         "humanReadablePath": "",
+         "title": "Are you authorized to work in the country where the job is located?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "cacd25c4-cb12-4b46-8069-fac943f8ea6f",
+         "path": "cacd25c4-cb12-4b46-8069-fac943f8ea6f",
+         "humanReadablePath": "",
+         "title": "Will you now or in the future require sponsorship for employment visa status in this country?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "85eb6835-a257-4b07-bbb3-befba766952a",
+         "path": "85eb6835-a257-4b07-bbb3-befba766952a",
+         "humanReadablePath": "",
+         "title": "Are you able to work from our Dublin office three days per week?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "a621e882-1096-4efa-9f47-5a46c7edc86f",
+         "path": "a621e882-1096-4efa-9f47-5a46c7edc86f",
+         "humanReadablePath": "",
+         "title": "Additional Information",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "LongText",
+         "__autoSerializationID": "LongTextField"
+        },
+        "isRequired": false,
+        "isHidden": null
+       }
+      ]
+     },
+     {
+      "isHidden": null,
+      "fieldEntries": [
+       {
+        "field": {
+         "id": "c99abc11-6518-49e9-b432-94e2b6df969e",
+         "path": "7fe82de7-a1d7-4d8a-95a5-e5cc9adc84ea",
+         "humanReadablePath": "",
+         "title": "I hereby certify that I have not knowingly withheld any information that might adversely affect my chances for employment and that the answers given by me are true and correct to the best of my knowledge. I further certify that I, the undersigned applicant, have personally completed this application. I understand that, to the extent permitted by applicable law, any omission or misstatement of material fact on this application or on any document used to secure employment shall be grounds for rejection of this application or for immediate discharge if I am employed, regardless of the time elapsed before discovery. ",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "MultiValueSelect",
+         "selectableValues": [
+          {
+           "label": "I confirm I have read the above.",
+           "value": "I confirm I have read the above.",
+           "isArchived": false
+          }
+         ],
+         "__autoSerializationID": "MultiValueSelectField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

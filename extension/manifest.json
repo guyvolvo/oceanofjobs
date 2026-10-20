@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Ocean of Jobs",
-  "version": "1.6.1",
-  "description": "Fills in and sends Greenhouse job applications with your Ocean of Jobs profile.",
+  "version": "1.7.0",
+  "description": "Fills in and sends Greenhouse and Ashby job applications with your Ocean of Jobs profile.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -32,7 +32,8 @@
   "host_permissions": [
     "https://oceanofjobs.com/*",
     "https://boards.greenhouse.io/*",
-    "https://job-boards.greenhouse.io/*"
+    "https://job-boards.greenhouse.io/*",
+    "https://jobs.ashbyhq.com/*"
   ],
   "optional_host_permissions": [
     "https://api.anthropic.com/*",

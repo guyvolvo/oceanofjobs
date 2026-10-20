@@ -30,6 +30,9 @@
     veteran_status: 'veteran', disability_status: 'disability',
     // The phone field's country picker.
     country: 'phone_country',
+    // Ashby's system fields.
+    _systemfield_name: 'full_name', _systemfield_email: 'email',
+    _systemfield_resume: 'resume', _systemfield_location: 'location',
   };
 
   // Order matters: "require sponsorship to work" must not read as authorization.
@@ -41,6 +44,9 @@
     [/salary|compensation expectation|expected (pay|compensation)|desired (pay|compensation)/, 'salary'],
     [/notice period|earliest .*start|when can you start|available to start|start date/, 'notice'],
     [/preferred (first )?name/, 'preferred_name'],
+    [/^(legal )?first name$/, 'first_name'],
+    [/^(legal )?(last name|surname|family name)$/, 'last_name'],
+    [/^cover letter$/, 'cover_letter'],
     [/^(personal |other )?(website|portfolio|blog)( url| link)?$/, 'website'],
     [/^gender\b/, 'gender'],
     [/hispanic|latino/, 'hispanic'],
@@ -54,6 +60,8 @@
 
   function classify(field) {
     if (BY_NAME[field.name]) return BY_NAME[field.name];
+    // Ashby types its phone questions, whatever the label says ("Móvil").
+    if (field.type === 'phone') return 'phone';
     const label = normalise(field.label);
     for (const [re, key] of BY_LABEL) if (re.test(label)) return key;
     return null;
@@ -81,6 +89,7 @@
     switch (key) {
       case 'first_name': case 'preferred_name': return blank(c.first_name);
       case 'last_name': return blank(c.last_name);
+      case 'full_name': return blank(`${c.first_name || ''} ${c.last_name || ''}`.trim());
       case 'email': return blank(c.email);
       case 'phone': return blank(c.phone);
       case 'location': return blank(c.location);
@@ -147,6 +156,16 @@
     return start >= 0 ? start : only((o) => (' ' + o + ' ').includes(' ' + want + ' '));
   }
 
+  // Ashby number and date inputs take nothing else, so "30 days" into a
+  // number field is a missing answer rather than a failed application. The
+  // only file we have is the CV, and that is planned before this.
+  function fitsType(field, value) {
+    if (field.type === 'file') return false;
+    if (field.type === 'number') return /^\s*-?\d+([.,]\d+)?\s*$/.test(value);
+    if (field.type === 'date') return !Number.isNaN(Date.parse(value));
+    return true;
+  }
+
   // fields: [{name, label, required, type, options}] as an ATS filler reads
   // them. Returns what to type where, and the required ones nobody answered.
   function planFill(fields, profile, job) {
@@ -155,9 +174,12 @@
       const key = classify(f);
       if (key === 'resume') { fills.push({ ...f, key, value: 'cv' }); continue; }
       if (key === 'cover_letter') { if (f.required) missing.push({ ...f, key }); continue; }
+      const fits = (v) => v !== undefined && !(f.options && f.options.length && pickOption(f.options, v) < 0) && fitsType(f, v);
+      // A profile value the field cannot take ("30 days" for a start date)
+      // gives way to a saved answer for this exact question.
       let value = key ? profileValue(key, profile, job) : undefined;
-      if (value === undefined) value = findAnswer(f.label, profile.answers);
-      if (value !== undefined && f.options && f.options.length && pickOption(f.options, value) < 0) value = undefined;
+      if (!fits(value)) value = findAnswer(f.label, profile.answers);
+      if (!fits(value)) value = undefined;
       if (value === undefined) { if (f.required) missing.push({ ...f, key }); continue; }
       fills.push({ ...f, key, value });
     }

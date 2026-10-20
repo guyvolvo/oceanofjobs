@@ -1,0 +1,328 @@
+{
+ "data": {
+  "jobPosting": {
+   "id": "97f6fdcf-c8ce-4125-a59c-c152bab6351d",
+   "applicationForm": {
+    "sections": [
+     {
+      "isHidden": null,
+      "fieldEntries": [
+       {
+        "field": {
+         "id": "39908eab-9b7f-4221-b57d-03f56c7d1c80",
+         "path": "_systemfield_name",
+         "humanReadablePath": "Name",
+         "title": "Full Name",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "String",
+         "__autoSerializationID": "StringField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "010d3883-47f9-4f6d-a966-b9eb6efa2041",
+         "path": "_systemfield_email",
+         "humanReadablePath": "Email",
+         "title": "Email",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Email",
+         "__autoSerializationID": "EmailField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "e1b800ef-db49-40a1-8a26-4e9874af9470",
+         "path": "3fdc76ed-6ac2-497a-a6cc-e07ed517ec1d",
+         "humanReadablePath": "",
+         "title": "Phone Number",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Phone",
+         "__autoSerializationID": "PhoneField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "2e89748e-8edb-4719-92e5-8b1f07f59a23",
+         "path": "_systemfield_resume",
+         "humanReadablePath": "Resume",
+         "title": "Resume",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "File",
+         "__autoSerializationID": "FileField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "8d25be6c-0129-4d58-beac-0dcc30f78969",
+         "path": "_systemfield_location",
+         "humanReadablePath": "Location",
+         "title": "Location",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Location",
+         "locationTypes": [
+          "Country",
+          "Region",
+          "City"
+         ],
+         "__autoSerializationID": "LocationField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "3d981ba6-0378-45ce-8dfc-c5fdc8c764cc",
+         "path": "f63fdc3f-8d4c-49fc-9388-3a9ef836de55",
+         "humanReadablePath": "",
+         "title": "LinkedIn Profile, if available",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "LongText",
+         "__autoSerializationID": "LongTextField"
+        },
+        "isRequired": false,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "36ec91b4-e4c3-4147-bfe0-aeef2373ef55",
+         "path": "28ff5b93-a104-45f7-9d46-2d13d3217dca",
+         "humanReadablePath": "",
+         "title": "Will you require company sponsorship now or in the future to maintain or extend your current work authorization status? ",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       }
+      ]
+     },
+     {
+      "isHidden": null,
+      "fieldEntries": [
+       {
+        "field": {
+         "id": "fa6ef3e2-e5ec-4f2c-8b03-241192eba226",
+         "path": "4c8e248b-f134-416f-9fa5-38c9e679f7b1",
+         "humanReadablePath": "",
+         "title": "In office attendance is an essential function for this role and necessary to enable effective teamwork and collaboration. Do you currently reside within commuting distance or are you open to relocation to the local Snowflake office(s) designated in this post?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "b34b6c07-420b-4e9e-b74c-457273b9ba0f",
+         "path": "b1890667-a914-4163-b3c1-c5b694fd412c",
+         "humanReadablePath": "",
+         "title": "Additional Attachments",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "File",
+         "__autoSerializationID": "FileField"
+        },
+        "isRequired": false,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "385ad04d-037e-47da-90a2-04d202b3d62b",
+         "path": "c779ac6e-f4fe-4dfe-9dfa-acd7e2823ba7",
+         "humanReadablePath": "",
+         "title": "Where have you most recently worked?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "String",
+         "__autoSerializationID": "StringField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "46c22479-0b66-43b3-9bb1-360980f04ff6",
+         "path": "962f2552-c3ca-4d6c-a7d8-b7b1340558ae",
+         "humanReadablePath": "",
+         "title": "Have you worked at Snowflake in the past in a Full-time, Part-time, contractor or Intern capacity?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "eaa426e7-c760-4264-b0d4-248a914c9973",
+         "path": "a3cc08ef-4552-444a-b493-c608c65670df",
+         "humanReadablePath": "",
+         "title": "For Snowflake to anticipate possible immigration timelines and obligations, could you confirm you are currently authorized to work in the country to which you are applying?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "90383d18-a8b7-4d82-a8dd-4761c4ef7bb3",
+         "path": "0a2a2426-a42d-4c4f-a68f-5083d6b8a72a",
+         "humanReadablePath": "",
+         "title": "A “U.S. person” is a citizen, legal permanent resident, or legal temporary resident (i.e., a refugee or asylee) of the United States. Which of the following best describes your “U.S. person” status?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "ValueSelect",
+         "selectableValues": [
+          {
+           "label": "I am a U.S. person",
+           "value": "I am a U.S. person"
+          },
+          {
+           "label": "I am a citizen of Cuba, Iran, North Korea, or Syria AND I am NOT a U.S. person",
+           "value": "I am a citizen of Cuba, Iran, North Korea, or Syria AND I am NOT a U.S. person"
+          },
+          {
+           "label": "None of the above; I am a citizen of a different country",
+           "value": "None of the above; I am a citizen of a different country"
+          }
+         ],
+         "__autoSerializationID": "ValueSelectField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "2b67d1d4-cc83-40fd-a687-bc8206dc16bd",
+         "path": "5c859149-0940-42e7-8962-ec82679d8074",
+         "humanReadablePath": "",
+         "title": "Due to SEC auditor independence requirements, please let us know whether you have previously worked at, or if currently working at PricewaterhouseCoopers (PwC), who is our independent auditor.",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "ValueSelect",
+         "selectableValues": [
+          {
+           "label": "Yes - I have previously worked at, or is currently working at PwC",
+           "value": "Yes - I have previously worked at, or is currently working at PwC"
+          },
+          {
+           "label": "No - I have never been employed by PwC",
+           "value": "No - I have never been employed by PwC"
+          }
+         ],
+         "__autoSerializationID": "ValueSelectField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "8ce769e0-bd74-40da-bffd-b6d6bf92c76c",
+         "path": "a7d1a4bb-e59b-4149-a733-f46f352b0cb5",
+         "humanReadablePath": "",
+         "title": "Have you ever been directly employed by (1) any government or military entity, state-owned enterprise, or publicly-funded institution, or (2) a government contractor in a role that recommended Snowflake as part of Government procurement?",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "Boolean",
+         "__autoSerializationID": "BooleanField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       },
+       {
+        "field": {
+         "id": "2c79bfff-8607-416c-ba96-a3c0100f478f",
+         "path": "2ded3ef9-36d5-4e49-a11c-9cd79f053a35",
+         "humanReadablePath": "",
+         "title": "Snowflake will process your personal information in accordance with the Snowflake Candidate Privacy Notice.",
+         "isNullable": false,
+         "isPrivate": false,
+         "isDeactivated": false,
+         "isMany": false,
+         "metadata": {},
+         "type": "MultiValueSelect",
+         "selectableValues": [
+          {
+           "label": "I have read and agree to the Snowflake Candidate Privacy Notice.",
+           "value": "I have read and agree to the Snowflake Candidate Privacy Notice."
+          }
+         ],
+         "__autoSerializationID": "MultiValueSelectField"
+        },
+        "isRequired": true,
+        "isHidden": null
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}
