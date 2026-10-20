@@ -738,6 +738,23 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     api(`/me/apply/queue/${encodeURIComponent(msg.id)}`, { method: 'DELETE' }).then(() => reply({ ok: true }), (e) => reply({ error: e.message || String(e) }));
     return true;
   }
+  if (msg.type === 'answer') {
+    api('/me/apply/answers', { method: 'POST', body: { question: msg.question, answer: msg.answer } }).then(async () => {
+      const { needs = [] } = await chrome.storage.local.get('needs');
+      const done = needs.find((n) => n.question === msg.question);
+      const left = needs.filter((n) => n.question !== msg.question);
+      await chrome.storage.local.set({ needs: left });
+      accountCache = null;
+      // A board job with nothing else to answer goes back in the queue; a
+      // page that is not on the board answers 404, which is fine.
+      let requeued = false;
+      if (done && done.job_id && !left.some((n) => n.job_id === done.job_id)) {
+        requeued = await api(`/me/apply/queue/${encodeURIComponent(done.job_id)}`, { method: 'PUT' }).then(() => true, () => false);
+      }
+      reply({ ok: true, requeued });
+    }, (e) => reply({ error: e.message || String(e) }));
+    return true;
+  }
   if (msg.type === 'pause') { chrome.storage.local.set({ paused: !!msg.paused }).then(() => reply({ ok: true })); return true; }
   if (msg.type === 'offerHere') {
     offerHere(msg.url).catch(() => ({ show: true, blocked: UNEXPECTED })).then(reply);

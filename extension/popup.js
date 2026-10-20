@@ -70,11 +70,52 @@ function render(s) {
   $('needs').textContent = String(s.needs.length);
   $('needs-label').textContent = `${plural(s.needs.length, 'needs', 'need')} your input`;
   const list = $('needs-list');
-  list.replaceChildren(...s.needs.slice(0, 5).map((n) => {
+  // Grouped by the job that asked, answered right here: the answer goes to
+  // the account's saved answers, and a job with nothing left to answer is
+  // queued again for the next run.
+  const jobs = new Map();
+  for (const n of s.needs) {
+    const k = n.job_id || n.url || n.question;
+    if (!jobs.has(k)) jobs.set(k, { n, qs: [] });
+    jobs.get(k).qs.push(n);
+  }
+  list.replaceChildren(...[...jobs.values()].slice(0, 5).flatMap(({ n: first, qs }) => [jobHead(first), ...qs.map(needItem)]));
+  function jobHead(n) {
     const li = document.createElement('li');
-    li.textContent = n.question;
+    li.className = 'need-job';
+    const a = document.createElement('a');
+    a.href = n.job_id ? `https://oceanofjobs.com/job/${encodeURIComponent(n.job_id)}` : n.url || '#';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = [n.title, n.company].filter(Boolean).join(' · ') || 'A job';
+    li.append(a);
     return li;
-  }));
+  }
+  function needItem(n) {
+    const li = document.createElement('li');
+    const q = document.createElement('span');
+    q.textContent = n.question;
+    const row = document.createElement('form');
+    row.className = 'answer-row';
+    const input = document.createElement('input');
+    input.placeholder = 'Your answer';
+    input.setAttribute('aria-label', `Answer: ${n.question}`);
+    const save = document.createElement('button');
+    save.className = 'btn';
+    save.textContent = 'Save';
+    row.append(input, save);
+    row.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!input.value.trim()) return input.focus();
+      save.disabled = true;
+      const r = await chrome.runtime.sendMessage({ type: 'answer', question: n.question, answer: input.value.trim() });
+      if (r && r.ok) return render(await chrome.runtime.sendMessage({ type: 'status' }));
+      save.disabled = false;
+      save.textContent = 'Try again';
+    });
+    li.append(q, row);
+    return li;
+  }
   list.hidden = $('needs-head').hidden = $('needs-help').hidden = !s.needs.length;
   $('pause').textContent = paused ? 'Resume' : 'Pause';
   $('state').textContent = paused

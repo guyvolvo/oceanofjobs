@@ -12,8 +12,15 @@
     .stat b { display: block; font: 500 22px/1.1 "Geist", sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
     .stat span { display: block; margin-top: 4px; color: var(--muted); font-size: 11.5px; line-height: 1.3; }
     #needs-list { margin: 12px 0 0; padding: 0; list-style: none; }
-    #needs-list li { display: flex; gap: 8px; padding: 8px 10px; background: var(--soft); border-radius: 8px; font-size: 13px; }
-    #needs-list li::before { content: ""; flex: none; width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--warn); }
+    #needs-list li { position: relative; padding: 8px 10px 8px 24px; background: var(--soft); border-radius: 8px; font-size: 13px; }
+    #needs-list li::before { content: ""; position: absolute; left: 10px; top: 14px; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+    #needs-list li.need-job { padding: 10px 0 2px; background: none; font-size: 11.5px; }
+    #needs-list li.need-job::before { content: none; }
+    #needs-list li.need-job a { color: var(--muted); text-decoration: none; }
+    #needs-list li.need-job a:hover { color: var(--text); }
+    .answer-row { display: flex; gap: 6px; margin-top: 8px; }
+    .answer-row input { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
+    .answer-row .btn { height: 32px; padding: 0 12px; font-size: 13px; }
     #needs-list li + li { margin-top: 6px; }
     .actions { margin-top: 14px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
     .links a { font-size: 13px; color: var(--muted); text-decoration: none; padding: 0 4px; }
@@ -58,7 +65,7 @@
     <p id="fill-result" class="note" hidden></p>
     <p id="needs-head" class="note" hidden style="margin-top:12px">Questions you need to answer:</p>
     <ul id="needs-list" hidden></ul>
-    <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these on your account page, then try again.</p>
+    <p id="needs-help" class="note" hidden style="margin-top:8px">Answer them here or on your account page. A job is queued again once its questions are answered.</p>
     <details id="queue-box" class="queue">
       <summary>Queue <span id="queue-n" class="muted"></span></summary>
       <ul id="queue-list"></ul>
