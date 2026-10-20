@@ -672,6 +672,7 @@ const SECTION_HEAD = {
   skills: { title: "Skills", action: '<button type="button" class="btn btn-small" id="acct-do-cv">Scan a CV</button>' },
   alerts: { title: "Alerts", action: '<a class="btn btn-small" href="#alerts">New alert</a>' },
   saved: { title: "Saved jobs", action: '<a class="btn ghost btn-small" href="/board">Open the board</a>' },
+  autoapply: { title: "Auto apply" },
   preferences: { title: "Preferences" },
   settings: { title: "Settings" },
 };
@@ -819,6 +820,165 @@ async function wireAlerts() {
 // the switching and the storage key, and mirrors whatever label that
 // leaves behind. The observer is what keeps the two in step when the
 // theme is changed from the bar instead of from here.
+// Automatic applications (api/apply.py): the profile the extension fills
+// forms from, the user's own settings, the plan's usage and the applied
+// history. Connecting the extension makes an "extension" token and hands
+// it over with postMessage to the extension's content script, which only
+// listens on this origin.
+function wireAutoApply() {
+  const form = $("aa-form");
+  if (!form) return;
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const val = (id) => $("aa-" + id).value.trim();
+  const num = (id) => (val(id) === "" ? null : Number(val(id)));
+  const PLAN = { free: "Free plan", basic: "Basic plan", pro: "Pro plan" };
+
+  function answerRow(a = { question: "", answer: "" }) {
+    const row = document.createElement("div");
+    row.className = "aa-answer";
+    row.innerHTML = `<input class="aa-input" type="text" placeholder="Question, e.g. Why do you want to work here?" aria-label="Question" value="${esc(a.question)}" />`
+      + `<textarea class="aa-input" rows="2" placeholder="Your answer" aria-label="Answer">${esc(a.answer)}</textarea>`
+      + `<button class="btn btn-quiet btn-small" type="button" data-remove>Remove</button>`;
+    $("aa-answers").appendChild(row);
+    return row;
+  }
+
+  function fill(p) {
+    const set = (id, v) => { $("aa-" + id).value = v ?? ""; };
+    ["first_name", "last_name", "email", "phone", "location"].forEach((k) => set(k, p.contact[k]));
+    ["linkedin", "github", "website"].forEach((k) => set(k, p.links[k]));
+    set("countries", p.work.authorized_countries.join(", "));
+    set("sponsorship", p.work.needs_sponsorship === null ? "" : p.work.needs_sponsorship ? "yes" : "no");
+    set("notice", p.work.notice_period);
+    set("salary", p.work.salary);
+    form.querySelectorAll(".aa-eeo").forEach((box) => {
+      const v = p.eeo[box.dataset.eeo];
+      const [select, text] = box.querySelectorAll(".aa-input");
+      select.value = v === null ? "" : v === "decline" ? "decline" : "answer";
+      text.value = v && v !== "decline" ? v : "";
+      text.hidden = select.value !== "answer";
+    });
+    form.querySelectorAll("[name=aa-mode]").forEach((r) => { r.checked = r.value === p.settings.mode; });
+    form.querySelectorAll("[name=aa-unknowns]").forEach((r) => { r.checked = r.value === p.settings.unknowns; });
+    form.querySelectorAll("[name=aa-source]").forEach((c) => { c.checked = p.settings.sources.includes(c.value); });
+    const g = p.settings.guardrails;
+    set("min_match", g.min_match);
+    set("daily", g.daily_limit);
+    set("per_company", g.one_per_company_days);
+    set("blocked", g.blocked_companies.join("\n"));
+    $("aa-answers").innerHTML = "";
+    p.answers.forEach(answerRow);
+  }
+
+  function collect() {
+    const eeo = {};
+    form.querySelectorAll(".aa-eeo").forEach((box) => {
+      const [select, text] = box.querySelectorAll(".aa-input");
+      eeo[box.dataset.eeo] = select.value === "decline" ? "decline" : select.value === "answer" ? text.value.trim() || null : null;
+    });
+    const picked = (name) => [...form.querySelectorAll(`[name=${name}]:checked`)].map((i) => i.value);
+    return {
+      contact: { first_name: val("first_name"), last_name: val("last_name"), email: val("email"), phone: val("phone"), location: val("location") },
+      links: { linkedin: val("linkedin"), github: val("github"), website: val("website") },
+      work: {
+        authorized_countries: val("countries").split(/[\s,]+/).filter(Boolean).map((c) => c.toUpperCase()),
+        needs_sponsorship: val("sponsorship") === "" ? null : val("sponsorship") === "yes",
+        notice_period: val("notice"), salary: val("salary"),
+      },
+      eeo,
+      answers: [...$("aa-answers").querySelectorAll(".aa-answer")].map((r) => ({ question: r.children[0].value.trim(), answer: r.children[1].value.trim() }))
+        .filter((a) => a.question && a.answer),
+      settings: {
+        mode: picked("aa-mode")[0] || "queue", sources: picked("aa-source"), unknowns: picked("aa-unknowns")[0] || "skip",
+        guardrails: {
+          min_match: num("min_match"), daily_limit: num("daily"), one_per_company_days: num("per_company"),
+          blocked_companies: val("blocked").split(/\s+/).filter(Boolean),
+        },
+      },
+    };
+  }
+
+  function paintUsage(u) {
+    $("aa-plan").textContent = PLAN[u.plan] || "Free plan";
+    $("aa-usage").textContent = `${u.used} of ${u.limit} automatic applications used this ${u.period}. Automatic applications launch with the extension.`;
+  }
+
+  function paintHistory(rows) {
+    const STATUS = { submitted: "Applied", claimed: "In progress", skipped: "Skipped", failed: "Failed" };
+    $("aa-history").innerHTML = rows.length
+      ? `<ul class="aa-history">${rows.map((r) => `<li><div class="acct-row-text"><a class="aa-job" href="/job/${esc(r.job_id)}">${esc(r.title || "A job")}</a>`
+        + `<span class="acct-row-note">${esc(r.company || "")}${r.reason ? " · " + esc(r.reason) : ""}</span></div>`
+        + `<span class="aa-pill aa-${esc(r.status)}">${STATUS[r.status] || esc(r.status)}</span>`
+        + `<span class="acct-row-note">${new Date(r.at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span></li>`).join("")}</ul>`
+      : '<p class="acct-row-note">No applications yet.</p>';
+  }
+
+  async function load() {
+    const [p, u, h] = await Promise.allSettled([authedFetch("/me/apply/profile"), authedFetch("/me/apply/usage"), authedFetch("/me/apply/history?limit=100")]);
+    if (p.status === "fulfilled") fill(p.value.profile);
+    else setStatus("aa-status", "Could not load your auto apply settings.", true);
+    if (u.status === "fulfilled") paintUsage(u.value);
+    else $("aa-usage").textContent = "";
+    if (h.status === "fulfilled") paintHistory(h.value.applied || []);
+  }
+
+  form.addEventListener("change", (e) => {
+    const box = e.target.closest(".aa-eeo");
+    if (box && e.target.tagName === "SELECT") {
+      const text = box.querySelector("input");
+      text.hidden = e.target.value !== "answer";
+      if (!text.hidden) text.focus();
+    }
+  });
+  $("aa-add-answer").addEventListener("click", () => answerRow().querySelector("input").focus());
+  $("aa-answers").addEventListener("click", (e) => { if (e.target.closest("[data-remove]")) e.target.closest(".aa-answer").remove(); });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector("[type=submit]");
+    btn.classList.add("btn-busy");
+    try {
+      const { profile } = await authedFetch("/me/apply/profile", { method: "PUT", body: JSON.stringify({ profile: collect() }) });
+      fill(profile);
+      setStatus("aa-status", "Saved.");
+    } catch (err) {
+      setStatus("aa-status", err.message || "Could not save.", true);
+    } finally {
+      btn.classList.remove("btn-busy");
+    }
+  });
+
+  // The extension's content script marks the page once it has loaded.
+  const connect = $("aa-connect");
+  const showConnect = () => {
+    if (document.documentElement.dataset.oojExtension !== "1") return;
+    $("aa-ext-state").textContent = "The extension is installed.";
+    connect.hidden = false;
+  };
+  showConnect();
+  setTimeout(showConnect, 1500);
+  window.addEventListener("message", (e) => {
+    if (e.source === window && e.origin === location.origin && e.data && e.data.type === "ooj:connected") {
+      $("aa-ext-state").textContent = "The extension is connected to your account.";
+      connect.hidden = true;
+    }
+  });
+  connect.addEventListener("click", async () => {
+    connect.classList.add("btn-busy");
+    try {
+      const made = await authedFetch("/me/tokens", {
+        method: "POST", body: JSON.stringify({ name: "Chrome extension", expires_in_days: null, scope: "extension" }),
+      });
+      window.postMessage({ type: "ooj:connect", token: made.token }, location.origin);
+    } catch (err) {
+      $("aa-ext-state").textContent = err.message || "Could not connect. Try again.";
+    } finally {
+      connect.classList.remove("btn-busy");
+    }
+  });
+
+  load();
+}
+
 // Personal access tokens, in Settings. The server returns a token once,
 // in the answer to its POST; it is put on screen and kept nowhere else.
 function wireTokens() {
@@ -966,6 +1126,8 @@ function wireLeaving() {
       for (const a of alerts) {
         await authedFetch(`/me/alerts/${a.alert_id}`, { method: "DELETE" });
       }
+      // The auto apply profile, history and queue.
+      await authedFetch("/me/apply", { method: "DELETE" });
       // Every token too: one left behind would keep
       // working for an account its owner believes is gone.
       const tokens = (await authedFetch("/me/tokens")).tokens || [];
@@ -1212,6 +1374,7 @@ async function bootAccount() {
     wireAccountNav();
     wireSettingsTheme();
     wireTokens();
+    wireAutoApply();
   });
 
   // Three independent fetches, started together. The profile used to be

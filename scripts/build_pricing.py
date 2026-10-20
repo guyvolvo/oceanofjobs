@@ -26,7 +26,7 @@ FAQ = """
           </div>
           <div class="home-feature">
             <h3>Do I need an AI subscription?</h3>
-            <p>No. The extension can fill in forms using your profile and saved answers. If you want help answering new questions, you can add your own API key from an AI provider. Any usage fees are charged by that provider.</p>
+            <p>No. The extension fills in forms using your profile and saved answers. Basic and Pro include AI answers to new questions. On Free, you can add your own API key from an AI provider, and any usage fees are charged by that provider.</p>
           </div>
           <div class="home-feature">
             <h3>Where is my CV stored?</h3>

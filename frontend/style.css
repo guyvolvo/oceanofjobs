@@ -6564,6 +6564,50 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 .pref-tz { max-width: 260px; }
 .pref-time:focus-visible, .pref-tz:focus-visible, .pref-day:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 
+/* Auto apply: the onboarding form in numbered groups, the plan strip
+   above it and the applied list below, on the account page's rhythm. */
+.aa-status { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; padding: 0 0 18px; margin-bottom: 24px; border-bottom: 1px solid var(--grey-line); }
+.aa-connect { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+#aa-form .pref-group { padding-bottom: 8px; }
+#aa-form .pref-group > .acct-row-note { margin: 4px 0 0; }
+.aa-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; margin-top: 14px; }
+.aa-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font: 500 13px var(--font); color: var(--black); }
+.aa-wide { grid-column: 1 / -1; }
+.aa-input {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--grey-line);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--black);
+  font: 400 14px var(--font);
+}
+textarea.aa-input { resize: vertical; }
+.aa-input:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.aa-eeo input[hidden] { display: none; }
+.aa-sub { margin: 18px 0 8px; font: 600 13px var(--font); color: var(--black); }
+.aa-choice { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.aa-choice label { display: flex; align-items: flex-start; gap: 10px; font: 400 14px/1.45 var(--font); color: var(--black); cursor: pointer; }
+.aa-choice input { margin: 3px 0 0; flex: none; accent-color: var(--green); }
+.aa-choice a { color: var(--green-text); }
+.aa-answer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 10px; align-items: start; margin: 12px 0; }
+#aa-add-answer { margin-top: 12px; }
+.aa-save { display: flex; align-items: center; gap: 12px; margin: 24px 0 32px; }
+.aa-history { margin: 12px 0 0; padding: 0; list-style: none; }
+.aa-history li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--grey-line); }
+.aa-job { color: var(--black); font: 500 14px var(--font); text-decoration: none; }
+.aa-job:hover { color: var(--green-text); }
+.aa-pill { padding: 3px 9px; border: 1px solid var(--grey-line); border-radius: 999px; font: 600 12px var(--font); color: var(--grey); white-space: nowrap; }
+.aa-pill.aa-submitted { border-color: var(--green-text); color: var(--green-text); }
+.aa-pill.aa-failed { border-color: var(--red); color: var(--red); }
+@media (max-width: 640px) {
+  .aa-grid { grid-template-columns: minmax(0, 1fr); }
+  .aa-answer { grid-template-columns: minmax(0, 1fr); }
+  .aa-history li { grid-template-columns: minmax(0, 1fr) auto; }
+  .aa-history li > :last-child { display: none; }
+}
+
 /* Personal access tokens: a settings row, then the form, the new token
    and the list under it, all on the same hairline rhythm. */
 .acct-tokens { display: flex; flex-direction: column; }
