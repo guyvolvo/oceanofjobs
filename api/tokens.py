@@ -8,7 +8,7 @@ token is stored: a copy of the table cannot be used to sign in, and the
 secret carries 192 random bits, so a fast hash is enough.
 
 A token is not a session, and each has a scope. An "mcp" token reaches
-the saved-jobs routes only; an "extension" token (made by the website
+the saved-jobs routes and the auto apply queue only; an "extension" token (made by the website
 for the browser extension) also reaches /api/me/apply/*. serve.py holds
 the map. Neither can read the search profile, change alerts, or mint or
 revoke tokens.

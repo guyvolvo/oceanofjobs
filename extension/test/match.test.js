@@ -138,3 +138,11 @@ test('pickJobs keeps one per company when limited', () => {
   assert.deepEqual(m.pickJobs(jobs, { history: [], guardrails: { one_per_company_days: 30 }, now: NOW }).map((j) => j.id), ['c1', 'c3']);
   assert.equal(m.pickJobs(jobs, { history: [], guardrails: {}, now: NOW }).length, 3);
 });
+
+test('withQueued puts queued jobs before picked ones, without repeats', () => {
+  const queued = [{ id: 'q1', company_domain: 'wix.com' }];
+  const picked = [{ id: 'q1', company_domain: 'wix.com' }, { id: 'c2', company_domain: 'wix.com' }, { id: 'c3', company_domain: 'monday.com' }];
+  assert.deepEqual(m.withQueued(queued, picked, {}).map((j) => j.id), ['q1', 'c2', 'c3']);
+  assert.deepEqual(m.withQueued(queued, picked, { one_per_company_days: 30 }).map((j) => j.id), ['q1', 'c3']);
+  assert.deepEqual(m.withQueued([], picked, {}).map((j) => j.id), ['q1', 'c2', 'c3']);
+});

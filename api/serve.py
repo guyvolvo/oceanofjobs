@@ -36,7 +36,7 @@ COGNITO_AUDIENCE = os.environ.get("COGNITO_AUDIENCE", "")
 MAX_BODY = 64 * 1024
 # What a personal access token may reach, by scope (path prefixes).
 TOKEN_PATHS = {
-    "mcp": ("/api/me/saved",),
+    "mcp": ("/api/me/saved", "/api/me/apply/queue"),
     "extension": ("/api/me/saved", "/api/me/apply/"),
 }
 

@@ -647,8 +647,9 @@ def lambda_handler(event, context):
 
 def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) -> dict:
     """/api/me/apply/*: automatic applications (apply.py). Used by the
-    account page with the user's session and by the browser extension
-    with an "extension" token (serve.py)."""
+    account page with the user's session, by the browser extension
+    with an "extension" token, and by the MCP server with an "mcp" token
+    on the queue only (serve.py)."""
     body = json.loads(event.get("body") or "{}") if method in ("POST", "PUT") else {}
     no_store = {"Cache-Control": "no-store"}
 
@@ -707,6 +708,12 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
     if sub.startswith("queue/"):
         job_id = sub[len("queue/"):]
         if method == "PUT":
+            # An AI assistant queues only for users who opted in on the account page.
+            claims = _authenticated_claims(event)
+            if (claims.get("token_use") == "ooj" and claims.get("scope") == "mcp"
+                    and "mcp" not in apply.get_profile(_alerts_table, user_id)["settings"]["sources"]):
+                return ok(403, {"error": 'Turn on "Jobs queued by my AI assistant through MCP" in your auto apply '
+                                         "settings at https://oceanofjobs.com/account#aa-settings"})
             apply.enqueue(_alerts_table, user_id, job_id)
             return ok(204)
         if method == "DELETE":

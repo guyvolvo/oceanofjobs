@@ -217,6 +217,15 @@
     });
   }
 
+  // Automatic mode: the queued jobs first, then picked candidates that are
+  // not queued already, still one per company when the user limits that.
+  function withQueued(queued, picked, guardrails) {
+    const ids = new Set(queued.map((j) => j.id));
+    const companies = new Set(queued.map((j) => j.company_domain));
+    const perCompany = (guardrails || {}).one_per_company_days > 0;
+    return [...queued, ...picked.filter((j) => !ids.has(j.id) && !(perCompany && companies.has(j.company_domain)))];
+  }
+
   // How many more applications this run may send.
   function budget(usage, history, guardrails, now, perRun) {
     let left = Math.min(usage.remaining, perRun);
@@ -227,7 +236,7 @@
 
   const api = {
     normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo,
-    appliedToday, isBlocked, screenJob, pickJobs, budget, countryOf,
+    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.oojMatch = api;

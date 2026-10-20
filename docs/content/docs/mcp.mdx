@@ -136,7 +136,7 @@ If your client only supports locally running MCP servers, you can connect throug
 
 ## Available tools
 
-The server exposes three read-only tools that need no account, and three tools for your [saved jobs](#saved-jobs) that need a personal access token.
+The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs) and three for your [auto apply queue](#auto-apply-queue) need a personal access token.
 
 ### `search_jobs`
 
@@ -190,13 +190,25 @@ Three more tools work on your own Ocean of Jobs account, so an assistant can kee
 
 These tools need a personal access token. Without one they answer with an error that says how to get one; the other tools keep working without it.
 
+## Auto apply queue
+
+Three tools hand jobs to the Ocean of Jobs Chrome extension, which applies to them with your profile and CV: "queue the top three for auto apply". The extension picks up queued jobs on its next check, every 15 minutes, so it has to be installed and connected.
+
+| Tool | What it does |
+|---|---|
+| `queue_for_auto_apply` | Queues a job by its ID. Queueing the same job twice does nothing. |
+| `list_auto_apply_queue` | Lists the jobs waiting in your queue, oldest first. A job leaves the queue once the extension has tried it. |
+| `remove_from_auto_apply_queue` | Takes a job out of the queue before the extension gets to it. |
+
+Queueing only works after you turn on **Jobs queued by my AI assistant through MCP** in your [auto apply settings](https://oceanofjobs.com/account#aa-settings). Until then `queue_for_auto_apply` answers with an error that says so. These tools need the same personal access token as the saved-jobs tools.
+
 ### Create a token
 
 1. Sign in at [oceanofjobs.com/account](https://oceanofjobs.com/account) and open **Settings**.
 2. Under **Personal access tokens**, choose **New token**, give it a name and an expiry, and select **Create**.
 3. Copy the token. It starts with `ooj_` and is shown only once.
 
-A token can only read and change your saved jobs. It can't see your profile, alerts or email address, and it can't create other tokens. You can have up to five, and revoking one on the same page stops it working straight away.
+A token can only read and change your saved jobs and your auto apply queue. It can't see your profile, alerts or email address, and it can't create other tokens. You can have up to five, and revoking one on the same page stops it working straight away.
 
 ### Add the token to your client
 
@@ -220,7 +232,7 @@ In a client with a JSON configuration, such as Cursor or VS Code:
 }
 ```
 
-If your client has no way to set a header, the saved-jobs tools aren't available in it. At the time of writing that includes the Claude and ChatGPT connector settings, which only offer OAuth sign-in.
+If your client has no way to set a header, the saved-jobs and queue tools aren't available in it. At the time of writing that includes the Claude and ChatGPT connector settings, which only offer OAuth sign-in.
 
 Treat a token like a password. Don't paste it into a chat or commit it to a repository.
 

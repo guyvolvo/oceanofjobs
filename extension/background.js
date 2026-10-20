@@ -273,30 +273,35 @@ async function run() {
 
     const ctx = { profile, preferences, settings, cv: st.cv, ai: st.ai, serverAi: ['basic', 'pro'].includes(usage.plan) };
     const queueMode = settings.mode === 'queue';
-    const screen = { history, guardrails, now, retrySkipped: queueMode, minMatch: queueMode ? null : guardrails.min_match };
-    let jobs = [];
-    if (queueMode) {
-      const { queue = [] } = await api('/me/apply/queue');
-      for (const item of queue) {
-        if (jobs.length >= left) break;
-        const job = await fetchJob(item.job_id);
-        const why = !job ? 'job not found' : job.closed_at ? 'job closed' : oojMatch.screenJob(job, screen);
-        if (why) {
-          await report(item.job_id, 'skipped', why);
-          await api(`/me/apply/queue/${encodeURIComponent(item.job_id)}`, { method: 'DELETE' }).catch(() => {});
-          continue;
-        }
-        jobs.push(job);
+    // Queued jobs come first in both modes. The user or their AI assistant
+    // chose each one, so the minimum match does not apply and a skip may retry.
+    const screen = { history, guardrails, now, retrySkipped: true, minMatch: null };
+    const queued = [];
+    const { queue = [] } = await api('/me/apply/queue');
+    for (const item of queue) {
+      if (queued.length >= left) break;
+      const job = await fetchJob(item.job_id);
+      const why = !job ? 'job not found' : job.closed_at ? 'job closed' : oojMatch.screenJob(job, screen);
+      if (why) {
+        await report(item.job_id, 'skipped', why);
+        await api(`/me/apply/queue/${encodeURIComponent(item.job_id)}`, { method: 'DELETE' }).catch(() => {});
+        continue;
       }
-    } else {
-      jobs = oojMatch.pickJobs(await autoCandidates(preferences), screen);
+      queued.push(job);
+    }
+    const queuedIds = new Set(queued.map((j) => j.id));
+    let jobs = queued;
+    if (!queueMode) {
+      const picked = oojMatch.pickJobs(await autoCandidates(preferences),
+        { history, guardrails, now, retrySkipped: false, minMatch: guardrails.min_match });
+      jobs = oojMatch.withQueued(queued, picked, guardrails);
     }
 
     for (const job of jobs) {
       if (left <= 0) break;
       const outcome = await applyTo(job, ctx);
       if (outcome === 'limit') break;
-      if (queueMode) await api(`/me/apply/queue/${encodeURIComponent(job.id)}`, { method: 'DELETE' }).catch(() => {});
+      if (queuedIds.has(job.id)) await api(`/me/apply/queue/${encodeURIComponent(job.id)}`, { method: 'DELETE' }).catch(() => {});
       if (outcome === 'captcha') break;
       if (outcome === 'submitted') {
         left--;
