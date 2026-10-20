@@ -1,6 +1,6 @@
 # Ocean of Jobs Chrome extension
 
-Applies to jobs for you, in your own browser. It reads your apply profile from your Ocean of Jobs account, opens a Greenhouse job in a background tab, fills in the form, attaches your CV and sends it. Version 1 handles Greenhouse only (`boards.greenhouse.io`, `job-boards.greenhouse.io`, and the `embed/job_app` links the API hands out).
+Applies to jobs for you, in your own browser. It reads your apply profile from your Ocean of Jobs account, opens a Greenhouse or Workable job in a background tab, fills in the form, attaches your CV and sends it. It handles Greenhouse (`boards.greenhouse.io`, `job-boards.greenhouse.io`, and the `embed/job_app` links the API hands out) and Workable (`apply.workable.com/j/<shortcode>`, opened at its `/apply/` form page).
 
 Plain JavaScript, Manifest V3, no build step and no dependencies.
 
@@ -20,15 +20,15 @@ Plain JavaScript, Manifest V3, no build step and no dependencies.
 An alarm fires every 15 minutes unless you paused it in the popup. A run reads `/me/apply/profile`, `/me/apply/usage` and `/me/apply/history`, then works out how many it may send: at most 3 per run, never more than the plan has left, and never past your own daily limit.
 
 - Queue mode takes jobs from `/me/apply/queue`. Jobs that are closed, gone, on another ATS or ruled out by your guardrails are reported as skipped and removed from the queue.
-- Auto mode asks the public `/jobs` for Greenhouse jobs from the last 14 days that match your search preferences (`skills`, `seniority`, `workplace`, `country`, `city`), newest first, then drops blocked companies, companies you applied to within `one_per_company_days`, jobs already in your history and jobs below `min_match`.
+- Auto mode asks the public `/jobs` for Greenhouse and Workable jobs from the last 14 days that match your search preferences (`skills`, `seniority`, `workplace`, `country`, `city`), newest first, then drops blocked companies, companies you applied to within `one_per_company_days`, jobs already in your history and jobs below `min_match`.
 
 For each job, one at a time:
 
-1. Open the job in a background tab and read the form. Greenhouse ships the questions, with every select's options, as JSON in `window.__remixContext`. That is read from the page's own world, since a content script can't see page globals.
+1. Open the job in a background tab and read the form. Greenhouse ships the questions, with every select's options, as JSON in `window.__remixContext`. That is read from the page's own world, since a content script can't see page globals. Workable's form page renders from a JSON spec it fetches (`/api/v1/jobs/<shortcode>/form`); the filler waits for the form to render and fetches the same spec.
 2. Plan the answers (`lib/match.js`). Known fields come from the profile. Other questions are matched against your saved answers by normalised text. EEO questions are only answered when you set a value, and "decline" picks the "I don't wish to answer" option.
 3. A required question with no answer, when your settings say to use AI, is drafted by `/me/apply/draft` on Basic and Pro, or with your own Anthropic or OpenAI key on Free (or once the plan's AI answers run out). If nothing answers it, the job is reported `skipped` with `needs answer: <question>` and the question shows up in the popup.
 4. Claim the job with `/me/apply/claim`. A 402 ends the run and a 409 moves on. Nothing is sent without a claim.
-5. Fill, attach the CV, press submit, then wait up to 45 seconds for Greenhouse's confirmation page (`.../confirmation`). The result goes to `/me/apply/result`: `submitted`, or `failed` with a short reason (form errors, CAPTCHA, an emailed security code, no confirmation). A CAPTCHA ends the run.
+5. Fill, attach the CV, press submit, then wait up to 45 seconds for the confirmation (Greenhouse's `.../confirmation` page, Workable's thank-you panel). The result goes to `/me/apply/result`: `submitted`, or `failed` with a short reason (form errors, CAPTCHA, an emailed security code, Workable's "Something went wrong", no confirmation). A CAPTCHA ends the run.
 
 The tab is closed afterwards. The badge shows how many applications went out today.
 
@@ -36,10 +36,10 @@ The tab is closed afterwards. The badge shows how many applications went out tod
 
 - `manifest.json`, `background.js` (alarm, API calls, run loop)
 - `connect.js` (token handoff on oceanofjobs.com)
-- `ats/greenhouse.js` (the Greenhouse filler). Another ATS goes in its own file with the same functions: `matches`, `onSite`, `pageData`, `read`, `fill`, `submit`, `outcome`.
+- `ats/greenhouse.js`, `ats/workable.js` (the fillers). Another ATS goes in its own file with the same functions: `matches`, `onSite`, `pageData`, `read`, `fill`, `submit`, `outcome`, plus `formUrl` when the form lives at another address than the job link.
 - `lib/match.js` (pure functions: normalising labels, classifying fields, saved answer lookup, option picking, guardrails)
 - `popup.*`, `options.*`, `ui.css`
-- `test/` (node:test, with Greenhouse pages saved under `test/fixtures/`)
+- `test/` (node:test, with Greenhouse pages and Workable form specs saved under `test/fixtures/`)
 
 ## Privacy
 
@@ -55,10 +55,11 @@ There is no DOM library in this repo, so the tests cover the pure parts and run 
 
 ## Not supported yet
 
-- Lever, Ashby and every other ATS. Their jobs are reported as `skipped` with "unsupported site".
+- Lever, Ashby and every other ATS but Greenhouse and Workable. Their jobs are reported as `skipped` with "unsupported site".
 - Greenhouse jobs whose link points at the company's own careers site rather than greenhouse.io.
 - Cover letters. A job that requires one is skipped.
-- Education sections, if a board turns them on.
+- Education and experience sections, if a board makes them required. Optional ones are left empty.
+- Files other than the CV (a portfolio, certificates). A job that requires one is skipped.
 - Answering the work authorization question from the job's country: `/api/jobs` doesn't return the job's country yet, so that question falls back to your saved answers.
 
 ## Updating

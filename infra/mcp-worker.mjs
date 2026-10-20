@@ -297,8 +297,8 @@ const TOOLS = [
       "The extension applies to queued jobs on its next check, every 15 minutes, so the user needs " +
       "the extension installed and connected. The user must also turn on \"Jobs queued by my AI " +
       "assistant through MCP\" in their auto apply settings. For now the extension fills Greenhouse " +
-      "forms only (an apply_url on boards.greenhouse.io or job-boards.greenhouse.io); a job on any other " +
-      "site is refused, so pick Greenhouse jobs. This sends a real application, so " +
+      "and Workable forms only (an apply_url on boards.greenhouse.io, job-boards.greenhouse.io or " +
+      "apply.workable.com); a job on any other site is refused, so pick those jobs. This sends a real application, so " +
       "queue a job only when the user asks for it. Needs the user's personal access token. " +
       "Queueing the same job twice is harmless.",
     inputSchema: {

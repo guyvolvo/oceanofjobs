@@ -1,0 +1,263 @@
+{
+ "form": [
+  {
+   "fields": [
+    {
+     "id": "firstname",
+     "label": "First name",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "lastname",
+     "label": "Last name",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "email",
+     "label": "Email",
+     "required": true,
+     "maxLength": 255,
+     "type": "email"
+    },
+    {
+     "id": "phone",
+     "label": "Phone",
+     "required": true,
+     "helper": "The hiring team may use this number to contact you about this job.",
+     "maxLength": 255,
+     "type": "phone"
+    },
+    {
+     "id": "address",
+     "label": "Address",
+     "required": true,
+     "helper": "Include your city, region, and country, so that employers can easily manage your application.",
+     "type": "text",
+     "value": "Ramat Gan, Israel",
+     "prefilledByLocation": true
+    },
+    {
+     "id": "CA_33876",
+     "label": "Date of Birth",
+     "required": true,
+     "type": "date"
+    }
+   ],
+   "name": "Personal information"
+  },
+  {
+   "fields": [
+    {
+     "id": "resume",
+     "label": "Resume",
+     "required": true,
+     "maxFileSize": 12000000,
+     "supportedFileTypes": [
+      ".pdf",
+      ".doc",
+      ".docx",
+      ".odt",
+      ".rtf"
+     ],
+     "supportedMimeTypes": [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.oasis.opendocument.text",
+      "application/rtf"
+     ],
+     "type": "file"
+    }
+   ],
+   "name": "Profile"
+  },
+  {
+   "fields": [
+    {
+     "id": "cover_letter",
+     "label": "Cover letter",
+     "required": false,
+     "maxLength": 200000,
+     "type": "paragraph"
+    },
+    {
+     "id": "QA_12658065",
+     "label": "This is a casual role, are you looking for casual work where the hours may vary?",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658066",
+     "label": "Are you over 18 years old?",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658067",
+     "label": "Are you currently attending Tafe, University or Studying Online?",
+     "required": true,
+     "options": [
+      {
+       "name": "6561308",
+       "value": "No"
+      },
+      {
+       "name": "6561309",
+       "value": "Yes - Tafe"
+      },
+      {
+       "name": "6561310",
+       "value": "Yes - University"
+      },
+      {
+       "name": "6561311",
+       "value": "Yes - Studying Online"
+      }
+     ],
+     "singleOption": true,
+     "type": "dropdown"
+    },
+    {
+     "id": "QA_12658068",
+     "label": "Are you available to work a minimum of 3-4 days per week between 9am and 5pm, including both Wednesdays and Thursdays? (School hours ok)",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658069",
+     "label": "Please list the days you are available to work",
+     "required": true,
+     "options": [
+      {
+       "name": "6561312",
+       "value": "Monday"
+      },
+      {
+       "name": "6561313",
+       "value": "Tuesday"
+      },
+      {
+       "name": "6561314",
+       "value": "Wednesday"
+      },
+      {
+       "name": "6561315",
+       "value": "Thursday"
+      },
+      {
+       "name": "6561316",
+       "value": "Friday"
+      }
+     ],
+     "singleOption": false,
+     "type": "multiple"
+    },
+    {
+     "id": "QA_12658070",
+     "label": "This role can only be completed during business hours. Please list your available start and end times for each day that you have selected. If your hours vary, specify them by day (e.g. Mon–Wed: 8am–5pm, Thu: 8am–1pm)",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "QA_12658071",
+     "label": "Are you an Australian Citizen or Permanent Resident or VISA Holder",
+     "required": true,
+     "options": [
+      {
+       "name": "6561317",
+       "value": "Australian Citizen"
+      },
+      {
+       "name": "6561318",
+       "value": "Permanent Resident"
+      },
+      {
+       "name": "6561319",
+       "value": "VISA - 500"
+      },
+      {
+       "name": "6561320",
+       "value": "VISA - 485"
+      },
+      {
+       "name": "6561321",
+       "value": "VISA - Other"
+      }
+     ],
+     "singleOption": true,
+     "type": "dropdown"
+    },
+    {
+     "id": "QA_12658072",
+     "label": "If you selected Visa Other, are you on a Working Holiday Visa?",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658073",
+     "label": "What Suburb do you live in?",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "QA_12658074",
+     "label": "Do you own a reliable car?",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658075",
+     "label": "Do you have a valid Car Driver's License? (Learners Permit NOT Accepted)",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658076",
+     "label": "For our field based roles you will be required to use your own smart phone and mobile data, do you accept?",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658077",
+     "label": "This role involves physically demanding and repetitive tasks, such as bending, kneeling, lifting, walking, and standing for long periods of time. Can you confirm you are physically capable of performing the requirements of this role, including lifting up to 15kg?",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658078",
+     "label": "Do you have any injuries or conditions, current or previous that could affect your ability to perform these tasks? If yes, please provide details.",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    },
+    {
+     "id": "QA_12658079",
+     "label": "For this role you will receive point of sale material to your residential address. Deliveries are made by courier. Do couriers have access to your property, and somewhere safe to leave deliveries if you are not home?",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658080",
+     "label": "Are you registered with a Workforce Australia Provider or Disability Employment Service (DES?)",
+     "required": true,
+     "type": "boolean"
+    },
+    {
+     "id": "QA_12658081",
+     "label": "Have you ever worked for CROSSMARK or do you know anyone that currently works for CROSSMARK? If so, please give details below",
+     "required": true,
+     "maxLength": 127,
+     "type": "text"
+    }
+   ],
+   "name": "Details"
+  }
+ ],
+ "labels": {}
+}

@@ -1,9 +1,12 @@
-importScripts('lib/match.js', 'ats/greenhouse.js');
+importScripts('lib/match.js', 'ats/greenhouse.js', 'ats/workable.js');
 
 const API = 'https://oceanofjobs.com/api';
 const PER_RUN = 3;
 const RUN_MINUTES = 15;
-const ATS_FILES = { greenhouse: ['lib/match.js', 'ats/greenhouse.js'] };
+const ATS_FILES = {
+  greenhouse: ['lib/match.js', 'ats/greenhouse.js'],
+  workable: ['lib/match.js', 'ats/workable.js'],
+};
 
 class HttpError extends Error {
   constructor(status, body) {
@@ -166,7 +169,7 @@ async function applyTo(job, ctx) {
     await report(job.id, 'skipped', 'unsupported site');
     return 'skipped';
   }
-  const tab = await chrome.tabs.create({ url: job.url, active: false });
+  const tab = await chrome.tabs.create({ url: ats.formUrl ? ats.formUrl(job.url) : job.url, active: false });
   try {
     if (!(await waitForLoad(tab.id))) {
       await report(job.id, 'skipped', 'page did not load');
@@ -241,14 +244,14 @@ async function fetchJob(id) {
 }
 
 async function autoCandidates(preferences) {
-  const p = new URLSearchParams({ ats: 'greenhouse', limit: '25', max_age_days: '14', count: 'skip' });
+  const p = new URLSearchParams({ ats: Object.keys(ATS_FILES).join(','), limit: '25', max_age_days: '14', count: 'skip' });
   if (preferences.skills && preferences.skills.length) p.set('skills', preferences.skills.join(','));
   if (preferences.seniority) p.set('seniority', preferences.seniority);
   if (preferences.workplace && preferences.workplace.length) p.set('workplace', preferences.workplace.join(','));
   if (preferences.country && preferences.country.length) p.set('country', preferences.country.join(','));
   if (preferences.city && preferences.city.length) p.set('city', preferences.city.join(','));
   const { jobs = [] } = await api('/jobs?' + p, { auth: false });
-  return jobs.filter((j) => j.ats === 'greenhouse');
+  return jobs.filter((j) => ATS_FILES[j.ats]);
 }
 
 let running = false;

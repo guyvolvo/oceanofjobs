@@ -30,6 +30,8 @@
     veteran_status: 'veteran', disability_status: 'disability',
     // The phone field's country picker.
     country: 'phone_country',
+    // Workable's.
+    firstname: 'first_name', lastname: 'last_name', address: 'location',
   };
 
   // Order matters: "require sponsorship to work" must not read as authorization.
@@ -155,9 +157,15 @@
       const key = classify(f);
       if (key === 'resume') { fills.push({ ...f, key, value: 'cv' }); continue; }
       if (key === 'cover_letter') { if (f.required) missing.push({ ...f, key }); continue; }
+      // Any other file, or a Workable section (education, experience), is
+      // nothing a saved answer can fill in.
+      if (f.type === 'file' || f.type === 'group') { if (f.required) missing.push({ ...f, key }); continue; }
+      const fits = (v) => v !== undefined && !(f.options && f.options.length && pickOption(f.options, v) < 0);
+      // A saved answer still counts when the profile's own value is not one
+      // of the options: "30 days" against a notice period list.
       let value = key ? profileValue(key, profile, job) : undefined;
-      if (value === undefined) value = findAnswer(f.label, profile.answers);
-      if (value !== undefined && f.options && f.options.length && pickOption(f.options, value) < 0) value = undefined;
+      if (!fits(value)) value = findAnswer(f.label, profile.answers);
+      if (!fits(value)) value = undefined;
       if (value === undefined) { if (f.required) missing.push({ ...f, key }); continue; }
       fills.push({ ...f, key, value });
     }
