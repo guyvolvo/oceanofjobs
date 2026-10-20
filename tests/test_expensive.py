@@ -178,6 +178,15 @@ deep = json.loads(call("/api/jobs", "country=IL&offset=20000")["body"])
 check("an offset past the cap is an empty page, not a repeat of the last one", deep["jobs"] == [], repr(deep)[:160])
 check("the frontend retries 429", "429" in (ROOT / "frontend" / "app.js").read_text(encoding="utf-8", errors="replace"))
 
+# A parameter the directory does not read must not move it off the
+# daily table onto the live count.
+_daily, _live = handler.company_directory_daily, handler.company_directory
+handler.company_directory_daily = lambda conn, limit=500, name="": {"companies": [], "from": "daily"}
+handler.company_directory = lambda conn, params, limit=500, domains=None: {"companies": [], "from": "live"}
+r = call("/api/companies/directory", "confidence=all&v=3")
+check("an unknown directory parameter still reads the daily table", json.loads(r["body"]).get("from") == "daily", r["body"])
+handler.company_directory_daily, handler.company_directory = _daily, _live
+
 print()
 if failures:
     print("%d failed:" % len(failures))

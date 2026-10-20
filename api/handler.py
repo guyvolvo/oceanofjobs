@@ -450,9 +450,13 @@ def lambda_handler(event, context):
             # The /companies page's list: cached at the edge like the
             # facets, since every visitor's first question is the same.
             # The page's first request, everywhere, reads the daily
-            # per-company counts (company_directory_daily); a country or
-            # any other filter is counted live.
-            if "name" in params and set(params) <= {"confidence", "name", "country"} and params.get("confidence") == "all":
+            # per-company counts (company_directory_daily); a country is
+            # counted live.
+            # Only what the page sends. Anything else used to drop the
+            # request off the daily path onto the live count of 1.2M rows:
+            # a junk parameter was a 25 s 503 for anyone (2026-10-20).
+            params = {k: v for k, v in params.items() if k in ("confidence", "country", "name")}
+            if "name" in params and params.get("confidence") == "all":
                 # The page's search past its top 500. Names are matched in
                 # the daily table (20,000 rows); in a country, only those
                 # matches are then counted live. Two characters at least,
