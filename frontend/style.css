@@ -4562,10 +4562,10 @@ a.hero-account-btn { text-decoration: none; }
 }
 
 .home-face { display: block; width: 100%; height: auto; }
-/* The face sits on a dither panel, treated like the hero's and the job
-   cards': 0.9 opacity, and brightness(0.68) brings this lighter picture
-   down to the hero's average (122 -> 83 of 255). The panel stays dark in
-   both themes, so the sketch is always the light ink. A 135 x 240 PNG at
+/* The face sits on a dither panel, kept quieter than the hero's so the
+   sketch is what reads: half opacity over a near-black base (so the page
+   never shows through), brightness(0.55). The panel stays dark in both
+   themes, so the sketch is always the light ink. A 135 x 240 PNG at
    exactly 5x. */
 .home-face-panel {
   position: relative;
@@ -4573,7 +4573,8 @@ a.hero-account-btn { text-decoration: none; }
   overflow: hidden;
   padding: 40px 36px;
   border-radius: 16px;
-  color: rgba(242, 240, 239, 0.9);
+  background: #0e0e10;
+  color: #f2f0ef;
 }
 .home-face-panel::before {
   content: "";
@@ -4582,8 +4583,8 @@ a.hero-account-btn { text-decoration: none; }
   z-index: -1;
   background: url(/img/dither-face.png) center / 675px 1200px;
   image-rendering: pixelated;
-  filter: brightness(0.68);
-  opacity: 0.9;
+  filter: brightness(0.55);
+  opacity: 0.5;
 }
 
 /* The ticker between the first screen and the privacy section. */
