@@ -86,6 +86,16 @@ def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None
     return {"freshness_minutes": fresh, "pending_fragments": pending}
 
 
+def heartbeat(cw=None) -> None:
+    """One PublishRuns datapoint: a publish pass finished. infra/alarms.tf
+    pages when none arrive for two hours, which is how a stopped or hung
+    publisher shows up (2026-10-16: stopped four days, nothing noticed)."""
+    import boto3
+
+    cw = cw or boto3.client("cloudwatch")
+    cw.put_metric_data(Namespace=NAMESPACE, MetricData=[{"MetricName": "PublishRuns", "Value": 1, "Unit": "Count"}])
+
+
 if __name__ == "__main__":
     import os
 

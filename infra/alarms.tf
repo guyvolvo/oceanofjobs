@@ -63,6 +63,28 @@ resource "aws_cloudwatch_metric_alarm" "source_stale" {
   ok_actions          = local.alarm_actions
 }
 
+# The publisher has not finished a pass in two hours. It runs every
+# fifteen minutes and sends PublishRuns at the end of each pass
+# (box/metrics.py heartbeat), so silence is a stopped timer, a hung run,
+# or a crash. Missing data is the alarm: on 2026-10-16 the timer was
+# stopped and the sitemap, bootstrap and stats froze for four days while
+# every other alarm stayed green.
+resource "aws_cloudwatch_metric_alarm" "publish_stopped" {
+  alarm_name          = "${var.project_name}-publish-stopped"
+  alarm_description   = "The box's publisher (otj-publish) has not finished a pass in two hours: the sitemap, the board's first page and the stats are going stale. box/watchdog.sh should restart a stopped timer; check journalctl -u otj-publish."
+  namespace           = "OceanOfJobs"
+  metric_name         = "PublishRuns"
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 2
+  datapoints_to_alarm = 2
+  threshold           = 1
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
 # The fast scraper failing outright, three times in a quarter hour. One
 # failure is a blip and the sweep after it carries on where it left off
 # (it saves as it goes since 2026-09-30); three in a row is the memory or

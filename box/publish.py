@@ -159,6 +159,10 @@ def _publish() -> int:
 
     print(f"published: {', '.join(done) if done else 'nothing was due'} "
           f"(total {time.monotonic() - started:.0f}s)")
+    try:
+        metrics.heartbeat()
+    except Exception as e:  # noqa: BLE001
+        print(f"heartbeat failed: {e!r}", file=sys.stderr)
     return 0
 
 

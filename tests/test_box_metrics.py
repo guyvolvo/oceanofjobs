@@ -65,6 +65,12 @@ with tempfile.TemporaryDirectory() as td:
     check("no bucket means no fragment count",
           metrics.publish(db, "", cw=FakeCW(), s3=FakeS3(), now=NOW)["pending_fragments"] is None)
 
+    beat = FakeCW()
+    metrics.heartbeat(cw=beat)
+    check("a finished publish pass sends one PublishRuns count, the metric the publish-stopped alarm reads",
+          beat.calls == [{"Namespace": "OceanOfJobs", "MetricData": [{"MetricName": "PublishRuns", "Value": 1, "Unit": "Count"}]}],
+          repr(beat.calls))
+
 print()
 if failed:
     print(f"{len(failed)} failed:")
