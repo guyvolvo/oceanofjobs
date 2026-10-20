@@ -110,3 +110,23 @@ test('a page without the Remix data is not a form', () => {
   assert.equal(gh.fromRemix('window.__remixContext = {"state":{"loaderData":{}}};'), null);
   assert.equal(gh.fromRemix('garbage'), null);
 });
+
+test('pageData waits for React to hydrate the form and for the CV upload fields', async (t) => {
+  const form = { querySelector: () => ({}) };
+  const entries = [];
+  t.mock.method(performance, 'getEntriesByType', () => entries);
+  globalThis.window = { __remixContext: { state: 1 } };
+  globalThis.document = { getElementById: () => form };
+  setTimeout(() => { form.__reactProps$x = {}; }, 200);
+  setTimeout(() => entries.push({ name: 'https://boards.greenhouse.io/uncacheable_attributes/presigned_fields' }), 400);
+  const t0 = Date.now();
+  try {
+    assert.equal(await gh.pageData(), '{"state":1}');
+    assert.ok(Date.now() - t0 >= 400);
+    window.__remixContext = undefined;
+    assert.equal(await gh.pageData(), null);
+  } finally {
+    delete globalThis.window;
+    delete globalThis.document;
+  }
+});

@@ -36,8 +36,23 @@
   // its menu is open. So the JSON is the source and the DOM is only typed
   // into. The inline script is gone once React hydrates, and a content
   // script cannot see page globals, hence pageData() in the main world.
-  function pageData() {
-    return window.__remixContext ? JSON.stringify(window.__remixContext) : null;
+  // It also waits until the form can be filled, since the background run
+  // starts right at the load event: React has not hydrated yet (a select
+  // clicked then never opens), and the CV uploader has no S3 fields until
+  // the page fetches them after hydrating (a file attached before fails
+  // with "reading 'uploadFile'"). Self-contained because executeScript
+  // serialises it.
+  async function pageData() {
+    if (!window.__remixContext) return null;
+    const ready = () => {
+      const f = document.getElementById('application-form') || document.querySelector('form');
+      if (!f || !Object.keys(f).some((k) => k.startsWith('__react'))) return false;
+      return !f.querySelector('input[type="file"]')
+        || performance.getEntriesByType('resource').some((e) => e.name.includes('/presigned_fields'));
+    };
+    // Bounded by the clock, not a count: a background tab's timers fire at most once a second.
+    for (const until = Date.now() + 10000; !ready() && Date.now() < until;) await new Promise((r) => setTimeout(r, 100));
+    return JSON.stringify(window.__remixContext);
   }
 
   function fromRemix(scriptText) {
@@ -230,16 +245,18 @@
 
   function outcome() {
     const errored = [...document.querySelectorAll('[aria-invalid="true"]')];
+    // Errors no field is marked for: a rejected submit or a failed CV upload.
+    const messages = [...document.querySelectorAll('.helper-text--error')].map((el) => el.textContent.trim()).filter(Boolean);
     return decide({
       path: location.pathname,
       confirmation: !!document.querySelector('.confirmation, .application-confirmation'),
       captcha: [...document.querySelectorAll('iframe')].some((f) => /recaptcha\/(api2|enterprise)\/bframe|hcaptcha|challenges\.cloudflare/.test(f.src) && visible(f)),
       securityCode: !!document.querySelector('input[id*="security" i], input[name*="security" i]'),
-      errors: errored.map((el) => labelText(el) || el.id),
+      errors: [...messages, ...errored.map((el) => labelText(el) || el.id)],
     });
   }
 
   root.oojAts = root.oojAts || {};
   root.oojAts.greenhouse = { matches, onSite, pageData, read, fill, submit, outcome };
-  if (typeof module === 'object' && module.exports) module.exports = { matches, onSite, fromRemix, decide };
+  if (typeof module === 'object' && module.exports) module.exports = { matches, onSite, pageData, fromRemix, decide };
 })(globalThis);
