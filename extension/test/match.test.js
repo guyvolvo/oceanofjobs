@@ -203,3 +203,27 @@ test('Hebrew contact labels (Experis) map to profile fields', () => {
   assert.equal(m.classify({ label: 'העלאת קורות חיים', type: 'file' }), 'resume');
   assert.equal(m.classify({ label: 'קו"ח', type: 'file' }), 'resume');
 });
+
+test('suggestable: optional Yes/No radio questions get an AI suggestion, consent boxes never do', () => {
+  const yesNo = ['Yes', 'No'];
+  const fields = [
+    { name: 'a', label: 'Email', type: 'email', required: true, options: [] },
+    { name: 'b', label: 'This position requires working from the Netanya office. Can you meet this requirement?', type: 'radio', required: false, options: yesNo, checked: false },
+    { name: 'c', label: 'Do you have hands-on experience deploying production environments on Azure?', type: 'radio', required: true, options: yesNo, checked: false },
+    { name: 'd', label: 'Upload with', type: 'radio', required: false, options: ['CV', 'LinkedIn'], checked: true },
+    { name: 'e', label: 'Do you agree to the privacy policy?', type: 'radio', required: false, options: yesNo, checked: false },
+    { name: 'f', label: 'I agree to the privacy policy', type: 'checkbox', required: true, options: [] },
+    { name: 'g', label: 'Consent', type: 'checkbox', required: true, options: ['I accept the terms', 'Send me news'] },
+    { name: 'h', label: 'Which clouds have you used?', type: 'checkbox', required: true, options: ['AWS', 'Azure'] },
+    { name: 'i', label: 'Gender', type: 'radio', required: false, options: ['Male', 'Female'], checked: false },
+    { name: 'j', label: 'Website', type: 'text', required: false, options: [] },
+    { name: 'k', label: 'Cover letter', type: 'file', required: true, options: [] },
+    { name: 'l', label: 'אני מאשר/ת קבלת הצעות עבודה', type: 'checkbox', required: true, options: ['כן', 'לא'] },
+    { name: 'm', label: 'Send with', type: 'radio', required: false, options: ['LinkedIn profile'], checked: false },
+    { name: 'n', label: 'If you picked Trauma above, how many hours of experience do you have?', type: 'radio', required: false, options: ['More than 20 hours', 'Under 5 hours'], checked: false },
+    { name: 'o', label: 'Do you identify as LGBTQIA+?', type: 'radio', required: false, options: ['Yes', 'No', 'Prefer not to answer'], checked: false },
+    { name: 'p', label: 'האם תוכל/י לעבוד ממשרדי החברה בנתניה?', type: 'radio', required: false, options: ['כן', 'לא'], checked: false },
+  ];
+  const plan = m.planFill(fields, { ...profile, eeo: {} }, {});
+  assert.deepEqual(m.suggestable(fields, plan).map((f) => f.name).sort(), ['b', 'c', 'h', 'p']);
+});

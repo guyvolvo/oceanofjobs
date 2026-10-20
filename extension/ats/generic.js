@@ -224,12 +224,13 @@
         return { name, label: tidy(raw), type, options: [], required: required || STAR.test(raw) };
       }
       const raw = groupLabel(x, box, container);
-      return { name, label: tidy(raw), type, options: x.map((m) => tidy(ownLabel(m) || m.value)), required: required || STAR.test(raw) };
+      return { name, label: tidy(raw), type, options: x.map((m) => tidy(ownLabel(m) || m.value)), required: required || STAR.test(raw), checked: x.some((m) => m.checked) };
     }).filter((f) => f.label);
   }
 
-  // "Apply", "Apply for this job", "Auf diese Stelle bewerben", "I'm interested".
-  const APPLY = /(?<!\p{L})(apply|bewerben|postuler|postular|postularme|inscribirme|aplicar|candidatar|candidatura|candidati|solliciteer|solliciteren|søk|sök|ansök|hae|aplikuj|jelentkezem|i['’]?m interested)(?!\p{L})/iu;
+  // "Apply", "Apply for this job", "Auf diese Stelle bewerben", "I'm interested",
+  // "שליחת קו"ח" (Experis). Not "שלח": Hebrew forms send with that.
+  const APPLY = /(?<!\p{L})(apply|bewerben|postuler|postular|postularme|inscribirme|aplicar|candidatar|candidatura|candidati|solliciteer|solliciteren|søk|sök|ansök|hae|aplikuj|jelentkezem|i['’]?m interested|(ל?הגשת|הגש|שליחת) (מועמדות|קו["״”']?ח|קורות חיים))(?!\p{L})/iu;
   const NOT_APPLY = /linkedin|indeed|seek|xing|google|facebook|filter|later|share|save|how to/i;
 
   // "Apply" links and buttons that lead to the form. Never a form's own

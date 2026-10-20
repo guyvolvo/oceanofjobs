@@ -114,6 +114,140 @@ await check("a lone checkbox is ticked only for a yes", async () => {
   assert.equal(await page.isChecked("#consent"), true);
 });
 
+// Comeet's questionnaire as its AngularJS app renders it (Fetcherr,
+// 2026-10-20): the input is zero wide and transparent, its label[for]
+// draws the circle and says "Yes", the question is the fieldset's legend
+// and the radio's name, the value is "[object Object]". A change event is
+// what the app's model listens to. Screening questions are often optional.
+const comeetQuestion = (id, type, title, options, required = "") => `
+  <li class="question"><fieldset class="fieldset">
+    <div class="question-header"><legend class="question-title" id="">${title} </legend></div>
+    <div><ul class="options">${options.map((o, i) => `
+      <li class="clear clearAfter styled-form-component">
+        <input class="checkbox focusHighlight ng-empty" type="${type}" id="${id}_${i}" name="${title}" value="[object Object]" ${required}>
+        <label class="checkboxLabel ellipsis" for="${id}_${i}"><span class="fa-stack checkbox"><i class="fa fa-circle"></i><i class="fa fa-check ng-hide"></i></span><div class="option-title">${o}</div></label>
+      </li>`).join("")}
+    </ul></div>
+  </fieldset></li>`;
+const COMEET = `<style>.styled-form-component input { opacity: 0; width: 0; height: 0; margin: 0; } .ng-hide { display: none; }</style>
+  <form name="applyForm" novalidate>
+    <label for="fn">First name *</label><input id="fn" name="firstName" required>
+    <label for="ln">Last name *</label><input id="ln" name="lastName" required>
+    <label for="em">Email *</label><input id="em" name="email" type="email" required>
+    <label for="cv">Resume *</label><input id="cv" name="cv" type="file" style="display:none">
+    <ul class="questions">
+      ${comeetQuestion("q1", "radio", "This position requires working from the Israel Netanya office- hybrid mode Can you meet this requirement?", ["Yes", "No"])}
+      ${comeetQuestion("q2", "radio", "Do you have direct, hands-on experience architecting and deploying production environments on Azure?", ["Yes", "No"], "required")}
+      ${comeetQuestion("q3", "checkbox", "Which clouds have you run production on?", ["Azure", "AWS", "GCP"], "required")}
+    </ul>
+    <label class="consent"><input type="checkbox" id="consent" name="consent" required> I agree to the processing of my data under the privacy policy</label>
+    <label class="consent"><input type="checkbox" id="news" name="news"> Send me news about future jobs</label>
+    <button type="submit">Submit Application</button>
+  </form>
+  <script>
+    for (const el of document.querySelectorAll(".styled-form-component input")) el.addEventListener("change", () => {
+      for (const m of document.getElementsByName(el.name)) {
+        m.classList.toggle("ng-not-empty", m.checked);
+        m.nextElementSibling.querySelector(".fa-check").classList.toggle("ng-hide", !m.checked);
+      }
+    });
+  </script>`;
+
+// What /me/apply/draft answers in the live tests: yes to a yes/no question, else the first option.
+const draft = (f) => f.options.find((o) => /^yes$/i.test(o)) || f.options[0] || "Test answer";
+
+await check("Comeet radios: read with the legend, options and nothing checked", async () => {
+  await load(COMEET);
+  const { fields } = await page.evaluate(() => globalThis.oojAts.generic.read());
+  const brief = fields.filter((f) => ["radio", "checkbox"].includes(f.type)).map((f) => [f.label, f.type, f.required, f.options.join("|"), !!f.checked]);
+  assert.deepEqual(brief, [
+    ["This position requires working from the Israel Netanya office- hybrid mode Can you meet this requirement?", "radio", false, "Yes|No", false],
+    ["Do you have direct, hands-on experience architecting and deploying production environments on Azure?", "radio", true, "Yes|No", false],
+    ["Which clouds have you run production on?", "checkbox", true, "Azure|AWS|GCP", false],
+    ["I agree to the processing of my data under the privacy policy", "checkbox", true, "", false],
+    ["Send me news about future jobs", "checkbox", false, "", false],
+  ]);
+});
+
+await check("Comeet radios: optional and required yes/no ticked, checkbox group ticked, consent boxes left alone", async () => {
+  await load(COMEET);
+  const { fields } = await page.evaluate(() => globalThis.oojAts.generic.read());
+  const plan = match.planFill(fields, profile, {});
+  // planWithSuggestions in background.js, with the stubbed AI.
+  const asked = match.suggestable(fields, plan);
+  assert.deepEqual(asked.map((f) => f.label.slice(0, 30)), ["Do you have direct, hands-on e", "Which clouds have you run prod", "This position requires working"]);
+  const fills = [...plan.fills, ...asked.map((f) => ({ ...f, value: draft(f) }))];
+  const res = await page.evaluate(([fills, cv]) => globalThis.oojAts.generic.fill(fills, cv), [fills, cv]);
+  assert.deepEqual(res.errors, []);
+  const got = await page.evaluate(() => ({
+    picked: [...document.querySelectorAll(".styled-form-component input:checked")].map((el) => `${el.id}:${el.nextElementSibling.textContent.trim()}`),
+    model: [...document.querySelectorAll(".styled-form-component input.ng-not-empty")].length,
+    ticks: [...document.querySelectorAll(".fa-check:not(.ng-hide)")].length,
+    consent: document.getElementById("consent").checked, news: document.getElementById("news").checked,
+    fn: document.getElementById("fn").value, cv: document.getElementById("cv").files[0]?.name,
+  }));
+  assert.deepEqual(got.picked, ["q1_0:Yes", "q2_0:Yes", "q3_0:Azure"]);
+  assert.equal(got.model, 3);
+  assert.equal(got.ticks, 3);
+  assert.equal(got.consent, false);
+  assert.equal(got.news, false);
+  assert.equal(got.fn, "Test");
+  assert.equal(got.cv, "cv.pdf");
+});
+
+await check("Comeet radios: a question already answered is not suggested again", async () => {
+  await load(COMEET);
+  await page.click('label[for="q1_1"]');
+  const { fields } = await page.evaluate(() => globalThis.oojAts.generic.read());
+  const q1 = fields.find((f) => f.label.startsWith("This position"));
+  assert.equal(q1.checked, true);
+  assert.ok(!match.suggestable(fields, match.planFill(fields, profile, {})).includes(q1));
+});
+
+// An Experis job page (2026-10-20): the orange "שליחת קו"ח" button at the
+// top and bottom opens a modal form whose only labels are placeholders, a
+// CV or LinkedIn switch, a hidden file input and consent boxes, behind an
+// invisible reCAPTCHA.
+const EXPERIS_CONSENT = "*המידע אודותיי כפוף למדיניות הפרטיות. אני מאשר/ת הכללת קו”ח שלי במאגר המועמדים";
+const EXPERIS = `<meta charset="utf-8"><title>איש/אשת תמיכה בכיר/ה - Experis</title><h1>איש/אשת תמיכה בכיר/ה</h1>
+  <button class="bg-orange open-cv">שליחת קו"ח <svg width="10" height="10"></svg></button><p>על התפקיד</p>
+  <button class="bg-orange open-cv">שליחת קו"ח</button>
+  <div id="portal"></div><div class="grecaptcha-badge"></div>
+  <script>
+    for (const b of document.querySelectorAll(".open-cv")) b.addEventListener("click", () => { portal.innerHTML = \`
+      <div role="dialog"><p>הגשת מועמדות למשרה:</p><form id="send-cv-form-CV" novalidate>
+        <div><input id="text" name="firstName" type="text" placeholder="שם פרטי"></div>
+        <div><input id="text" name="lastName" type="text" placeholder="שם משפחה"></div>
+        <div><input id="email" name="email" type="text" placeholder="מייל"></div>
+        <div><input id="text" name="phone" type="text" placeholder="נייד"></div>
+        <div><div class="cv"><label><input type="radio" name="cv" id="send-cv-with-cv" style="appearance:none" checked>העלאת קורות חיים</label></div>
+          <div class="linkedin"><label><input type="radio" name="linkedin" id="send-cv-linkedin" style="appearance:none">פרופיל לינקדאין</label></div></div>
+        <div><label><input type="file" placeholder="העלאת קורות חיים " id="cv" name="file" style="display:none"><p>העלאת קורות חיים </p></label></div>
+        <div><label><input type="checkbox" id="c1" name="c1" style="display:none"><div><p>${EXPERIS_CONSENT}</p></div></label></div>
+        <div><label><input type="checkbox" id="c2" name="c2" style="display:none"><div><p>אני מאשר/ת קבלת הצעות עבודה במסרון ובמייל מהקבוצה</p></div></label></div>
+        <button type="submit">שליחה</button>
+      </form></div>\`; });
+  </script>`;
+
+await check("Experis: the Hebrew apply button opens the modal, placeholders name the fields, consent left alone, no Submit", async () => {
+  await load(EXPERIS);
+  const { fields } = await page.evaluate(() => globalThis.oojAts.generic.read());
+  const plan = match.planFill(fields, profile, {});
+  assert.deepEqual(plan.fills.map((f) => [f.label, f.key]), [
+    ["שם פרטי", "first_name"], ["שם משפחה", "last_name"], ["מייל", "email"], ["נייד", "phone"], ["העלאת קורות חיים", "resume"]]);
+  assert.deepEqual(match.suggestable(fields, plan), []);
+  const res = await page.evaluate(([fills, cv]) => globalThis.oojAts.generic.fill(fills, cv), [plan.fills, cv]);
+  assert.deepEqual(res.errors, []);
+  const got = await page.evaluate(() => ({
+    values: [...document.querySelectorAll("#send-cv-form-CV input[type=text]")].map((el) => el.value),
+    cv: document.getElementById("cv").files[0]?.name, withCv: document.getElementById("send-cv-with-cv").checked,
+    linkedin: document.getElementById("send-cv-linkedin").checked,
+    consent: [...document.querySelectorAll("#send-cv-form-CV input[type=checkbox]")].map((el) => el.checked),
+  }));
+  assert.deepEqual(got, { values: ["Test", "Person", "t@example.com", "+972 50 000 0000"], cv: "cv.pdf", withCv: true, linkedin: false, consent: [false, false] });
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.submitInfo()), { botCheck: true });
+});
+
 await check("a custom dropdown: options read on open, then picked", async () => {
   await load(`<form><label for="a">Full name</label><input id="a"><label for="b">Email</label><input id="b" type="email">
     <label for="c">Phone</label><input id="c" type="tel">
@@ -241,6 +375,9 @@ await check("posting page with one Apply button (top and bottom): button shown",
 });
 await check("posting page whose Apply link leads to the form: button shown", async () => {
   assert.equal(await detectOn(`<title>Acme - Backend Engineer</title><h1>Backend Engineer</h1><a href="/careers/acme/123/apply">Apply for this job</a><p>About.</p><a href="/careers/acme/123/apply">Apply for this job</a>`, "https://fixture.test/careers/acme/123"), true);
+});
+await check("Experis posting with its Hebrew apply button: button shown", async () => {
+  assert.equal(await detectOn(EXPERIS, "https://fixture.test/job/244421"), true);
 });
 await check("jobs list with an Apply link per job: no button", async () => {
   const rows = [1, 2, 3, 4, 5].map((i) => `<li>Engineer ${i} <a href="/jobs/${i}/apply">Apply</a></li>`).join("");
