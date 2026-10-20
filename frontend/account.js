@@ -770,9 +770,13 @@ function wireAccountNav() {
     paint();
   });
 
+  // A hash can also name a part of a section (#aa-settings, from the
+  // extension's Preferences link): open its section, then scroll to it.
   const asked = location.hash.slice(1);
-  const landing = panels.find((p) => p.id === asked);
+  const part = asked && document.getElementById(asked);
+  const landing = panels.find((p) => p.id === asked) || (part && panels.find((p) => p.el.contains(part)));
   show(landing ? landing.id : panels[0].id, false);
+  if (part && landing && landing.id !== asked) part.scrollIntoView({ block: "start" });
 }
 
 // Alerts are app.js's own renderAlertsList and wireAlertCreateForm,

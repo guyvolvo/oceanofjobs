@@ -1,6 +1,6 @@
 // On a Greenhouse application form the user is looking at: offer to fill
-// it in from their Ocean of Jobs profile. The user checks the form and
-// presses Submit themselves; the credit counts only once they do. Runs
+// it in from their Ocean of Jobs profile. The user checks the form, then
+// submits it from the card or the form; the credit counts only once sent. Runs
 // only when the account has "Jobs I view anywhere on the web" turned on.
 (function () {
   const gh = globalThis.oojAts && globalThis.oojAts.greenhouse;
@@ -60,9 +60,11 @@
       }
       return;
     }
-    msg.textContent = 'Fill in this application from your profile. You check it and press Submit.'
+    msg.textContent = 'Fill in this application from your profile, check it, then submit it from here.'
       + (offer.remaining != null ? ` ${offer.remaining} applications left on your plan.` : '');
+    let submitting = false;
     go.addEventListener('click', async () => {
+      if (submitting) return;
       go.disabled = true;
       go.textContent = 'Filling in…';
       const title = (document.querySelector('h1') || {}).textContent || document.title;
@@ -78,20 +80,40 @@
         return;
       }
       msg.className = 'msg ok';
-      const parts = [`Filled in ${r.filled} fields.`];
-      if (r.suggested) parts.push(`AI suggested ${r.suggested} ${r.suggested === 1 ? 'answer' : 'answers'}, outlined in amber: check ${r.suggested === 1 ? 'it' : 'them'}.`);
-      if (r.statements && r.statements.length) parts.push(`Agreed for you: ${r.statements.map((x) => `"${x.slice(0, 60)}"`).join(', ')}.`);
-      if (r.missing.length) parts.push(`${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.`);
-      parts.push('Then press Submit.');
-      msg.textContent = parts.join(' ');
-      go.hidden = true;
-      // A form that confirms without leaving the page.
+      msg.textContent = `Filled in ${r.filled} fields.`
+        + (r.missing.length ? ` ${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.` : '');
+      // The same button now submits; one listener, so a second click can't fill again.
+      submitting = true;
+      go.disabled = false;
+      go.textContent = 'Submit application';
+    });
+    go.addEventListener('click', () => {
+      if (!submitting || go.disabled) return;
+      go.disabled = true;
+      go.textContent = 'Submitting…';
+      if (!gh.submit()) {
+        msg.className = 'msg warn';
+        msg.textContent = 'Could not find the form\'s submit button. Press it on the form.';
+        go.hidden = true;
+        return;
+      }
+      const started = Date.now();
       const watch = setInterval(() => {
-        if (gh.outcome() !== 'submitted') return;
-        clearInterval(watch);
-        send({ type: 'confirmedHere' });
-        msg.textContent = 'Applied. It is in your application history.';
-      }, 2000);
+        const out = gh.outcome();
+        if (out === 'submitted') {
+          clearInterval(watch);
+          send({ type: 'confirmedHere' });
+          msg.className = 'msg ok';
+          msg.textContent = 'Applied. It is in your application history.';
+          go.hidden = true;
+        } else if ((out && out.failed) || Date.now() - started > 30000) {
+          clearInterval(watch);
+          msg.className = 'msg warn';
+          msg.textContent = out && out.failed ? `Not sent: ${out.failed}. Fix it on the form, then press Submit application.` : 'No confirmation yet. Check the form.';
+          go.disabled = false;
+          go.textContent = 'Submit application';
+        }
+      }, 1000);
     });
   }
 })();

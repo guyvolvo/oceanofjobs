@@ -2853,8 +2853,12 @@ body.explore-busy .explore-metric { color: var(--green-text); }
   flex: 1;
   min-height: 0;
   padding: 12px 28px 28px;
+  /* Everything on the account page reads 10% larger than the board. */
+  zoom: 1.1;
 }
 .account-layout[hidden] { display: none; }
+/* Clear the sticky top bar when a link lands on a part of a section. */
+#aa-settings { scroll-margin-top: 80px; }
 .account-layout > * { min-width: 0; }
 
 .acct-box {

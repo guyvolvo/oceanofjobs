@@ -15,8 +15,9 @@
     #needs-list li { display: flex; gap: 8px; padding: 8px 10px; background: var(--soft); border-radius: 8px; font-size: 13px; }
     #needs-list li::before { content: ""; flex: none; width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--warn); }
     #needs-list li + li { margin-top: 6px; }
-    .actions { margin-top: 14px; display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
-    .links a { font-size: 13px; color: var(--muted); text-decoration: none; padding: 0 6px; }
+    .actions { margin-top: 14px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+    .links a { font-size: 13px; color: var(--muted); text-decoration: none; padding: 0 4px; }
+    .links { flex-wrap: nowrap; gap: 4px; }
     .links a:hover { color: var(--text); }
     .connect p { margin-bottom: 14px; }
   </style>
@@ -40,7 +41,7 @@
     <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these on your account page and the next run uses them.</p>
     <div class="actions">
       <button class="btn" id="pause">Pause</button>
-      <span class="links row"><a href="https://oceanofjobs.com/account#autoapply" target="_blank" rel="noopener">History</a><a href="#" class="open-options">Settings</a></span>
+      <span class="links row"><a href="https://oceanofjobs.com/account#aa-settings" target="_blank" rel="noopener">Preferences</a><a href="https://oceanofjobs.com/account#autoapply" target="_blank" rel="noopener">History</a><a href="#" class="open-options">Settings</a></span>
     </div>
     <p id="state" class="note" style="margin-top:12px"></p>
   </section>
