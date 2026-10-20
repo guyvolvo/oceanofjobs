@@ -273,6 +273,8 @@ function paintQueue(id) {
   document.querySelectorAll(`[data-queue="${id}"]`).forEach((btn) => {
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", String(on));
+    const label = btn.querySelector("span");
+    if (label) label.textContent = on ? "Queued" : "Auto apply";
   });
 }
 
@@ -2557,7 +2559,7 @@ function queueButtonHtml(job, cls, label) {
   if (job.ats !== "greenhouse") return "";
   const on = applyQueue.has(job.id);
   return `<button type="button" class="${cls} job-detail-queue ${on ? "on" : ""}" data-queue="${job.id}" aria-pressed="${on}"
-    title="Queue for auto apply" aria-label="Queue for auto apply">${QUEUE_SVG}${label ? `<span>${label}</span>` : ""}</button>`;
+    title="Queue for auto apply" aria-label="Queue for auto apply">${QUEUE_SVG}${label ? `<span>${on ? "Queued" : label}</span>` : ""}</button>`;
 }
 
 const MATCH_TICK_SVG =
