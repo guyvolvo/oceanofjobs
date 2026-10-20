@@ -82,7 +82,15 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
         raise ValueError("expires_in_days must be 30, 90 or null")
     if scope not in SCOPES:
         raise ValueError("scope must be mcp or extension")
-    if len(list_tokens(table, user_id)) >= MAX_PER_USER:
+    existing = list_tokens(table, user_id)
+    if scope == "extension":
+        # One extension per account: connecting again replaces the old token
+        # rather than piling up a new one each time.
+        for t in existing:
+            if t["scope"] == "extension":
+                revoke(table, user_id, t["id"])
+        existing = [t for t in existing if t["scope"] != "extension"]
+    if len(existing) >= MAX_PER_USER:
         raise ValueError(f"at most {MAX_PER_USER} tokens; revoke one first")
     token_id = secrets.token_hex(4)
     token = f"{PREFIX}{_b64(user_id)}.{token_id}.{secrets.token_urlsafe(24)}"

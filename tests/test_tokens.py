@@ -117,6 +117,11 @@ try:
 except ValueError:
     check("a sixth token is refused", True)
 
+for _ in range(3):
+    last = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW, scope="extension")
+mine = tokens.list_tokens(table, "u-reconnect")
+check("connecting the extension again replaces its token instead of adding one",
+      len(mine) == 1 and mine[0]["id"] == last["id"] and tokens.verify(table, last["token"], NOW)["scope"] == "extension", repr(mine))
 tokens.revoke(table, USER, made["id"])
 check("a revoked token stops working at once", tokens.verify(table, tok, NOW) is None)
 try:
