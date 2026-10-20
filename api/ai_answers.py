@@ -92,9 +92,9 @@ def neurons(prompt_tokens: int, completion_tokens: int) -> float:
 
 def facts(profile: dict, prefs: dict) -> dict:
     """What the model may use: the application profile and search
-    preferences, never the demographic answers."""
+    preferences, never the demographic answers or who the applicant is
+    (name, email, phone): no answer needs them."""
     return {
-        "name": f"{profile['contact']['first_name']} {profile['contact']['last_name']}".strip(),
         "location": profile["contact"]["location"],
         "links": {k: v for k, v in profile["links"].items() if v},
         "authorized_to_work_in": profile["work"]["authorized_countries"],
