@@ -4681,7 +4681,7 @@ a.hero-account-btn { text-decoration: none; }
 .price3-col { display: flex; flex-direction: column; min-width: 0; padding: 32px; border: 1px solid var(--h-line); border-radius: 16px; background: var(--h-bg); }
 .price3-hot { background: linear-gradient(var(--h-soft), var(--h-soft)), var(--h-bg); }
 .price3-name { display: flex; align-items: center; gap: 8px; height: 24px; margin: 0; font: 500 15px/1.2 "Geist", var(--font); color: var(--h-text); }
-.price3-badge { padding: 4px 9px; border-radius: 999px; background: var(--h-soft-hover); font-size: 12px; font-weight: 500; }
+.price3-badge { display: inline-block; padding: 4px 9px; border-radius: 999px; background: var(--h-soft-hover); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .price3-amount { margin: 22px 0 0; font: 500 56px/1 "Geist", var(--font); letter-spacing: -0.04em; color: var(--h-text); }
 .price3-amount small { margin-left: 8px; font: 400 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0; color: var(--h-muted); }
 .price3-desc { max-width: 280px; min-height: 4.5em; margin: 16px 0 0; font-size: 16px; line-height: 1.5; color: var(--h-muted); } /* three lines, so the rules line up */
