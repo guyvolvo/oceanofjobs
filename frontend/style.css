@@ -2116,6 +2116,41 @@ footer {
 .legal p { margin: 0 0 12px; }
 .legal-updated { color: var(--grey); font-size: 12.5px; margin-top: -4px; }
 .legal-back { margin-top: 32px; }
+/* The analytics consent banner (consent.js), on every page. */
+.cookie-banner {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  border: 1px solid var(--grey-line);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--black);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font: 400 14px/1.5 var(--font);
+}
+.cookie-banner p { margin: 0; }
+.cookie-banner a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.cookie-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cookie-actions button {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--grey-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--black);
+  font: 500 13px/1 var(--font);
+  cursor: pointer;
+}
+.cookie-actions .cookie-yes { border-color: var(--black); background: var(--black); color: var(--white); }
+.cookie-actions button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.cookie-link { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 /* A link on its own line is a target, not prose. The text is 17px tall;
    the padding takes the tappable box to 33px without moving anything. */
 .legal-back .link { display: inline-block; padding: 8px 0; }
@@ -4622,6 +4657,54 @@ a.hero-account-btn { text-decoration: none; }
 .home .home-feature-links a:hover,
 .home .home-foot-grid nav a:hover { color: var(--h-link-hover); }
 
+/* Pricing, on the homepage and /pricing: three plans in one frame,
+   split by hairlines, the middle plan on a lifted surface. */
+.price3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+/* A dither panel around the plans: 0.9 opacity, and brightness(0.9),
+   under the others' hero-average match (1.46 here) so the
+   bright greens don't pull from the plans. A 384 x 240 PNG at exactly 5x. */
+.price3-panel { position: relative; isolation: isolate; margin-top: 68px; }
+.price3-panel::before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  z-index: -1;
+  border-radius: 16px;
+  background: url(/img/dither-pricing.png) center / 1920px 1200px;
+  image-rendering: pixelated;
+  filter: brightness(0.9);
+  opacity: 0.9;
+  pointer-events: none;
+}
+/* Each plan its own card, solid so its text never sits on the dither,
+   with the dither showing in the 24px between them. */
+.price3-col { display: flex; flex-direction: column; min-width: 0; padding: 32px; border: 1px solid var(--h-line); border-radius: 16px; background: var(--h-bg); }
+.price3-hot { background: linear-gradient(var(--h-soft), var(--h-soft)), var(--h-bg); }
+.price3-name { display: flex; align-items: center; gap: 8px; height: 24px; margin: 0; font: 500 15px/1.2 "Geist", var(--font); color: var(--h-text); }
+.price3-badge { padding: 4px 9px; border-radius: 999px; background: var(--h-soft-hover); font-size: 12px; font-weight: 500; }
+.price3-amount { margin: 22px 0 0; font: 500 56px/1 "Geist", var(--font); letter-spacing: -0.04em; color: var(--h-text); }
+.price3-amount small { margin-left: 8px; font: 400 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0; color: var(--h-muted); }
+.price3-desc { max-width: 280px; min-height: 3em; margin: 16px 0 0; font-size: 16px; line-height: 1.5; color: var(--h-muted); } /* two lines, so the rules line up */
+.price3-rule { height: 1px; margin: 28px 0; border: 0; background: var(--h-line); }
+.price3-plus { margin: 0 0 14px; font-size: 14px; color: var(--h-muted); }
+.price3-list { flex: 1; display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 15px; line-height: 1.4; color: var(--h-text); }
+.price3-list li { display: flex; align-items: flex-start; gap: 10px; }
+.price3-list svg { flex: none; width: 18px; height: 18px; margin-top: 1px; fill: currentColor; }
+.price3-cta { align-self: flex-start; margin-top: 32px; }
+.price3-cta[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
+.price3-terms { min-height: 2.8em; margin: 12px 0 0; font-size: 13px; line-height: 1.4; color: var(--h-dim); } /* two lines on every card, so the buttons line up */
+.price3-deal { font-weight: 600; color: var(--h-text); }
+.price3-note { margin: 40px 0 0; font-size: 13px; color: var(--h-dim); }
+.home .price3-note a { text-decoration: underline; text-underline-offset: 3px; }
+.home .price3-note a:hover { color: var(--h-link-hover); }
+.price-page-top { height: 72px; }
+.price-faq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 48px; margin-top: 36px; }
+@media (max-width: 900px) {
+  .price3, .price-faq { grid-template-columns: minmax(0, 1fr); }
+  .price3-col { padding: 28px 24px; }
+  .price-page-top { height: 32px; }
+}
+
 .home-api { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
 .home-api-p { margin: 12px 0 0; font-size: 16px; line-height: 1.6; color: var(--h-muted); }
 .home-h2 + .home-api-p { margin-top: 18px; }
@@ -4822,7 +4905,7 @@ a.hero-account-btn { text-decoration: none; }
 @media (max-width: 640px) {
   .home { --h-pad: 16px; }
   /* The dither panels stop at the 16px gutter, not 8px past the window. */
-  .home-hot-grid::before, .home-code-panel::before { inset: -24px -16px; }
+  .home-hot-grid::before, .home-code-panel::before, .price3-panel::before { inset: -24px -16px; }
   .home .home-nav { display: none; }
   /* The app pages hide this under 800px for their tab bar. This page has
      no tab bar, so the menu is its only way around on a phone. */
@@ -6478,6 +6561,40 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
 }
 .pref-tz { max-width: 260px; }
 .pref-time:focus-visible, .pref-tz:focus-visible, .pref-day:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+
+/* Personal access tokens: a settings row, then the form, the new token
+   and the list under it, all on the same hairline rhythm. */
+.acct-tokens { display: flex; flex-direction: column; }
+.acct-row-note a { color: var(--green-text); }
+.token-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--grey-line); }
+.token-form[hidden], .token-made[hidden] { display: none; }
+.token-form input, .token-form select {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--grey-line);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--black);
+  font: 400 14px var(--font);
+}
+.token-form input { flex: 1 1 220px; min-width: 0; }
+.token-form input:focus-visible, .token-form select:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.token-made { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--grey-line); }
+.token-made p { margin: 0; }
+.token-copy { display: flex; align-items: center; gap: 10px; }
+.token-copy code {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--hover-bg);
+  color: var(--black);
+  font: 400 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+.token-list { margin: 0; padding: 0; list-style: none; }
+.token-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--grey-line); }
+.token-name { font: 500 14px var(--font); color: var(--black); overflow-wrap: anywhere; }
 
 /* Its own block, bordered in the one colour this system reserves for
    something that cannot be undone. */

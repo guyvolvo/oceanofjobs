@@ -3,21 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="theme-color" content="#f2f0ef" />
-  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
   <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <!-- Google tag (gtag.js). Google's own instruction is "immediately
-       after <head>"; it sits after the charset instead, because a
-       document's encoding has to be declared inside the first 1024
-       bytes and this snippet is long enough to push it out. async, so
-       it never blocks the theme script below or first paint. -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-GXP63R1JP1"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-GXP63R1JP1');
-  </script>
+  <!-- Google Analytics only after consent (consent.js). -->
+  <script src="/consent.js"></script>
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Privacy | Ocean of Jobs</title>
@@ -67,7 +56,7 @@
         <p>Ocean of Jobs is an open-source job board. You can browse, search and filter every listing without an account. This policy explains what data we collect when you use the site anonymously and when you sign in.</p>
 
         <h3>Anonymous Use</h3>
-        <p><strong>Cookies and analytics.</strong> Ocean of Jobs does not set first-party cookies or display advertising. Pages load Google Analytics, which sets its own cookies to measure visits and page views.</p>
+        <p id="cookies"><strong>Cookies and analytics.</strong> Ocean of Jobs does not set first-party cookies or display advertising. If you accept analytics cookies, pages load Google Analytics, which sets its own cookies to measure visits and page views. If you decline, Google Analytics is never loaded and nothing is sent to Google. Your choice is kept in your browser, and you can change it at any time: <button type="button" class="cookie-link" data-cookie-settings>cookie settings</button>.</p>
         <p><strong>Usage metrics.</strong> We record anonymous counts of visits, searches, listing views and apply clicks to track the site's growth. Each event contains only its type and, for searches, the search terms. No cookies, identifiers or IP addresses are attached. Events are aggregated into per-minute totals. Search terms are retained for 90 days, and terms that resemble an email address or phone number are discarded before storage.</p>
         <p><strong>Location.</strong> To show relevant local jobs, we use the country your connection originates from, as reported by our content delivery network. It is used only to render the current page and is not stored.</p>
 
@@ -84,9 +73,19 @@
           <li>Starred jobs</li>
           <li>An overview generated from your profile</li>
         </ul>
-        <p>Your profile does not include your name, phone number, employment history or CV.</p>
+        <p>Your profile does not include your name, phone number, employment history or CV unless you set up automatic applications (see below).</p>
         <p><strong>CV parsing.</strong> If you use a CV to extract skills, it is processed entirely in your browser and never uploaded. Only the skills you choose to keep are saved.</p>
         <p><strong>Email digests.</strong> Digests are sent only to verified email addresses. Each digest includes a link to disable the alert.</p>
+
+        <h3>Personal Access Tokens</h3>
+        <p>If you create a personal access token for the MCP server, we store its name, its last four characters, when it was created and last used, and a one-way hash of it. The token itself is shown to you once and is not stored. Revoking a token deletes its record.</p>
+
+        <h3>Browser Extension and Automatic Applications</h3>
+        <p>If you use automatic applications, your account also stores your application profile: contact details, links, work authorization, salary expectations, the answers you save for application questions, and, only if you choose to fill them in, demographic answers such as gender or veteran status. It is kept so the extension can use it on any computer you sign in on, and you can edit or delete it on your account page.</p>
+        <p>Your CV file and any AI provider key stay in the extension on your device and are never sent to us. When the extension applies to a job, it sends your details and CV only to that employer's application form. If you add an AI provider key, the extension sends application questions and relevant profile details to that provider using your key. We record which jobs you applied to and how many applications you have used, so you can see your history and your plan's monthly limit can be counted.</p>
+
+        <h3>Payments</h3>
+        <p>Paid plans are sold by Paddle.com, our Merchant of Record. Paddle collects and processes your payment details, billing address and tax information under its own privacy policy, and we never see your card details. Paddle tells us your email address, plan, subscription status and the country used for tax, so we can give your account its plan.</p>
 
         <h3>Contact Form</h3>
         <p>Messages submitted through the contact form are delivered to the maintainer by email, along with the name and email address you provide, so we can respond. They are not stored anywhere else.</p>
@@ -100,6 +99,7 @@
           <li>Amazon SES: email delivery</li>
           <li>Amazon CloudWatch: anonymous metrics and search terms</li>
           <li>Google and GitHub: authentication, if you choose to sign in with them</li>
+          <li>Paddle: payments for paid plans</li>
         </ul>
         <p>We do not sell your data or share it with anyone beyond the providers listed above.</p>
 
@@ -107,16 +107,34 @@
         <p>Cloudflare and CloudFront log requests, including IP addresses, for security and operational purposes. Our application server logs the requested URL, timestamp and user agent of each request. Because traffic reaches the server through a tunnel, it never receives your IP address. Server logs are retained for approximately one week.</p>
 
         <h3>Retention and Deletion</h3>
-        <p>Alerts are retained while active and removed immediately when deleted. Delete account removes your alerts and clears your profile. Your sign-in record, starred jobs and generated overview are retained until you request their removal, at which point they are deleted in full. You may also request a copy of all data we hold about you.</p>
+        <p>Alerts are retained while active and removed immediately when deleted. Delete account removes your alerts, revokes your personal access tokens and clears your profile. Your sign-in record, starred jobs and generated overview are retained until you request their removal, at which point they are deleted in full. You may also request a copy of all data we hold about you.</p>
 
         <h3>Job Listings</h3>
         <p>Listings are collected from companies' public career pages and public applicant tracking system APIs. This is publicly available corporate information, not user data.</p>
+
+        <h3>Who Is Responsible</h3>
+        <p>Ocean of Jobs is run by Guy Voloshin, Israel, who is the controller of the personal data described here. Contact: <a class="link" href="mailto:guyvoloshin@oceanofjobs.com">guyvoloshin@oceanofjobs.com</a>.</p>
+
+        <h3>Why We Use Your Data</h3>
+        <p>We use account data, alerts, saved jobs and plan details to provide the service you signed up for. We use anonymous metrics and logs because we have a legitimate interest in keeping the service secure, working and improving. Paddle processes payment data to complete your purchase and meet its legal obligations.</p>
+        <p>Our servers and account storage are in Amazon Web Services' Israel region. Israel is recognised by the European Commission as giving adequate protection to personal data. Some providers listed above, such as Cloudflare, Google and Paddle, may process data in other countries under their own safeguards.</p>
+
+        <h3>Your Rights</h3>
+        <p>Wherever you live, you can ask us to:</p>
+        <ul>
+          <li>give you a copy of the personal data we hold about you, in a portable format;</li>
+          <li>correct data that is wrong;</li>
+          <li>delete your data;</li>
+          <li>stop or limit a particular use of it.</li>
+        </ul>
+        <p>Email the address above. We reply within 30 days, and we may ask you to confirm the request from your account's email address. Depending on where you live, you can also complain to your data protection authority: in the EU or UK, the authority in your country; in Israel, the Privacy Protection Authority.</p>
+        <p>We do not sell your personal information, and we will not treat you differently for using any of these rights.</p>
 
         <h3>Changes</h3>
         <p>Any changes to this policy will be posted on this page with an updated date.</p>
 
         <h3>Contact</h3>
-        <p>For privacy questions or data requests, open an issue on our <a class="link" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">GitHub repository</a> or use the <a class="link" href="/contact">contact page</a>.</p>
+        <p>For privacy questions or data requests, email <a class="link" href="mailto:guyvoloshin@oceanofjobs.com">guyvoloshin@oceanofjobs.com</a>, open an issue on our <a class="link" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">GitHub repository</a> or use the <a class="link" href="/contact">contact page</a>.</p>
 
         <p class="legal-back"><a class="link" href="/board">&larr; Back to the job board</a></p>
       </div>

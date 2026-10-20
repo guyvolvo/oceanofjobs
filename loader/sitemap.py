@@ -66,7 +66,8 @@ MAX_AGE_S = 6 * 3600
 
 # (path, lastmod follows the snapshot?)
 PAGES = [("/", False), ("/board", True), ("/stats", True), ("/companies", True),
-         ("/docs", False), ("/docs/mcp", False), ("/docs/api", False), ("/contact", False), ("/privacy", False)]
+         ("/docs", False), ("/docs/mcp", False), ("/docs/api", False), ("/contact", False), ("/privacy", False),
+         ("/pricing", False), ("/terms", False), ("/refunds", False)]
 
 # The directory's pages: a to z, and one for names that start with a
 # digit or anything else.

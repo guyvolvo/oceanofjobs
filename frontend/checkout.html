@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="theme-color" content="#f2f0ef" />
+  <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- Google Analytics only after consent (consent.js). -->
+  <script src="/consent.js"></script>
+  <script src="/count.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Checkout | Ocean of Jobs</title>
+  <link rel="canonical" href="https://oceanofjobs.com/checkout" />
+  <meta name="robots" content="noindex" />
+  <meta name="description" content="Checkout for Ocean of Jobs plans, handled by Paddle." />
+  <!-- Link preview, same card as the board: a pasted link to any page
+       shows the site, not a blank. Absolute URLs, for crawlers. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://oceanofjobs.com/checkout" />
+  <meta property="og:title" content="Checkout | Ocean of Jobs" />
+  <meta property="og:description" content="Checkout for Ocean of Jobs plans, handled by Paddle." />
+  <meta property="og:image" content="https://oceanofjobs.com/og.jpg?v=3" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Checkout | Ocean of Jobs" />
+  <meta name="twitter:description" content="Checkout for Ocean of Jobs plans, handled by Paddle." />
+  <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=3" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=3" />
+  <link rel="icon" href="favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png?v=3" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="auth.js"></script>
+  <script>
+    if (localStorage.getItem("iljobs_theme") !== "light") {
+      document.querySelector('meta[name="theme-color"]').content = "#17181c";
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  </script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="topbar">
+    <div class="container">
+      <div class="topbar-left"><a class="topbar-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><nav class="topbar-nav" aria-label="Site"><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a href="/docs/api">API</a></nav></div>
+    </div>
+  </div>
+
+  <div class="workspace" id="main" role="main" tabindex="-1">
+    <section class="section legal">
+      <div class="container">
+        <h1 class="section-title">Checkout</h1>
+        <p id="co-msg" aria-live="polite">Opening the secure checkout…</p>
+        <p class="legal-updated">Payments are handled by Paddle, our Merchant of Record. See the <a class="link" href="/terms">terms</a> and <a class="link" href="/refunds">refund policy</a>.</p>
+        <p class="legal-back"><a class="link" href="/pricing">&larr; Back to pricing</a></p>
+        <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+        <script>
+          // Paddle's default payment link is this page. Paddle.js opens the
+          // checkout by itself when the address carries _ptxn (a transaction
+          // made in Paddle); ?plan=basic or ?plan=pro starts one from the
+          // pricing page, for the signed-in account.
+          (function () {
+            // Paddle client-side token: public by design. A test_ token runs
+            // against Paddle's sandbox. Empty until plans go on sale.
+            var TOKEN = "";
+            var PRICES = { basic: "pri_01m5c6nb2wc9df6hk0hqkwdr1r", pro: "pri_01m5c6q394qkj6pfxekj6t37sh" };
+            // 50% off the first payment. It has no code, so Paddle only
+            // applies it when the checkout names it (dsc_... from Paddle).
+            var FIRST_MONTH_DISCOUNT = "";
+            var msg = document.getElementById("co-msg");
+            var say = function (html) { msg.innerHTML = html; };
+            if (!TOKEN || !window.Paddle) {
+              say("Checkout isn't open yet. Plans go on sale when the Ocean of Jobs browser extension launches.");
+              return;
+            }
+            if (TOKEN.indexOf("test_") === 0) Paddle.Environment.set("sandbox");
+            Paddle.Initialize({
+              token: TOKEN,
+              // Light or dark to match the page; the brand colour is set in Paddle.
+              checkout: { settings: { theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light" } },
+              eventCallback: function (e) {
+                if (e.name === "checkout.completed") location.href = "/account#settings";
+              },
+            });
+            var q = new URLSearchParams(location.search);
+            if (q.has("_ptxn")) return;
+            var price = PRICES[q.get("plan")];
+            if (!price) { say('Pick a plan on the <a class="link" href="/pricing">pricing page</a>.'); return; }
+            // The plan belongs to an account, so the buyer signs in first and
+            // the checkout carries who they are for the webhook to match.
+            var tokens = typeof getAuthTokens === "function" ? getAuthTokens() : null;
+            if (!tokens) { say('Sign in first, so the plan is added to your account. <a class="link" href="/account">Sign in</a>'); return; }
+            var claims = JSON.parse(atob(tokens.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+            Paddle.Checkout.open({
+              items: [{ priceId: price, quantity: 1 }],
+              customer: claims.email ? { email: claims.email } : undefined,
+              customData: { user_id: claims.sub },
+              discountId: FIRST_MONTH_DISCOUNT || undefined,
+            });
+          })();
+        </script>
+      </div>
+    </section>
+  </div>
+
+  <script src="mobile_nav.js"></script>
+  <script src="upstream.js"></script>
+</body>
+</html>

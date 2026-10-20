@@ -99,6 +99,7 @@ check("the site pages, with the board and Explore dated to the snapshot and the 
                   "https://oceanofjobs.com/docs": None, "https://oceanofjobs.com/docs/mcp": None,
                   "https://oceanofjobs.com/docs/api": None,
                   "https://oceanofjobs.com/contact": None, "https://oceanofjobs.com/privacy": None,
+                  "https://oceanofjobs.com/pricing": None, "https://oceanofjobs.com/terms": None, "https://oceanofjobs.com/refunds": None,
                   **{f"https://oceanofjobs.com/companies/{k}": "2026-09-18T12:00:00Z" for k in sitemap.LETTERS}}, repr(entries))
 
 rss = ET.fromstring(docs["feed.xml"][0])

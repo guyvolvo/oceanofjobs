@@ -3,21 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="theme-color" content="#f2f0ef" />
-  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
   <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <!-- Google tag (gtag.js). Google's own instruction is "immediately
-       after <head>"; it sits after the charset instead, because a
-       document's encoding has to be declared inside the first 1024
-       bytes and this snippet is long enough to push it out. async, so
-       it never blocks the theme script below or first paint. -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-GXP63R1JP1"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-GXP63R1JP1');
-  </script>
+  <!-- Google Analytics only after consent (consent.js). -->
+  <script src="/consent.js"></script>
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Statistics | Ocean of Jobs</title>
