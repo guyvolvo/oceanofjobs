@@ -132,10 +132,11 @@ function waitForLoad(tabId, ms = 30000) {
 
 // Runs one method of the ATS filler inside the tab. The files go in again
 // each time because a full navigation (the confirmation page) drops them.
-async function inTab(tabId, ats, method, args = []) {
-  await chrome.scripting.executeScript({ target: { tabId }, files: ATS_FILES[ats] });
+async function inTab(tabId, ats, method, args = [], frameId) {
+  const target = frameId ? { tabId, frameIds: [frameId] } : { tabId };
+  await chrome.scripting.executeScript({ target, files: ATS_FILES[ats] });
   const [res] = await chrome.scripting.executeScript({
-    target: { tabId },
+    target,
     func: (a, m, xs) => globalThis.oojAts[a][m](...xs),
     args: [ats, method, args],
   });
@@ -311,6 +312,94 @@ async function run() {
   }
 }
 
+// A form the user opened themselves (detect.js). The job may not be in
+// our database, so its id is a hash of the page address: stable, and the
+// shape claim() accepts.
+async function pageJobId(url) {
+  const u = new URL(url);
+  const key = u.origin + u.pathname + '?' + ['for', 'token', 'gh_jid'].map((k) => `${k}=${u.searchParams.get(k) || ''}`).join('&');
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key)));
+  return [...bytes.slice(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+let accountCache = null;
+async function account() {
+  if (accountCache && Date.now() - accountCache.at < 5 * 60000) return accountCache;
+  const [{ profile, preferences }, usage, { applied }] = await Promise.all([
+    api('/me/apply/profile'), api('/me/apply/usage'), api('/me/apply/history?limit=100'),
+  ]);
+  accountCache = { at: Date.now(), profile, preferences, usage, history: applied };
+  return accountCache;
+}
+
+async function offerHere(url) {
+  const st = await chrome.storage.local.get(['token', 'authError']);
+  if (!st.token || st.authError || !globalThis.oojAts.greenhouse.matches(url)) return { show: false };
+  const a = await account();
+  if (!((a.profile.settings || {}).sources || []).includes('ats_pages')) return { show: false };
+  const id = await pageJobId(url);
+  if (a.history.some((h) => h.job_id === id && h.status === 'submitted')) return { show: false };
+  return { show: true, remaining: a.usage.remaining };
+}
+
+async function fillHere(msg, tabId, frameId) {
+  const st = await chrome.storage.local.get(['cv', 'ai']);
+  if (!st.cv) return { error: 'Add your CV in the extension settings first.' };
+  accountCache = null;
+  const a = await account();
+  const job = { id: await pageJobId(msg.url), url: msg.url, title: msg.title, company_name: msg.company, company_domain: msg.company, ats: 'greenhouse' };
+  const ats = globalThis.oojAts.greenhouse;
+  const target = frameId ? { tabId, frameIds: [frameId] } : { tabId };
+  const [main] = await chrome.scripting.executeScript({ target, world: 'MAIN', func: ats.pageData });
+  const page = await inTab(tabId, 'greenhouse', 'read', [main ? main.result : null], frameId);
+  if (!page || page.error) return { error: (page && page.error) || 'Could not read this form.' };
+  const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
+    serverAi: ['basic', 'pro'].includes(a.usage.plan) };
+  const plan = oojMatch.planFill(page.fields, ctx.profile, job);
+  if (plan.missing.length && ctx.settings.unknowns === 'ai') {
+    for (const f of [...plan.missing]) {
+      if (f.type === 'file' || oojMatch.isEeo(f)) continue;
+      const answer = await answerUnknown(f, job, ctx);
+      if (answer === undefined) continue;
+      plan.missing.splice(plan.missing.indexOf(f), 1);
+      plan.fills.push({ ...f, value: answer });
+    }
+  }
+  try {
+    await api('/me/apply/claim', { method: 'POST', body: { job_id: job.id, company: job.company_domain, title: job.title, url: job.url } });
+  } catch (e) {
+    if (e.status === 402) return { error: (e.body && e.body.error) || 'Your plan has no applications left.' };
+    if (e.status === 409) return { error: 'You already applied to this job.' };
+    throw e;
+  }
+  const filled = await inTab(tabId, 'greenhouse', 'fill', [plan.fills, ctx.cv], frameId);
+  // Outline what the user still has to answer.
+  await chrome.scripting.executeScript({
+    target, args: [plan.missing.map((f) => f.name)],
+    func: (names) => names.forEach((n) => {
+      const el = document.getElementById(n) || document.querySelector(`[name="${CSS.escape(n)}"]`);
+      if (el) { el.style.outline = '2px solid #ff6b5e'; el.style.outlineOffset = '2px'; }
+    }),
+  });
+  const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
+  pendingHere[tabId] = job.id;
+  await chrome.storage.local.set({ pendingHere });
+  return { filled: plan.fills.length - ((filled && filled.errors.length) || 0), missing: plan.missing.map((f) => f.label) };
+}
+
+// The user submitted a form we filled, or closed it without submitting.
+async function settleHere(tabId, status, reason) {
+  const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
+  const id = pendingHere[tabId];
+  if (!id) return;
+  delete pendingHere[tabId];
+  await chrome.storage.local.set({ pendingHere });
+  accountCache = null;
+  await report(id, status, reason);
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => settleHere(tabId, 'skipped', 'not submitted'));
+
 async function status() {
   const st = await chrome.storage.local.get(['token', 'paused', 'cv', 'needs', 'authError', 'lastRun', 'lastError']);
   const out = {
@@ -347,5 +436,13 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return false;
   if (msg.type === 'status') { status().then(reply); return true; }
   if (msg.type === 'pause') { chrome.storage.local.set({ paused: !!msg.paused }).then(() => reply({ ok: true })); return true; }
+  if (msg.type === 'offerHere') { offerHere(msg.url).catch(() => ({ show: false })).then(reply); return true; }
+  if (msg.type === 'fillHere') {
+    fillHere(msg, sender.tab.id, sender.frameId)
+      .catch((e) => ({ error: e.status === 401 ? 'Reconnect the extension from your account page.' : 'Something went wrong. Reload the page and try again.' }))
+      .then(reply);
+    return true;
+  }
+  if (msg.type === 'confirmedHere') { settleHere(sender.tab.id, 'submitted', '').then(() => reply({ ok: true })); return true; }
   return false;
 });
