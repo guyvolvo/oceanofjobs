@@ -18,26 +18,26 @@ DESC = "Ocean of Jobs is free to search. Basic and Pro add automatic job applica
 FAQ = """
     <section class="home-section" aria-labelledby="faq-title">
       <div class="home-wrap">
-        <h2 class="home-h2" id="faq-title">Questions</h2>
+        <h2 class="home-h2" id="faq-title">Frequently asked questions</h2>
         <div class="price-faq">
           <div class="home-feature">
             <h3>What counts as an application?</h3>
-            <p>One counts when the extension submits it. A job it skips, for example because the form asks something it has no answer for, doesn't count. Unused applications don't carry over to the next month.</p>
+            <p>An application counts when the extension submits it. If the extension skips a job because, for example, a form asks a question you haven't answered, it won't count. Unused applications don't roll over to the next month.</p>
           </div>
           <div class="home-feature">
             <h3>Do I need an AI subscription?</h3>
-            <p>No. The extension fills in forms from your profile and the answers you save. You can add your own key from an AI provider so it can draft answers to new questions, and the provider bills you for its use.</p>
+            <p>No. The extension can fill in forms using your profile and saved answers. If you want help answering new questions, you can add your own API key from an AI provider. Any usage fees are charged by that provider.</p>
           </div>
           <div class="home-feature">
-            <h3>Where does my CV go?</h3>
-            <p>Only to the employer you're applying to. The CV file stays in the extension on your device. Your application profile and saved answers are kept in your account, so they follow you to any computer.</p>
+            <h3>Where is my CV stored?</h3>
+            <p>Your CV file stays in the browser extension on your device and is sent to the employer when you apply. Your profile and saved answers are stored in your Ocean of Jobs account, so you can access them from another computer.</p>
           </div>
           <div class="home-feature">
             <h3>Can I cancel or get a refund?</h3>
-            <p>Cancel any time, and your plan runs to the end of the month you paid for. You can get a full refund within 14 days of any payment.</p>
-            <div class="home-feature-links"><a href="/refunds">Refund policy</a><a href="/terms">Terms of service</a></div>
+            <p>You can cancel at any time. Your subscription remains active until the end of the period you've paid for. You're also eligible for a full refund within 14 days of any payment, subject to our <a href="/refunds">refund policy</a>.</p>
           </div>
         </div>
+        <p class="price3-note"><a href="/refunds">Refund policy</a> · <a href="/terms">Terms of service</a></p>
       </div>
     </section>
 """

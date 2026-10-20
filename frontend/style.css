@@ -4684,7 +4684,7 @@ a.hero-account-btn { text-decoration: none; }
 .price3-badge { padding: 4px 9px; border-radius: 999px; background: var(--h-soft-hover); font-size: 12px; font-weight: 500; }
 .price3-amount { margin: 22px 0 0; font: 500 56px/1 "Geist", var(--font); letter-spacing: -0.04em; color: var(--h-text); }
 .price3-amount small { margin-left: 8px; font: 400 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0; color: var(--h-muted); }
-.price3-desc { max-width: 280px; min-height: 3em; margin: 16px 0 0; font-size: 16px; line-height: 1.5; color: var(--h-muted); } /* two lines, so the rules line up */
+.price3-desc { max-width: 280px; min-height: 4.5em; margin: 16px 0 0; font-size: 16px; line-height: 1.5; color: var(--h-muted); } /* three lines, so the rules line up */
 .price3-rule { height: 1px; margin: 28px 0; border: 0; background: var(--h-line); }
 .price3-plus { margin: 0 0 14px; font-size: 14px; color: var(--h-muted); }
 .price3-list { flex: 1; display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 15px; line-height: 1.4; color: var(--h-text); }
@@ -4697,6 +4697,8 @@ a.hero-account-btn { text-decoration: none; }
 .price3-note { margin: 40px 0 0; font-size: 13px; color: var(--h-dim); }
 .home .price3-note a { text-decoration: underline; text-underline-offset: 3px; }
 .home .price3-note a:hover { color: var(--h-link-hover); }
+.home .price-faq p a { color: var(--h-text); text-decoration: underline; text-underline-offset: 3px; }
+.home .price-faq p a:hover { color: var(--h-link-hover); }
 .price-page-top { height: 72px; }
 .price-faq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 48px; margin-top: 36px; }
 @media (max-width: 900px) {
