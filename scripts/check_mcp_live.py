@@ -84,7 +84,8 @@ def up(ttl: bool, burst: bool) -> None:
     check("notification gets 202", status == 202, str(status))
     status, _, body = rpc("tools/list")
     names = [t["name"] for t in body["result"]["tools"]]
-    check("tools/list has the three tools", names == ["search_jobs", "get_job", "get_company"], str(names))
+    check("tools/list has the three public tools and the three saved-job tools",
+          names == ["search_jobs", "get_job", "get_company", "save_job", "list_saved_jobs", "remove_saved_job"], str(names))
     status, _, _ = http(MCP)
     check("GET /mcp is 405", status == 405, str(status))
 
