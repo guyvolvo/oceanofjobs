@@ -187,6 +187,8 @@
     const dt = new DataTransfer();
     dt.items.add(new File([bytes], cv.name, { type: cv.type }));
     input.files = dt.files;
+    // On window, not in this file: each call injects the file afresh.
+    window.__oojCvAt = performance.now();
     input.dispatchEvent(new Event('change', { bubbles: true }));
     return null;
   }
@@ -225,10 +227,20 @@
     return { errors };
   }
 
-  function submit() {
+  // Greenhouse uploads the CV to S3 after it is attached, and a submit
+  // pressed before that finishes is refused with "Resume/CV is required"
+  // (At-Bay, 2026-10-20). Waits for the upload, then presses; bounded by the
+  // clock because a background tab's timers fire at most once a second.
+  async function submit() {
     const f = form();
     const button = f && f.querySelector('button[type="submit"], input[type="submit"]');
     if (!button) return false;
+    const at = window.__oojCvAt;
+    const uploaded = () => performance.getEntriesByType('resource')
+      .some((e) => e.startTime >= at && e.responseEnd > 0 && /amazonaws\.com|\/s3[.-]/.test(e.name));
+    if (at != null) for (const until = Date.now() + 20000; !uploaded() && Date.now() < until;) await new Promise((r) => setTimeout(r, 250));
+    // Greenhouse shows the file once its upload is done; a moment more for it to settle.
+    await new Promise((r) => setTimeout(r, 500));
     button.click();
     return true;
   }
