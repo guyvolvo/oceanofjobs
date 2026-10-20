@@ -57,8 +57,13 @@ class FakeTable:
         self.items[(Item["user_id"], Item["alert_id"])] = dict(Item)
 
     def update_item(self, Key=None, ExpressionAttributeValues=None, **kw):
+        row = self.items[(Key["user_id"], Key["alert_id"])]
+        v = ExpressionAttributeValues
+        if ":s" in v:  # apply.result
+            row.update(status=v[":s"], reason=v[":r"], done_at=v[":t"])
+            return
         self.updates += 1
-        self.items[(Key["user_id"], Key["alert_id"])]["last_used_at"] = ExpressionAttributeValues[":t"]
+        row["last_used_at"] = v[":t"]
 
     def delete_item(self, Key=None):
         self.items.pop((Key["user_id"], Key["alert_id"]), None)
@@ -80,9 +85,9 @@ check("the list shows name, last four and expiry, and no secret",
       len(listed) == 1 and listed[0]["name"] == "Claude Code laptop" and listed[0]["hint"] == tok[-4:]
       and "token" not in listed[0] and "hash" not in listed[0] and listed[0]["expires_at"].startswith("2027-01-18"), repr(listed))
 
-check("a good token is its user", tokens.verify(table, tok, NOW) == USER)
+check("a good token is its user, scoped to MCP by default", tokens.verify(table, tok, NOW) == {"user_id": USER, "scope": "mcp"})
 check("the first use stamps last_used, a second within the hour does not",
-      table.updates == 1 and tokens.verify(table, tok, NOW + timedelta(minutes=5)) == USER and table.updates == 1, str(table.updates))
+      table.updates == 1 and tokens.verify(table, tok, NOW + timedelta(minutes=5))["user_id"] == USER and table.updates == 1, str(table.updates))
 check("a token with one character of its secret changed is refused", tokens.verify(table, tok[:-1] + ("A" if tok[-1] != "A" else "B"), NOW) is None)
 other = tokens._b64("someone-else")
 check("the same id and secret under another user is refused",
@@ -99,6 +104,11 @@ for bad in (7, "90", 365):
         check(f"expiry {bad!r} is refused", False)
     except ValueError:
         pass
+try:
+    tokens.create(table, USER, "x", 30, NOW, scope="admin")
+    check("an unknown scope is refused", False)
+except ValueError:
+    check("an unknown scope is refused", True)
 for i in range(3):
     tokens.create(table, USER, f"t{i}", 30, NOW)
 try:
@@ -119,8 +129,9 @@ except ValueError:
 live = tokens.create(table, "u-serve", "mcp", 30)["token"]
 
 
-def call(path, method="GET", auth=None):
-    environ = {"PATH_INFO": path, "REQUEST_METHOD": method, "wsgi.input": io.BytesIO(b"")}
+def call(path, method="GET", auth=None, body=None):
+    raw = json.dumps(body).encode() if body is not None else b""
+    environ = {"PATH_INFO": path, "REQUEST_METHOD": method, "wsgi.input": io.BytesIO(raw), "CONTENT_LENGTH": str(len(raw))}
     if auth:
         environ["HTTP_AUTHORIZATION"] = "Bearer " + auth
     got = {}
@@ -139,6 +150,41 @@ for path, method in (("/api/me/profile", "GET"), ("/api/me/alerts", "GET"), ("/a
     check(f"a token is refused at {method} {path}", status.startswith("403"), status)
 status, _ = call("/api/me/saved", auth=live[:-2] + "zz")
 check("a wrong token is 401", status.startswith("401"), status)
+status, _ = call("/api/me/apply/usage", auth=live)
+check("an MCP token cannot reach the auto-apply routes", status.startswith("403"), status)
+ext = tokens.create(table, "u-ext", "Chrome extension", None, scope="extension")["token"]
+status, body = call("/api/me/apply/usage", auth=ext)
+check("an extension token reaches the auto-apply routes", status.startswith("200") and b'"plan": "free"' in body, status + body.decode()[:120])
+status, _ = call("/api/me/saved", auth=ext)
+check("and saved jobs", status.startswith("200"), status)
+for path in ("/api/me/profile", "/api/me/tokens", "/api/me/alerts"):
+    status, _ = call(path, auth=ext)
+    check(f"but not {path}", status.startswith("403"), status)
+
+# The extension's whole round trip through serve.py and handler.route_apply.
+status, body = call("/api/me/apply/profile", "PUT", ext, {"profile": {"contact": {"first_name": "Ada"}, "settings": {"mode": "auto"}}})
+check("the extension token saves the application profile", status.startswith("200") and json.loads(body)["profile"]["settings"]["mode"] == "auto", status)
+status, body = call("/api/me/apply/profile", auth=ext)
+got = json.loads(body)
+check("and reads it back with the search preferences", got["profile"]["contact"]["first_name"] == "Ada" and "preferences" in got, repr(got)[:200])
+status, _ = call("/api/me/apply/answers", "POST", ext, {"question": "Why us?", "answer": "Because"})
+check("saves an answer", status.startswith("204"), status)
+status, body = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef", "company": "Acme"})
+check("claims a credit", status.startswith("200") and json.loads(body)["remaining"] == 29, status + body.decode())
+status, _ = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef"})
+check("a second claim on the same job is 409", status.startswith("409"), status)
+status, _ = call("/api/me/apply/result", "POST", ext, {"job_id": "0123456789abcdef", "status": "submitted"})
+check("reports the result", status.startswith("204"), status)
+status, body = call("/api/me/apply/history", auth=ext)
+check("the history shows it submitted", json.loads(body)["applied"][0]["status"] == "submitted", body.decode()[:200])
+status, _ = call("/api/me/apply/queue/fedcba9876543210", "PUT", ext)
+status2, body = call("/api/me/apply/queue", auth=ext)
+check("queues and lists a job", status.startswith("204") and json.loads(body)["queue"][0]["job_id"] == "fedcba9876543210", status + status2)
+status, _ = call("/api/me/apply", "DELETE", ext)
+check("an extension token cannot wipe the auto-apply record", status.startswith("403"), status)
+resp = handler.route_apply("u-ext", "DELETE", "", {}, {})
+check("the signed-in account's delete removes the profile, history and queue",
+      resp["statusCode"] == 204 and not any(k[0] == "u-ext" and k[1].startswith(("#apply_profile", "#applied#", "#queue#")) for k in table.items))
 
 print()
 if failures:

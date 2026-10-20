@@ -85,6 +85,26 @@ resource "aws_cloudwatch_metric_alarm" "publish_stopped" {
   ok_actions          = local.alarm_actions
 }
 
+# Workers AI past 80% of the free 10,000 neurons a day. The API adds
+# every AI answer's neurons to a daily total and sends it as
+# AINeuronsToday (api/ai_answers.py), so this is the account's AI use
+# today. Past 100% answers cost $0.011 per 1,000 neurons on Workers Paid,
+# and on Workers Free they stop until 00:00 UTC.
+resource "aws_cloudwatch_metric_alarm" "workers_ai_80" {
+  alarm_name          = "${var.project_name}-workers-ai-80pct"
+  alarm_description   = "Workers AI has used 80% of today's free 10,000 neurons (AI answers to application questions). Check usage in the Cloudflare dashboard, Workers AI."
+  namespace           = "OceanOfJobs"
+  metric_name         = "AINeuronsToday"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 8000
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
 # The fast scraper failing outright, three times in a quarter hour. One
 # failure is a blip and the sweep after it carries on where it left off
 # (it saves as it goes since 2026-09-30); three in a row is the memory or

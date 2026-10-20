@@ -17,8 +17,8 @@ Two things API Gateway did that a plain WSGI server does not:
   the handler runs, as the gateway did. With the two variables unset,
   every /api/me route is 401: safe, not broken.
   A personal access token (ooj_..., api/tokens.py) is the other way in.
-  It stands for its user on the saved-jobs routes only; anywhere else
-  under /api/me it answers 403.
+  It stands for its user only on the routes its scope lists in
+  TOKEN_PATHS; anywhere else under /api/me it answers 403.
 - The 29 second timeout. Not reproduced. That ceiling is what turned
   a slow download into an outage.
 """
@@ -34,8 +34,11 @@ from handler import lambda_handler
 COGNITO_ISSUER = os.environ.get("COGNITO_ISSUER", "")
 COGNITO_AUDIENCE = os.environ.get("COGNITO_AUDIENCE", "")
 MAX_BODY = 64 * 1024
-# What a personal access token may reach: the saved list and its rows.
-TOKEN_PATHS = ("/api/me/saved", "/api/me/saved/")
+# What a personal access token may reach, by scope (path prefixes).
+TOKEN_PATHS = {
+    "mcp": ("/api/me/saved",),
+    "extension": ("/api/me/saved", "/api/me/apply/"),
+}
 
 _jwks = None
 
@@ -49,11 +52,11 @@ def _claims(environ: dict) -> dict | None:
     token = auth[len("Bearer "):].strip()
     if token.startswith(tokens.PREFIX):
         try:
-            user_id = tokens.verify(handler._alerts_table, token)
+            found = tokens.verify(handler._alerts_table, token)
         except Exception as e:  # noqa: BLE001 -- a table error is "not signed in", not a 500
             print(f"token check failed: {e.__class__.__name__}")
             return None
-        return {"sub": user_id, "token_use": "ooj"} if user_id else None
+        return {"sub": found["user_id"], "token_use": "ooj", "scope": found["scope"]} if found else None
     if not (COGNITO_ISSUER and COGNITO_AUDIENCE):
         return None
     try:
@@ -123,9 +126,9 @@ def app(environ, start_response):
         return [b'{"error": "unauthorized"}']
     claims = event["requestContext"].get("authorizer", {}).get("jwt", {}).get("claims", {})
     if (path.startswith("/api/me/") and claims.get("token_use") == "ooj"
-            and not (path == TOKEN_PATHS[0] or path.startswith(TOKEN_PATHS[1]))):
+            and not any(path == p or path.startswith(p.rstrip("/") + "/") for p in TOKEN_PATHS.get(claims.get("scope"), ()))):
         start_response("403 Forbidden", [("Content-Type", "application/json")])
-        return [b'{"error": "a personal access token can only use saved jobs"}']
+        return [b'{"error": "this personal access token cannot use this route"}']
 
     result = lambda_handler(event, None) or {}
     status = int(result.get("statusCode", 500))

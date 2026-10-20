@@ -7,9 +7,11 @@ already holds every permission that needs. Only the SHA-256 of the whole
 token is stored: a copy of the table cannot be used to sign in, and the
 secret carries 192 random bits, so a fast hash is enough.
 
-A token is not a session. serve.py lets it reach the saved-jobs routes
-and nothing else, so it cannot read the profile, change alerts, or mint
-or revoke tokens; a leaked one can only touch the saved list.
+A token is not a session, and each has a scope. An "mcp" token reaches
+the saved-jobs routes only; an "extension" token (made by the website
+for the browser extension) also reaches /api/me/apply/*. serve.py holds
+the map. Neither can read the search profile, change alerts, or mint or
+revoke tokens.
 """
 
 import base64
@@ -24,6 +26,7 @@ PREFIX = "ooj_"
 ROW = "#token#"
 MAX_PER_USER = 5
 EXPIRY_DAYS = (30, 90, None)  # None: never
+SCOPES = ("mcp", "extension")
 NAME_MAX = 60
 # last_used moves at most this often, so a busy client does not cost a
 # write on every call.
@@ -62,7 +65,7 @@ def parse(token: str) -> tuple[str, str] | None:
 def _public(item: dict) -> dict:
     return {"id": item["alert_id"][len(ROW):], "name": item.get("name"), "hint": item.get("hint"),
             "created_at": item.get("created_at"), "last_used_at": item.get("last_used_at"),
-            "expires_at": item.get("expires_at")}
+            "expires_at": item.get("expires_at"), "scope": item.get("scope") or "mcp"}
 
 
 def list_tokens(table, user_id: str) -> list[dict]:
@@ -71,18 +74,20 @@ def list_tokens(table, user_id: str) -> list[dict]:
     return [_public(i) for i in rows]
 
 
-def create(table, user_id: str, name, days, now: datetime | None = None) -> dict:
+def create(table, user_id: str, name, days, now: datetime | None = None, scope: str = "mcp") -> dict:
     """A new token. The only time the token itself is ever returned."""
     now = now or datetime.now(timezone.utc)
     name = str(name or "").strip()[:NAME_MAX] or "Token"
     if days not in EXPIRY_DAYS:
         raise ValueError("expires_in_days must be 30, 90 or null")
+    if scope not in SCOPES:
+        raise ValueError("scope must be mcp or extension")
     if len(list_tokens(table, user_id)) >= MAX_PER_USER:
         raise ValueError(f"at most {MAX_PER_USER} tokens; revoke one first")
     token_id = secrets.token_hex(4)
     token = f"{PREFIX}{_b64(user_id)}.{token_id}.{secrets.token_urlsafe(24)}"
     item = {"user_id": user_id, "alert_id": ROW + token_id, "hash": digest(token), "name": name,
-            "hint": token[-4:], "created_at": now.isoformat()}
+            "hint": token[-4:], "created_at": now.isoformat(), "scope": scope}
     if days:
         item["expires_at"] = (now + timedelta(days=days)).isoformat()
     table.put_item(Item=item, ConditionExpression="attribute_not_exists(alert_id)")
@@ -95,8 +100,8 @@ def revoke(table, user_id: str, token_id: str) -> None:
     table.delete_item(Key={"user_id": user_id, "alert_id": ROW + token_id})
 
 
-def verify(table, token: str, now: datetime | None = None) -> str | None:
-    """The user a live token belongs to, else None."""
+def verify(table, token: str, now: datetime | None = None) -> dict | None:
+    """{"user_id", "scope"} for a live token, else None."""
     parsed = parse(token)
     if not parsed:
         return None
@@ -115,4 +120,4 @@ def verify(table, token: str, now: datetime | None = None) -> str | None:
                               ConditionExpression="attribute_exists(alert_id)")
         except Exception as e:  # noqa: BLE001 -- a missed timestamp must not refuse a good token
             print(f"token last_used not updated: {e.__class__.__name__}")
-    return user_id
+    return {"user_id": user_id, "scope": item.get("scope") or "mcp"}

@@ -2,7 +2,7 @@
 
     CLOUDFLARE_ANALYTICS_TOKEN=... python scripts/workers_quota.py
 
-Exits 1 at 70% of the allowance, so the scheduled workflow
+Exits 1 at 80% of the allowance, so the scheduled workflow
 (.github/workflows/workers-quota.yml) fails and GitHub emails, hours
 before the account runs out. Out of allowance, the MCP route falls back
 to CloudFront's 503 and otj-box-router, which fails closed, answers the
@@ -23,7 +23,7 @@ ACCOUNT = "2f08a903f97b2824af964b0d4a85a1ed"
 DAILY_ALLOWANCE = 100_000
 # WORKERS_ALERT_AT overrides it for a controlled test of the alert, from
 # the workflow's alert_at input: a low value makes today's real number fail.
-ALERT_AT = float(os.environ.get("WORKERS_ALERT_AT") or 0.70)
+ALERT_AT = float(os.environ.get("WORKERS_ALERT_AT") or 0.80)
 QUERY = """query($a: String!, $s: Time!, $e: Time!) { viewer { accounts(filter: {accountTag: $a}) {
   workersInvocationsAdaptive(limit: 100, filter: {datetime_geq: $s, datetime_lt: $e}) {
     sum { requests errors } dimensions { scriptName } } } } }"""

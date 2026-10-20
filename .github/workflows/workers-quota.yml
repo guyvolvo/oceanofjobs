@@ -1,7 +1,7 @@
 name: workers-quota
 
 # Watches the account's Cloudflare Workers requests against the free
-# plan's 100,000 a day and fails at 70%, so GitHub emails while there is
+# plan's 100,000 a day and fails at 80%, so GitHub emails while there is
 # still time to act. See scripts/workers_quota.py for what running out
 # does and which token it needs (repository secret
 # CLOUDFLARE_ANALYTICS_TOKEN, Account Analytics: Read only).
@@ -10,12 +10,12 @@ on:
   schedule:
     - cron: "*/30 * * * *"
   # alert_at, by hand only: a share of the allowance to alert at instead
-  # of 0.70. Set it below today's usage (e.g. 0.01) to see a real failed
+  # of 0.80. Set it below today's usage (e.g. 0.01) to see a real failed
   # run, and the email that should come with it.
   workflow_dispatch:
     inputs:
       alert_at:
-        description: "Alert threshold for a test run, e.g. 0.01 (empty = 0.70)"
+        description: "Alert threshold for a test run, e.g. 0.01 (empty = 0.80)"
         required: false
         default: ""
 

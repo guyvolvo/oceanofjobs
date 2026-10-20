@@ -44,6 +44,9 @@ from help_page import HELP_HTML
 from openapi import spec as openapi_spec
 import company_page
 import job_page
+import ai_answers
+import apply
+import paddle
 import tokens
 from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
                      empty_profile)
@@ -590,6 +593,17 @@ def lambda_handler(event, context):
                 route_delete_alert(user_id, alert_id)
                 return _response(204, "")
             return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/paddle/webhook":
+            # Paddle's notifications (paddle.py): signed, from Paddle's
+            # addresses, and the only writer of a user's paid plan.
+            if method != "POST":
+                return _response(405, json.dumps({"error": "method not allowed"}))
+            status, out = paddle.handle(_alerts_table, event.get("headers") or {}, event.get("body") or "",
+                                        event.get("requestContext", {}).get("http", {}).get("sourceIp", ""))
+            return _response(status, json.dumps(out))
+        if path.startswith("/me/apply/") or path == "/me/apply":
+            return route_apply(_authenticated_claims(event)["sub"], method, path[len("/me/apply"):].strip("/"),
+                               event, params)
         if path == "/me/tokens":
             # Personal access tokens (tokens.py). Only a signed-in session
             # gets here: serve.py keeps a token itself to the saved routes.
@@ -598,7 +612,8 @@ def lambda_handler(event, context):
                 return _response(200, json.dumps({"tokens": tokens.list_tokens(_alerts_table, user_id)}))
             if method == "POST":
                 body = json.loads(event.get("body") or "{}")
-                made = tokens.create(_alerts_table, user_id, body.get("name"), body.get("expires_in_days"))
+                made = tokens.create(_alerts_table, user_id, body.get("name"), body.get("expires_in_days"),
+                                     scope=body.get("scope") or "mcp")
                 resp = _response(201, json.dumps(made))
                 resp["headers"]["Cache-Control"] = "no-store"  # the one answer that carries the token
                 return resp
@@ -628,6 +643,76 @@ def lambda_handler(event, context):
     except Exception as e:  # last resort: never leak a raw traceback to callers
         traceback.print_exc()  # the log gets it; the caller gets one line
         return _response(500, json.dumps({"error": "internal error", "detail": str(e)}))
+
+
+def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) -> dict:
+    """/api/me/apply/*: automatic applications (apply.py). Used by the
+    account page with the user's session and by the browser extension
+    with an "extension" token (serve.py)."""
+    body = json.loads(event.get("body") or "{}") if method in ("POST", "PUT") else {}
+    no_store = {"Cache-Control": "no-store"}
+
+    def ok(status, data=None):
+        resp = _response(status, "" if data is None else json.dumps(data, default=str))
+        resp["headers"].update(no_store)
+        return resp
+
+    if sub == "" and method == "DELETE":
+        # Account deletion: the profile, the applied history and the queue.
+        rows = _alerts_table.query(KeyConditionExpression=Key("user_id").eq(user_id)).get("Items", [])
+        for r in rows:
+            if r["alert_id"] == apply.PROFILE_ROW or r["alert_id"].startswith((apply.APPLIED, apply.QUEUE)):
+                _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
+        return ok(204)
+    if sub == "profile":
+        if method == "GET":
+            prefs = route_get_profile(user_id).get("profile") or {}
+            return ok(200, {"profile": apply.get_profile(_alerts_table, user_id),
+                            "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
+        if method == "PUT":
+            return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, body.get("profile") or {})})
+    if sub == "answers" and method == "POST":
+        apply.add_answer(_alerts_table, user_id, body.get("question"), body.get("answer"))
+        return ok(204)
+    if sub == "usage" and method == "GET":
+        return ok(200, apply.usage(_alerts_table, user_id))
+    if sub == "draft" and method == "POST":
+        prefs = route_get_profile(user_id).get("profile") or {}
+        try:
+            return ok(200, ai_answers.draft(_alerts_table, user_id, body, prefs))
+        except (ai_answers.NotIncluded, ai_answers.CapReached) as e:
+            return ok(402, {"error": str(e)})
+        except ai_answers.CantAnswer as e:
+            return ok(422, {"error": str(e)})
+        except ai_answers.NotConfigured as e:
+            return ok(503, {"error": str(e)})
+    if sub == "claim" and method == "POST":
+        try:
+            return ok(200, apply.claim(_alerts_table, user_id, body))
+        except apply.LimitReached as e:
+            return ok(402, {"error": str(e)})
+        except apply.AlreadyApplied as e:
+            return ok(409, {"error": str(e)})
+    if sub == "result" and method == "POST":
+        apply.result(_alerts_table, user_id, body)
+        return ok(204)
+    if sub == "history" and method == "GET":
+        try:
+            limit = int(params.get("limit") or 50)
+        except ValueError:
+            limit = 50
+        return ok(200, {"applied": apply.history(_alerts_table, user_id, limit)})
+    if sub == "queue" and method == "GET":
+        return ok(200, {"queue": apply.queue(_alerts_table, user_id)})
+    if sub.startswith("queue/"):
+        job_id = sub[len("queue/"):]
+        if method == "PUT":
+            apply.enqueue(_alerts_table, user_id, job_id)
+            return ok(204)
+        if method == "DELETE":
+            apply.dequeue(_alerts_table, user_id, job_id)
+            return ok(204)
+    return _response(404, json.dumps({"error": f"no route for /me/apply/{sub}"}))
 
 
 def _busy_response(content_type: str) -> dict:
