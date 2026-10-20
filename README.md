@@ -1,204 +1,179 @@
-# <img src="frontend/favicon-180.png" alt="" height="32" valign="middle"> Ocean of Jobs
+# Ocean of Jobs
 
-Open-source job board. Listings come straight from company hiring systems, are tracked over time, and are served through a public API and an MCP server that AI assistants can search.
+Ocean of Jobs is an open-source job board that collects listings directly from company hiring systems. It tracks when jobs are added, changed, closed, or reposted, and makes the data available through a website, a public REST API, and an MCP server.
 
-As of October 2026 it holds over 1.2 million open jobs from about 22,000 companies, and 2 million listings tracked in total.
+**Live site:** https://oceanofjobs.com
 
-**Live site:** [oceanofjobs.com](https://oceanofjobs.com/)
-
-| | |
+| Resource | URL |
 |---|---|
 | Job board | [/board](https://oceanofjobs.com/board) |
-| Companies, A to Z | [/companies](https://oceanofjobs.com/companies) |
+| Company directory | [/companies](https://oceanofjobs.com/companies) |
 | Statistics | [/stats](https://oceanofjobs.com/stats) |
-| Docs | [/docs](https://oceanofjobs.com/docs) |
-| MCP server | `https://oceanofjobs.com/mcp`, setup in [/docs/mcp](https://oceanofjobs.com/docs/mcp) |
-| REST API reference | [/docs/api](https://oceanofjobs.com/docs/api) |
+| Documentation | [/docs](https://oceanofjobs.com/docs) |
+| REST API | [/docs/api](https://oceanofjobs.com/docs/api) |
+| MCP server | [/mcp](https://oceanofjobs.com/mcp) |
+| License | MIT |
 
-**License:** MIT
+## Using the MCP server
 
-![The job board on a monitor, standing in a field at sunset](frontend/img/showcase-readme.webp)
+The MCP server lets AI assistants search the job database, retrieve full job descriptions, and look up companies. It uses Streamable HTTP and requires no API key or account.
 
-## Use it from an AI assistant (MCP)
+Server URL: `https://oceanofjobs.com/mcp`
 
-Ocean of Jobs runs a [Model Context Protocol](https://modelcontextprotocol.io) server at `https://oceanofjobs.com/mcp`. Add it to an assistant and ask things like "remote Kubernetes jobs posted this week" or "who is SentinelOne hiring in Tel Aviv". No account and no API key.
+For example, you can ask an assistant to find remote Kubernetes jobs posted this week or check which positions a company is hiring for in Tel Aviv.
 
-**Supported clients**, each with a step-by-step guide in the docs:
+Setup guides are available in the [MCP documentation](https://oceanofjobs.com/docs/mcp).
 
-| Client | How it connects |
+| Client | Setup |
 |---|---|
-| [Claude Code](https://oceanofjobs.com/docs/mcp#claude-code) | `claude mcp add --transport http oceanofjobs https://oceanofjobs.com/mcp` |
-| [Claude](https://oceanofjobs.com/docs/mcp#claude) (claude.ai, desktop) | Customize, Connectors, Add custom connector, paste the URL |
-| [ChatGPT](https://oceanofjobs.com/docs/mcp#chatgpt) | Settings, Apps & Connectors, Developer mode, Create, paste the URL |
-| [Cursor](https://oceanofjobs.com/docs/mcp#cursor) | One-click install link, or `~/.cursor/mcp.json` |
-| [VS Code](https://oceanofjobs.com/docs/mcp#vs-code) | One-click install link, or `code --add-mcp` |
-| [Gemini CLI](https://oceanofjobs.com/docs/mcp#gemini-cli) | `gemini mcp add -s user --transport http oceanofjobs https://oceanofjobs.com/mcp` |
-| [Codex](https://oceanofjobs.com/docs/mcp#codex) | `codex mcp add oceanofjobs --url https://oceanofjobs.com/mcp` |
-| [Hermes Agent](https://oceanofjobs.com/docs/mcp#hermes-agent) | `hermes mcp add oceanofjobs --url https://oceanofjobs.com/mcp` |
-| [Kimi Code](https://oceanofjobs.com/docs/mcp#kimi-code) | `/mcp-config`, or a `url` entry in `mcp.json` |
+| Claude Code | `claude mcp add --transport http oceanofjobs https://oceanofjobs.com/mcp` |
+| Claude (web and desktop) | Settings → Customize → Connectors → Add custom connector |
+| ChatGPT | Settings → Apps & Connectors → Developer mode → Create |
+| Cursor | One-click install or `~/.cursor/mcp.json` |
+| VS Code | One-click install or `code --add-mcp` |
+| Gemini CLI | `gemini mcp add -s user --transport http oceanofjobs https://oceanofjobs.com/mcp` |
+| Codex | `codex mcp add oceanofjobs --url https://oceanofjobs.com/mcp` |
+| Hermes Agent | `hermes mcp add oceanofjobs --url https://oceanofjobs.com/mcp` |
+| Kimi Code | `/mcp-config` or an entry in `mcp.json` |
 
-Any other client that speaks Streamable HTTP works with the same URL ([other clients](https://oceanofjobs.com/docs/mcp#other-mcp-clients)).
+Any client that supports Streamable HTTP can connect using the same URL.
 
-**Tools.** Three, all read-only ([reference](https://oceanofjobs.com/docs/mcp#available-tools)):
+### Available tools
 
-- `search_jobs` searches titles, companies, locations and descriptions, with filters for company, city, country, seniority, workplace (remote, hybrid, on-site), posting age and minimum monthly salary (in shekels).
-- `get_job` returns one listing in full: its description (up to 6,000 characters), the employer's apply link, and where else the same posting is listed.
-- `get_company` takes a name or domain and returns its open-job count, jobs added this week, how long it has been tracked and its newest listings.
+The server exposes three read-only tools:
 
-**Limits.** At most 25 results per call and an offset of 200. Answers may come from the edge cache for up to five minutes. Past the free daily capacity the server returns a JSON-RPC error until 00:00 UTC ([details](https://oceanofjobs.com/docs/mcp#limits-and-caching)). For bulk data use the [REST API](https://oceanofjobs.com/docs/api).
+- **`search_jobs`** searches job titles, companies, locations, and descriptions. Filters include company, city, country, seniority, workplace type, posting age, and minimum monthly salary in shekels.
+- **`get_job`** retrieves a listing's full description (up to 6,000 characters), application link, and information about other listings of the same posting.
+- **`get_company`** looks up a company by name or domain and returns its open-job count, jobs added this week, tracking history, and newest listings.
 
-**How it runs.** The server is a Cloudflare Worker (`infra/mcp-worker.mjs`, deployed as `otj-mcp` by `scripts/deploy_mcp_worker.py`). It is stateless: each tool call becomes a GET on the public API with its parameters in a fixed order, so Cloudflare can cache it and the same question from the next person never reaches the box. A per-location rate limit caps how many cache misses get through. It has its own route, so switching it off never touches the board.
+Each call returns up to 25 results, with an offset limit of 200. Responses can be cached at the edge for up to five minutes. Once the daily free capacity is exhausted, requests return a JSON-RPC error until 00:00 UTC. See the [MCP documentation](https://oceanofjobs.com/docs/mcp) for current limits.
+
+For bulk queries, use the [REST API](https://oceanofjobs.com/docs/api).
+
+The server runs as a Cloudflare Worker in `infra/mcp-worker.mjs`, deployed as `otj-mcp` by `scripts/deploy_mcp_worker.py`. It is stateless: each tool call becomes a GET request to the public API, with parameters in a consistent order so Cloudflare can cache identical requests. A per-location rate limit controls cache misses. The MCP server has its own route and can be disabled without affecting the job board.
 
 ## Architecture
 
-The core data store is SQLite on a single t4g.medium EC2 instance
-(il-central-1): `jobs.db` for listings and companies, and `jobs-fts.db`
-for the full-text search index, attached beside it. Both are
-continuously replicated to Amazon S3 via Litestream.
+The data pipeline runs on AWS, with Cloudflare handling routing and caching. SQLite stores the job and company records on a single EC2 instance, while scraping runs separately on Lambda and GitHub Actions.
 
-`ARCHITECTURE.md` serves as the authoritative source for system design,
-failure modes, and operational runbooks.
+The full design, including failure modes and operational runbooks, is documented in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-```
-  scrapers                   box (EC2 t4g.medium)              readers
-  ────────                   ────────────────────              ───────
+### Data collection and ingestion
 
-  GitHub Actions ─┐
-  daily, slow     │          ┌──────────────────────────┐
-  guesses ATS     ├─ S3 ────►│ fetch_fragments.py (30s) │
-  tokens          │  delta   │ shadow_apply.py  (timer) │
-                  │  frags   ├──────────────────────────┤
-  EventBridge ────┘          │ jobs.db  ~3GB  WAL       │──► Litestream ──► S3
-  Lambda, 5 min              ├──────────────────────────┤
-  re-polls known             │ publish.py       (timer) │──► artifacts ──► S3
-  company/ATS pairs          ├──────────────────────────┤
-  browser ──► Cloudflare ───►│ gunicorn -w 2 --threads 4│
-              Worker         │   api/handler.py (WSGI)  │
-  AI client ─► MCP Worker ──►└──────────────────────────┘
+```text
+GitHub Actions ──► S3 ──► EC2 ingestion ──► SQLite
+     discovery           fragment fetcher     jobs.db
+                         and applier           jobs-fts.db
+
+EventBridge ──► Lambda ──► S3
+                polling     delta fragments
+
+Browser ──► Cloudflare ──► API on EC2
+AI client ──► MCP Worker ──► Public API
 ```
 
-### Design rationale
+The production database runs on an EC2 `t4g.medium` instance in `il-central-1`. `jobs.db` stores listings and company data; `jobs-fts.db` contains the full-text search index. Both are continuously replicated to S3 using Litestream.
 
-**Stateless polling, stateful ingestion.** Light HTTP probing runs on AWS
-Lambda to leverage low-cost, parallel execution (94% of polls return
-`304 Not Modified`). Database ingestion and query serving run on the EC2
-instance, which maintains local state and page cache for the ~3 GB
-database.
+Scraping and database ingestion are kept separate. Lambda checks hiring-system endpoints and writes changes to S3, while the EC2 instance applies those changes to SQLite and serves queries. Most polls return `304 Not Modified`, so checking for changes is relatively inexpensive.
 
-**Concurrency control.** All write-heavy operations on the host
-(`shadow_apply.py`, `publish.py`, snapshots) acquire a file lock
-(`box/lock.py`) to prevent SQLite write contention.
+All write-heavy operations on the instance, including ingestion, publishing, and snapshots, use the file lock in `box/lock.py` to avoid SQLite write contention.
 
-### Core components
+### 1. Scraping and ingestion
 
-**1. Ingestion pipeline**
+`probe.py` handles conditional HTTP requests against hiring systems, including Greenhouse, Lever, Ashby, and SmartRecruiters. It uses `If-None-Match` headers to avoid downloading unchanged data.
 
-`scrape_handler.py` (Lambda, 5-min schedule): Executes `probe.py` using
-`If-None-Match` headers across active ATS endpoints (Greenhouse, Lever,
-Ashby, SmartRecruiters). Writes delta fragments to S3 without database
-contact.
+- **`scrape_handler.py`** runs on Lambda every five minutes and writes changed data as fragments to S3.
+- **Adaptive polling** checks active boards every five minutes. Inactive boards back off exponentially, up to four hours, and return to five-minute polling when new jobs appear.
+- **`scrape_workday_handler.py`** runs hourly for Workday and other heavier or custom sources listed in `companies.yml`, including Oracle and Eightfold.
+- **`box/fetch_fragments.py`** copies fragments from S3 to a local spool every 30 seconds.
+- **`box/shadow_apply.py`** applies the fragments in 48 MB passes.
 
-*Adaptive backoff:* Active boards poll every 5 minutes. Inactive boards
-back off exponentially up to 4 hours, resetting to 5 minutes immediately
-upon detecting new postings.
+The S3 fragment queue separates scraping from database writes and prevents ingestion from racing with fragment deletion.
 
-`scrape_workday_handler.py` (Lambda, hourly): Handles heavy and custom
-targets pinned in `companies.yml` (Workday, custom corporate portals,
-Oracle, Eightfold).
+### 2. API and request routing
 
-`box/fetch_fragments.py` and `box/shadow_apply.py` (EC2 timers):
-`fetch_fragments.py` copies S3 fragments to a local spool every 30
-seconds. `shadow_apply.py` processes the spool in 48 MB passes. The
-decoupling prevents race conditions between Lambda fragment deletion and
-EC2 ingestion cycles.
+The API is a Python WSGI application in `api/handler.py`, served by Gunicorn with two workers and four threads per worker.
 
-**2. API and routing**
+Requests are routed as follows:
 
-`api/handler.py` (WSGI): Served via `gunicorn -w 2 --threads 4` reading
-directly from `jobs.db`.
+| Route | Destination | Purpose |
+|---|---|---|
+| `/api/auth/*` | CloudFront → Lambda | Sign-in flows |
+| `/api/*` | Cloudflare Worker → cloudflared → EC2 | API requests |
+| `/mcp` | MCP Worker → public API | AI assistant access |
+| `/job/*`, `/company/*` | CloudFront → cloudflared → EC2 | Server-rendered pages |
+| `/docs/*` | CloudFront → S3 | Documentation |
+| `/*` | CloudFront → S3 | Static frontend |
 
-Routing (`infra/cloudfront.tf`, `infra/cloudflare-worker.js`):
+CloudFront also serves as a fallback for `/api/*`. When the API Worker reaches its free-plan limit of 100,000 requests per day, the route fails over to CloudFront and continues reaching the same EC2 origin through the tunnel. This fallback is roughly 100 ms slower and less consistent.
 
-```
-/api/auth/*                 ──► CloudFront ──► AWS Lambda                 sign-in flows
-/api/*                      ──► Worker ──► cloudflared ──► EC2 (:8000)    fast path
-/mcp                        ──► MCP Worker (otj-mcp) ──► /api/* GETs      AI clients
-/job/*, /company/*          ──► CloudFront ──► cloudflared ──► EC2 (:8000)
-/docs/*                     ──► CloudFront ──► S3                         Next.js static export
-/*                          ──► CloudFront ──► S3                         static assets
-```
+On September 25, 2026, a crawler exhausted the Worker budget by requesting `/job/*` pages. Those pages now go through CloudFront, which has a free allowance of ten million requests per month.
 
-CloudFront can carry `/api/*` too, and does whenever the Worker is over
-its free-plan budget of 100,000 requests a day: the route fails open and
-CloudFront's own `/api/*` behavior reaches the same box through the same
-tunnel, about 100 ms slower and less steady. A crawler spent that budget
-on `/job/*` pages on 2026-09-25, which is why those pages are on
-CloudFront (ten million free requests a month) and the Worker is not on
-them.
+The previous Lambda-based API deployment remains available as a rollback option. Switching the routing back to the `api-lambda` origin restores that setup.
 
-*Rollback path:* The legacy Lambda stack remains deployed. Pointing the
-behaviors back at the `api-lambda` origin restores full Lambda-based
-execution.
+### 3. Company discovery
 
-**3. Discovery engine**
+GitHub Actions runs a daily discovery job that scans the Common Crawl URL index, checks candidate hiring endpoints, collects domains in `domains.txt`, and resolves company identities.
 
-GitHub Actions (daily): Scans the Common Crawl URL index, verifies
-endpoints, populates `domains.txt`, and resolves corporate identities.
+Known or unusual hiring systems can also be configured explicitly in `companies.yml`.
 
-**4. Pages for search engines**
+### 4. Search-engine pages and feeds
 
-Every listing has a server-rendered page at `/job/<id>` with JobPosting
-structured data, and every company one at `/company/<domain>`. A closed
-listing keeps its page for thirty days, marked closed and `noindex`, then
-answers 410.
+Each job has a server-rendered page at `/job/<id>` with `JobPosting` structured data. Company pages are available at `/company/<domain>`.
 
-`loader/sitemap.py` runs with the box's publish job (at most every six
-hours) and writes `sitemap.xml` with its shards, `feed.xml` (the newest
-hundred listings as RSS), and the company directory at `/companies/a` to
-`/companies/z`: plain links to every company page, so a crawler can walk
-from the homepage to any listing without running JavaScript.
+When a job closes, its page remains available for 30 days with a closed status and a `noindex` directive. After that, the server returns HTTP 410.
 
-**5. Monitoring**
+`loader/sitemap.py` runs as part of the publishing job, which runs at most every six hours. It generates:
 
-CloudWatch alarms (`infra/alarms.tf`) send email through SNS when a
-source goes stale, the fast scraper errors or runs slow, or the
-fragment backlog grows. A Grafana dashboard reads CloudWatch
-(`infra/grafana_cloudwatch.tf`) for growth and search metrics. Job alerts
-to users go out through Amazon SES.
+- `sitemap.xml` and its sitemap shards
+- `feed.xml`, an RSS feed containing the 100 newest listings
+- A company directory at `/companies/a` through `/companies/z`
 
-### Storage and data strategy
+The company directory uses ordinary links to company pages, allowing crawlers to discover listings without executing JavaScript.
 
-**Optimized FTS indexing.** Job descriptions are stored individually in
-S3 and retrieved on demand. Raw JSON payloads are discarded, while search
-relies on a contentless SQLite FTS5 index. The index lives in its own
-file, `jobs-fts.db` (about 1.8 GB, against 0.8 GB for `jobs.db`), so
-rebuilding or vacuuming one never locks the other.
+### 5. Monitoring and alerts
 
-**Latency profile.** Active jobs reach the site within ~5 minutes of
-posting. Ingestion onto EC2 occurs within 1–2 minutes of fragment
-arrival.
+CloudWatch alarms, defined in `infra/alarms.tf`, send email through SNS when a data source goes stale, the fast scraper fails or runs slowly, or the fragment backlog grows.
+
+A Grafana dashboard reads CloudWatch metrics to track database growth and search activity. User email alerts are sent through Amazon SES.
+
+## Storage and search
+
+Job descriptions are stored individually in S3 and retrieved when needed. Raw JSON payloads are discarded after processing.
+
+Search uses a contentless SQLite FTS5 index stored separately in `jobs-fts.db`. Keeping the index separate from `jobs.db` means it can be rebuilt or vacuumed without locking the main database.
+
+The full-text index is approximately 1.8 GB, compared with roughly 0.8 GB for `jobs.db`.
+
+New listings typically appear on the site within about five minutes of being posted. Changes generally reach the EC2 ingestion process within one to two minutes of their fragments arriving.
 
 ## Authentication
 
-Public job listings require no auth. Optional saved filters and email
-alerts use AWS Cognito backed by Google OAuth, a custom Lambda flow for
-GitHub OAuth, and passwordless Email OTP.
+Browsing and searching public listings require no account.
+
+Users can optionally create an account to save filters and receive email alerts. Authentication uses AWS Cognito with Google OAuth, a custom Lambda flow for GitHub OAuth, and passwordless email OTP.
 
 ## Repository structure
 
-| Path / file | Purpose |
+| Path | Purpose |
 |---|---|
-| `probe.py` | Core ATS scraping engine supporting conditional HTTP requests. |
-| `companies.yml` | Declarative pins for Workday, Comeet, and custom portal configurations. |
-| `domains.txt` | Target domain resolution list. |
-| `db/schema.sql` | DDL schema, including the contentless FTS5 virtual table. |
-| `loader/` | Utilities for S3 description blobs (`descriptions.py`), deltas (`deltas.py`), and SQLite upserts (`load_to_sqlite.py`). |
-| `box/` | Host-side daemons: fragment fetcher, applier, static publisher, and execution locking. |
-| `api/` | WSGI application source code for the core API endpoints. |
-| `alerts.py` | Saved search evaluation and email dispatch daemon. |
-| `frontend/` | Framework-less vanilla UI: the landing page, board, companies, statistics, account, contact and privacy pages, one `style.css`, and plain JS beside them (`app.js`, `companies.js`, `auth.js`, `account.js`, `cv_skills.js`). |
-| `docs/` | The docs site at `/docs`: Next.js and Fumadocs, exported to static files. MCP setup guides and the REST API reference. |
-| `infra/` | Terraform manifests managing AWS resources and Cloudflare routing, plus the two Workers (`cloudflare-worker.js` for the API, `mcp-worker.mjs` for MCP). |
-| `scripts/` | Operations: MCP Worker deploy and live check, origin key rotation, Cloudflare DNS (`cf.py`), Workers quota, local preview. |
-| `ARCHITECTURE.md` | The current system in full, including failure modes. The authority. |
-| `.github/workflows/` | CI/CD pipelines: discovery, and deploys for infra, the API, the box, the scrapers and the frontend with the docs. |
+| `probe.py` | Hiring-system scraper with conditional HTTP requests |
+| `companies.yml` | Configuration for Workday, Comeet, and custom hiring portals |
+| `domains.txt` | Discovered and resolved target domains |
+| `db/schema.sql` | Database schema, including the contentless FTS5 table |
+| `loader/` | S3 description storage, delta handling, and SQLite upserts |
+| `box/` | EC2-side fragment fetching, ingestion, publishing, and locking |
+| `api/` | Python WSGI application and API endpoints |
+| `alerts.py` | Saved-search evaluation and email dispatch |
+| `frontend/` | Static frontend pages, CSS, and JavaScript |
+| `docs/` | Next.js and Fumadocs documentation, exported as static files |
+| `infra/` | Terraform for AWS resources and Cloudflare routing, including both Workers |
+| `scripts/` | Deployment, live checks, origin-key rotation, DNS, quota checks, and local preview |
+| `ARCHITECTURE.md` | Detailed system design, failure modes, and operational runbooks |
+| `.github/workflows/` | CI/CD for discovery, infrastructure, API, EC2 services, scrapers, frontend, and documentation |
+
+The frontend uses plain HTML, CSS, and JavaScript without a frontend framework. Its pages cover the job board, company directory, statistics, accounts, contact, and privacy. The documentation site is built with Next.js and Fumadocs and exported to static files.
+
+## License
+
+MIT
