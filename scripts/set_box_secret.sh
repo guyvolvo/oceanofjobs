@@ -13,7 +13,7 @@ set -euo pipefail
 
 NAME="${1:?usage: bash scripts/set_box_secret.sh NAME}"
 case "$NAME" in
-  PADDLE_WEBHOOK_SECRET|PADDLE_ENV|PADDLE_PRICES) ;;
+  PADDLE_WEBHOOK_SECRET|PADDLE_ENV|PADDLE_PRICES|PADDLE_API_KEY) ;;
   *) echo "unknown setting $NAME" >&2; exit 2 ;;
 esac
 read -r -s -p "$NAME (input hidden): " VALUE; echo

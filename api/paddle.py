@@ -79,7 +79,26 @@ def from_paddle(source_ip: str, fetch=None) -> bool:
     return any(ip in n for n in nets)
 
 
-def apply_event(table, event: dict) -> str:
+def cancel_subscription(subscription_id: str, post=None) -> bool:
+    """Cancels a subscription in Paddle now. Paddle then sends
+    subscription.canceled, which is what moves the user to free. Needs
+    PADDLE_API_KEY (scripts/set_box_secret.sh); without it, False."""
+    key = os.environ.get("PADDLE_API_KEY", "")
+    if not key or not subscription_id:
+        return False
+    host = "sandbox-api.paddle.com" if os.environ.get("PADDLE_ENV") == "sandbox" else "api.paddle.com"
+    req = urllib.request.Request(f"https://{host}/subscriptions/{subscription_id}/cancel",
+                                 data=json.dumps({"effective_from": "immediately"}).encode(), method="POST",
+                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    try:
+        (post or (lambda r: urllib.request.urlopen(r, timeout=10).read()))(req)
+        return True
+    except Exception as e:  # noqa: BLE001 -- falls back to the manual cancel the log asks for
+        print(f"paddle cancel of {subscription_id} failed: {e!r}")
+        return False
+
+
+def apply_event(table, event: dict, post=None) -> str:
     """Updates the user's #plan row from one event. Returns what it did,
     for the log and the tests."""
     kind = event.get("event_type") or ""
@@ -103,10 +122,14 @@ def apply_event(table, event: dict) -> str:
         return f"{kind}: {user_id} is {row['plan']} ({row['status']})"
     if kind in ("adjustment.created", "adjustment.updated"):
         if data.get("action") == "refund" and data.get("status") == "approved":
-            # The refund policy says a refund ends the plan; Paddle refunds
-            # and cancels separately, so the cancel is done by hand for now.
-            print(f"REFUND: cancel subscription {data.get('subscription_id')} in Paddle")
-            return f"{kind}: refund for {data.get('subscription_id')}, cancel it in Paddle"
+            # The refund policy says a refund ends the plan, but Paddle refunds
+            # and cancels separately: left alone, a refunded customer keeps
+            # the plan and is charged again at renewal.
+            sub = data.get("subscription_id") or ""
+            if cancel_subscription(sub, post):
+                return f"{kind}: refund for {sub}, canceled in Paddle"
+            print(f"REFUND: cancel subscription {sub} in Paddle by hand")
+            return f"{kind}: refund for {sub}, cancel it in Paddle"
         return f"{kind}: not a refund"
     return f"{kind}: not handled"
 

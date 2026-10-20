@@ -107,6 +107,19 @@ anon = sub_event(user=None)
 check("a subscription with no user_id changes nothing", "no user_id" in paddle.apply_event(t, json.loads(anon)))
 refund = {"event_type": "adjustment.created", "data": {"action": "refund", "status": "approved", "subscription_id": "sub_1"}}
 check("an approved refund is logged for a manual cancel", "cancel it in Paddle" in paddle.apply_event(t, refund))
+import os  # noqa: E402
+sent = []
+os.environ["PADDLE_API_KEY"] = "pdl_test_key"
+out = paddle.apply_event(t, refund, post=sent.append)
+check("with an API key, an approved refund cancels the subscription in Paddle at once",
+      "canceled in Paddle" in out and sent and sent[0].full_url.endswith("/subscriptions/sub_1/cancel")
+      and json.loads(sent[0].data) == {"effective_from": "immediately"}
+      and sent[0].get_header("Authorization") == "Bearer pdl_test_key", out)
+def boom(req):
+    raise OSError("network down")
+check("and falls back to the manual cancel when Paddle can't be reached",
+      "cancel it in Paddle" in paddle.apply_event(t, refund, post=boom))
+del os.environ["PADDLE_API_KEY"]
 
 del os.environ["PADDLE_WEBHOOK_SECRET"]
 check("with no secret configured every request is refused", paddle.handle(t, {}, body, "34.232.58.13", fetch)[0] == 503)
