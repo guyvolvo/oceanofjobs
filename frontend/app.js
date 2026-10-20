@@ -256,16 +256,41 @@ async function syncSavedFromServer() {
 // lives on the server only: the extension reads it from there, so a
 // signed-out queue would be one nothing ever applies to.
 let applyQueue = new Set();
+// Jobs the extension sent for this account (/me/apply/history, status
+// submitted): id -> when. A row says "Applied 2h ago" instead of its age.
+let appliedAt = new Map();
 
 async function syncQueueFromServer() {
   if (!getAuthTokens()) return;
   try {
-    const data = await authedFetch("/me/apply/queue");
-    applyQueue = new Set((data?.queue || []).map((r) => r.job_id));
+    const [queue, history] = await Promise.all([
+      authedFetch("/me/apply/queue"), authedFetch("/me/apply/history").catch(() => null)]);
+    applyQueue = new Set((queue?.queue || []).map((r) => r.job_id));
+    appliedAt = new Map((history?.applied || []).filter((r) => r.status === "submitted" && r.at).map((r) => [r.job_id, r.at]));
   } catch {
     return; // same as the saved sync: nothing on screen changes
   }
   document.querySelectorAll("[data-queue]").forEach((btn) => paintQueue(btn.dataset.queue));
+  paintApplied();
+}
+
+function appliedLabel(id) {
+  const at = appliedAt.get(id);
+  return at ? `Applied ${fmtAgeAgo((Date.now() - new Date(at).getTime()) / 86400000)}` : null;
+}
+
+// The list renders before the history arrives, so its age labels are
+// swapped in place rather than re-rendering the board.
+function paintApplied() {
+  for (const [id] of appliedAt) {
+    const row = document.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+    if (!row) continue;
+    row.querySelectorAll(".meta-age-value, .job-age-tail, .age-cell").forEach((el) => {
+      el.textContent = appliedLabel(id);
+      el.classList.add("applied");
+      el.classList.remove("fresh");
+    });
+  }
 }
 
 function paintQueue(id) {
@@ -2557,7 +2582,7 @@ const QUEUE_SVG =
 // route_apply answers 422 for the rest), so no other listing gets the button.
 const FILLABLE_ATS = new Set(["greenhouse", "ashby", "workable"]);
 function queueButtonHtml(job, cls, label) {
-  if (!FILLABLE_ATS.has(job.ats)) return "";
+  if (!FILLABLE_ATS.has(job.ats) || appliedAt.has(job.id)) return "";
   const on = applyQueue.has(job.id);
   return `<button type="button" class="${cls} job-detail-queue ${on ? "on" : ""}" data-queue="${job.id}" aria-pressed="${on}"
     title="Queue for auto apply" aria-label="Queue for auto apply">${QUEUE_SVG}${label ? `<span>${on ? "Queued" : label}</span>` : ""}</button>`;
@@ -2718,16 +2743,16 @@ function jobRowsHtml(jobs, starred) {
                where its own column would steal the width the title
                needs, and hides on desktop where the column exists.
                Same trick the board used before this layout. -->
-          <div class="job-meta"><span class="job-who">${jobWhoLine(j)}</span><span class="meta-age"> · <span class="meta-age-value ${fresh ? "fresh" : ""}">${fmtPostedAgo(j, age)}</span></span></div>
+          <div class="job-meta"><span class="job-who">${jobWhoLine(j)}</span><span class="meta-age"> · <span class="meta-age-value ${appliedAt.has(j.id) ? "applied" : fresh ? "fresh" : ""}">${appliedLabel(j.id) || fmtPostedAgo(j, age)}</span></span></div>
           <div class="job-where">${jobWhereLine(j)}</div>
-          <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail">${fmtPostedAgo(j, age)}</span></div>
+          <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail ${appliedAt.has(j.id) ? "applied" : ""}">${appliedLabel(j.id) || fmtPostedAgo(j, age)}</span></div>
           <div class="job-links">
             <a class="apply-link" href="${safeHref(j.url)}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
             <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy link</button>
           </div>
           <div class="job-salary-line">${jobSalaryLine(j)}</div>
         </td>
-        <td data-label="Age" class="age-cell ${fresh ? "fresh" : ""}">${fmtPostedAgo(j, age)}</td>
+        <td data-label="Age" class="age-cell ${appliedAt.has(j.id) ? "applied" : fresh ? "fresh" : ""}">${appliedLabel(j.id) || fmtPostedAgo(j, age)}</td>
       </tr>`;
     })
     .join("");
@@ -2862,6 +2887,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
 
     <div class="job-detail-facts">
       ${jobFact("Monthly salary", detailSalaryHtml(job))}
+      ${appliedAt.has(job.id) ? jobFact("Applied", `<span class="applied">${escapeHtml(appliedLabel(job.id))}</span>`) : ""}
       ${jobFact("Posted", age === null ? '<span class="fact-absent">Unreported</span>'
         : isReposted(job) ? escapeHtml(`Reposted ${fmtAgeAgo(age)} · first seen ${fmtAgeAgo((Date.now() - new Date(job.first_seen).getTime()) / 86400000)}`)
         : escapeHtml(fmtAgeAgo(age)))}

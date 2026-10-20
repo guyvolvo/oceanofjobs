@@ -8774,3 +8774,6 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 }
 .upstream-x { font-size: 15px; line-height: 16px; margin-left: 2px; opacity: 0.8; }
 .upstream-badge:hover .upstream-x { opacity: 1; }
+
+/* A job the extension applied to: its age says when, in the board's green. */
+.meta-age-value.applied, .job-age-tail.applied, .age-cell.applied, .job-detail-facts .applied { color: var(--green-text); font-weight: 500; }
