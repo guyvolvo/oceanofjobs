@@ -61,10 +61,18 @@ jobs:
           ITEM: ${{ secrets.CWS_ITEM_ID }}
           ZIP: ${{ steps.pack.outputs.zip }}
           PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+          # A push only reaches the store with the repo variable CWS_AUTO_PUBLISH
+          # set to true: an upload while a version is pending review can restart
+          # that review. Running the workflow by hand always uploads.
+          AUTO: ${{ github.event_name != 'push' || vars.CWS_AUTO_PUBLISH == 'true' }}
         run: |
           set -euo pipefail
           if [ -z "$REFRESH_TOKEN" ] || [ -z "$ITEM" ]; then
             echo "::notice::Store secrets not set; the zip is in this run's artifacts."
+            exit 0
+          fi
+          if [ "$AUTO" != "true" ]; then
+            echo "::notice::CWS_AUTO_PUBLISH is off; the zip is in this run's artifacts. Run this workflow by hand to upload."
             exit 0
           fi
           token="$(curl -fsS https://oauth2.googleapis.com/token \
