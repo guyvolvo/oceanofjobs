@@ -65,6 +65,14 @@
     [/^(your )?(mobile |cell |contact )?(phone|telephone|mobile|telefon|telefonnummer|handynummer|telefoonnummer|téléphone|teléfono)( number)?$/, 'phone'],
     [/^(current )?(location|city)( city)?$|^where are you (currently )?(based|located)$/, 'location'],
     [/^country( of residence)?$/, 'country'],
+    // Hebrew forms (Experis, Comeet and Israeli career sites).
+    [/^שם פרטי$/, 'first_name'],
+    [/^שם משפחה$/, 'last_name'],
+    [/^שם( מלא)?$/, 'full_name'],
+    [/^(מייל|אימייל|דוא ?ל|דואר אלקטרוני|כתובת (מייל|אימייל|דוא ?ל))$/, 'email'],
+    [/^(נייד|טלפון|טלפון נייד|פלאפון|מספר (טלפון|נייד|פלאפון))$/, 'phone'],
+    [/^(עיר|עיר מגורים|מקום מגורים)$/, 'location'],
+    [/לינקדאין/, 'linkedin'],
   ];
 
   // The HTML autocomplete tokens a form may set, whatever its language.
@@ -82,7 +90,7 @@
     if (BY_AUTOCOMPLETE[field.autocomplete]) return BY_AUTOCOMPLETE[field.autocomplete];
     const label = normalise(field.label);
     // Only a file input takes the CV: "Tell us about your resume" is a question.
-    if (field.type === 'file') return /cover letter|motivati|lettre/.test(label) ? 'cover_letter' : /resume|lebenslauf/.test(label) ? 'resume' : null;
+    if (field.type === 'file') return /cover letter|motivati|lettre/.test(label) ? 'cover_letter' : /resume|lebenslauf|קורות חיים|קו ?ח/.test(label) ? 'resume' : null;
     for (const [re, key] of BY_LABEL) if (re.test(label)) return key;
     // An email or phone input labelled in a language the rules above miss.
     if (/refer|recommend|manager|emergency/.test(label)) return null;

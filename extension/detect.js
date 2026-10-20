@@ -211,7 +211,9 @@
     msg.textContent = `Filled in ${r.filled} fields.`
       + (r.suggested ? ` ${r.suggested} suggested by AI, outlined in amber.` : '')
       + (r.missing.length ? ` ${r.missing.length} still ${r.missing.length === 1 ? 'needs' : 'need'} your answer, outlined in red.` : '')
-      + (r.submit ? ' Check the form, then submit it from here.' : ' Check the form, then send it yourself.');
+      + (r.submit ? ' Check the form, then submit it from here.'
+        : r.botCheck ? ' This site checks that a person sends the form, so press its own Submit button.'
+          : ' Check the form, then send it yourself.');
     go.hidden = !r.submit;
     go.disabled = false;
     go.textContent = 'Submit application';

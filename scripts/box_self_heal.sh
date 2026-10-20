@@ -28,12 +28,17 @@ set -e
 test -x /srv/otj/app/box/watchdog.sh || chmod +x /srv/otj/app/box/watchdog.sh
 mkdir -p /etc/systemd/system/otj-publish.service.d /var/lib/otj/pause
 printf '[Service]\nTimeoutStartSec=5h\n' > /etc/systemd/system/otj-publish.service.d/timeout.conf
+# The disk does about 3,000 reads a second. Publish's full-table passes took
+# all of them and the board waited 5 to 10 s per request (2026-10-20); the cap
+# keeps the rest for the API at the cost of a slower publish.
+printf '[Service]\nIOReadIOPSMax=/dev/nvme0n1 1200\nIOWriteIOPSMax=/dev/nvme0n1 600\n' > /etc/systemd/system/otj-publish.service.d/io.conf
 printf '[Unit]\nDescription=Restart stopped otj timers (box/watchdog.sh)\n[Service]\nType=oneshot\nExecStart=/bin/sh /srv/otj/app/box/watchdog.sh\n' > /etc/systemd/system/otj-watchdog.service
 printf '[Unit]\nDescription=Check the otj timers every 15 minutes\n[Timer]\nOnBootSec=5min\nOnUnitActiveSec=15min\n[Install]\nWantedBy=timers.target\n' > /etc/systemd/system/otj-watchdog.timer
 systemctl daemon-reload
 systemctl enable --now otj-watchdog.timer
 systemctl start otj-watchdog.service
 echo "publish timeout: $(systemctl show otj-publish.service -p TimeoutStartUSec --value)"
+echo "publish io cap: $(systemctl show otj-publish.service -p IOReadIOPSMax --value) / $(systemctl show otj-publish.service -p IOWriteIOPSMax --value)"
 systemctl list-timers --all --no-pager | grep -E 'otj-(watchdog|publish)'
 journalctl -u otj-watchdog --since "-2 min" --no-pager | tail -5
 EOF

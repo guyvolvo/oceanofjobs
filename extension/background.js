@@ -573,7 +573,7 @@ async function assistHere(msg, sender) {
   const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
   if (r.error) return r;
   const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
-  const out = { ...r, frameId, url, submit: submit && submit.text };
+  const out = { ...r, frameId, url, submit: submit && !submit.botCheck && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
   // The card that asked went with the old page. detect.js on the new one
   // may still be starting, so try for a few seconds.
   for (let i = 0; moved && i < 10; i++) {
@@ -589,7 +589,9 @@ async function assistHere(msg, sender) {
 async function submitHere(msg, sender) {
   const tabId = sender.tab.id;
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
-  if (!(await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null))) {
+  const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  if (info && info.botCheck) return { error: 'This site checks that a person sends the form. Press its own Submit button.' };
+  if (!info || !info.text) {
     return { error: 'Could not find the form\'s submit button. Press it on the form.' };
   }
   const id = await pageJobId(msg.url);

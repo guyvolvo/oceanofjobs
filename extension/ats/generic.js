@@ -472,8 +472,17 @@
     return top && best.length === 1 ? best[0] : null;
   }
 
+  // An invisible bot check (reCAPTCHA v3, hCaptcha, Turnstile) scores the
+  // click that sends the form, and a click from the extension fails it:
+  // "session verification failed due to a human check error" (Comeet,
+  // 2026-10-20). Those forms are sent with the site's own button.
+  const botCheck = (d) => !!d.querySelector('script[src*="recaptcha"], script[src*="hcaptcha"], script[src*="turnstile"], '
+    + 'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="challenges.cloudflare"], .grecaptcha-badge, .h-captcha, .cf-turnstile');
+
   // The button for the card and the logs, not the element.
   function submitInfo() {
+    const f = markedForm() || findForm();
+    if (f && botCheck(f.ownerDocument)) return { botCheck: true };
     const b = submitButton();
     if (!b) return null;
     const sel = b.tagName.toLowerCase() + (b.id ? '#' + CSS.escape(b.id) : '') + (b.getAttribute('type') ? `[type="${b.getAttribute('type')}"]` : '')

@@ -195,3 +195,11 @@ test('pickFrame takes the frame with the strongest form, else none', () => {
   assert.equal(m.pickFrame([r(0, 0), { frameId: 2, result: null }, { frameId: 4 }]), null);
   assert.equal(m.pickFrame(undefined), null);
 });
+
+test('Hebrew contact labels (Experis) map to profile fields', () => {
+  const cases = [['שם פרטי', 'first_name'], ['שם משפחה', 'last_name'], ['מייל', 'email'], ['דוא"ל', 'email'],
+    ['נייד', 'phone'], ['טלפון', 'phone'], ['לינקדאין', 'linkedin']];
+  for (const [label, key] of cases) assert.equal(m.classify({ label, type: 'text' }), key, label);
+  assert.equal(m.classify({ label: 'העלאת קורות חיים', type: 'file' }), 'resume');
+  assert.equal(m.classify({ label: 'קו"ח', type: 'file' }), 'resume');
+});
