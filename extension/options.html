@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ocean of Jobs settings</title>
+  <link rel="stylesheet" href="ui.css">
+  <style>
+    main { max-width: 620px; margin: 0 auto; padding: 40px 20px 64px; }
+    h1 { margin: 22px 0 8px; font: 500 34px/1.1 "Geist", sans-serif; letter-spacing: -0.03em; }
+    .lede { color: var(--muted); font-size: 15px; }
+    .card { margin-top: 20px; padding: 22px; }
+    h2 { margin: 0 0 6px; font: 500 17px/1.3 "Geist", sans-serif; letter-spacing: -0.01em; }
+    .file { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+    .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .file input:focus-visible + label { outline: 2px solid var(--good); outline-offset: 2px; }
+    .actions { margin-top: 18px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs</div>
+  <h1>Extension settings</h1>
+  <p class="lede">Your CV and any AI key stay in this browser. The CV goes only to the employer you apply to, and your key only to the AI provider you pick here. Neither is sent to Ocean of Jobs.</p>
+
+  <section class="card">
+    <h2>CV</h2>
+    <p id="cv-now" class="note">No CV saved yet.</p>
+    <div class="file">
+      <input type="file" id="cv" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      <label for="cv" class="btn primary">Choose a CV</label>
+      <span class="note">PDF or DOCX, up to 5 MB</span>
+    </div>
+    <p id="cv-msg" class="note" role="status" style="margin-top:10px"></p>
+  </section>
+
+  <section class="card">
+    <h2>Your own AI key</h2>
+    <p class="note">AI answers are included on Basic and Pro, so you only need a key on Free. When a required question has no saved answer and your account is set to use AI, the extension drafts one with this key and saves it to your answers. Basic and Pro also use it once the month's included AI answers run out. Without either, the job is skipped and listed as needing your answer.</p>
+    <label class="field" for="provider">Provider
+      <select class="input" id="provider">
+        <option value="">None</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="openai">OpenAI</option>
+      </select>
+    </label>
+    <label class="field" for="key">API key
+      <input class="input" type="password" id="key" autocomplete="off" spellcheck="false">
+    </label>
+    <label class="field" for="model">Model
+      <input class="input" type="text" id="model" spellcheck="false">
+    </label>
+    <div class="actions row">
+      <button class="btn primary" id="save-ai">Save</button>
+      <span id="ai-msg" class="note" role="status"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Account</h2>
+    <p id="account-now" class="note">Not connected.</p>
+    <div class="actions row">
+      <button class="btn" id="disconnect">Disconnect</button>
+    </div>
+  </section>
+</main>
+<script src="options.js"></script>
+</body>
+</html>

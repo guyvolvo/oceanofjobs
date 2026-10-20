@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Ocean of Jobs</title>
+  <link rel="stylesheet" href="ui.css">
+  <style>
+    body { width: 320px; padding: 16px; }
+    header { margin-bottom: 14px; }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+    .stat { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .stat b { display: block; font: 500 22px/1.1 "Geist", sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .stat span { display: block; margin-top: 4px; color: var(--muted); font-size: 11.5px; line-height: 1.3; }
+    #needs-list { margin: 12px 0 0; padding: 0; list-style: none; }
+    #needs-list li { display: flex; gap: 8px; padding: 8px 10px; background: var(--soft); border-radius: 8px; font-size: 13px; }
+    #needs-list li::before { content: ""; flex: none; width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--warn); }
+    #needs-list li + li { margin-top: 6px; }
+    .actions { margin-top: 14px; display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+    .links a { font-size: 13px; color: var(--muted); text-decoration: none; padding: 0 6px; }
+    .links a:hover { color: var(--text); }
+    .connect p { margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+  <header class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs <span class="chip" id="plan" hidden>free</span></header>
+
+  <section id="out" class="card connect" hidden>
+    <p id="out-text">Connect the extension to your Ocean of Jobs account to start applying.</p>
+    <button class="btn primary full" id="connect">Connect</button>
+  </section>
+
+  <section id="in" hidden>
+    <p id="no-cv" class="card error" hidden>Add your CV in <a href="#" class="open-options">settings</a> before the extension can apply.</p>
+    <div class="stats">
+      <div class="stat"><b id="left">…</b><span id="left-label">Left this month</span></div>
+      <div class="stat"><b id="today">…</b><span>Applied today</span></div>
+      <div class="stat"><b id="needs">0</b><span>Need your answer</span></div>
+    </div>
+    <ul id="needs-list" hidden></ul>
+    <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these on your account page and the next run uses them.</p>
+    <div class="actions">
+      <button class="btn" id="pause">Pause</button>
+      <span class="links row"><a href="https://oceanofjobs.com/account#autoapply" target="_blank" rel="noopener">History</a><a href="#" class="open-options">Settings</a></span>
+    </div>
+    <p id="state" class="note" style="margin-top:12px"></p>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

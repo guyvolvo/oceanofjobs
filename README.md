@@ -167,6 +167,7 @@ Users can optionally create an account to save filters and receive email alerts.
 | `alerts.py` | Saved-search evaluation and email dispatch |
 | `frontend/` | Static frontend pages, CSS, and JavaScript |
 | `docs/` | Next.js and Fumadocs documentation, exported as static files |
+| `extension/` | Chrome extension that fills in and sends Greenhouse applications from a user's profile |
 | `infra/` | Terraform for AWS resources and Cloudflare routing, including both Workers |
 | `scripts/` | Deployment, live checks, origin-key rotation, DNS, quota checks, and local preview |
 | `ARCHITECTURE.md` | Detailed system design, failure modes, and operational runbooks |

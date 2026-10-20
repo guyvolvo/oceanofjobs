@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Ocean of Jobs",
+  "version": "1.0.0",
+  "description": "Fills in and sends Greenhouse job applications with your Ocean of Jobs profile.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "alarms", "tabs", "scripting"],
+  "host_permissions": [
+    "https://oceanofjobs.com/*",
+    "https://boards.greenhouse.io/*",
+    "https://job-boards.greenhouse.io/*"
+  ],
+  "optional_host_permissions": [
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://oceanofjobs.com/*"],
+      "js": ["connect.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+/* The homepage's look (frontend/style.css .home): Geist, the same
+   tokens, dark unless the system asks for light. */
+@font-face { font-family: "Geist"; src: url("fonts/Geist-400-latin.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("fonts/Geist-500-latin.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
+
+:root {
+  --bg: #0e0f11;
+  --surface: #17181c;
+  --text: #f2f0ef;
+  --muted: #9a9ca3;
+  --dim: #6b6e75;
+  --line: rgba(242, 240, 239, 0.10);
+  --soft: rgba(242, 240, 239, 0.07);
+  --soft-hover: rgba(242, 240, 239, 0.13);
+  --pill-bg: #f2f0ef;
+  --pill-fg: #0e0f11;
+  --good: #2fae60;
+  --warn: #ff6b5e;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f2f0ef;
+    --surface: #e8e5e2;
+    --text: #40513b;
+    --muted: #5d6a58;
+    --dim: #7d8879;
+    --line: rgba(64, 81, 59, 0.14);
+    --soft: rgba(64, 81, 59, 0.07);
+    --soft-hover: rgba(64, 81, 59, 0.13);
+    --pill-bg: #40513b;
+    --pill-fg: #f2f0ef;
+    --good: #3f6f45;
+    --warn: #b8362c;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/1.5 "Geist", system-ui, sans-serif; }
+p { margin: 0; }
+a { color: var(--text); text-underline-offset: 3px; }
+a:hover { color: var(--good); }
+[hidden] { display: none !important; }
+
+.brand { display: flex; align-items: center; gap: 10px; font: 500 15px/1 "Geist", sans-serif; letter-spacing: -0.01em; }
+.brand img { width: 22px; height: 22px; }
+.chip { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: var(--soft-hover); color: var(--text); font-size: 12px; font-weight: 500; }
+.muted { color: var(--muted); }
+.note { color: var(--muted); font-size: 13px; }
+.error { color: var(--warn); }
+.ok { color: var(--good); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 38px; padding: 0 16px; border: 0; border-radius: 999px;
+  background: var(--soft); color: var(--text); font: 500 14px/1 "Geist", sans-serif;
+  text-decoration: none; cursor: pointer; transition: background-color 150ms ease;
+}
+.btn:hover { background: var(--soft-hover); color: var(--text); }
+.btn.primary { background: var(--pill-bg); color: var(--pill-fg); }
+.btn.primary:hover { opacity: 0.9; background: var(--pill-bg); color: var(--pill-fg); }
+.btn.full { width: 100%; }
+.btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+
+.card { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.field { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; font-size: 13px; font-weight: 500; }
+.input {
+  width: 100%; min-height: 38px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text);
+  font: 400 14px "Geist", sans-serif;
+}
+select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
