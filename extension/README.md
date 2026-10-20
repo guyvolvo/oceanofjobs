@@ -60,3 +60,7 @@ There is no DOM library in this repo, so the tests cover the pure parts and run 
 - Cover letters. A job that requires one is skipped.
 - Education sections, if a board turns them on.
 - Answering the work authorization question from the job's country: `/api/jobs` doesn't return the job's country yet, so that question falls back to your saved answers.
+
+## Updating
+
+The manifest carries a fixed `key`, so the extension keeps the same id (epmalmdedhbbgcpghhpobghpneddabic) whatever folder it is loaded from. To update, load the new folder with Load unpacked without removing the old one first: the new copy replaces it and keeps the connection, CV and AI key. Removing the extension deletes them. Remove `key` from the manifest before uploading to the Chrome Web Store, which assigns its own.

@@ -23,7 +23,12 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "alarms", "tabs", "scripting"],
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs",
+    "scripting"
+  ],
   "host_permissions": [
     "https://oceanofjobs.com/*",
     "https://boards.greenhouse.io/*",
@@ -35,18 +40,38 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://oceanofjobs.com/*"],
-      "js": ["connect.js"],
+      "matches": [
+        "https://oceanofjobs.com/*"
+      ],
+      "js": [
+        "connect.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://boards.greenhouse.io/*", "https://job-boards.greenhouse.io/*"],
-      "js": ["lib/match.js", "ats/greenhouse.js", "detect.js"],
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*"
+      ],
+      "js": [
+        "lib/match.js",
+        "ats/greenhouse.js",
+        "detect.js"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["icons/icon-32.png"], "matches": ["https://boards.greenhouse.io/*", "https://job-boards.greenhouse.io/*"] }
-  ]
+    {
+      "resources": [
+        "icons/icon-32.png"
+      ],
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*"
+      ]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA06yv7Yz4McCh0ZAMN0ZTDeCMLbtGbrbK5+ipmBgoiwQVvjfQaQMcmsj3T7qTGfQep5kktjR43g1mLFAqfu9EpWo6iBtm0FD8BaBRCeBlQIP87Iex+4oXn7/KMAKne1NJNRXYIQXo77/dGMZAK2RIwX/nM1Bh2wex/JAoWCnaYP4G8Mdf390VPBk2yhEjo+5V9u8vjX8Cd1NoLQbGqmlPHBKxB+A164BxGoooYy/HDIK6nQoQVxfyMtLpAWfr1XZQFI7pF956bvpv53qxpAjrR7c1hIogINkSTYt4xmOQ4uzY6DNPuswdtg1bT6racH9ILtMw9cogBjUBTUZWWu7jxwIDAQAB"
 }
