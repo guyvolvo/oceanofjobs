@@ -50,7 +50,8 @@ globalThis.fetch = async (url, init) => {
   const path = String(url).replace("https://box.oceanofjobs.com", "");
   const r = routes.find((x) => path.startsWith(x.prefix));
   if (!r) return new Response("{}", { status: 404, headers: PUBLIC });
-  return new Response(typeof r.body === "string" ? r.body : JSON.stringify(r.body), { status: r.status, headers: r.headers });
+  const body = r.status === 204 ? null : typeof r.body === "string" ? r.body : JSON.stringify(r.body);
+  return new Response(body, { status: r.status, headers: r.headers });
 };
 
 const env = {
@@ -108,15 +109,63 @@ test("notifications get 202 with no body", async () => {
   assert.equal(await res.text(), "");
 });
 
-test("tools/list has exactly the three read-only tools", async () => {
+test("tools/list has the three public read-only tools and the three saved-job tools", async () => {
   const body = await (await post({ jsonrpc: "2.0", id: 2, method: "tools/list" })).json();
-  assert.deepEqual(body.result.tools.map((t) => t.name), ["search_jobs", "get_job", "get_company"]);
+  assert.deepEqual(body.result.tools.map((t) => t.name),
+    ["search_jobs", "get_job", "get_company", "save_job", "list_saved_jobs", "remove_saved_job"]);
+  const hints = Object.fromEntries(body.result.tools.map((t) => [t.name, t.annotations]));
+  for (const n of ["search_jobs", "get_job", "get_company", "list_saved_jobs"]) assert.equal(hints[n].readOnlyHint, true, n);
+  assert.equal(hints.save_job.readOnlyHint, false);
+  assert.equal(hints.remove_saved_job.destructiveHint, true);
   for (const t of body.result.tools) {
-    assert.equal(t.annotations.readOnlyHint, true);
-    assert.equal(t.annotations.destructiveHint, false);
     assert.equal(t.inputSchema.type, "object");
     assert.equal(t.outputSchema.type, "object");
   }
+});
+
+const TOKEN = "ooj_dTE.0a1b2c3d.abcdefghijklmnopqrstuvwxyz012345";
+
+test("saved-job tools need a token and say how to get one", async () => {
+  for (const [name, args] of [["save_job", { id: "67ff4ef965d91ef7" }], ["list_saved_jobs", {}], ["remove_saved_job", { id: "67ff4ef965d91ef7" }]]) {
+    const { result } = await call(name, args);
+    assert.equal(result.isError, true, name);
+    assert.match(result.content[0].text, /personal access token/);
+  }
+  assert.equal(calls.length, 0, "nothing reached the box");
+});
+
+test("save, list and remove send the token to the box and are never cached", async () => {
+  route("/api/me/saved/", 204, null, { "cache-control": "public, max-age=300" });
+  route("/api/me/saved", 200, { saved: [{ job_id: "67ff4ef965d91ef7", saved_at: "2026-10-20T10:00:00+00:00" }, { job_id: "deadbeefdeadbeef", saved_at: null }] },
+    { "content-type": "application/json", "cache-control": "public, max-age=300" });
+  route("/api/jobs/67ff4ef965d91ef7", 200, job());
+  const auth = { authorization: "Bearer " + TOKEN };
+  const res = await post({ jsonrpc: "2.0", id: 50, method: "tools/call", params: { name: "save_job", arguments: { id: "67ff4ef965d91ef7" } } }, auth);
+  const saved = (await res.json()).result.structuredContent;
+  assert.deepEqual(saved, { id: "67ff4ef965d91ef7", saved: true, url: "https://oceanofjobs.com/job/67ff4ef965d91ef7?ref=mcp" });
+  assert.equal(calls[0].url, "https://box.oceanofjobs.com/api/me/saved/67ff4ef965d91ef7");
+  assert.equal(calls[0].headers.authorization, "Bearer " + TOKEN);
+  assert.equal(calls[0].headers["x-otj-origin-key"], "test-key");
+  for (let i = 0; i < 2; i++) {
+    const list = await post({ jsonrpc: "2.0", id: 51 + i, method: "tools/call", params: { name: "list_saved_jobs", arguments: {} } }, auth);
+    const out = (await list.json()).result.structuredContent;
+    assert.equal(out.total, 2);
+    assert.deepEqual(out.jobs.map((j) => [j.id, j.saved_at]), [["67ff4ef965d91ef7", "2026-10-20T10:00:00+00:00"]]);
+    assert.deepEqual(out.gone, ["deadbeefdeadbeef"]);
+  }
+  assert.equal(calls.filter((c) => c.url.endsWith("/api/me/saved")).length, 2, "the saved list is asked for every time, never served from the cache");
+  assert.ok(![...store.keys()].some((k) => k.includes("/api/me/")), "nothing personal is in the shared cache");
+});
+
+test("a revoked token is a readable tool error, and other Authorization headers are ignored", async () => {
+  route("/api/me/saved", 401, { error: "unauthorized" });
+  const res = await post({ jsonrpc: "2.0", id: 60, method: "tools/call", params: { name: "list_saved_jobs", arguments: {} } }, { authorization: "Bearer " + TOKEN });
+  const body = await res.json();
+  assert.equal(body.result.isError, true);
+  assert.match(body.result.content[0].text, /revoked or expired/);
+  const other = await post({ jsonrpc: "2.0", id: 61, method: "tools/call", params: { name: "list_saved_jobs", arguments: {} } }, { authorization: "Bearer eyJhbGciOi.some.jwt" });
+  assert.match((await other.json()).result.content[0].text, /needs an Ocean of Jobs personal access token/);
+  assert.ok(!JSON.stringify(points).includes(TOKEN), "the token is never in analytics");
 });
 
 test("transport edges: GET, OPTIONS, bad JSON, batches, versions, paths, methods", async () => {

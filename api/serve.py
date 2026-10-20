@@ -16,6 +16,9 @@ Two things API Gateway did that a plain WSGI server does not:
   unchanged. A missing or bad token on those routes answers 401 before
   the handler runs, as the gateway did. With the two variables unset,
   every /api/me route is 401: safe, not broken.
+  A personal access token (ooj_..., api/tokens.py) is the other way in.
+  It stands for its user on the saved-jobs routes only; anywhere else
+  under /api/me it answers 403.
 - The 29 second timeout. Not reproduced. That ceiling is what turned
   a slow download into an outage.
 """
@@ -24,11 +27,15 @@ import base64
 import os
 from http import HTTPStatus
 
+import tokens
+import handler
 from handler import lambda_handler
 
 COGNITO_ISSUER = os.environ.get("COGNITO_ISSUER", "")
 COGNITO_AUDIENCE = os.environ.get("COGNITO_AUDIENCE", "")
 MAX_BODY = 64 * 1024
+# What a personal access token may reach: the saved list and its rows.
+TOKEN_PATHS = ("/api/me/saved", "/api/me/saved/")
 
 _jwks = None
 
@@ -37,14 +44,23 @@ def _claims(environ: dict) -> dict | None:
     """Verified claims from the request's bearer token, or None."""
     global _jwks
     auth = environ.get("HTTP_AUTHORIZATION", "")
-    if not auth.startswith("Bearer ") or not (COGNITO_ISSUER and COGNITO_AUDIENCE):
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth[len("Bearer "):].strip()
+    if token.startswith(tokens.PREFIX):
+        try:
+            user_id = tokens.verify(handler._alerts_table, token)
+        except Exception as e:  # noqa: BLE001 -- a table error is "not signed in", not a 500
+            print(f"token check failed: {e.__class__.__name__}")
+            return None
+        return {"sub": user_id, "token_use": "ooj"} if user_id else None
+    if not (COGNITO_ISSUER and COGNITO_AUDIENCE):
         return None
     try:
         import jwt
 
         if _jwks is None:
             _jwks = jwt.PyJWKClient(f"{COGNITO_ISSUER}/.well-known/jwks.json", cache_keys=True)
-        token = auth[len("Bearer "):].strip()
         key = _jwks.get_signing_key_from_jwt(token).key
         claims = jwt.decode(token, key, algorithms=["RS256"], audience=COGNITO_AUDIENCE,
                             issuer=COGNITO_ISSUER)
@@ -105,6 +121,11 @@ def app(environ, start_response):
     if path.startswith("/api/me/") and "authorizer" not in event["requestContext"]:
         start_response("401 Unauthorized", [("Content-Type", "application/json")])
         return [b'{"error": "unauthorized"}']
+    claims = event["requestContext"].get("authorizer", {}).get("jwt", {}).get("claims", {})
+    if (path.startswith("/api/me/") and claims.get("token_use") == "ooj"
+            and not (path == TOKEN_PATHS[0] or path.startswith(TOKEN_PATHS[1]))):
+        start_response("403 Forbidden", [("Content-Type", "application/json")])
+        return [b'{"error": "a personal access token can only use saved jobs"}']
 
     result = lambda_handler(event, None) or {}
     status = int(result.get("statusCode", 500))

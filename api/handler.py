@@ -44,6 +44,7 @@ from help_page import HELP_HTML
 from openapi import spec as openapi_spec
 import company_page
 import job_page
+import tokens
 from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
                      empty_profile)
 import dashboard
@@ -587,6 +588,25 @@ def lambda_handler(event, context):
                 return _response(200, json.dumps(updated, default=str))
             if method == "DELETE":
                 route_delete_alert(user_id, alert_id)
+                return _response(204, "")
+            return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/me/tokens":
+            # Personal access tokens (tokens.py). Only a signed-in session
+            # gets here: serve.py keeps a token itself to the saved routes.
+            user_id = _authenticated_claims(event)["sub"]
+            if method == "GET":
+                return _response(200, json.dumps({"tokens": tokens.list_tokens(_alerts_table, user_id)}))
+            if method == "POST":
+                body = json.loads(event.get("body") or "{}")
+                made = tokens.create(_alerts_table, user_id, body.get("name"), body.get("expires_in_days"))
+                resp = _response(201, json.dumps(made))
+                resp["headers"]["Cache-Control"] = "no-store"  # the one answer that carries the token
+                return resp
+            return _response(405, json.dumps({"error": "method not allowed"}))
+        if path.startswith("/me/tokens/") and len(path) > len("/me/tokens/"):
+            user_id = _authenticated_claims(event)["sub"]
+            if method == "DELETE":
+                tokens.revoke(_alerts_table, user_id, path[len("/me/tokens/"):])
                 return _response(204, "")
             return _response(405, json.dumps({"error": "method not allowed"}))
         return _response(404, json.dumps({"error": f"no route for {path}"}))

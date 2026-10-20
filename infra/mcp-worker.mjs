@@ -80,7 +80,10 @@ const INSTRUCTIONS =
   "ranked list, each entry giving title, company, location and the reason it fits, then url (the " +
   "Ocean of Jobs page) and apply_url (the employer's page) on their own lines, never inside a " +
   "table cell. Results are capped at 25 per call and offset 200; for " +
-  "bulk data use the public REST API documented at " + SITE + "/api/help.";
+  "bulk data use the public REST API documented at " + SITE + "/api/help. " +
+  "save_job, list_saved_jobs and remove_saved_job work on the user's own Ocean of Jobs account " +
+  "and need a personal access token sent as Authorization: Bearer ooj_...; save a job only when " +
+  "the user asks for it.";
 
 const JOB_PROPS = {
   id: { type: "string" },
@@ -228,6 +231,64 @@ const TOOLS = [
     },
     annotations: { title: "Get a company", ...READ_ONLY },
   },
+  {
+    name: "save_job",
+    title: "Save a job",
+    description:
+      "Save a job to the user's Ocean of Jobs account, where it shows under Saved jobs on every " +
+      "device. Needs the user's personal access token. Saving the same job twice is harmless.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "The job's id, e.g. 67ff4ef965d91ef7." } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, saved: { type: "boolean" }, url: { type: "string" } },
+      required: ["id", "saved", "url"],
+    },
+    annotations: { title: "Save a job", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "list_saved_jobs",
+    title: "List saved jobs",
+    description:
+      "The jobs saved on the user's Ocean of Jobs account, newest saved first, with the same " +
+      "fields as search results and when each was saved. Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "How many, 1 to 25. Default 10." } },
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        total: { type: "integer", description: "Every saved job, not only this list." },
+        jobs: { type: "array", items: { ...LISTED_JOB, properties: { ...LISTED_JOB.properties, saved_at: { type: ["string", "null"] } } } },
+        gone: { type: "array", items: { type: "string" }, description: "Saved ids that no longer have a listing." },
+      },
+      required: ["total", "jobs", "gone"],
+    },
+    annotations: { title: "List saved jobs", ...READ_ONLY },
+  },
+  {
+    name: "remove_saved_job",
+    title: "Remove a saved job",
+    description: "Take a job off the user's saved list. Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "The job's id." } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, saved: { type: "boolean" } },
+      required: ["id", "saved"],
+    },
+    annotations: { title: "Remove a saved job", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
 ];
 
 // Thrown inside a tool for anything the model should read and act on:
@@ -238,7 +299,7 @@ class ToolError extends Error {}
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "POST, GET, OPTIONS",
-  "access-control-allow-headers": "content-type, accept, mcp-protocol-version, mcp-session-id",
+  "access-control-allow-headers": "content-type, accept, authorization, mcp-protocol-version, mcp-session-id",
 };
 
 function json(status, body, extra = {}) {
@@ -322,6 +383,39 @@ async function api(path, params, env, ctx, trace) {
     ctx.waitUntil(cache.put(key, stored));
   }
   return { status: 200, body };
+}
+
+const NEEDS_TOKEN =
+  "This needs an Ocean of Jobs personal access token. The user can create one at " + SITE +
+  "/account#settings and add it to this MCP server as the header Authorization: Bearer ooj_...";
+
+// One call on the user's own account, with their personal access token.
+// Never cached, never counted as a cache miss: the answer is one
+// person's, and the Cloudflare cache above is shared by everyone.
+async function me(method, path, token, env) {
+  if (!token) throw new ToolError(NEEDS_TOKEN);
+  let res;
+  try {
+    res = await fetch(BOX + path, {
+      method,
+      headers: { "x-otj-origin-key": env.ORIGIN_KEY || "", authorization: "Bearer " + token, "user-agent": "oceanofjobs-mcp/" + SERVER.version, accept: "application/json" },
+    });
+  } catch {
+    throw new ToolError("Ocean of Jobs could not be reached. Try again shortly.");
+  }
+  if (res.status === 401) throw new ToolError("The personal access token was not accepted: it may be revoked or expired. " + NEEDS_TOKEN);
+  if (res.status === 400) {
+    const err = await res.json().catch(() => ({}));
+    throw new ToolError(`Ocean of Jobs refused that: ${err.error || "bad request"}.`);
+  }
+  if (res.status === 503 || res.status === 429) throw new ToolError("Ocean of Jobs is busy. Try again in a few seconds.");
+  if (!res.ok) throw new ToolError(`Ocean of Jobs answered ${res.status}. Try again shortly.`);
+  return res.status === 204 ? null : res.json();
+}
+function jobId(args) {
+  const id = str(args, "id", 64);
+  if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) throw new ToolError("id must be a job id such as 67ff4ef965d91ef7.");
+  return id;
 }
 
 function link(path) {
@@ -531,9 +625,47 @@ async function getCompany(args, env, ctx, trace, now) {
   };
 }
 
-const HANDLERS = { search_jobs: searchJobs, get_job: getJob, get_company: getCompany };
+async function saveJob(args, env, ctx, trace, now, token) {
+  const id = jobId(args);
+  await me("PUT", `/api/me/saved/${id}`, token, env);
+  return { id, saved: true, url: link(`/job/${encodeURIComponent(id)}`) };
+}
 
-async function callTool(params, env, ctx, trace) {
+async function removeSavedJob(args, env, ctx, trace, now, token) {
+  const id = jobId(args);
+  await me("DELETE", `/api/me/saved/${id}`, token, env);
+  return { id, saved: false };
+}
+
+async function listSavedJobs(args, env, ctx, trace, now, token) {
+  const limit = int(args, "limit", 1, MAX_LIMIT, 10);
+  const saved = ((await me("GET", "/api/me/saved", token, env)) || {}).saved || [];
+  // The listings themselves are public, so these go through the shared
+  // cache like any get_job.
+  const rows = await Promise.all(saved.slice(0, limit).map(async (s) => {
+    const { status, body } = await api(`/api/jobs/${encodeURIComponent(s.job_id)}`, {}, env, ctx, trace);
+    return { s, job: status === 404 ? null : body };
+  }));
+  return {
+    total: saved.length,
+    jobs: rows.filter((r) => r.job).map((r) => ({ ...listedJob(r.job, now), saved_at: r.s.saved_at ?? null })),
+    gone: rows.filter((r) => !r.job).map((r) => r.s.job_id),
+  };
+}
+
+const HANDLERS = {
+  search_jobs: searchJobs, get_job: getJob, get_company: getCompany,
+  save_job: saveJob, list_saved_jobs: listSavedJobs, remove_saved_job: removeSavedJob,
+};
+
+// The personal access token, if the client sent one. Anything else in
+// Authorization is ignored rather than refused: the public tools need none.
+function bearerToken(request) {
+  const m = (request.headers.get("authorization") || "").match(/^Bearer\s+(ooj_[A-Za-z0-9_.-]{20,300})$/);
+  return m ? m[1] : null;
+}
+
+async function callTool(params, env, ctx, trace, token = null) {
   const name = params && params.name;
   const handler = HANDLERS[name];
   trace.tool = typeof name === "string" ? name.slice(0, 40) : "";
@@ -542,7 +674,7 @@ async function callTool(params, env, ctx, trace) {
   try {
     if (typeof args !== "object" || Array.isArray(args)) throw new ToolError("arguments must be an object.");
     unknownArgs(name, args);
-    const out = await handler(args, env, ctx, trace, Date.now());
+    const out = await handler(args, env, ctx, trace, Date.now(), token);
     return { result: { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out, isError: false } };
   } catch (e) {
     if (!(e instanceof ToolError)) throw e;
@@ -593,7 +725,7 @@ async function handle(request, env, ctx, trace) {
   if (method === "ping") return json(200, { jsonrpc: "2.0", id, result: {} });
   if (method === "tools/list") return json(200, { jsonrpc: "2.0", id, result: { tools: TOOLS } });
   if (method === "tools/call") {
-    const out = await callTool(params, env, ctx, trace);
+    const out = await callTool(params, env, ctx, trace, bearerToken(request));
     if (out.error) return rpcError(id, out.error.code, out.error.message, 200, trace);
     return json(200, { jsonrpc: "2.0", id, result: out.result });
   }

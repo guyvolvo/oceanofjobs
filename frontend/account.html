@@ -3,22 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="theme-color" content="#f2f0ef" />
-  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
   <link rel="preload" href="/fonts/OverusedGrotesk-VF.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/SourceSans3-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/Geist-400-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <!-- Google tag (gtag.js). Google's own instruction is "immediately
-       after <head>"; it sits after the charset instead, because a
-       document's encoding has to be declared inside the first 1024
-       bytes and this snippet is long enough to push it out. async, so
-       it never blocks the theme script below or first paint. -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-GXP63R1JP1"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-GXP63R1JP1');
-  </script>
+  <!-- Google Analytics only after consent (consent.js). -->
+  <script src="/consent.js"></script>
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Account | Ocean of Jobs</title>
@@ -427,6 +416,36 @@
                     <span class="acct-row-note">You can sign back in anytime.</span>
                   </div>
                   <button class="btn ghost btn-small" id="account-signout" type="button">Sign out</button>
+                </div>
+                <!-- Personal access tokens for MCP clients (api/tokens.py). A
+                     token is shown once, when it is made; the list only
+                     ever has its last four characters. -->
+                <div class="acct-tokens">
+                  <div class="acct-row">
+                    <div class="acct-row-text">
+                      <span class="acct-row-label">Personal access tokens</span>
+                      <span class="acct-row-note">Let an AI assistant save and list jobs on your account through the <a href="/docs/mcp#saved-jobs">MCP server</a>. A token can only touch saved jobs.</span>
+                    </div>
+                    <button class="btn ghost btn-small" id="token-new" type="button" aria-expanded="false" aria-controls="token-form">New token</button>
+                  </div>
+                  <form class="token-form" id="token-form" hidden>
+                    <input type="text" id="token-name" maxlength="60" placeholder="Name, e.g. Claude Code laptop" aria-label="Token name" autocomplete="off" />
+                    <select id="token-expiry" aria-label="Expires">
+                      <option value="30">Expires in 30 days</option>
+                      <option value="90" selected>Expires in 90 days</option>
+                      <option value="">Never expires</option>
+                    </select>
+                    <button class="btn btn-small" type="submit">Create</button>
+                    <button class="btn btn-quiet btn-small" type="button" id="token-cancel">Cancel</button>
+                  </form>
+                  <div class="token-made" id="token-made" hidden>
+                    <p class="acct-row-note">Copy this token now. It will not be shown again.</p>
+                    <div class="token-copy"><code id="token-value"></code><button class="btn btn-small" type="button" data-copy="token-value">Copy</button></div>
+                    <p class="acct-row-note">Or add it to Claude Code in one line:</p>
+                    <div class="token-copy"><code id="token-cmd"></code><button class="btn btn-small" type="button" data-copy="token-cmd">Copy</button></div>
+                  </div>
+                  <ul class="token-list" id="token-list"></ul>
+                  <span class="account-status" id="token-status" aria-live="polite"></span>
                 </div>
               </div>
 

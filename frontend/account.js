@@ -819,6 +819,90 @@ async function wireAlerts() {
 // the switching and the storage key, and mirrors whatever label that
 // leaves behind. The observer is what keeps the two in step when the
 // theme is changed from the bar instead of from here.
+// Personal access tokens, in Settings. The server returns a token once,
+// in the answer to its POST; it is put on screen and kept nowhere else.
+function wireTokens() {
+  const form = $("token-form");
+  const newBtn = $("token-new");
+  const list = $("token-list");
+  if (!form || !list) return;
+  const day = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  async function load() {
+    try {
+      const { tokens = [] } = await authedFetch("/me/tokens");
+      list.innerHTML = tokens.map((t) => {
+        const bits = [`ends in ${esc(t.hint)}`, `made ${day(t.created_at)}`,
+          t.last_used_at ? `last used ${day(t.last_used_at)}` : "never used",
+          t.expires_at ? `expires ${day(t.expires_at)}` : "never expires"];
+        return `<li class="token-row"><div class="acct-row-text"><span class="token-name">${esc(t.name)}</span>`
+          + `<span class="acct-row-note">${bits.join(" · ")}</span></div>`
+          + `<button class="btn ghost btn-small" type="button" data-revoke="${esc(t.id)}">Revoke</button></li>`;
+      }).join("");
+      newBtn.disabled = tokens.length >= 5;
+      newBtn.title = newBtn.disabled ? "Five tokens at most. Revoke one first." : "";
+    } catch (e) {
+      setStatus("token-status", e.message || "Could not load tokens.", true);
+    }
+  }
+
+  const close = () => { form.hidden = true; newBtn.setAttribute("aria-expanded", "false"); };
+  newBtn.addEventListener("click", () => {
+    form.hidden = !form.hidden;
+    newBtn.setAttribute("aria-expanded", String(!form.hidden));
+    if (!form.hidden) $("token-name").focus();
+  });
+  $("token-cancel").addEventListener("click", close);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector("[type=submit]");
+    btn.classList.add("btn-busy");
+    try {
+      const days = $("token-expiry").value;
+      const made = await authedFetch("/me/tokens", {
+        method: "POST",
+        body: JSON.stringify({ name: $("token-name").value, expires_in_days: days ? Number(days) : null }),
+      });
+      $("token-value").textContent = made.token;
+      $("token-cmd").textContent = `claude mcp add --transport http oceanofjobs https://oceanofjobs.com/mcp --header "Authorization: Bearer ${made.token}"`;
+      $("token-made").hidden = false;
+      $("token-name").value = "";
+      close();
+      await load();
+    } catch (err) {
+      setStatus("token-status", err.message || "Could not create the token.", true);
+    } finally {
+      btn.classList.remove("btn-busy");
+    }
+  });
+  $("token-made").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-copy]");
+    if (!b) return;
+    try {
+      await navigator.clipboard.writeText($(b.dataset.copy).textContent);
+      b.textContent = "Copied";
+      setTimeout(() => { b.textContent = "Copy"; }, 1500);
+    } catch {
+      setStatus("token-status", "Copy did not work. Select the text and copy it.", true);
+    }
+  });
+  list.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-revoke]");
+    if (!b) return;
+    b.classList.add("btn-busy");
+    try {
+      await authedFetch(`/me/tokens/${b.dataset.revoke}`, { method: "DELETE" });
+      setStatus("token-status", "Revoked. It stops working now.");
+      await load();
+    } catch (err) {
+      b.classList.remove("btn-busy");
+      setStatus("token-status", err.message || "Could not revoke.", true);
+    }
+  });
+  load();
+}
+
 function wireSettingsTheme() {
   const here = $("settings-theme");
   const bar = document.getElementById("theme-toggle");
@@ -881,6 +965,12 @@ function wireLeaving() {
       const alerts = (await authedFetch("/me/alerts")).alerts || [];
       for (const a of alerts) {
         await authedFetch(`/me/alerts/${a.alert_id}`, { method: "DELETE" });
+      }
+      // Every token too: one left behind would keep
+      // working for an account its owner believes is gone.
+      const tokens = (await authedFetch("/me/tokens")).tokens || [];
+      for (const t of tokens) {
+        await authedFetch(`/me/tokens/${t.id}`, { method: "DELETE" });
       }
       // An empty profile is the same shape as never having had one, so
       // this is a delete without needing a delete route.
@@ -1121,6 +1211,7 @@ async function bootAccount() {
     wireLeaving();
     wireAccountNav();
     wireSettingsTheme();
+    wireTokens();
   });
 
   // Three independent fetches, started together. The profile used to be

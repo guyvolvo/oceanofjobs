@@ -136,7 +136,7 @@ If your client only supports locally running MCP servers, you can connect throug
 
 ## Available tools
 
-The server exposes three read-only tools.
+The server exposes three read-only tools that need no account, and three tools for your [saved jobs](#saved-jobs) that need a personal access token.
 
 ### `search_jobs`
 
@@ -177,6 +177,52 @@ Look up a company by name or domain.
 The response includes its current open-job count, jobs added this week, how long it has been tracked, its newest listings, and its Ocean of Jobs page.
 
 If the name matches multiple companies, `other_matches` lists the alternatives.
+
+## Saved jobs
+
+Three more tools work on your own Ocean of Jobs account, so an assistant can keep a shortlist for you: "save the best five of these" or "what's on my saved list?". Saved jobs show up on the board and on your account page on every device.
+
+| Tool | What it does |
+|---|---|
+| `save_job` | Saves a job by its ID. Saving the same job twice does nothing. |
+| `list_saved_jobs` | Lists your saved jobs, newest saved first, with the same fields as search results. `gone` lists saved jobs whose listing no longer exists. |
+| `remove_saved_job` | Takes a job off your saved list. |
+
+These tools need a personal access token. Without one they answer with an error that says how to get one; the other tools keep working without it.
+
+### Create a token
+
+1. Sign in at [oceanofjobs.com/account](https://oceanofjobs.com/account) and open **Settings**.
+2. Under **Personal access tokens**, choose **New token**, give it a name and an expiry, and select **Create**.
+3. Copy the token. It starts with `ooj_` and is shown only once.
+
+A token can only read and change your saved jobs. It can't see your profile, alerts or email address, and it can't create other tokens. You can have up to five, and revoking one on the same page stops it working straight away.
+
+### Add the token to your client
+
+Send it as an `Authorization` header. In Claude Code:
+
+```bash
+claude mcp add --transport http oceanofjobs https://oceanofjobs.com/mcp --header "Authorization: Bearer ooj_..."
+```
+
+In a client with a JSON configuration, such as Cursor or VS Code:
+
+```json
+{
+  "mcpServers": {
+    "oceanofjobs": {
+      "type": "http",
+      "url": "https://oceanofjobs.com/mcp",
+      "headers": { "Authorization": "Bearer ooj_..." }
+    }
+  }
+}
+```
+
+If your client has no way to set a header, the saved-jobs tools aren't available in it. At the time of writing that includes the Claude and ChatGPT connector settings, which only offer OAuth sign-in.
+
+Treat a token like a password. Don't paste it into a chat or commit it to a repository.
 
 ## Job data and history
 
