@@ -31,6 +31,9 @@ ROUTES = [
     ("facets", {}),
     ("facets", {"search": "devops"}),
     ("facets", {"country": "US"}),
+    ("facets", {"roles": "tech"}),
+    ("facets", {"confidence": "all"}),
+    ("facets", {"confidence": "all", "roles": "tech", "country": "IL"}),
     ("detail", {}),
 ]
 

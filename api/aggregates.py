@@ -20,7 +20,7 @@ import contextlib
 from datetime import datetime, timedelta, timezone
 
 from countries import label_for
-from job_filters import (FRESH_CLAUSE, bool_param, build_jobs_where, category_sql,
+from job_filters import (FRESH_CLAUSE, bool_param, build_jobs_where, category_sql, facet_index_hint,
                          has_fts_index, has_places, israel_clause)
 from hot_companies import GOOGLE_FAVICON, HOT_COMPANIES, LOGO_PINS
 
@@ -512,11 +512,12 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
     def counts_by(column_expr: str, exclude_param: str, limit: int) -> list[dict]:
         scoped = dict(params)
         scoped.pop(exclude_param, None)
-        where_sql, args = build_jobs_where(scoped, has_fts_index(conn), has_places(conn))
+        caps = has_fts_index(conn)
+        where_sql, args = build_jobs_where(scoped, caps, has_places(conn))
         rows = conn.execute(
             f"""
             SELECT {column_expr} AS value, COUNT(*) AS n
-            FROM jobs
+            FROM jobs{facet_index_hint(scoped, caps)}
             WHERE {where_sql} AND {column_expr} IS NOT NULL AND TRIM({column_expr}) != ''
             GROUP BY {column_expr}
             ORDER BY n DESC, value
@@ -535,105 +536,53 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
     # would be defensible, but scoping countries by the city already
     # chosen leaves exactly one country standing and no way back to the
     # rest.
-    def _place_scope():
-        scoped = dict(params)
-        scoped.pop("country", None)
-        scoped.pop("city", None)
-        return build_jobs_where(scoped, has_fts_index(conn), has_places(conn))
+    def place_counts() -> tuple[dict[str, int], dict[tuple[str, str], int]]:
+        """Listings per country and per (country, city), from one pass.
 
-    def country_counts(limit: int = 60) -> list[dict]:
-        """One row per country, not per country LIST.
-
-        country is comma-joined, so a plain GROUP BY would file
-        "CA,IL,GB" as its own facet value and offer the reader a
-        three-country checkbox that matches nothing else. The CTE splits
-        it, which also means a job listing four offices in one country
-        counts once rather than four times, since countries_of already
-        deduplicated it before it was stored.
-        """
-        where_sql, args = _place_scope()
-        rows = conn.execute(
-            f"""
-            WITH RECURSIVE split(code, rest) AS (
-                SELECT '', country || ','
-                FROM jobs
-                WHERE {where_sql} AND country IS NOT NULL AND country != ''
-                UNION ALL
-                SELECT SUBSTR(rest, 1, INSTR(rest, ',') - 1),
-                       SUBSTR(rest, INSTR(rest, ',') + 1)
-                FROM split
-                WHERE rest != ''
-            )
-            SELECT code AS value, COUNT(*) AS n
-            FROM split
-            WHERE code != ''
-            GROUP BY code
-            ORDER BY n DESC
-            LIMIT ?
-            """,
-            [*args, limit],
-        ).fetchall()
-        return [{"value": r["value"], "label": label_for(r["value"]), "n": r["n"]}
-                for r in rows]
-
-    def city_counts_by_country() -> dict[str, list[dict]]:
-        """City counts, counted per country rather than board-wide.
+        country is comma-joined, so a plain GROUP BY would file "CA,IL,GB"
+        as its own facet value and offer the reader a three-country
+        checkbox that matches nothing else. The rows come back grouped by
+        the stored pair and are split here, which also means a job listing
+        four offices in one country counts once rather than four times,
+        since countries_of already deduplicated it before it was stored.
 
         A city on its own is not a facet a reader can use. There is a
         Cambridge in England and one in Massachusetts and the board
-        carries both, so the pair is the answer. Both columns are split
-        by the same kind of CTE the country facet uses, then joined back
-        on the row they came from.
+        carries both, so the pair is the answer. A city belongs under a
+        country when some job names both, which is a cross product within
+        one row. A posting reading "Tel Aviv, Israel; New York, US" files
+        Tel Aviv under US too. That is wrong, and it is the price of a
+        location column that never said which city went with which
+        country. Jobs naming a single country, which is nearly all of
+        them, come out exact.
 
-        That join is a cross product within one row, which is the
-        definition being applied: a city belongs under a country when
-        some job names both. A posting reading "Tel Aviv, Israel; New
-        York, US" therefore files Tel Aviv under US too. That is wrong,
-        and it is the price of a location column that never said which
-        city went with which country. Jobs naming a single country,
-        which is nearly all of them, come out exact.
+        This used to be two recursive CTEs, one splitting country and one
+        splitting both columns and joining them back per row. That was
+        three reads of every open row and 5s for the unfiltered board. The
+        counts are the same, and the distinct stored pairs number in the
+        tens of thousands, so the split here is cheap.
         """
-        where_sql, args = _place_scope()
-        rows = conn.execute(
+        scoped = {k: v for k, v in params.items() if k not in ("country", "city")}
+        caps = has_fts_index(conn)
+        where_sql, args = build_jobs_where(scoped, caps, has_places(conn))
+        countries: dict[str, int] = {}
+        pairs: dict[tuple[str, str], int] = {}
+        for country, city, n in conn.execute(
             f"""
-            WITH RECURSIVE
-            csplit(job, code, rest) AS (
-                SELECT rowid, '', country || ','
-                FROM jobs
-                WHERE {where_sql} AND country IS NOT NULL AND country != ''
-                  AND city IS NOT NULL AND city != ''
-                UNION ALL
-                SELECT job, SUBSTR(rest, 1, INSTR(rest, ',') - 1),
-                       SUBSTR(rest, INSTR(rest, ',') + 1)
-                FROM csplit
-                WHERE rest != ''
-            ),
-            tsplit(job, name, rest) AS (
-                SELECT rowid, '', city || ','
-                FROM jobs
-                WHERE {where_sql} AND country IS NOT NULL AND country != ''
-                  AND city IS NOT NULL AND city != ''
-                UNION ALL
-                SELECT job, SUBSTR(rest, 1, INSTR(rest, ',') - 1),
-                       SUBSTR(rest, INSTR(rest, ',') + 1)
-                FROM tsplit
-                WHERE rest != ''
-            )
-            SELECT csplit.code AS code, tsplit.name AS name, COUNT(*) AS n
-            FROM csplit
-            JOIN tsplit ON tsplit.job = csplit.job
-            WHERE csplit.code != '' AND tsplit.name != ''
-            GROUP BY csplit.code, tsplit.name
-            ORDER BY n DESC, tsplit.name
+            SELECT country, city, COUNT(*) AS n
+            FROM jobs{facet_index_hint(scoped, caps)}
+            WHERE {where_sql} AND country IS NOT NULL AND country != ''
+            GROUP BY country, city
             """,
-            # The scope clause is written twice, so its arguments go in
-            # twice as well.
-            [*args, *args],
-        ).fetchall()
-        out: dict[str, list[dict]] = {}
-        for r in rows:
-            out.setdefault(r["code"], []).append({"value": r["name"], "n": r["n"]})
-        return out
+            args,
+        ):
+            codes = [c for c in country.split(",") if c]
+            for code in codes:
+                countries[code] = countries.get(code, 0) + n
+            for name in (t for t in (city or "").split(",") if t):
+                for code in codes:
+                    pairs[(code, name)] = pairs.get((code, name), 0) + n
+        return countries, pairs
 
     def location_tree(country_limit: int = 40) -> list[dict]:
         """One entry per country, its cities nested underneath.
@@ -651,7 +600,7 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
         they are stored, so a company listing four Tel Aviv offices on
         one posting counts once.
 
-        The SQL orders both levels by n descending. Each country keeps
+        Both levels are ordered by n descending. Each country keeps
         its biggest CITY_TOP cities whatever their size, so a small
         country still has a list, then every further city with at least
         CITY_MIN_LISTINGS, up to CITY_LIMIT. It used to stop at 25, which
@@ -662,14 +611,22 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
         """
         if not has_places(conn):
             return []
-        cities = city_counts_by_country()
+        countries, pairs = place_counts()
+        # Most first, and ties in the order the SQL this replaced gave
+        # them so the dropdown does not reshuffle. Cities run A to Z.
+        # Countries run Z to A, because SQLite read that ORDER BY n DESC
+        # backwards.
+        cities: dict[str, list[dict]] = {}
+        for (code, name), n in sorted(pairs.items(), key=lambda kv: (-kv[1], kv[0][1])):
+            cities.setdefault(code, []).append({"value": name, "n": n})
 
         def kept(rows):
             return [r for i, r in enumerate(rows[:CITY_LIMIT]) if i < CITY_TOP or r["n"] >= CITY_MIN_LISTINGS]
 
+        top = sorted(countries.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)[:country_limit]
         return [
-            {**c, "cities": kept(cities.get(c["value"], []))}
-            for c in country_counts(country_limit)
+            {"value": code, "label": label_for(code), "n": n, "cities": kept(cities.get(code, []))}
+            for code, n in top
         ]
 
     # The company list ignores the company filter, so for a given set of
@@ -927,6 +884,9 @@ def _compute_scoped_stats(conn, params: dict) -> dict:
     # that for no new information.
     fts, places = has_fts_index(conn), has_places(conn)
     where_sql, args = build_jobs_where(params, fts, places)
+    # Both passes over the open rows read only columns the facets index
+    # carries; see facet_index_hint.
+    hint = facet_index_hint(params, fts)
 
     # One grouped pass answers three fields. Summing the groups gives
     # the row count, counting the groups gives the companies, and the
@@ -935,7 +895,7 @@ def _compute_scoped_stats(conn, params: dict) -> dict:
     per_company = conn.execute(
         f"""
         SELECT company_domain AS domain, COUNT(*) AS n
-        FROM jobs
+        FROM jobs{hint}
         WHERE {where_sql}
         GROUP BY company_domain
         ORDER BY n DESC, domain
@@ -957,7 +917,7 @@ def _compute_scoped_stats(conn, params: dict) -> dict:
         r["d"] for r in conn.execute(
             f"""
             SELECT julianday('now') - julianday(posted_at) AS d
-            FROM jobs
+            FROM jobs{hint}
             WHERE {where_sql} AND posted_at IS NOT NULL
             """,
             args,

@@ -261,12 +261,16 @@ class SnapshotCaps:
     """
 
     __slots__ = ("fts", "fts_full", "category_col", "posted_at_utc", "board_indexes", "salary_ils", "place_index",
-                 "open_index_all", "verified_index")
+                 "open_index_all", "verified_index", "facets_index")
 
     def __init__(self, fts: bool = False, fts_full: bool = False,
                  category_col: str | None = None, posted_at_utc: bool = False,
                  board_indexes: bool = False, salary_ils: bool = False,
-                 place_index: bool = False, open_index_all: bool = False, verified_index: bool = False):
+                 place_index: bool = False, open_index_all: bool = False, verified_index: bool = False,
+                 facets_index: bool = False):
+        # idx_jobs_open_facets exists (see facet_index_hint). By name, for
+        # the same reason as verified_index.
+        self.facets_index = facets_index
         # idx_jobs_open_verified_posted exists, so a verified-only count can
         # name it. Checked by name, not by board_indexes: the loader builds
         # it on its next apply, which can come after the API ships.
@@ -377,7 +381,8 @@ def _read_caps(conn) -> SnapshotCaps:
     # was, just answering more questions. The index's own CREATE text
     # says which columns it carries.
     try:
-        fts_sql, category, fts_complete, posted_at_utc, board_indexes, salary_ils, split, verified_index = conn.execute(
+        (fts_sql, category, fts_complete, posted_at_utc, board_indexes, salary_ils, split, verified_index,
+         facets_index) = conn.execute(
             "SELECT (SELECT sql FROM main.sqlite_master WHERE type = 'table' AND name = 'jobs_fts'),"
             " (SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'category'),"
             " (SELECT value FROM main.meta WHERE key = 'fts_complete'),"
@@ -385,7 +390,8 @@ def _read_caps(conn) -> SnapshotCaps:
             " (SELECT value FROM main.meta WHERE key = 'board_indexes'),"
             " (SELECT COUNT(*) FROM pragma_table_info('jobs') WHERE name = 'salary_min_ils'),"
             " (SELECT COUNT(*) FROM pragma_database_list WHERE name = 'fts'),"
-            " (SELECT COUNT(*) FROM main.sqlite_master WHERE type = 'index' AND name = 'idx_jobs_open_verified_posted')"
+            " (SELECT COUNT(*) FROM main.sqlite_master WHERE type = 'index' AND name = 'idx_jobs_open_verified_posted'),"
+            " (SELECT COUNT(*) FROM main.sqlite_master WHERE type = 'index' AND name = 'idx_jobs_open_facets')"
         ).fetchone()
     except Exception:
         return SnapshotCaps()
@@ -415,6 +421,7 @@ def _read_caps(conn) -> SnapshotCaps:
         place_index=board_indexes in ("2", "3"),
         verified_index=bool(verified_index),
         open_index_all=board_indexes == "3",
+        facets_index=bool(facets_index),
     )
 
 
@@ -474,6 +481,37 @@ def count_index_hint(params: dict, caps: "SnapshotCaps") -> str:
     if params.get("confidence", "verified") == "verified" and caps.verified_index:
         return " INDEXED BY idx_jobs_open_verified_posted"
     return " INDEXED BY idx_jobs_open_posted"
+
+
+# The filters idx_jobs_open_facets carries every column of. Not
+# salary_known: it narrows to the few thousand rows idx_jobs_salary_ils
+# holds, a smaller walk than this index.
+_FACET_INDEX_PARAMS = ("confidence", "roles", "department", "company", "country", "city", "seniority", "workplace",
+                       "max_age_days", "min_age_days", "salary_min", "salary_max", "include_outdated")
+
+
+def facet_index_hint(params: dict, caps: "SnapshotCaps") -> str:
+    """`INDEXED BY idx_jobs_open_facets` for a facet count, or "".
+
+    Named rather than left to the planner. Given confidence = 'verified',
+    role_class = 'tech' or a seniority, it picks the index that tests that
+    one column and then reads the row of every match, random reads across
+    a table bigger than the box's RAM. A walk of this index reads nothing
+    else.
+
+    Only when every clause the request adds is on a column the index
+    carries, decided by comparing the WHERE with and without the other
+    params, as has_board_filters does. A search, a skills match or a
+    salary_disclosed has a narrower path of its own, and include_closed
+    drops the index's own condition, where INDEXED BY is the error "no
+    query solution" rather than a slow answer.
+    """
+    if not caps.facets_index:
+        return ""
+    covered = {k: params[k] for k in _FACET_INDEX_PARAMS if k in params}
+    if build_jobs_where(params, caps) != build_jobs_where(covered, caps):
+        return ""
+    return " INDEXED BY idx_jobs_open_facets"
 
 
 def category_sql(conn) -> str:

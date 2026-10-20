@@ -1337,6 +1337,20 @@ BOX_INDEXES = (
     # board requests compared none got slower (count_index_hint names it).
     "CREATE INDEX IF NOT EXISTS idx_jobs_open_verified_posted ON jobs(posted_at, id, country, city)"
     " WHERE closed_at IS NULL AND confidence = 'verified'",
+    # The rail's counts (aggregates.compute_facets) and the scoped stats
+    # block. Every column those queries group by or that a board filter
+    # tests, so each count is a walk of this index and never reads the
+    # table. Without it the company, category, country and city counts
+    # each read the whole table: /api/facets with no filter read 4GB in
+    # 6s on the 2026-10-20 snapshot, and confidence=all took 16s. The API
+    # names it with INDEXED BY (job_filters.facet_index_hint) and only
+    # where it exists, since the planner keeps preferring an equality
+    # index that then reads every row. closed_at is a column as well as
+    # the predicate because SQLite only treats an index as covering when
+    # every column the query names is in it.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_open_facets ON jobs(company_domain, category, country, city, role_class,"
+    " confidence, posted_at, seniority, workplace_type, salary_min_ils, salary_max_ils, closed_at)"
+    " WHERE closed_at IS NULL",
     # The loader's own to-do lists. Each of these steps asked "which rows
     # still need X" with a scan of the whole table, every run, to find a
     # few dozen rows: roles 222s, categories 107s, meta 86s, and the
@@ -1398,7 +1412,14 @@ def ensure_box_indexes(conn: sqlite3.Connection, optimize: bool = True) -> None:
         if kept and " ".join(kept[0].split()) != " ".join(wanted.split()):
             print(f"index {name}: definition changed, rebuilding", file=sys.stderr)
             conn.execute(f"DROP INDEX IF EXISTS {name}")
+            kept = None
         conn.execute(sql)
+        if not kept:
+            # Statistics now, not at the next hourly optimize. Until then the
+            # planner guesses about the new index and may pick it for queries
+            # it does not suit: ats=greenhouse went from 0.47s to 1.31s on a
+            # copy of the snapshot with idx_jobs_open_facets unanalyzed.
+            conn.execute(f"ANALYZE {name}")
     for name in RETIRED_INDEXES:
         conn.execute(f"DROP INDEX IF EXISTS {name}")
     conn.execute(
