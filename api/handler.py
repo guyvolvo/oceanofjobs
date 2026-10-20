@@ -714,6 +714,15 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
                     and "mcp" not in apply.get_profile(_alerts_table, user_id)["settings"]["sources"]):
                 return ok(403, {"error": 'Turn on "Jobs queued by my AI assistant through MCP" in your auto apply '
                                          "settings at https://oceanofjobs.com/account#aa-settings"})
+            # Only sites the extension can fill (extension/ats/). Anything
+            # else would sit in the queue and be skipped on the next check,
+            # after an assistant had told the user it was applying.
+            row = get_connection().execute("SELECT ats FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            if row is None:
+                return ok(404, {"error": "no job with that id"})
+            if row[0] not in apply.FILLABLE_ATS:
+                return ok(422, {"error": f"The extension can't apply on this job's site ({row[0] or 'unknown'}) yet. "
+                                         f"It fills {', '.join(sorted(apply.FILLABLE_ATS)).title()} forms for now."})
             apply.enqueue(_alerts_table, user_id, job_id)
             return ok(204)
         if method == "DELETE":

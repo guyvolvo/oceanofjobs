@@ -296,7 +296,9 @@ const TOOLS = [
       "Queue a job for the Ocean of Jobs Chrome extension to apply to with the user's profile and CV. " +
       "The extension applies to queued jobs on its next check, every 15 minutes, so the user needs " +
       "the extension installed and connected. The user must also turn on \"Jobs queued by my AI " +
-      "assistant through MCP\" in their auto apply settings. This sends a real application, so " +
+      "assistant through MCP\" in their auto apply settings. For now the extension fills Greenhouse " +
+      "forms only (an apply_url on boards.greenhouse.io or job-boards.greenhouse.io); a job on any other " +
+      "site is refused, so pick Greenhouse jobs. This sends a real application, so " +
       "queue a job only when the user asks for it. Needs the user's personal access token. " +
       "Queueing the same job twice is harmless.",
     inputSchema: {
@@ -467,10 +469,11 @@ async function me(method, path, token, env) {
     throw new ToolError("Ocean of Jobs could not be reached. Try again shortly.");
   }
   if (res.status === 401) throw new ToolError("The personal access token was not accepted: it may be revoked or expired. " + NEEDS_TOKEN);
-  // 403 carries the reason too, such as auto apply not being turned on for MCP.
-  if (res.status === 400 || res.status === 403) {
+  // These carry the reason too: auto apply not turned on for MCP (403), a
+  // job on a site the extension can't fill yet (422), an unknown job (404).
+  if ([400, 403, 404, 422].includes(res.status)) {
     const err = await res.json().catch(() => ({}));
-    throw new ToolError(`Ocean of Jobs refused that: ${err.error || "bad request"}.`);
+    throw new ToolError(`Ocean of Jobs refused that: ${String(err.error || "bad request").replace(/\.$/, "")}.`);
   }
   if (res.status === 503 || res.status === 429) throw new ToolError("Ocean of Jobs is busy. Try again in a few seconds.");
   if (!res.ok) throw new ToolError(`Ocean of Jobs answered ${res.status}. Try again shortly.`);

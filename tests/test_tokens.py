@@ -71,6 +71,13 @@ class FakeTable:
 
 table = FakeTable()
 handler._alerts_table = table
+# The queue checks each job's site, so the routes need a jobs table.
+import sqlite3  # noqa: E402
+_jobs = sqlite3.connect(":memory:", check_same_thread=False)
+_jobs.execute("CREATE TABLE jobs (id TEXT PRIMARY KEY, ats TEXT)")
+_jobs.executemany("INSERT INTO jobs VALUES (?, ?)", [("0123456789abcdef", "greenhouse"), ("fedcba9876543210", "greenhouse"),
+                                                     ("97602f3e8d77ca9a", "workday")])
+handler.get_connection = lambda: _jobs
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
 USER = "0f1e2d3c-aaaa-bbbb-cccc-1234567890ab"
 
@@ -168,6 +175,11 @@ check("an MCP token cannot queue a job until the user turns on the MCP source",
 handler.apply.put_profile(table, "u-serve", {"settings": {"sources": ["board", "mcp"]}})
 status, _ = call("/api/me/apply/queue/0123456789abcdef", "PUT", live)
 check("and can once it is on", status.startswith("204") and ("u-serve", "#queue#0123456789abcdef") in table.items, status)
+status, body = call("/api/me/apply/queue/97602f3e8d77ca9a", "PUT", live)
+check("a job on a site the extension can't fill is refused, with the reason",
+      status.startswith("422") and b"workday" in body and ("u-serve", "#queue#97602f3e8d77ca9a") not in table.items, status + body.decode()[:200])
+status, _ = call("/api/me/apply/queue/aaaaaaaaaaaaaaaa", "PUT", live)
+check("and an unknown job is 404", status.startswith("404"), status)
 status, _ = call("/api/me/apply/queue/0123456789abcdef", "DELETE", live)
 check("and can take it off again", status.startswith("204") and ("u-serve", "#queue#0123456789abcdef") not in table.items, status)
 ext = tokens.create(table, "u-ext", "Chrome extension", None, scope="extension")["token"]

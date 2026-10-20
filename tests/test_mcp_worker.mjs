@@ -180,6 +180,10 @@ test("queue, list and remove send the token to the box, and a refusal reads as t
   const refused = await tool(73, "queue_for_auto_apply", { id: "67ff4ef965d91ef7" });
   assert.equal(refused.isError, true);
   assert.match(refused.content[0].text, /Turn on "Jobs queued by my AI assistant through MCP".*#aa-settings/);
+  routes.unshift({ prefix: "/api/me/apply/queue/", status: 422, body: { error: "The extension can't apply on this job's site (workday) yet. It fills Greenhouse forms for now." }, headers: { "content-type": "application/json" } });
+  const unfillable = await tool(74, "queue_for_auto_apply", { id: "97602f3e8d77ca9a" });
+  assert.equal(unfillable.isError, true);
+  assert.equal(unfillable.content[0].text, "Ocean of Jobs refused that: The extension can't apply on this job's site (workday) yet. It fills Greenhouse forms for now.");
 });
 
 test("a revoked token is a readable tool error, and other Authorization headers are ignored", async () => {
