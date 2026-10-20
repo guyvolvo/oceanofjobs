@@ -175,7 +175,7 @@ async function runMode(mode) {
     if (viaAi.length) check("auto: the AI drafted the unknown", state.drafts.length === viaAi.length, JSON.stringify(state.drafts));
     else console.log("(no required question without an answer on this form, so /me/apply/draft is not exercised)");
   }
-  check(`${mode}: the job tab was closed`, (await sw.evaluate(async (u) => (await chrome.tabs.query({})).filter((t) => t.url.startsWith(u)).length, JOB_URL)) === 0);
+  check(`${mode}: the job tab was closed`, (await sw.evaluate(async (u) => (await chrome.tabs.query({})).filter((t) => (t.url || "").startsWith(u)).length, JOB_URL)) === 0);
 }
 
 await runMode("queue");

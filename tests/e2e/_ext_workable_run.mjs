@@ -176,7 +176,7 @@ for (const job of jobs.slice(0, COUNT)) {
   check(`${name}: reported one result, not submitted`, state.results.length === 1 && result.job_id === job.id && result.status !== "submitted", JSON.stringify(state.results));
   check(`${name}: dequeued the job`, calls.includes(`DELETE /api/me/apply/queue/${job.id}`));
   check(`${name}: no hang`, secs < 120, `${secs}s`);
-  check(`${name}: the job tab was closed`, (await sw.evaluate(async () => (await chrome.tabs.query({})).filter((t) => t.url.includes("workable.com")).length)) === 0);
+  check(`${name}: the job tab was closed`, (await sw.evaluate(async () => (await chrome.tabs.query({})).filter((t) => (t.url || "").includes("workable.com")).length)) === 0);
 }
 await ctx.close();
 fs.rmSync(dir, { recursive: true, force: true });

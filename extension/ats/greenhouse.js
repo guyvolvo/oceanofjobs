@@ -148,10 +148,11 @@
     const listed = () => menuOptions(input).length && menuOptions(input);
     // Reopened until it lists: in a background tab the first open can land
     // before React has wired the select, even after pageData's wait
-    // (1 run in 3 on the phone country, 2026-10-20). Bounded by the clock,
+    // (1 run in 3 on the phone country, 2026-10-20; a burst of slow loads
+    // needed more than 5 s). Bounded by the clock,
     // since a background tab's timers fire at most once a second.
     let opts = null;
-    for (const until = Date.now() + 5000; !opts && Date.now() < until;) {
+    for (const until = Date.now() + 10000; !opts && Date.now() < until;) {
       openMenu(input);
       opts = await waitFor(listed, 500);
     }
