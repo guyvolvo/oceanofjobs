@@ -1,0 +1,82 @@
+name: publish-extension
+
+# Uploads extension/ to the Chrome Web Store and submits it for review.
+# A release is a version bump: the store refuses a package whose version
+# is not higher than the published one, so this runs when manifest.json
+# changes (and by hand). Other extension/ edits wait for the next bump.
+#
+# Secrets, from Google Cloud (an OAuth client with the Chrome Web Store
+# API enabled) and the store's developer dashboard:
+#   CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN
+#   CWS_PUBLISHER_ID, CWS_ITEM_ID (the item exists after the first upload by hand)
+# Without them the job still tests and packs, and the zip is kept as an
+# artifact, so the first package can be uploaded from there.
+
+on:
+  push:
+    branches: [main]
+    paths: ["extension/manifest.json"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Submit for review after uploading"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Unit tests
+        run: node --test "extension/test/*.test.js"
+
+      - name: Pack
+        id: pack
+        run: |
+          version="$(python3 -c 'import json; print(json.load(open("extension/manifest.json"))["version"])')"
+          python3 scripts/pack_extension.py "dist/ocean-of-jobs-extension-$version.zip"
+          echo "zip=dist/ocean-of-jobs-extension-$version.zip" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ocean-of-jobs-extension-${{ steps.pack.outputs.version }}
+          path: ${{ steps.pack.outputs.zip }}
+
+      - name: Upload and submit
+        env:
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          PUBLISHER: ${{ secrets.CWS_PUBLISHER_ID }}
+          ITEM: ${{ secrets.CWS_ITEM_ID }}
+          ZIP: ${{ steps.pack.outputs.zip }}
+          PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
+        run: |
+          set -euo pipefail
+          if [ -z "$REFRESH_TOKEN" ] || [ -z "$ITEM" ]; then
+            echo "::notice::Store secrets not set; the zip is in this run's artifacts."
+            exit 0
+          fi
+          token="$(curl -fsS https://oauth2.googleapis.com/token \
+            -d client_id="$CLIENT_ID" -d client_secret="$CLIENT_SECRET" \
+            -d refresh_token="$REFRESH_TOKEN" -d grant_type=refresh_token \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["access_token"])')"
+          echo "::add-mask::$token"
+          base="https://chromewebstore.googleapis.com"
+          item="publishers/$PUBLISHER/items/$ITEM"
+          curl -fsS -X POST "$base/upload/v2/$item:upload" \
+            -H "Authorization: Bearer $token" -H "Content-Type: application/zip" \
+            --data-binary "@$ZIP" | tee upload.json
+          if [ "$PUBLISH" = "true" ]; then
+            curl -fsS -X POST "$base/v2/$item:publish" -H "Authorization: Bearer $token" | tee publish.json
+          fi
