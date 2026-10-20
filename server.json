@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.guyvolvo/oceanofjobs",
+  "title": "Ocean of Jobs",
+  "description": "Search 1.2M+ open jobs from 22k companies, read full listings and look up employers.",
+  "websiteUrl": "https://oceanofjobs.com",
+  "repository": {
+    "url": "https://github.com/guyvolvo/oceanofjobs",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://oceanofjobs.com/mcp"
+    }
+  ]
+}
