@@ -8,9 +8,19 @@
 //    Teamtailor, Recruitee and Breezy. Fill from the card, check the
 //    button submitButton() picked, press Submit: one claim, the site's
 //    write blocked, the result reported as failed, no hang.
+//    A form behind a bot check (Comeet's reCAPTCHA, Lever's hCaptcha) gets
+//    no Submit on the card, says to press the site's own button, and
+//    submitHere refuses with no claim. Nothing is pressed there.
 //  posting: a Comeet and a Lever job posting before its Apply button is
 //    pressed. The button shows with no API call, and one click on the
 //    card presses Apply and fills the form it opens.
+//  review: Fetcherr's careers page (a Comeet form in a frame with optional
+//    Yes/No questions) and an Experis job (Hebrew, a modal behind its
+//    "שליחת קו"ח" button). The AI stub says Yes to a yes/no question; the
+//    radios end up ticked, the contact fields and CV filled, consent boxes
+//    untouched, and the card offers no Submit (both run reCAPTCHA).
+// The extension gets access to every site, as "every careers page" in
+// Settings grants, since Fetcherr and Experis are outside its host list.
 // Run from the repo root: node tests/e2e/_ext_generic_submit.mjs [out-dir]
 import { chromium } from "playwright";
 import path from "node:path";
@@ -57,6 +67,19 @@ const POSTING = [
   want("comeet") && { ats: "comeet", url: (await liveJobs("comeet", 1, (u) => u.startsWith("https://www.comeet.com/jobs/")))[0] },
   want("lever") && { ats: "lever", url: leverPosting },
 ].filter(Boolean);
+// System Architect - Azure: "Can you work from the Netanya office?" and
+// "hands-on experience ... on Azure?", Yes/No, both optional.
+const REVIEW = [
+  want("fetcherr") && { ats: "fetcherr", url: "https://www.fetcherr.io/careers/732769d50a", radios: 2 },
+  want("experis") && { ats: "experis", url: (await (async () => {
+    const res = await fetch("https://oceanofjobs.com/api/jobs?search=experis&limit=10&count=skip", { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(30000) });
+    const { jobs = [] } = await res.json();
+    await sleep(2000);
+    const j = jobs.find((j) => /^https:\/\/experis\.co\.il\/job\/\d+$/.test(j.url));
+    if (!j) throw new Error("no open experis job");
+    return j.url;
+  })()), contact: true },
+].filter(Boolean);
 
 const profile = {
   contact: { first_name: "Test", last_name: "Person", email: "test.person@example.com", phone: "+972 50 000 0000", location: "Tel Aviv, Israel" },
@@ -69,7 +92,12 @@ const profile = {
 const pdf = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF";
 
 let log = null;
-const ext = path.resolve("extension");
+const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ooj-ext-submit-"));
+fs.cpSync(path.resolve("extension"), ext, { recursive: true });
+const manifest = JSON.parse(fs.readFileSync(path.join(ext, "manifest.json"), "utf8"));
+manifest.host_permissions.push("https://*/*");
+manifest.optional_host_permissions = manifest.optional_host_permissions.filter((h) => h !== "https://*/*");
+fs.writeFileSync(path.join(ext, "manifest.json"), JSON.stringify(manifest));
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ooj-ext-submit-profile-"));
 const ctx = await chromium.launchPersistentContext(dir, {
   channel: "chromium", headless: true, viewport: { width: 1280, height: 900 }, userAgent: UA,
@@ -92,7 +120,9 @@ await ctx.route("**/*", (r) => {
     if (p === "/api/me/apply/history") return r.fulfill({ json: { applied: [] } });
     if (p === "/api/me/apply/draft") {
       const body = req.postDataJSON();
-      return r.fulfill({ json: { answer: body.options.length ? body.options[0] : "Test answer" } });
+      log && log.drafts.push(body.question);
+      const yes = body.options.find((o) => /^yes$/i.test(o));
+      return r.fulfill({ json: { answer: yes || (body.options.length ? body.options[0] : "Test answer") } });
     }
     if (p === "/api/me/apply/claim") { log && log.claims.push(req.postDataJSON()); return r.fulfill({ json: { remaining: 49 } }); }
     if (p === "/api/me/apply/result") { log && log.results.push(req.postDataJSON()); return r.fulfill({ status: 204, body: "" }); }
@@ -128,6 +158,7 @@ await sw.evaluate(async (data) => {
   const fill = assistHere;
   assistHere = async (msg, sender) => {
     const r = await fill(msg, sender);
+    globalThis.__sender = { tab: { id: sender.tab.id }, frameId: sender.frameId };
     globalThis.__picked = r && !r.error ? await inTab(sender.tab.id, "generic", "submitInfo", [], r.frameId).catch((e) => ({ error: e.message })) : null;
     return (globalThis.__assist = r);
   };
@@ -160,6 +191,24 @@ const reset = () => sw.evaluate(() => { globalThis.__assist = globalThis.__submi
 const slug = (s) => s.replace(/[^a-z0-9]+/gi, "_").slice(0, 40);
 // The card's main button sits above its "Hide on this site" line.
 const pressCard = async (tab) => { const c = await button(tab); await tab.mouse.click(c.x + c.w / 2, c.y + c.h - 62); };
+// What the card says and whether its main button shows. Its shadow root
+// is closed, which only the DevTools protocol reads through.
+async function cardState(tab) {
+  const cdp = await tab.context().newCDPSession(tab);
+  const { root } = await cdp.send("DOM.getDocument", { depth: -1, pierce: true });
+  await cdp.detach();
+  const kids = (n) => [...(n.children || []), ...(n.shadowRoots || []), ...(n.contentDocument ? [n.contentDocument] : [])];
+  const attrs = (n) => { const a = {}; for (let i = 0; i < (n.attributes || []).length; i += 2) a[n.attributes[i]] = n.attributes[i + 1]; return a; };
+  const text = (n) => (n.nodeType === 3 ? n.nodeValue : kids(n).map(text).join(""));
+  const find = (n, test) => (test(n) ? n : kids(n).reduce((hit, k) => hit || find(k, test), null));
+  const host = find(root, (n) => "data-ooj-fill" in attrs(n));
+  const msg = host && find(host, (n) => /\bmsg\b/.test(attrs(n).class || ""));
+  const go = host && find(host, (n) => n.nodeName === "BUTTON" && /\bgo\b/.test(attrs(n).class || ""));
+  return { msg: msg && text(msg), submitShown: !!go && !("hidden" in attrs(go)) && /submit/i.test(text(go)) };
+}
+const HUMAN = "This site checks that a person sends the form, so press its own Submit button.";
+// submitHere as the card's button calls it, on the frame the fill used.
+const askSubmit = (url) => sw.evaluate((url) => submitHere({ url, frameId: __assist.frameId, title: "test", company: "test" }, __sender), url);
 
 const rows = [];
 async function fillFromCard(tab, name) {
@@ -185,7 +234,7 @@ async function fillFromCard(tab, name) {
 log = null;
 const passedOver = [];
 async function submitOn(ats, url) {
-  log = { api: [], blocked: [], claims: [], results: [], armed: false };
+  log = { api: [], blocked: [], claims: [], results: [], drafts: [], armed: false };
   await reset();
   const tab = await ctx.newPage();
   const name = `submit-${ats}-${slug(new URL(url).hostname)}`;
@@ -196,7 +245,11 @@ async function submitOn(ats, url) {
     const { r, error } = await fillFromCard(tab, name);
     row.fill = error || (r && (r.error || `${r.filled} filled, ${r.missing.length} missing`));
     row.picked = await global("__picked");
-    if (r && !r.error && r.submit) {
+    if (r && r.botCheck) {
+      row.botCheck = true;
+      row.card = await cardState(tab);
+      row.result = await askSubmit(url);
+    } else if (r && !r.error && r.submit) {
       // What the user does before sending: tick the consent boxes the fill leaves alone.
       row.ticked = 0;
       for (const f of tab.frames()) {
@@ -233,7 +286,7 @@ for (const { ats, urls } of SUBMIT) {
 }
 
 for (const { ats, url } of POSTING) {
-  log = { api: [], blocked: [], claims: [], results: [], armed: false };
+  log = { api: [], blocked: [], claims: [], results: [], drafts: [], armed: false };
   await reset();
   const tab = await ctx.newPage();
   const name = `posting-${ats}`;
@@ -261,6 +314,59 @@ for (const { ats, url } of POSTING) {
   await tab.close().catch(() => {});
   await sleep(3000);
 }
+
+// Across the tab's frames: the option picked in each radio question, how
+// many checkboxes are ticked, the text values and whether a CV is attached.
+async function formState(tab) {
+  const st = { picked: [], ticked: 0, values: [], cv: false };
+  for (const f of tab.frames()) {
+    const s = await f.evaluate(() => {
+      const names = [...new Set([...document.querySelectorAll('input[type="radio"]')].map((r) => r.name))].filter((n) => document.getElementsByName(n).length > 1);
+      return {
+        picked: names.map((n) => {
+          const c = [...document.getElementsByName(n)].find((r) => r.checked);
+          const l = c && ((c.id && document.querySelector(`label[for="${CSS.escape(c.id)}"]`)) || c.closest("label"));
+          return l ? l.textContent.trim() : "";
+        }),
+        ticked: document.querySelectorAll('input[type="checkbox"]:checked').length,
+        values: [...document.querySelectorAll('input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]):not([type="submit"])')].map((el) => el.value).filter(Boolean),
+        cv: [...document.querySelectorAll('input[type="file"]')].some((el) => el.files && el.files.length),
+      };
+    }).catch(() => null);
+    if (!s) continue;
+    st.picked.push(...s.picked);
+    st.ticked += s.ticked;
+    st.values.push(...s.values);
+    st.cv = st.cv || s.cv;
+  }
+  return st;
+}
+
+for (const { ats, url, radios, contact } of REVIEW) {
+  log = { api: [], blocked: [], claims: [], results: [], drafts: [], armed: false };
+  await reset();
+  const tab = await ctx.newPage();
+  const name = `review-${ats}`;
+  const row = { part: "review", ats, url, radios, contact };
+  try {
+    await tab.goto(url, { waitUntil: "load", timeout: 45000 });
+    await sleep(5000);
+    row.tickedBefore = (await formState(tab)).ticked;
+    const { r, error } = await fillFromCard(tab, name);
+    row.fill = error || (r && (r.error || `${r.filled} filled, ${r.suggested} suggested, ${r.missing.length} missing`));
+    row.botCheck = !!(r && r.botCheck);
+    row.after = await formState(tab);
+    row.card = await cardState(tab);
+    row.result = await askSubmit(url);
+  } catch (e) {
+    row.fill = row.fill || "error: " + e.message.split("\n")[0];
+  }
+  Object.assign(row, { claims: log.claims, results: log.results, blocked: log.blocked, drafts: log.drafts });
+  rows.push(row);
+  console.log(`\n== review ${ats} ${url}\n${JSON.stringify({ ...row, blocked: row.blocked.length })}`);
+  await tab.close().catch(() => {});
+  await sleep(3000);
+}
 await ctx.close();
 
 fs.writeFileSync(path.join(out, "results.json"), JSON.stringify(rows, null, 1));
@@ -273,7 +379,31 @@ for (const x of rows) {
   console.log([pad(x.part, 7), pad(x.ats, 10), pad(x.fill, 22), pad(x.picked && x.picked.text, 26), pad(x.picked && x.picked.selector, 48), pad(res, 34),
     pad(x.claims.length, 6), pad(x.seconds, 3), (x.siteWrites || []).map((w) => w.replace("after submit: ", "")).join("; ")].join(" ").slice(0, 300));
 }
-for (const x of rows.filter((x) => x.part === "submit")) {
+// The card on a bot-checked form: no Submit, the reason, and a refusal.
+const botChecked = (x, what) => {
+  need(x.botCheck, `${what}: the bot check was seen`);
+  need(x.card && x.card.msg && x.card.msg.includes(HUMAN), `${what}: the card says to press the site's own button (${x.card && x.card.msg})`);
+  need(x.card && !x.card.submitShown, `${what}: no Submit on the card`);
+  need(x.result && x.result.error === HUMAN, `${what}: submitHere refuses (${JSON.stringify(x.result)})`);
+  need(x.claims.length === 0, `${what}: no claim (${x.claims.length})`);
+};
+// Comeet runs reCAPTCHA and Lever hCaptcha on every form.
+for (const x of rows.filter((x) => x.part === "submit" && (x.botCheck || ["comeet", "lever"].includes(x.ats)))) botChecked(x, x.ats);
+for (const x of rows.filter((x) => x.part === "review")) {
+  botChecked(x, `${x.ats} review`);
+  const a = x.after || { picked: [], values: [] };
+  if (x.radios) {
+    need(a.picked.filter((p) => p === "Yes").length >= x.radios, `${x.ats} review: ${x.radios} Yes/No questions ticked Yes (${JSON.stringify(a.picked)})`);
+    need(x.drafts.some((q) => /Netanya/.test(q)), `${x.ats} review: the optional office question went to the AI stub`);
+  }
+  if (x.contact) {
+    for (const v of ["Test", "Person", profile.contact.email]) need(a.values.includes(v), `${x.ats} review: ${v} filled (${JSON.stringify(a.values)})`);
+    need(a.values.some((v) => v.replace(/\D/g, "").endsWith("500000000")), `${x.ats} review: phone filled`);
+  }
+  need(a.cv, `${x.ats} review: CV attached`);
+  need(a.ticked <= x.tickedBefore, `${x.ats} review: no checkbox ticked by the fill (${x.tickedBefore} before, ${a.ticked} after)`);
+}
+for (const x of rows.filter((x) => x.part === "submit" && !x.botCheck)) {
   need(x.picked && x.picked.text, `${x.ats}: a submit button was picked`);
   need(x.result && !x.result.submitted && !x.result.error, `${x.ats}: the result is not a confirmation`);
   need(x.claims.length === 1, `${x.ats}: exactly one claim (${x.claims.length})`);

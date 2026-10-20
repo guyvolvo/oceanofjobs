@@ -415,16 +415,14 @@ async function readForm(tabId, name, frameId) {
 }
 
 // The user checks this form before submitting, so every question with no
-// saved answer gets the AI's best suggestion, outlined for review. Never a
-// lone checkbox: those are consent and terms boxes the user ticks.
+// saved answer gets the AI's best suggestion, outlined for review.
 async function planWithSuggestions(page, job, ctx) {
   const plan = oojMatch.planFill(page.fields, ctx.profile, job);
   const suggested = [];
-  for (const f of [...plan.missing]) {
-    if (f.type === 'file' || oojMatch.isEeo(f) || (f.type === 'checkbox' && !f.options.length)) continue;
+  for (const f of oojMatch.suggestable(page.fields, plan)) {
     const answer = await suggestAnswer(f, job, ctx);
     if (answer === undefined) continue;
-    plan.missing.splice(plan.missing.indexOf(f), 1);
+    if (plan.missing.includes(f)) plan.missing.splice(plan.missing.indexOf(f), 1);
     plan.fills.push({ ...f, value: answer });
     suggested.push(f);
   }
@@ -446,11 +444,10 @@ async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
     })),
   });
   const errors = (filled && filled.errors) || ['could not fill the form'];
-  const statement = /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that/i;
   return {
     filled: plan.fills.length - errors.length,
     suggested: suggested.length,
-    statements: suggested.filter((f) => statement.test(f.label)).map((f) => f.label),
+    statements: suggested.filter((f) => oojMatch.isStatement(f.label)).map((f) => f.label),
     missing: plan.missing.map((f) => f.label),
     errors,
   };
@@ -590,7 +587,7 @@ async function submitHere(msg, sender) {
   const tabId = sender.tab.id;
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
-  if (info && info.botCheck) return { error: 'This site checks that a person sends the form. Press its own Submit button.' };
+  if (info && info.botCheck) return { error: 'This site checks that a person sends the form, so press its own Submit button.' };
   if (!info || !info.text) {
     return { error: 'Could not find the form\'s submit button. Press it on the form.' };
   }

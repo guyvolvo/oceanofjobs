@@ -226,7 +226,27 @@
   // by AI. Some have no profile key to map to; their wording marks them.
   function isEeo(field) {
     return EEO.has(field.key || classify(field))
-      || /\b(sexual orientation|transgender|lgbt|pronouns?)\b/.test(normalise(field.label));
+      || /\b(sexual orientation|transgender|lgbt\w*|pronouns?)\b/.test(normalise(field.label));
+  }
+
+  // Consent, terms and privacy wording, in English and Hebrew.
+  const isStatement = (text) => /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that|מדיניות|פרטיות|מאשר|מסכים|תנאי/i.test(text);
+
+  // The questions an AI may suggest an answer for, on a form the user
+  // checks before it is sent: the required ones nothing answered, and an
+  // optional Yes/No radio question nothing is picked in yet. Comeet's
+  // screening questions ("Can you work from the Netanya office?") are often
+  // optional, and left blank they read as a no. Other optional questions
+  // are often follow-ups ("If you picked Trauma above, how many hours"),
+  // so they stay blank. Never a file, a demographic question or a checkbox
+  // that consents to something: the user ticks those.
+  function suggestable(fields, plan) {
+    const planned = new Set([...plan.fills, ...plan.missing].map((f) => f.name));
+    const starts = (f, words) => (f.options || []).some((o) => words.includes(normalise(o).split(' ')[0]));
+    const open = fields.filter((f) => !planned.has(f.name) && f.type === 'radio' && starts(f, ['yes', 'כן']) && starts(f, ['no', 'לא'])
+      && !f.checked && !isStatement(f.label));
+    return [...plan.missing, ...open].filter((f) => f.type !== 'file' && !isEeo(f)
+      && !(f.type === 'checkbox' && (!(f.options || []).length || isStatement([f.label, ...f.options].join(' ')))));
   }
 
   function sameDay(a, b) {
@@ -308,7 +328,7 @@
   }
 
   const api = {
-    pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo,
+    pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
