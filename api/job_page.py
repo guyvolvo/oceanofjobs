@@ -76,11 +76,6 @@ def canonical_url(job_id: str) -> str:
     return f"{SITE}/job/{job_id}"
 
 
-def _human_date(d) -> str:
-    """30 Sep 2026 rather than 2026-09-30: a date a reader says."""
-    return f"{d.day} {d.strftime('%b %Y')}"
-
-
 def _salary_line(job):
     """(text, is_estimate) or None. Mirrors the board's own fallback: a
     row written before salary_source existed still carries the flag."""
@@ -345,7 +340,7 @@ def render(job, now=None, extra=None) -> str:
     if language != "English":
         tags.append(f'<span class="pg-tag"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg>Listing in {esc(language)}</span>')
     if job.get("confidence") == "best_effort":
-        tags.append('<span class="pg-tag" title="Scraped from the company\'s own page, not a live ATS API">Company website</span>')
+        tags.append('<span class="pg-tag" title="Taken from the company\'s careers page, not a hiring system">Company website</span>')
     if not open_:
         tags.append('<span class="pg-tag pg-tag-closed">Closed</span>')
 
@@ -387,7 +382,7 @@ def render(job, now=None, extra=None) -> str:
     # The description, with the closing-date phrase in bold.
     description = description_html(job.get("description") or "", bold=closes[1] if closes else None)
     if not description:
-        description = '<p class="pg-muted">No description was provided, see full details by clicking apply</p>'
+        description = '<p class="pg-muted">This listing has no description. The full details are on the application page.</p>'
 
     # Scraped, so only http(s): a javascript: link would run on this page.
     apply_url = esc(job.get("url")) if re.match(r"https?://", job.get("url") or "", re.I) else "#"
@@ -396,13 +391,13 @@ def render(job, now=None, extra=None) -> str:
         notice = ""
         apply_main = f'<a class="pg-apply" href="{apply_url}" target="_blank" rel="noopener nofollow">{apply_label}</a>'
         ready = (f'<div class="pg-ready"><div><div class="pg-ready-title">Ready to apply?</div>'
-                 f'<div class="pg-muted">You\'ll finish on {esc(company)}\'s own site'
-                 f'{"" if ats_is_site(job.get("ats")) else f", via {esc(system)}"}.</div></div>'
+                 f'<div class="pg-muted">You\'ll apply on {esc(company)}\'s '
+                 f'{"own site" if ats_is_site(job.get("ats")) else f"{esc(system)} page"}.</div></div>'
                  f'<a class="pg-apply pg-apply-inline" href="{apply_url}" target="_blank" rel="noopener nofollow">{apply_label}</a></div>')
     else:
-        notice = (f'<div class="pg-notice">This listing closed on {_human_date(closed)}. '
+        notice = (f'<div class="pg-notice">This job closed on {long_date(closed)}. '
                   f'<a href="/board?company={esc(domain)}">See what {esc(company)} is hiring for now</a>.</div>')
-        apply_main = '<a class="pg-apply pg-apply-off" href="/board">Browse open listings</a>'
+        apply_main = '<a class="pg-apply pg-apply-off" href="/board">Browse open jobs</a>'
         ready = ""
 
     # The company line under the logo: what they do, how many roles.
@@ -411,7 +406,7 @@ def render(job, now=None, extra=None) -> str:
         about.append(esc(extra["company_category"]))
     n_open = extra.get("company_open")
     if n_open:
-        about.append(f"{fmt_int(n_open)} open {plural(n_open, 'role')}")
+        about.append(f"{fmt_int(n_open)} open {plural(n_open, 'job')}")
     about_line = f'<div class="pg-muted">{" · ".join(about)}</div>' if about else ""
 
     crumbs = ['<a href="/board">Jobs</a>']
@@ -427,8 +422,8 @@ def render(job, now=None, extra=None) -> str:
     similar = ""
     if extra.get("similar"):
         rows = "".join(_role_row(j, now, with_company=True) for j in extra["similar"][:3])
-        similar = (f'<section class="pg-card"><div class="pg-card-title">Similar roles</div>{rows}'
-                   f'<button type="button" class="pg-btn pg-btn-wide" data-alert-like><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me for roles like this</button></section>')
+        similar = (f'<section class="pg-card"><div class="pg-card-title">Similar jobs</div>{rows}'
+                   f'<button type="button" class="pg-btn pg-btn-wide" data-alert-like><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me about jobs like this</button></section>')
 
     browse = ""
     if extra.get("role_links"):
@@ -498,9 +493,9 @@ def _json_js(obj) -> str:
 def render_missing(status: int, job_id: str) -> str:
     """The 404 and 410 pages: short, honest, noindex."""
     gone = status == 410
-    title = "Listing no longer available | Ocean of Jobs" if gone else "Listing not found | Ocean of Jobs"
-    what = ("This listing closed a while ago and the page has been retired."
-            if gone else "There is no listing with this id. It may have been removed, or the link may be wrong.")
+    title = "Job no longer available | Ocean of Jobs" if gone else "Job not found | Ocean of Jobs"
+    what = (f"This job closed more than {EXPIRED_KEEP_DAYS} days ago."
+            if gone else "There's no job with this id. It may have been removed, or the link may be wrong.")
     # Only a real id goes back into the page; anything else was never ours.
     from job_filters import is_job_id
     canonical = canonical_url(job_id) if is_job_id(job_id) else f"{SITE}/board"
@@ -510,7 +505,7 @@ def render_missing(status: int, job_id: str) -> str:
     <div class="pg-article">
       <h1 class="job-page-title pg-title">{html.escape(title.split(" | ")[0])}</h1>
       <p>{html.escape(what)}</p>
-      <p><a class="pg-apply pg-apply-off" href="/board">Browse open listings</a></p>
+      <p><a class="pg-apply pg-apply-off" href="/board">Browse open jobs</a></p>
     </div>
   </main>
 {FOOT}"""
