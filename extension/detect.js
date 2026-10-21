@@ -57,6 +57,7 @@
   const heading = () => ([...document.querySelectorAll('h1')].find((h) => h.checkVisibility()) || {}).textContent || '';
   function look() {
     if (shown || !all.generic) return shown;
+    if (globalThis.oojMatch.notJobSite(location.hostname)) return false;
     const p = all.generic.formHere();
     const jobish = () => JOBISH.test(location.href + ' ' + document.title + ' ' + heading());
     const form = p.score > 0 && (p.file || dedicated || jobish());

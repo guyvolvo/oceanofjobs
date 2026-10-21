@@ -101,6 +101,13 @@ test('an answer tied to a job fills that job only', () => {
   assert.equal(plan.fills.length, 0);
 });
 
+test('no card on sites that are never a job application', () => {
+  for (const host of ['github.com', 'gist.github.com', 'gitlab.com', 'stackoverflow.com', 'en.wikipedia.org', 'www.reddit.com'])
+    assert.equal(m.notJobSite(host), true, host);
+  for (const host of ['job-boards.greenhouse.io', 'jobs.ashbyhq.com', 'careers.github-example.com', 'www.comeet.com', 'notgithub.com'])
+    assert.equal(m.notJobSite(host), false, host);
+});
+
 test('work authorization follows the job country', () => {
   assert.equal(m.profileValue('work_auth', profile, { country: 'IL' }), 'Yes');
   assert.equal(m.profileValue('work_auth', profile, { country: 'US' }), 'No');

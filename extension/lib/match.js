@@ -401,8 +401,14 @@
     return s.join(' ');
   }
 
+  // Sites that are never a job application, however often a page says
+  // "apply": a GitHub folder named apply showed the card, and its Fill
+  // button opened the folder.
+  const NOT_JOBS = /(^|\.)(github\.com|gitlab\.com|bitbucket\.org|stackoverflow\.com|stackexchange\.com|npmjs\.com|pypi\.org|wikipedia\.org|reddit\.com|youtube\.com|news\.ycombinator\.com)$/i;
+  const notJobSite = (host) => NOT_JOBS.test(String(host || ''));
+
   const api = {
-    pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, suggestable,
+    notJobSite, pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf, plural, reasonText, filledText,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
