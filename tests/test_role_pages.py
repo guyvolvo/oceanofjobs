@@ -79,6 +79,24 @@ check("roles_for matches several roles", role_pages.roles_for("Senior ML Enginee
 check("roles_for skips other jobs", role_pages.roles_for("Head Chef") == [])
 check("AI keeps its capitals", role_pages.heading("ai-engineer", "remote") == "Remote AI engineer jobs")
 
+# Edge cases from review: cities across countries, misread salaries, one company, the CDN rule.
+db2 = sqlite3.connect(":memory:")
+db2.executescript("""CREATE TABLE jobs (id TEXT, title TEXT, company_domain TEXT, country TEXT, city TEXT, location TEXT, workplace_type TEXT,
+                   salary_text TEXT, salary_source TEXT, posted_at TEXT, first_seen TEXT, closed_at TEXT);
+CREATE TABLE companies (domain TEXT, company_name TEXT);""")
+db2.executemany("INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                [(f"x{i:03d}", "Data Engineer", "solo.com", "GB,US", "London,New York", "London", "onsite",
+                  "$50 - $70", "disclosed", "2026-10-10", "2026-10-10", None) for i in range(120)])
+out2, _ = role_pages.build(db2, "closed_at IS NULL", NOW)
+us2 = out2["jobs/data-engineer/united-states.html"]
+check("a city is not placed under another country's page", "London" not in us2.split("Where in the United States")[-1][:400], us2[-1500:])
+check("a figure below the floor is not a salary", "Median stated salary" not in us2)
+check("one company reads as one company", "at 1 company," in us2)
+check("the hub always has a file", "jobs.html" in out2)
+tf = (ROOT / "infra" / "cloudfront.tf").read_text(encoding="utf-8")
+rule = next(line for line in tf.splitlines() if "test(uri)" in line and "jobs" in line)
+check("the CDN rule names every role and place", all(r[0] in rule for r in role_pages.ROLES) and all(p[0] in rule for p in role_pages.PLACES if p[0]))
+
 # Job pages link to role pages the last build made indexable (api/handler.py _role_links).
 import os  # noqa: E402
 import tempfile  # noqa: E402

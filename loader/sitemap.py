@@ -353,8 +353,6 @@ def publish(frontend_bucket: str, db_path: Path, tmp: Path | None = None) -> lis
         if _fresh_enough(s3, frontend_bucket):
             return []
         docs = build(db_path)
-        if tmp:
-            (Path(tmp) / "role-pages.json").write_bytes(docs["role-pages.json"][0])
         written = []
         # Shards first, the index last, so a crawler that reads the new
         # index never asks for a shard that is not there yet.
@@ -370,6 +368,10 @@ def publish(frontend_bucket: str, db_path: Path, tmp: Path | None = None) -> lis
             count = sum(1 for k in docs if k.startswith(prefix))
             for i in range(count + 1, count + 4):
                 s3.delete_object(Bucket=frontend_bucket, Key=f"{prefix}{i}.xml")
+        # After the uploads, so a job page never links to a role page the
+        # bucket does not have yet.
+        if tmp:
+            (Path(tmp) / "role-pages.json").write_bytes(docs["role-pages.json"][0])
         shard_count = sum(1 for k in docs if k.startswith("sitemap-jobs-"))
         total = sum(len(b) for b, _ in docs.values())
         print(f"published {len(written)} sitemap/feed files ({total} bytes, {shard_count} job shards)", file=sys.stderr)

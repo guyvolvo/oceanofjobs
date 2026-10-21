@@ -73,6 +73,9 @@ PLACES = [
 ]
 PLACE = {p[0]: p for p in PLACES}
 _SYMBOL = {"USD": "$", "GBP": "£", "EUR": "€", "INR": "₹", "CAD": "CA$", "ILS": "₪"}
+# Below these a parsed figure is a misread, not a salary: "₹10L" reads as
+# 10, "€50.000" as 50, "$50 - $70" an hourly rate with no unit.
+_FLOOR = {"USD": 10_000, "GBP": 10_000, "EUR": 10_000, "CAD": 10_000, "INR": 100_000, "ILS": 3_000}
 
 
 def roles_for(title: str) -> list[str]:
@@ -120,7 +123,8 @@ def _salary_mid(row, currency, period):
         return None
     v = s["value"]
     lo, hi = v.get("minValue", v.get("value")), v.get("maxValue", v.get("value"))
-    return (lo + hi) / 2 if lo and hi else None
+    mid = (lo + hi) / 2 if lo and hi else None
+    return mid if mid and mid >= _FLOOR[currency] else None
 
 
 def collect(conn: sqlite3.Connection, clause: str, now: datetime) -> dict[tuple[str, str], _Page]:
@@ -138,7 +142,9 @@ def collect(conn: sqlite3.Connection, clause: str, now: datetime) -> dict[tuple[
         if not roles:
             continue
         codes = [c for c in (row["country"] or "").split(",") if c]
-        city = (row["city"] or "").split(",")[0].strip()
+        # city lists do not line up with country lists, so a city is only
+        # placed when the listing names one country
+        city = (row["city"] or "").split(",")[0].strip() if len(codes) == 1 else ""
         date = str(row["posted_at"] or row["first_seen"] or "")
         new = str(row["first_seen"] or "") >= cutoff
         places = [("", codes[0] if codes else "")]
@@ -208,7 +214,7 @@ def render(role: str, place: str, page: _Page, built: set, names: dict, now: dat
     # "14,362 software engineer jobs in the United States", keeping AI and DevOps capitalised
     words = h1 if h1.split()[0] in ("AI", "DevOps") else h1[0].lower() + h1[1:]
     title = f"{fmt_int(n)} {words}{' worldwide' if not place else ''} | Ocean of Jobs"
-    desc = (f"{fmt_int(n)} open {'remote ' if place == 'remote' else ''}{r[2]} jobs{' ' + where if where else ''} at {fmt_int(len(page.companies))} companies, including "
+    desc = (f"{fmt_int(n)} open {'remote ' if place == 'remote' else ''}{r[2]} jobs{' ' + where if where else ''} at {fmt_int(len(page.companies))} {plural(len(page.companies), 'company', 'companies')}, including "
             f"{', '.join(leaders[:-1]) + ' and ' + leaders[-1] if len(leaders) > 1 else leaders[0]}. "
             f"From the companies' own hiring systems, updated {short_date(now)}.")
     canonical = SITE + path_for(role, place)
@@ -252,7 +258,7 @@ def render(role: str, place: str, page: _Page, built: set, names: dict, now: dat
                     f'<span class="pg-role-line">{line}</span></span><span class="pg-role-when">{esc(short_date(d)) if d else ""}</span></a>')
     listing = (f'<section class="pg-card pg-roles"><div class="pg-roles-head"><span class="pg-roles-title"><b>{fmt_int(min(n, LISTED))}</b> newest</span>'
                f'<span class="pg-muted">of {fmt_int(n)} open</span></div>{"".join(rows)}'
-               f'<a class="pg-show-all" href="{esc(_board(role, place))}">All {fmt_int(n)} on the board</a></section>')
+               f'<a class="pg-show-all" href="{esc(_board(role, place))}">Search the board</a></section>')
 
     side = []
     company_bars = _bars([(d, name_of(d), k) for d, k in top], lambda d: f"/company/{d}")
@@ -284,7 +290,7 @@ def render(role: str, place: str, page: _Page, built: set, names: dict, now: dat
         <h1 class="job-page-title pg-title">{esc(h1)}</h1>
         <div class="pg-co-about">{esc(desc)}</div>
       </div>
-      <div class="pg-co-acts"><a class="pg-btn pg-btn-fill" href="{esc(_board(role, place))}">See all {fmt_int(n)} on the board</a></div>
+      <div class="pg-co-acts"><a class="pg-btn pg-btn-fill" href="{esc(_board(role, place))}">Search the board</a></div>
     </header>
     <div class="pg-tiles">{tiles_html}</div>
     <div class="pg-grid pg-grid-co">
@@ -308,7 +314,8 @@ def render_hub(pages: dict, built: set, now: datetime) -> str:
                      f' <span class="pg-muted">{fmt_int(pages[(slug, "")].n)} open</span></div><div class="pg-links">{links}</div></section>')
     desc = (f"Open tech jobs by role and country: software engineer, AI engineer, data, DevOps, cybersecurity and product roles, "
             f"from company hiring systems, updated {short_date(now)}.")
-    return (head("Tech jobs by role and country | Ocean of Jobs", desc, f"{SITE}/jobs", og_type="website") + topbar("jobs")
+    return (head("Tech jobs by role and country | Ocean of Jobs", desc, f"{SITE}/jobs", robots=None if cards else "noindex,follow",
+                 og_type="website") + topbar("jobs")
             + f"""  <main class="pg-main" id="main" tabindex="-1">
     <div class="pg-article">
       <h1 class="job-page-title pg-title">Tech jobs by role</h1>
@@ -371,6 +378,5 @@ def build(conn: sqlite3.Connection, clause: str, now: datetime | None = None) ->
                 out[key] = render(role, place, pages[(role, place)], built, names, now)
             else:
                 out[key] = render_thin(role, place, pages[(role, place)].n if (role, place) in pages else 0, built)
-    if built:
-        out["jobs.html"] = render_hub(pages, built, now)
+    out["jobs.html"] = render_hub(pages, built, now)
     return out, sorted(path_for(r, p) for r, p in built) + (["/jobs"] if built else [])

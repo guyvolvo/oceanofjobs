@@ -247,7 +247,10 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
       }
       // Role pages, written with the sitemap (api/role_pages.py):
       // /jobs -> jobs.html, /jobs/data-engineer/remote -> jobs/data-engineer/remote.html.
-      if ((uri === "/jobs" || uri.indexOf("/jobs/") === 0) && last.indexOf(".") === -1) {
+      // Only the ROLES x PLACES it writes; anything else falls through to
+      // the 404 page instead of the bucket's 403. tests/test_role_pages.py
+      // checks these lists against role_pages.py.
+      if (/^\/jobs(\/(software-engineer|ai-engineer|machine-learning-engineer|data-engineer|data-scientist|data-analyst|devops-engineer|cybersecurity|product-manager|full-stack-developer)(\/(remote|united-states|united-kingdom|germany|india|canada|israel))?)?$/.test(uri)) {
         request.uri = uri + ".html";
         return request;
       }
