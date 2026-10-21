@@ -99,7 +99,7 @@
     if (who) {
       rows.push(`<div class="hero-nav-who"><span class="hero-avatar" aria-hidden="true">${esc(who[0].toUpperCase())}</span><span class="hero-nav-email">${esc(who)}</span></div>`);
     } else {
-      rows.push(`<button type="button" class="hero-nav-item hero-nav-signin" data-act="signin">${icons.person}Sign in</button>`);
+      rows.push(`<button type="button" class="hero-nav-item hero-nav-signin" data-act="signin">${icons.person}Log in</button>`);
     }
     // The desktop header's menus, in its order: Jobs, Companies, Docs, Pricing.
     if (!onBoard()) rows.push(`<a class="hero-nav-item" href="/board">${icons.board}Jobs</a>`);
@@ -107,7 +107,7 @@
     rows.push(`<a class="hero-nav-item" href="/docs">${icons.book}Docs</a>`);
     if (location.pathname !== "/pricing") rows.push(`<a class="hero-nav-item" href="/pricing">${icons.tag}Pricing</a>`);
     if (who) {
-      rows.push(`<a class="hero-nav-item" href="/account">${icons.person}My profile</a>`);
+      rows.push(`<a class="hero-nav-item" href="/account">${icons.person}Account</a>`);
       rows.push(`<a class="hero-nav-item" href="/board?starred=1">${icons.bookmark}Saved jobs</a>`);
       rows.push(`<a class="hero-nav-item" href="/account#alerts">${icons.bell}Alerts</a>`);
       rows.push(`<a class="hero-nav-item" href="/stats">${icons.chart}Statistics</a>`);

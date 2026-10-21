@@ -285,7 +285,7 @@
     const tokens = getAuthTokens();
     if (!tokens) return;
     const email = decodeJwtEmail(tokens.id_token) || "";
-    login.outerHTML = `<a class="hero-account-btn dir-account" href="/account">${avatarHtml(email, tokens.id_token)}My Account</a>`;
+    login.outerHTML = `<a class="hero-account-btn dir-account" href="/account">${avatarHtml(email, tokens.id_token)}My account</a>`;
   }
 
   function wire() {

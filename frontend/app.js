@@ -6257,7 +6257,7 @@ function renderAuthState() {
   const alertsPanel = menuOnly ? "" : `
     <div class="auth-panel alerts-panel" id="auth-panel" hidden>
       <div class="alerts-header alerts-header-row">
-        <span>My Alerts</span>
+        <span>My alerts</span>
         <a class="link account-link" href="/account">Account</a>
       </div>
       <div id="alerts-list"><p class="alerts-empty">Loading…</p></div>
@@ -6280,22 +6280,22 @@ function renderAuthState() {
         <p class="create-alert-feedback" id="create-alert-feedback" hidden></p>
       </div>
 
-      <button class="auth-signout" id="auth-panel-signout" type="button">Sign out</button>
+      <button class="auth-signout" id="auth-panel-signout" type="button">Log out</button>
     </div>`;
   area.innerHTML = `
     <button class="hero-account-btn" id="topbar-account-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="topbar-menu">
-      ${avatar}My Account
+      ${avatar}My account
     </button>
     <div class="hero-menu" id="topbar-menu" role="menu" hidden>
       <div class="hero-menu-head">${avatar}<span class="hero-menu-email" title="${escapeHtml(email)}">${escapeHtml(email)}</span></div>
-      <a role="menuitem" href="/account">${MENU_ICONS.person}My Profile</a>
-      <a role="menuitem" href="/board?starred=1">${MENU_ICONS.bookmark}Saved Jobs</a>
+      <a role="menuitem" href="/account">${MENU_ICONS.person}Account</a>
+      <a role="menuitem" href="/board?starred=1">${MENU_ICONS.bookmark}Saved jobs</a>
       <button role="menuitem" type="button" id="topbar-alert-btn">${MENU_ICONS.bell}Alerts</button>
       <a role="menuitem" href="/stats">${MENU_ICONS.chart}Statistics</a>
       <a role="menuitem" href="/docs/api">${MENU_ICONS.code}API reference</a>
       <a role="menuitem" href="/contact">${MENU_ICONS.chat}Contact</a>
       <button role="menuitem" type="button" id="topbar-menu-theme">${isDarkTheme() ? MENU_ICONS.sun : MENU_ICONS.moon}<span>${isDarkTheme() ? "Light mode" : "Dark mode"}</span></button>
-      <button role="menuitem" type="button" class="hero-menu-out" id="auth-signout">${MENU_ICONS.out}Log Out</button>
+      <button role="menuitem" type="button" class="hero-menu-out" id="auth-signout">${MENU_ICONS.out}Log out</button>
     </div>
     ${alertsPanel}`;
   wireMenu("topbar-account-btn", "topbar-menu");
@@ -6714,8 +6714,8 @@ function paintAlertFormMode() {
   const submit = document.getElementById("create-alert-btn");
   const cancel = document.getElementById("cancel-edit-btn");
   if (!title || !submit || !cancel) return;
-  title.textContent = editingAlertId ? "Edit Alert" : "New Alert";
-  submit.textContent = editingAlertId ? "Save Changes" : "Create Alert";
+  title.textContent = editingAlertId ? "Edit alert" : "New alert";
+  submit.textContent = editingAlertId ? "Save changes" : "Create alert";
   cancel.hidden = !editingAlertId;
   document.getElementById("alert-create").classList.toggle("editing", !!editingAlertId);
 }
