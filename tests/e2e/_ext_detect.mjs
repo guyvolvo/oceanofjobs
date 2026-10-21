@@ -48,7 +48,7 @@ await p.mouse.click(fab.x + fab.w / 2, fab.y + fab.h / 2);
 await p.waitForTimeout(3000);
 const card = await box();
 await p.screenshot({ path: `${out}/detect-offer.png` });
-// "Fill in this application" sits above the card's "Hide on this site" line.
+// "Fill application" sits above the card's "Hide on this site" line.
 await p.mouse.click(card.x + card.w / 2, card.y + card.h - 62);
 await p.waitForTimeout(8000);
 await p.screenshot({ path: `${out}/detect-filled.png`, fullPage: true });

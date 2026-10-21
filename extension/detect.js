@@ -137,7 +137,7 @@
     <div class="c" role="dialog" aria-label="${name}" hidden>
       <div class="h"><img src="${icon}" alt=""><span class="t">${name}</span><button class="x" aria-label="Close">×</button></div>
       <p class="msg"></p>
-      <button class="go">Fill in this form</button>
+      <button class="go">Fill application</button>
       <p class="frame" hidden>To show this card at the top of career pages, enable access to all sites in <button class="link">Settings</button>.</p>
       <button class="hide">Hide on this site until Chrome restarts</button>
     </div>`;
@@ -186,7 +186,7 @@
       msg.textContent = 'Fill in this application using your profile. Review your answers before submitting.';
       go.addEventListener('click', async () => {
         go.disabled = true;
-        go.textContent = 'Filling in…';
+        go.textContent = 'Filling application…';
         const r = await send({ type: 'fillHere', url: target.url, frameId: target.frameId, title });
         if (!r || r.error) {
           msg.className = 'msg warn';
@@ -247,14 +247,14 @@
 
   function dedicatedCard(root, offer, title, msg, go) {
     const ats = dedicated;
-    go.textContent = 'Fill in this application';
+    go.textContent = 'Fill application';
     msg.textContent = 'Fill in the application using your profile, review your answers, then submit it here.'
       + (offer.remaining != null ? ` ${offer.remaining} ${plural(offer.remaining, 'application')} left on your plan.` : '');
     let submitting = false;
     go.addEventListener('click', async () => {
       if (submitting) return;
       go.disabled = true;
-      go.textContent = 'Filling in and suggesting answers…';
+      go.textContent = 'Filling application…';
       const company = new URL(location.href).searchParams.get('for') || location.pathname.split('/')[1] || '';
       const where = (document.querySelector('.job__location, .location, [class*="location"]') || {}).textContent || '';
       const r = await send({ type: 'fillHere', url: location.href, title, company, location: where.trim().slice(0, 200) });
