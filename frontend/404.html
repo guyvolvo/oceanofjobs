@@ -57,12 +57,12 @@
         <p class="not-found-lede" id="nf-lede">This page does not exist. The link may be mistyped or out of date.</p>
 
         <form class="not-found-search" action="/board" method="get" role="search">
-          <input type="text" name="search" id="nf-search" placeholder="e.g. backend engineer Tel Aviv…" aria-label="Search listings" autocomplete="off" />
+          <input type="text" name="search" id="nf-search" placeholder="e.g. backend engineer Tel Aviv…" aria-label="Search jobs" autocomplete="off" />
           <button class="btn" type="submit">Search</button>
         </form>
 
         <div class="not-found-actions">
-          <a class="btn ghost btn-small" href="/board">All listings</a>
+          <a class="btn ghost btn-small" href="/board">All jobs</a>
           <a class="btn ghost btn-small" href="/board?view=matches">Best matches</a>
           <button class="btn ghost btn-small" type="button" id="nf-back" hidden>Go back</button>
         </div>
@@ -80,11 +80,11 @@
       // Say what kind of thing is missing when the address makes it clear.
       var m = path.match(/^\/(jobs?|listings?|companies|company)\/([^\/]+)/i);
       if (m && /^(jobs?|listings?)$/i.test(m[1])) {
-        title.textContent = "Listing not found";
-        lede.textContent = "This listing is no longer on the board, or the link is out of date. Roles get filled and taken down, so links to them go stale.";
+        title.textContent = "Job not found";
+        lede.textContent = "This job is no longer on the board, or the link is out of date. Jobs get filled and taken down, so links to them go stale.";
       } else if (m) {
         title.textContent = "Company not found";
-        lede.textContent = "There is no company page at this address. Search for the company to see its open roles.";
+        lede.textContent = "There is no company page at this address. Search for the company to see its open jobs.";
       }
 
       // A stale link to a role usually still names it. Offer those words as

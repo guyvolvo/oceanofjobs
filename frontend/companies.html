@@ -10,7 +10,7 @@
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Companies hiring | Ocean of Jobs</title>
-  <meta name="description" content="Every company with open roles on Ocean of Jobs: how many, how many are new this week, which hiring system they use, and their newest listings." />
+  <meta name="description" content="Every company with open jobs on Ocean of Jobs: how many, how many are new this week, which hiring system they use, and their newest jobs." />
   <!-- A link shared without these falls back to whatever a platform's own
        crawler screenshots live -- reported live (2026-09-08): that's a
        JS-rendered page mid-fetch, so the preview showed the loading
@@ -24,7 +24,7 @@
        /job/<id>, which app.js swaps in here while one is open, so the
        two never compete in an index. -->
   <link rel="canonical" href="https://oceanofjobs.com/companies" id="canonical" />
-  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="https://oceanofjobs.com/feed.xml" />
+  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest jobs" href="https://oceanofjobs.com/feed.xml" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/companies" />
   <meta property="og:title" content="OceanOfJobs.com" />
@@ -169,10 +169,10 @@
           <div class="board-list dir-list">
             <div class="col-head list-head">
               <div class="list-head-text"><span class="col-head-title" id="dir-count"><span class="skeleton sk-line" style="width:240px;height:14px"></span></span><span class="col-head-sub" id="dir-sub"></span></div>
-              <span class="sort-wrap"><span class="sort-label">Sort</span><select id="dir-sort" aria-label="Sort companies"><option value="roles">Most open roles</option><option value="new">Most new this week</option><option value="name">Name</option></select></span>
+              <span class="sort-wrap"><span class="sort-label">Sort</span><select id="dir-sort" aria-label="Sort companies"><option value="roles">Most open jobs</option><option value="new">Most new this week</option><option value="name">Name</option></select></span>
             </div>
             <!-- Column heads over the rows, on the row's own grid. -->
-            <div class="dir-cols" aria-hidden="true"><span></span><span>Company</span><span>Trend chart</span><span></span><span>Open roles</span></div>
+            <div class="dir-cols" aria-hidden="true"><span></span><span>Company</span><span>Trend chart</span><span></span><span>Open jobs</span></div>
             <div class="dir-scroll" id="dir-rows" role="list"></div>
           </div>
         </div>

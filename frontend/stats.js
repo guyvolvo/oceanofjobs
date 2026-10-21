@@ -56,7 +56,7 @@ const ICON = {
 // plain SQL where it cannot. Clicking one loads it and runs it. The icon
 // is the view the answer comes back as.
 const TEMPLATES = [
-  { name: "New listings per day", icon: "line",
+  { name: "New jobs per day", icon: "line",
     state: { group: "day", event: "first_seen", range: 30, compare: "previous", metric: "count" } },
   { name: "Open jobs by category", icon: "hbar",
     state: { status: "open", group: "category", metric: "count", limit: 25 } },
@@ -110,8 +110,8 @@ const SCHEMA = [
   { table: "job_skills", note: "One row per skill per listing, with the listing's filter columns copied in.",
     columns: [["job_rowid", "integer", "jobs.rowid of the listing."], ["job_id", "text", "jobs.id of the listing."], ["skill", "text", "Lower-cased, e.g. python."], ["company", "text", ""], ["ats", "text", ""], ["category", "text", ""],
       ["seniority", "text", ""], ["workplace", "text", ""], ["salary_source", "text", ""], ["first_seen", "date", DATE_NOTE], ["closed_at", "date", "NULL while open. " + DATE_NOTE], ["days_open", "real", ""]] },
-  { table: "companies", note: "One row per tracked company.", columns: [["domain", "text", "Joins to jobs.company."], ["name", "text", "As the hiring system reports it."], ["ats", "text", ""], ["open_jobs", "integer", "Open listings right now."]] },
-  { table: "facets", note: "Distinct values per filter, with counts.", columns: [["field", "text", ""], ["value", "text", ""], ["label", "text", "Companies only."], ["n", "integer", "Open listings."]] },
+  { table: "companies", note: "One row per tracked company.", columns: [["domain", "text", "Joins to jobs.company."], ["name", "text", "As the hiring system reports it."], ["ats", "text", ""], ["open_jobs", "integer", "Open jobs right now."]] },
+  { table: "facets", note: "Distinct values per filter, with counts.", columns: [["field", "text", ""], ["value", "text", ""], ["label", "text", "Companies only."], ["n", "integer", "Open jobs."]] },
   { table: "meta", note: "When this file was built, and its totals.", columns: [["key", "text", ""], ["value", "text", ""]] },
 ];
 
@@ -159,7 +159,7 @@ async function openDatabase() {
 
   const meta = Object.fromEntries((await worker.db.exec("SELECT key, value FROM meta"))[0]?.values || []);
   const built = meta.built_at || manifest?.built_at;
-  const parts = [`${fmtInt(meta.jobs || 0)} listings`, `${fmtInt(meta.companies || 0)} companies`];
+  const parts = [`${fmtInt(meta.jobs || 0)} jobs`, `${fmtInt(meta.companies || 0)} companies`];
   if (built) parts.push(`refreshed ${ago(built)}`);
   status.textContent = parts.join(" · ");
   status.title = built ? `Built ${new Date(built).toLocaleString()}` : "";
@@ -295,11 +295,11 @@ function renderBuilder() {
     const metrics = [["count", "Count"], ...(time ? [] : [["share", "Share of"]]), ["avg_days_open", "Average days open of"]];
     line1.push(pill("qb-metric", metrics, state.metric, "What to measure"));
   }
-  line1.push(word("listings"));
+  line1.push(word("jobs"));
   if (time) {
     line1.push(word("that were"), pill("qb-event", Object.entries(QB.EVENTS).map(([k, v]) => [k, v.label]), state.event, "Which date"), word("per"));
   } else {
-    line1.push(word("that are"), pill("qb-status", [["open", "open now"], ["closed", "closed"], ["all", "open or closed"]], state.status, "Which listings"));
+    line1.push(word("that are"), pill("qb-status", [["open", "open now"], ["closed", "closed"], ["all", "open or closed"]], state.status, "Which jobs"));
     if (!rows) line1.push(word("by"));
   }
   line1.push(pill("qb-group", groupOptions(), state.group, "Group by"));
@@ -552,7 +552,7 @@ function resultTitle() {
   if (mode === "sql") return "Query result";
   const g = QB.GROUPS[state.group] || {};
   if (g.time) {
-    const what = state.event === "closed_at" ? "closed listings" : "new listings";
+    const what = state.event === "closed_at" ? "closed jobs" : "new jobs";
     if (state.metric === "avg_days_open") return `Days open of ${what}, per ${g.time}`;
     return `${what[0].toUpperCase()}${what.slice(1)} per ${g.time}`;
   }
@@ -647,7 +647,7 @@ function render(result, ms, read) {
   $("st-rtitle").textContent = resultTitle();
   const context = resultContext();
   if (!result.length) {
-    const why = mode === "builder" ? "No listings match these filters." : "The query returned no rows.";
+    const why = mode === "builder" ? "No jobs match these filters." : "The query returned no rows.";
     out.innerHTML = `<div class="st-empty"><strong>No results</strong><span>${why}</span></div>`;
     metric.textContent = [...context, `0 rows in ${ms} ms`].join(" · ");
     metric.title = `${fmtBytes(read)} fetched`;
@@ -752,9 +752,9 @@ function groupName(d, v) {
 }
 
 function prettyCol(c, data) {
-  const known = { listings: "Listings", previous: data && data.days ? `Previous ${data.days} days` : "Previous",
+  const known = { listings: "Jobs", previous: data && data.days ? `Previous ${data.days} days` : "Previous",
     avg_days_open: "Avg days open", share_pct: "Share %", change: "Change", day: "Day", week: "Week", month: "Month",
-    pct_disclosed: "Disclosed %", show_pay_pct: "Show pay %", open_roles: "Open roles", ats: "ATS" };
+    pct_disclosed: "Disclosed %", show_pay_pct: "Show pay %", open_roles: "Open jobs", ats: "ATS" };
   if (known[c]) return known[c];
   const s = String(c).replace(/_/g, " ");
   return s.charAt(0).toUpperCase() + s.slice(1);

@@ -22,7 +22,7 @@ const state = () => page.evaluate(() => {
   const bar = document.getElementById("pane-sticky");
   const apply = bar?.querySelector(".pane-apply");
   const selected = document.querySelector("#jobs-body tr.selected");
-  const paneEmpty = /Select a listing/i.test(document.getElementById("pane-body")?.textContent || "");
+  const paneEmpty = /Select a job/i.test(document.getElementById("pane-body")?.textContent || "");
   return {
     barShown: !!bar && !bar.hidden && bar.getBoundingClientRect().height > 0,
     barApply: apply ? apply.textContent.replace(/\s+/g, " ").trim() : null,

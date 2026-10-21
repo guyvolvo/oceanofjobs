@@ -28,7 +28,7 @@
     const min = Math.min(...vals), max = Math.max(...vals), span = Math.max(1, max - min);
     const d = pts.map(([i, v], k) => `${k ? "L" : "M"}${(i / n * w).toFixed(1)} ${(h - 3 - ((v - min) / span) * (h - 6)).toFixed(1)}`).join(" ");
     const up = vals[vals.length - 1] >= vals[0];
-    return `<svg class="dir-trend${up ? " up" : " down"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="Open roles over seven days, ${fmt(vals[0])} to ${fmt(vals[vals.length - 1])}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    return `<svg class="dir-trend${up ? " up" : " down"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="Open jobs over seven days, ${fmt(vals[0])} to ${fmt(vals[vals.length - 1])}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   }
 
   const COUNTRY_KEY = "iljobs_dir_country";
@@ -189,7 +189,7 @@
         </div>
         <div class="dir-trend-cell">${rowSpark(r.trend)}</div>
         <button type="button" class="dir-follow${following.has(r.domain) ? " on" : ""}" data-follow="${esc(r.domain)}" aria-pressed="${following.has(r.domain)}" aria-label="${following.has(r.domain) ? "Unfollow" : "Follow"} ${esc(r.name)}">${following.has(r.domain) ? "Following" : "Follow"}</button>
-        <div class="dir-count"><b>${fmt(r.n)}</b><span>${r.new_7d ? `+${fmt(r.new_7d)} this week` : "open roles"}</span></div>
+        <div class="dir-count"><b>${fmt(r.n)}</b><span>${r.new_7d ? `+${fmt(r.new_7d)} this week` : "open jobs"}</span></div>
       </div>`).join("") + (list.length > state.shown
         ? `<div class="dir-more"><button type="button" class="btn ghost" id="dir-more">Show ${Math.min(50, list.length - state.shown)} more</button></div>`
         : (list.length ? "" : `<div class="dir-empty">No companies match.</div>`));
@@ -241,14 +241,14 @@
       <div class="dir-company">${logoTile(row)}<div><h2>${esc(row.name)}</h2>
         <div class="dir-line">${esc(atsName(row.ats))} · <a href="https://${esc(domain)}" target="_blank" rel="noopener">${esc(domain)}</a></div></div></div>
       <div class="dir-actions">
-        <a class="btn primary" href="/board?company=${encodeURIComponent(domain)}${state.country ? `&country=${encodeURIComponent(state.country)}` : ""}">See ${row.n == null ? "the" : fmt(row.n)} open roles</a>
+        <a class="btn primary" href="/board?company=${encodeURIComponent(domain)}${state.country ? `&country=${encodeURIComponent(state.country)}` : ""}">See ${row.n == null ? "the" : fmt(row.n)} open jobs</a>
         <a class="btn ghost" href="/account">Alert me when they post</a>
         <a class="btn ghost" href="https://${esc(domain)}" target="_blank" rel="noopener">Careers page &nearr;</a>
       </div>
       <div class="ov-tiles" id="dir-tiles"></div>
-      <div class="ov-block"><span class="ov-block-title">Open roles, twelve weeks</span><div id="dir-spark">${bone("100%", 56)}</div></div>
+      <div class="ov-block"><span class="ov-block-title">Open jobs, twelve weeks</span><div id="dir-spark">${bone("100%", 56)}</div></div>
       <div class="ov-block"><span class="ov-block-title">Hiring for</span><div class="dir-bars" id="dir-bars">${boneRows(3, "dir-bar-bone")}</div></div>
-      <div class="ov-block"><div class="dir-block-head"><span class="ov-block-title">Newest roles</span><a id="dir-all" href="/board?company=${encodeURIComponent(domain)}">All</a></div><div class="dir-jobs" id="dir-jobs"></div></div>
+      <div class="ov-block"><div class="dir-block-head"><span class="ov-block-title">Newest jobs</span><a id="dir-all" href="/board?company=${encodeURIComponent(domain)}">All</a></div><div class="dir-jobs" id="dir-jobs"></div></div>
     </div>`;
     const here = state.country ? `&country=${encodeURIComponent(state.country)}` : "";
     const q = (extra) => `${API}/jobs?company=${encodeURIComponent(domain)}&confidence=all&${extra}`;
@@ -262,7 +262,7 @@
     const tiles = [];
     const tile = (label, value, sub, cls = "") => tiles.push(`<div class="ov-tile ${cls}"><span class="ov-label">${label}</span><span class="ov-value">${value}</span>${sub ? `<span class="ov-sub">${sub}</span>` : ""}</div>`);
     const worldwide = profile && state.country && profile.open_jobs > hereN ? `of ${fmt(profile.open_jobs)} worldwide` : "";
-    tile(state.country ? `Open roles in ${esc(countryName(state.country))}` : "Open roles", fmt(hereN), worldwide);
+    tile(state.country ? `Open jobs in ${esc(countryName(state.country))}` : "Open jobs", fmt(hereN), worldwide);
     tile("New this week", profile ? fmt(profile.new_jobs_7d) : "–", "first seen in the past 7 days", "dir-green");
     tile("Hiring system", esc(atsName(profile?.ats ?? row.ats)), "", "dir-words");
     const cities = (cf?.locations || []).flatMap((c) => (c.cities || []).slice(0, 3).map((x) => x.value));
@@ -271,9 +271,9 @@
     $("#dir-spark").innerHTML = sparkline(profile?.history);
     const cats = (cf?.categories || []).slice(0, 5);
     const max = Math.max(1, ...cats.map((c) => c.n));
-    $("#dir-bars").innerHTML = cats.length ? cats.map((c) => `<div class="dir-bar"><span>${esc(c.value)}</span><span class="dir-bar-track"><span class="dir-bar-fill" style="width:${Math.round(100 * c.n / max)}%"></span></span><span class="dir-bar-n">${fmt(c.n)}</span></div>`).join("") : `<span class="dir-hint">No categorised roles.</span>`;
+    $("#dir-bars").innerHTML = cats.length ? cats.map((c) => `<div class="dir-bar"><span>${esc(c.value)}</span><span class="dir-bar-track"><span class="dir-bar-fill" style="width:${Math.round(100 * c.n / max)}%"></span></span><span class="dir-bar-n">${fmt(c.n)}</span></div>`).join("") : `<span class="dir-hint">No categorised jobs.</span>`;
     $("#dir-all").textContent = `All ${fmt(hereN)}`;
-    $("#dir-jobs").innerHTML = (newest?.jobs || []).map((j) => `<a class="dir-job" href="/job/${esc(j.id)}"><span class="dir-job-title">${esc(j.title)}${j.location ? ` <span class="dir-job-where">· ${esc(String(j.location).split(";")[0])}</span>` : ""}</span><span class="dir-job-age">${age(j.posted_at)}</span></a>`).join("") || `<span class="dir-hint">No open roles here.</span>`;
+    $("#dir-jobs").innerHTML = (newest?.jobs || []).map((j) => `<a class="dir-job" href="/job/${esc(j.id)}"><span class="dir-job-title">${esc(j.title)}${j.location ? ` <span class="dir-job-where">· ${esc(String(j.location).split(";")[0])}</span>` : ""}</span><span class="dir-job-age">${age(j.posted_at)}</span></a>`).join("") || `<span class="dir-hint">No open jobs here.</span>`;
   }
 
   // The corner says who is signed in, the way the board's does. The

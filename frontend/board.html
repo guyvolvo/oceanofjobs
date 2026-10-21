@@ -25,7 +25,7 @@
        /job/<id>, which app.js swaps in here while one is open, so the
        two never compete in an index. -->
   <link rel="canonical" href="https://oceanofjobs.com/board" id="canonical" />
-  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="https://oceanofjobs.com/feed.xml" />
+  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest jobs" href="https://oceanofjobs.com/feed.xml" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/board" />
   <meta property="og:title" content="OceanOfJobs.com" />
@@ -131,9 +131,9 @@
       <nav class="side-group side-nav" aria-label="Primary"><a href="/board" class="current" aria-current="page" title="Jobs"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M160-120q-33 0-56.5-23.5T80-200v-440q0-33 23.5-56.5T160-720h160v-80q0-33 23.5-56.5T400-880h160q33 0 56.5 23.5T640-800v80h160q33 0 56.5 23.5T880-640v440q0 33-23.5 56.5T800-120H160Zm0-80h640v-440H160v440Zm240-520h160v-80H400v80ZM160-200v-440 440Z"/></svg><span>Jobs</span></a><a href="/companies" title="Companies"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M80-120v-720h400v160h400v560H80Zm80-80h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm320 480h320v-400H480v400Zm80-240v-80h160v80H560Zm0 160v-80h160v80H560Z"/></svg><span>Companies</span></a><a href="/stats" title="Statistics"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg><span>Statistics</span></a><a href="/docs/api" title="API"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z"/></svg><span>API</span></a></nav>
       <!-- Which listings the board shows. Filters apply in every view:
            Best matches orders what they leave, it does not replace them. -->
-      <div class="side-group view-switch" id="view-switch" role="tablist" aria-label="Which listings to show">
-        <button type="button" class="seg-btn" data-view="tech" role="tab" aria-selected="false">Tech roles</button>
-        <button type="button" class="seg-btn active" data-view="all" role="tab" aria-selected="true">All roles</button>
+      <div class="side-group view-switch" id="view-switch" role="tablist" aria-label="Which jobs to show">
+        <button type="button" class="seg-btn" data-view="tech" role="tab" aria-selected="false">Tech jobs</button>
+        <button type="button" class="seg-btn active" data-view="all" role="tab" aria-selected="true">All jobs</button>
         <button type="button" class="seg-btn" data-view="matches" role="tab" aria-selected="false">Best matches</button>
         <button type="button" class="seg-btn" data-view="saved" role="tab" aria-selected="false">Saved</button>
       </div>
@@ -217,7 +217,7 @@
           <section class="m-sec" id="m-sec-cats"><h3 class="m-sec-title">Category</h3><div class="m-opts" id="m-cats"></div></section>
           <div id="m-rail-host"></div>
         </div>
-        <div class="m-sheet-foot"><button type="button" class="m-show" id="m-show">Show roles</button></div>
+        <div class="m-sheet-foot"><button type="button" class="m-show" id="m-show">Show jobs</button></div>
       </div>
       <button type="button" class="m-alert" id="m-alert"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me for this search</button>
 
@@ -285,7 +285,7 @@
              since the bones themselves are aria-hidden. -->
         <div id="jobs-loading" class="visually-hidden" role="status"></div>
         <div id="jobs-error" class="error-state" style="display:none" role="status" aria-live="polite"></div>
-        <div id="jobs-empty" class="empty-state" style="display:none"><strong>No results</strong><span>No listings match these filters.</span></div>
+        <div id="jobs-empty" class="empty-state" style="display:none"><strong>No results</strong><span>No jobs match these filters.</span></div>
 
         <!-- The head moved out of the table and into the column head
              above, which is shared with the other two columns. -->

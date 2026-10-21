@@ -843,7 +843,7 @@ function renderScopeLine() {
   const mode = currentScopeMode();
   // The view is part of the scope: on the default view the numbers are
   // tech roles only, and the line says so before the filters.
-  const view = state.roles === "tech" && !state.starred_only ? ["Tech roles"] : [];
+  const view = state.roles === "tech" && !state.starred_only ? ["Tech jobs"] : [];
   const applied = [...view, ...activeFilterSummary()].join(" · ");
   if (mode === "global") {
     el.textContent = "No filters applied";
@@ -893,7 +893,7 @@ function renderScopedMetrics(stats) {
       // under it really is global. A filtered count beneath a label
       // reading GLOBAL OPEN JOBS is the failure this whole section
       // exists to rule out.
-      label: narrowed ? "Open roles" : "Global open jobs",
+      label: narrowed ? "Open jobs" : "Global open jobs",
       value: fmtInt(d.open_jobs),
       // open_jobs_best_effort is a whole-board figure with no scoped
       // twin in the contract, so it cannot ride along under a filtered
@@ -904,7 +904,7 @@ function renderScopedMetrics(stats) {
     {
       label: "Companies hiring",
       value: fmtInt(d.companies_hiring),
-      sub: narrowed ? "with a matching open role" : "with a fresh open role",
+      sub: narrowed ? "with a matching open job" : "with a fresh open job",
     },
     {
       // The label said 7d while the number under it was the 24h figure,
@@ -912,7 +912,7 @@ function renderScopedMetrics(stats) {
       // the same way, so both said the wrong period. Caught while
       // relabelling the panel for scoping, which is the whole point of
       // that exercise: a number nobody can name is worse than no number.
-      label: "New listings in 24h",
+      label: "New jobs in 24h",
       value: `+${fmtInt(d.new_jobs_24h)}`,
       sub: `${fmtInt(d.new_jobs_7d)} in 7d`,
       hl: d.new_jobs_24h > 0,
@@ -1063,8 +1063,8 @@ function renderTrendChart(daily) {
 
   return `
     <svg class="trend-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-      <path class="trend-line" d="${newLine}"><title>New listings</title></path>
-      <path class="trend-line closed" d="${closedLine}"><title>Closed listings</title></path>
+      <path class="trend-line" d="${newLine}"><title>New jobs</title></path>
+      <path class="trend-line closed" d="${closedLine}"><title>Closed jobs</title></path>
     </svg>
     <div class="trend-legend">
       <span><span class="dot new"></span>New</span>
@@ -1096,7 +1096,7 @@ function renderGhostStat(ghost, openJobs) {
   const pct = Math.round(ghost.dormant_pct * 1000) / 10;
   return `
     <div class="ghost-pct">${pct}%</div>
-    <div class="ghost-sub">${fmtInt(ghost.dormant_count)} of ${fmtInt(ghost.sample_size)} open listings haven't been filled in over ${ghost.threshold_days} days (${fmtInt(openJobs)} open in total).</div>`;
+    <div class="ghost-sub">${fmtInt(ghost.dormant_count)} of ${fmtInt(ghost.sample_size)} open jobs haven't been filled in over ${ghost.threshold_days} days (${fmtInt(openJobs)} open in total).</div>`;
 }
 
 // Every panel in the Market overview block is whole-board.
@@ -1110,7 +1110,7 @@ function renderPanels(stats) {
 
   el.innerHTML = `
     <div class="panel">
-      <div class="panel-title">New listings, last 14 days</div>
+      <div class="panel-title">New jobs, last 14 days</div>
       ${renderTrendChart(stats.daily_new_jobs)}
     </div>
     <div class="panel">
@@ -1137,7 +1137,7 @@ function renderPanels(stats) {
       )}
     </div>
     <div class="panel">
-      <div class="panel-title">Dormant listings</div>
+      <div class="panel-title">Dormant jobs</div>
       ${renderGhostStat(stats.ghost, stats.totals.open_jobs)}
     </div>`;
 
@@ -1178,11 +1178,11 @@ function renderScopedPanels(stats) {
   const moreLabel = () => (companiesExpanded ? "Show fewer" : `View all ${rows.length}`);
   el.innerHTML = `
     <div class="panel${companiesExpanded ? " expanded" : ""}">
-      <div class="panel-title">Companies with most open roles</div>
+      <div class="panel-title">Companies with the most open jobs</div>
       ${
         rows.length
           ? renderBarList(rows, "domain", { clickable: true, limit: COMPANY_ROWS_SHOWN })
-          : '<div class="sub" style="color:var(--grey)">No company has a matching open role.</div>'
+          : '<div class="sub" style="color:var(--grey)">No company has a matching open job.</div>'
       }
       ${
         rows.length > COMPANY_ROWS_SHOWN
@@ -1272,7 +1272,7 @@ function renderMatchPanel() {
     + `<button type="button" class="match-panel-toggle" aria-expanded="${open}" aria-controls="match-skills">`
     + `My skills <span class="match-panel-count">${state.skills.length}</span>${MS_CHEVRON_SVG}</button>`
     + `<span class="match-panel-label"`
-    + ` title="Listings that share at least one of your CV skills, ordered by how many, with newer roles counted higher: every two weeks since posting counts as one skill fewer.">`
+    + ` title="Jobs that share at least one of your CV skills, ordered by how many. Newer jobs count higher, and every two weeks since posting counts as one skill fewer.">`
     + `Ranked by relevance</span>`
     + `<a class="link match-panel-edit" href="/account#cv">Edit skills</a>`
     + `</div>`
@@ -1292,9 +1292,9 @@ function showMatchesPrompt() {
   const panel = document.getElementById("match-panel");
   panel.hidden = false;
   panel.innerHTML = getAuthTokens()
-    ? `<span class="match-panel-label">Best matches orders listings by the skills on your CV.</span>`
+    ? `<span class="match-panel-label">Best matches orders jobs by the skills on your CV.</span>`
       + ` <a class="link match-panel-edit" href="/account#cv">Analyze your CV</a>`
-    : `<span class="match-panel-label">Best matches orders listings by the skills on your CV.`
+    : `<span class="match-panel-label">Best matches orders jobs by the skills on your CV.`
       + ` Sign in, then analyze your CV on your account page.</span>`;
 }
 
@@ -1920,7 +1920,7 @@ async function loadJobs({ background = false, append: wantAppend = false } = {})
     // replace them, so the page doesn't reflow when data lands.
     showJobsTable(true);
     tbody.innerHTML = jobsSkeletonHtml(skeletonRowCount());
-    document.getElementById("jobs-loading").textContent = "Loading listings";
+    document.getElementById("jobs-loading").textContent = "Loading jobs";
   }
 
   // The total runs the whole WHERE a second time, and for a typed search
@@ -2029,7 +2029,7 @@ function holdForReader(data, starred) {
   heldJobs = { data, starred };
   const btn = document.getElementById("new-listings");
   btn.parentElement.style.top = `${Math.round(topbarBottom()) + 12}px`;
-  btn.textContent = `${fmtInt(fresh)} new listing${fresh === 1 ? "" : "s"} · Show`;
+  btn.textContent = `${fmtInt(fresh)} new job${fresh === 1 ? "" : "s"} · Show`;
   btn.hidden = false;
   return true;
 }
@@ -2074,7 +2074,7 @@ function lastAppliedFilter() {
 
 function emptyState(line) {
   const last = lastAppliedFilter();
-  return `<strong>No roles match</strong><span>${line}</span>`
+  return `<strong>No jobs match</strong><span>${line}</span>`
     + (last
       ? `<button type="button" class="btn ghost empty-undo" id="empty-undo">Remove ${escapeHtml(last.label)}</button>`
       : "");
@@ -2154,8 +2154,8 @@ function emptySearchState(data) {
   const mode = (data.search && data.search.mode) || "all";
   const shown = terms.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ");
   const lines = [
-    `<strong>No roles match</strong>`,
-    `<span>${mode === "any" ? "No listing mentions any of these words" : `No listing has all ${terms.length} of these words`}: ${shown}</span>`,
+    `<strong>No jobs match</strong>`,
+    `<span>${mode === "any" ? "No job mentions any of these words" : `No job has all ${terms.length} of these words`}: ${shown}</span>`,
   ];
   const actions = [];
   if (mode === "all" && terms.length > 1) {
@@ -2198,7 +2198,7 @@ function renderSearchNotice(data) {
               `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>` +
               `Exact search</button>`);
   } else if (info && info.exact && (info.terms || []).length) {
-    bits.push(`<button type="button" class="search-mode is-exact" data-search-smart title="Matching only your words. Click to include related roles.">` +
+    bits.push(`<button type="button" class="search-mode is-exact" data-search-smart title="Matching only your words. Click to include related jobs.">` +
               `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.8 2.8M16.2 16.2 19 19M5 19l2.8-2.8M16.2 7.8 19 5"/></svg>` +
               `Broad search</button>`);
   }
@@ -2249,7 +2249,7 @@ async function renderStarredOnly(starred, seq, inFlight) {
 
   showJobsTable(true);
   tbody.innerHTML = jobsSkeletonHtml(skeletonRowCount());
-  document.getElementById("jobs-loading").textContent = "Loading listings";
+  document.getElementById("jobs-loading").textContent = "Loading jobs";
   document.getElementById("result-count").innerHTML = "";
   try {
     const data = await getJSON(`/jobs?${params}`, { signal: inFlight.signal });
@@ -2415,7 +2415,7 @@ function renderJobs(data, starred) {
   if (!data.jobs.length) {
     document.getElementById("jobs-empty").innerHTML = state.search
       ? emptySearchState(data)
-      : emptyState("No listings match these filters.");
+      : emptyState("No jobs match these filters.");
     document.getElementById("jobs-empty").style.display = "block";
     wireEmptyUndo();
     document.getElementById("jobs-body").innerHTML = "";
@@ -2485,7 +2485,7 @@ function jobMetaLine(j) {
   const domain = j.company_domain && !/\.invalid$/.test(j.company_domain) ? j.company_domain : "";
   const parts = [domain
     ? `<a class="job-company" href="/company/${encodeURIComponent(domain)}"
-          title="Every open role at ${escapeHtml(companyLabel(j))}">${label}</a>`
+          title="Every open job at ${escapeHtml(companyLabel(j))}">${label}</a>`
     : `<span class="job-company">${label}</span>`];
   if (j.department) parts.push(highlight(j.department));
   if (j.location) parts.push(highlight(j.location));
@@ -2507,7 +2507,7 @@ function jobWhoLine(j) {
   const domain = j.company_domain && !/\.invalid$/.test(j.company_domain) ? j.company_domain : "";
   const who = domain
     ? `<a class="job-company" href="/company/${encodeURIComponent(domain)}"
-          title="Every open role at ${escapeHtml(companyLabel(j))}">${label}</a>`
+          title="Every open job at ${escapeHtml(companyLabel(j))}">${label}</a>`
     : `<span class="job-company">${label}</span>`;
   return j.department ? `${who} · ${highlight(j.department)}` : who;
 }
@@ -2737,7 +2737,7 @@ function jobRowsHtml(jobs, starred) {
             <a class="job-title-text job-title-link" href="/job/${encodeURIComponent(j.id)}" title="${escapeHtml(j.title)}">${highlight(j.title)}</a>
             ${j.seniority ? `<span class="badge seniority">${escapeHtml(SENIORITY_LABELS[j.seniority] || j.seniority)}</span>` : ""}
             ${j.confidence === "best_effort" ? '<span class="badge best-effort" title="Scraped from the company\'s own page, not a live ATS API">best_effort</span>' : ""}
-            ${j.closed_at ? '<span class="badge closed" title="This listing is no longer open">Closed</span>' : ""}
+            ${j.closed_at ? '<span class="badge closed" title="This job is no longer open">Closed</span>' : ""}
           </div>
           <!-- The age rides at the end of the details line on a phone,
                where its own column would steal the width the title
@@ -2882,7 +2882,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
       <a class="job-detail-apply" href="${safeHref(job.url)}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
       <button type="button" class="job-detail-star ${starred ? "on" : ""}" data-star="${job.id}" aria-pressed="${starred}">${STAR_SVG}<span>${starred ? "Saved" : "Save"}</span></button>
       ${queueButtonHtml(job, "", "Auto apply")}
-      <button type="button" class="link job-detail-permalink" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}" title="Copy a link to this listing">Copy link</button>
+      <button type="button" class="link job-detail-permalink" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}" title="Copy a link to this job">Copy link</button>
     </div>
 
     <div class="job-detail-facts">
@@ -2897,7 +2897,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
 
     ${job.skills ? `<div class="job-detail-skills">${jobSkillChips(job)}</div>` : ""}
 
-    <div class="job-detail-section-title">About this role</div>
+    <div class="job-detail-section-title">About this job</div>
     ${descriptionHtml}
 
     <!-- The description here is a copy, and an old one by the time
@@ -2933,19 +2933,19 @@ function paneHead(job) {
     // The list is cumulative, so a row's index in it is its position.
     // state.offset is the next page's starting point, not this list's.
     const at = i < 0 ? null : i + 1;
-    const label = at === null ? "Listing"
+    const label = at === null ? "Job"
       : `${fmtInt(at)} of ${total == null ? `${fmtInt(rows.length)}+` : fmtInt(total)}`;
     head.innerHTML = `
       <span class="pane-grip" aria-hidden="true"></span>
       <div class="pane-nav">
-        <button type="button" class="pane-step" data-step="-1" aria-label="Previous listing"
+        <button type="button" class="pane-step" data-step="-1" aria-label="Previous job"
                 ${i <= 0 ? "disabled" : ""}>&#8249;</button>
         <span class="col-head-title pane-pos">${escapeHtml(label)}</span>
-        <button type="button" class="pane-step" data-step="1" aria-label="Next listing"
+        <button type="button" class="pane-step" data-step="1" aria-label="Next job"
                 ${i < 0 || i >= rows.length - 1 ? "disabled" : ""}>&#8250;</button>
       </div>
       <button type="button" class="pane-share" data-share="${escapeHtml(jobPermalink(job.id))}" data-title="${escapeHtml(job.title)}" aria-label="Share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
-      <button type="button" class="pane-close job-detail-close" aria-label="Close listing"><span class="pane-close-x" aria-hidden="true">&#10005;</span><span class="pane-back" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></span></button>`;
+      <button type="button" class="pane-close job-detail-close" aria-label="Close job"><span class="pane-close-x" aria-hidden="true">&#10005;</span><span class="pane-back" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></span></button>`;
     head.querySelector(".pane-close").addEventListener("click", closeJobDetailAndSync);
     head.querySelector(".pane-share").addEventListener("click", (e) => {
       const b = e.currentTarget;
@@ -2960,7 +2960,7 @@ function paneHead(job) {
     });
     return;
   }
-  const view = state.roles === "tech" && !state.starred_only ? "Tech roles" : "All roles";
+  const view = state.roles === "tech" && !state.starred_only ? "Tech jobs" : "All jobs";
   head.innerHTML = `<div class="list-head-text">
       <span class="col-head-title">Results overview</span>
       <span class="col-head-sub">${escapeHtml([...activeFilterSummary(), view].join(" · "))}</span>
@@ -3091,13 +3091,13 @@ function layoutCompanyTreemap(el) {
     const logo = !it.other && r.w >= TREE_LOGO_MIN_W && r.h >= 100
       ? companyLogoImg(it.value, 32, "tree-logo", companyLogoFor(it.value)) : "";
     const count = it.other ? `${fmtInt(it.n)} · ${it.count} ${it.count === 1 ? "company" : "companies"}` : fmtInt(it.n);
-    const title = it.other ? `${it.count} more companies, ${fmtInt(it.n)} open roles` : `${name}: ${fmtInt(it.n)} open roles, ${pct}% of these`;
+    const title = it.other ? `${it.count} more companies, ${fmtInt(it.n)} open jobs` : `${name}: ${fmtInt(it.n)} open jobs, ${pct}% of these`;
     const cls = `tree-cell${i === 0 ? " tree-top" : ""}${it.other ? " tree-other" : ""}${r.w * r.h > 24000 ? " tree-big" : ""}`;
     const inner = `<span class="tree-inner">${logo}<span class="tree-name">${escapeHtml(name)}</span><span class="tree-n">${count}</span></span>`;
     return it.other
       ? `<div class="${cls}" style="${style}" title="${escapeHtml(title)}">${inner}</div>`
       : `<button type="button" class="${cls}" style="${style}" data-tree-company="${escapeHtml(it.value)}"
-           title="${escapeHtml(title)}" aria-label="Show only ${escapeHtml(name)}, ${fmtInt(it.n)} open roles">${inner}</button>`;
+           title="${escapeHtml(title)}" aria-label="Show only ${escapeHtml(name)}, ${fmtInt(it.n)} open jobs">${inner}</button>`;
   }).join("");
   // A single word wider than its tile ("mobileye.com", "checkpoint") cannot
   // wrap, and ran off the edge. Such a name drops to 11px, and one that
@@ -3184,7 +3184,7 @@ function renderDetailEmpty() {
   const onBasis = (shown, now, prev) => (shown == null || !now || prev == null) ? prev : Math.round(shown * prev / now);
   const rolesPrev = onBasis(total, s.open_now_basis, s.open_jobs_7d_ago);
   const companiesPrev = onBasis(s.companies_hiring, s.companies_now_basis, s.companies_7d_ago);
-  add(total == null ? (pending || !lastJobsResponse ? bone : null) : fmtInt(total), "Matching roles",
+  add(total == null ? (pending || !lastJobsResponse ? bone : null) : fmtInt(total), "Matching jobs",
       trend(s.open_now_basis, s.open_jobs_7d_ago, `${fmtInt(rolesPrev)} a week ago`));
   add(pending ? bone : s.new_jobs_24h == null ? null : fmtInt(s.new_jobs_24h), "New today",
       trend(s.new_jobs_24h, s.prev_new_jobs_24h, `${fmtInt(s.prev_new_jobs_24h)} yesterday`));
@@ -3200,12 +3200,12 @@ function renderDetailEmpty() {
 
       ${hiring.length ? `
         <div class="ov-block">
-          <span class="ov-block-title">Companies with most open roles</span>
+          <span class="ov-block-title">Companies with the most open jobs</span>
           ${companyTreemapHtml(hiring)}
         </div>` : ""}
 
 
-      <div class="ov-hint">Select a listing to see its details here.</div>
+      <div class="ov-hint">Select a job to see its details here.</div>
     </div>`;
 
   paneBody().querySelectorAll(".ov-tree").forEach((el) => {
@@ -3473,7 +3473,7 @@ function wireStickyActions(job) {
             aria-pressed="${starred}" aria-label="${starred ? "Saved" : "Save"}">${STAR_SVG}</button>
     ${queueButtonHtml(job, "pane-act", "")}
     <button type="button" class="pane-act" data-copy-permalink="${escapeHtml(jobPermalink(job.id))}"
-            aria-label="Copy a link to this listing"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 5.5v-1a1.5 1.5 0 0 0-1.5-1.5H4a1.5 1.5 0 0 0-1.5 1.5v5A1.5 1.5 0 0 0 4 11h1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+            aria-label="Copy a link to this job"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 5.5v-1a1.5 1.5 0 0 0-1.5-1.5H4a1.5 1.5 0 0 0-1.5 1.5v5A1.5 1.5 0 0 0 4 11h1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
     <a class="job-detail-apply pane-apply" href="${safeHref(job.url)}" target="_blank" rel="noopener">Apply on ${escapeHtml(companyLabel(job))} ${EXTERNAL_ARROW_SVG}</a>`;
   const copy = bar.querySelector("[data-copy-permalink]");
   if (copy) copy.addEventListener("click", () => copyToClipboard(copy, copy.dataset.copyPermalink));
@@ -3590,9 +3590,9 @@ async function openJobDetail(id) {
       // It used to read "Could not load this job: no job with that id",
       // which sounds like the site broke rather than the role closing.
       panel.innerHTML = `<div class="job-gone">
-        <p class="job-gone-label">Listing not found</p>
-        <p>This listing is no longer on the board. Roles get filled and taken down, so links to them go stale.</p>
-        <button type="button" class="btn ghost btn-small" data-gone-close>Back to listings</button>
+        <p class="job-gone-label">Job not found</p>
+        <p>This job is no longer on the board. Jobs get filled and taken down, so links to them go stale.</p>
+        <button type="button" class="btn ghost btn-small" data-gone-close>Back to jobs</button>
       </div>`;
       panel.querySelector("[data-gone-close]").addEventListener("click", closeJobDetailAndSync);
     } else {
@@ -4870,7 +4870,7 @@ function wireSavedSearches() {
   save.addEventListener("click", () => {
     const q = currentSearchQuery();
     if (!q) return;
-    const view = state.roles === "tech" && !state.starred_only ? "Tech roles" : "All roles";
+    const view = state.roles === "tech" && !state.starred_only ? "Tech jobs" : "All jobs";
     const name = [...activeFilterSummary(), ...(activeFilterSummary().length ? [] : [view])].join(" · ");
     const list = savedSearches();
     list.push({ id: Date.now().toString(36), name, query: q, seen_at: new Date().toISOString(), fresh: 0 });
@@ -5242,7 +5242,7 @@ function renderActiveChips() {
   // own Reset at the end; the Filters button wears the count.
   const mobile = document.getElementById("m-chips");
   if (mobile) {
-    const all = (state.roles !== DEFAULT_ROLES ? [{ kind: "roles", value: "", text: "Tech roles" }] : []).concat(chips);
+    const all = (state.roles !== DEFAULT_ROLES ? [{ kind: "roles", value: "", text: "Tech jobs" }] : []).concat(chips);
     mobile.innerHTML = all.map((c) => `<button type="button" class="m-chip" data-chip="${escapeHtml(c.kind)}" data-value="${escapeHtml(c.value)}" title="Remove this filter"><span>${escapeHtml(c.text)}</span>${CHIP_X_SVG}</button>`).join("")
       + (all.length ? '<button type="button" class="m-chip-reset" data-reset>Reset</button>' : "");
     mobile.hidden = !all.length;
@@ -5324,8 +5324,8 @@ function renderMobileCats() {
   const roles = state.starred_only ? "" : state.roles;
   const opt = (attrs, on, text) => `<button type="button" class="m-opt${on ? " on" : ""}" ${attrs} aria-pressed="${on}">${text}</button>`;
   host.innerHTML = [
-    opt('data-view="tech"', roles === "tech", "Tech roles"),
-    opt('data-view="all"', roles === "all", "All roles"),
+    opt('data-view="tech"', roles === "tech", "Tech jobs"),
+    opt('data-view="all"', roles === "all", "All jobs"),
     ...rows.map((r) => opt(`data-cat="${escapeHtml(r.value)}"`, picked.has(r.value),
       `${escapeHtml(railLabel(group, r))}${r.n == null ? "" : ` <span class="m-opt-n">${fmtInt(r.n)}</span>`}`)),
   ].join("");

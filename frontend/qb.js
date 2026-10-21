@@ -67,9 +67,9 @@
   const RANGES = { 7: "7 days", 30: "30 days", 90: "90 days", 0: "all time" };
 
   const METRICS = {
-    count:         { label: "Listings",        col: "listings" },
+    count:         { label: "Jobs",        col: "listings" },
     avg_days_open: { label: "Average days open", col: "avg_days_open" },
-    share:         { label: "Share of listings %", col: "share_pct" },
+    share:         { label: "Share of jobs %", col: "share_pct" },
   };
 
   const STATUS = {
