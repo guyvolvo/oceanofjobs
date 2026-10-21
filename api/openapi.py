@@ -91,12 +91,13 @@ FILTER_PARAMS = [
     _q("ids", "Fetch specific job IDs in a single request."),
     _q("israel_only", "Set to 1 to restrict to Israeli locations (Equivalent to country=IL)."),
     _q("confidence",
-       "verified (default, confirmed on employer site), best_effort, or all.",
+       "verified (default, read from the employer's ATS API), best_effort (read from the careers "
+       "page), or all.",
        schema={"type": "string", "enum": ["verified", "best_effort", "all"], "default": "verified"}),
     _q("include_closed", "Set to 1 to include roles closed within the last 30 days."),
     _q("include_outdated", "Set to 1 to include open postings older than 1 year (hidden by default)."),
-    _q("min_age_days", "Filter listings by age in days.", schema={"type": "integer", "minimum": 0}),
-    _q("max_age_days", "Filter listings by age in days.", schema={"type": "integer", "minimum": 0}),
+    _q("min_age_days", "Only listings at least this many days old.", schema={"type": "integer", "minimum": 0}),
+    _q("max_age_days", "Only listings posted within this many days.", schema={"type": "integer", "minimum": 0}),
     _q("salary_min", "Lowest monthly gross salary in shekels. Keeps listings with no shekel figure "
                      "unless salary_known=1.", schema={"type": "integer", "minimum": 0}),
     _q("salary_max", "Highest monthly gross salary in shekels. Same rule as salary_min.",
@@ -107,9 +108,10 @@ FILTER_PARAMS = [
 ]
 
 PAGE_PARAMS = [
-    _q("sort", "age (default), company, title, location, ats, or match.",
+    _q("sort", "age (default), relevance, company, title, location, ats, or match. relevance puts "
+            "the best match first and needs search; without it, results sort by age.",
        schema={"type": "string", "default": "age",
-               "enum": ["age", "company", "title", "location", "ats", "match"]}),
+               "enum": ["age", "relevance", "company", "title", "location", "ats", "match"]}),
     _q("dir", "asc (default; for age, asc means newest first) or desc.",
        schema={"type": "string", "enum": ["asc", "desc"], "default": "asc"}),
     _q("limit", "Number of results per page (1 to 500, default 100).",
@@ -424,8 +426,8 @@ def _paths():
         },
         "/me/saved": {"get": {
             "tags": ["Account"],
-            "summary": "Every job you have starred",
-            "description": "Returns all starred job IDs and timestamp saved (saved_at), sorted "
+            "summary": "Every job you have saved",
+            "description": "Returns all saved job IDs and when you saved them (saved_at), sorted "
                            "newest first. Pass these IDs to GET /api/jobs?ids= to fetch full listings.",
             "security": [{"bearerAuth": []}],
             "responses": {"200": _json({"type": "object", "properties": {
@@ -437,7 +439,7 @@ def _paths():
         "/me/saved/{job_id}": {
             "put": {
                 "tags": ["Account"],
-                "summary": "Star a job listing",
+                "summary": "Save a job",
                 "security": [{"bearerAuth": []}],
                 "parameters": [{"name": "job_id", "in": "path", "required": True,
                                 "schema": {"type": "string"}, "example": "0a1b2c3d4e5f6a7b"}],
@@ -446,7 +448,7 @@ def _paths():
             },
             "delete": {
                 "tags": ["Account"],
-                "summary": "Unstar a job listing",
+                "summary": "Remove a saved job",
                 "security": [{"bearerAuth": []}],
                 "parameters": [{"name": "job_id", "in": "path", "required": True,
                                 "schema": {"type": "string"}, "example": "0a1b2c3d4e5f6a7b"}],
