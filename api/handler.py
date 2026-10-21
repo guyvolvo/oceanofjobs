@@ -44,6 +44,7 @@ from help_page import HELP_HTML
 from openapi import spec as openapi_spec
 import company_page
 import job_page
+import page_chrome
 import ai_answers
 import apply
 import paddle
@@ -197,6 +198,17 @@ def route_company_page(domain: str):
         ORDER BY posted_at IS NULL, datetime(posted_at) DESC, datetime(first_seen) DESC, id
         LIMIT ?
         """, (domain, company_page.MAX_LISTED + 1)).fetchall()]
+    # The rows stop at MAX_LISTED + 1, so past that the page needs the
+    # real number (Domino's has 26,000). idx_jobs_open_facets carries
+    # company_domain, posted_at and closed_at, so the count walks it and
+    # reads no table rows. Named, so the planner cannot take an index
+    # without posted_at (idx_jobs_open_company) and read every row.
+    n_open = len(jobs)
+    if n_open > company_page.MAX_LISTED:
+        hint = " INDEXED BY idx_jobs_open_facets" if has_fts_index(conn).facets_index else ""
+        n_open = conn.execute(
+            f"SELECT COUNT(*) FROM jobs{hint} WHERE company_domain = ? AND closed_at IS NULL AND {FRESH_CLAUSE}",
+            (domain,)).fetchone()[0]
     total, since, closed = conn.execute(
         "SELECT COUNT(*), MIN(first_seen), SUM(closed_at IS NOT NULL) FROM jobs WHERE company_domain = ?", (domain,)).fetchone()
     last_open = None
@@ -214,7 +226,7 @@ def route_company_page(domain: str):
     # GROUP BY over the company's rows would read each one from the
     # table (Domino's has 26,000), for a line under the name.
     cats = Counter(j.get("category") for j in jobs if j.get("category"))
-    facts = {"total": total or 0, "since": (since or company.get("first_seen") or "")[:10], "last_open": last_open,
+    facts = {"open": n_open, "total": total or 0, "since":(since or company.get("first_seen") or "")[:10], "last_open": last_open,
              "closed": closed or 0, "new_7d": sum(1 for t in recent if t and t >= week_ago),
              "new_prev_7d": sum(1 for t in recent if t and two_weeks <= t < week_ago),
              "weeks": company_page.week_buckets(recent, now),
@@ -542,9 +554,16 @@ def lambda_handler(event, context):
             # _mail_headers): a POST turns the one alert off, no session
             # needed, on the strength of the signature in the URL. A GET
             # is a person who followed the link: a page with the button.
+            # That button's POST comes from a browser, which asks for
+            # HTML and gets a page; a mail client's one-click POST and a
+            # script get the JSON.
             q = _query_params(event)
             if method == "POST":
                 status, body = route_unsubscribe(q.get("u"), q.get("a"), q.get("t"))
+                accept = {k.lower(): v for k, v in (event.get("headers") or {}).items()}.get("accept") or ""
+                if "text/html" in accept:
+                    return _html_response(status, unsubscribed_page(status, body),
+                                          extra_headers={"X-Robots-Tag": "noindex"})
                 return _response(status, json.dumps(body))
             if method == "GET":
                 return _html_response(200, unsubscribe_page(q.get("u"), q.get("a"), q.get("t")),
@@ -616,7 +635,7 @@ def lambda_handler(event, context):
                 body = json.loads(event.get("body") or "{}")
                 updated = route_update_alert(user_id, alert_id, body)
                 if updated is None:
-                    return _response(404, json.dumps({"error": "no alert with that id"}))
+                    return _response(404, json.dumps({"error": "This alert doesn't exist anymore."}))
                 return _response(200, json.dumps(updated, default=str))
             if method == "DELETE":
                 route_delete_alert(user_id, alert_id)
@@ -787,8 +806,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             if row is None:
                 return ok(404, {"error": "no job with that id"})
             if row[0] not in apply.FILLABLE_ATS:
-                return ok(422, {"error": f"The extension can't apply on this job's site ({row[0] or 'unknown'}) yet. "
-                                         f"It fills {_and(a.title() for a in sorted(apply.FILLABLE_ATS))} forms for now."})
+                return ok(422, {"error": f"The extension can't apply through {page_chrome.ats_name(row[0])} yet. "
+                                         f"It fills {_and(page_chrome.ats_name(a) for a in sorted(apply.FILLABLE_ATS))} forms for now."})
             apply.enqueue(_alerts_table, user_id, job_id)
             return ok(204)
         if method == "DELETE":
@@ -1554,11 +1573,11 @@ def route_contact(body: dict) -> tuple[int, dict]:
     email = str(body.get("email") or "").strip()[:254]
     message = str(body.get("message") or "").strip()
     if not _EMAIL_RE.match(email):
-        return 400, {"error": "a valid email address is needed for a reply"}
+        return 400, {"error": "Enter a valid email so we can reply."}
     if len(message) < 10:
-        return 400, {"error": "the message is too short"}
+        return 400, {"error": "Write at least 10 characters."}
     if len(message) > 5000:
-        return 400, {"error": "the message is too long (5,000 characters at most)"}
+        return 400, {"error": "Keep the message to 5,000 characters or fewer."}
     global _ses_client
     if _ses_client is None:
         _ses_client = boto3.client("sesv2")
@@ -1573,7 +1592,7 @@ def route_contact(body: dict) -> tuple[int, dict]:
         )
     except Exception as e:
         print(f"contact mail failed: {e!r}")
-        return 502, {"error": "the message could not be sent right now"}
+        return 502, {"error": "Couldn't send your message. Try again in a few minutes."}
     return 200, {"ok": True}
 
 
@@ -2058,6 +2077,20 @@ def route_unsubscribe(user_id, alert_id, token) -> tuple[int, dict]:
     return 200, {"unsubscribed": True}
 
 
+def _unsubscribe_html(heading: str, inner: str) -> str:
+    """The unsubscribe pages, in the site's own head, bar and foot."""
+    return (page_chrome.head(f"{heading} | Ocean of Jobs", heading, f"{page_chrome.SITE}/account", robots="noindex",
+                             og_type="website")
+            + page_chrome.topbar()
+            + f"""  <main class="pg-main" id="main" tabindex="-1">
+    <div class="pg-article">
+      <h1 class="job-page-title pg-title">{heading}</h1>
+      {inner}
+    </div>
+  </main>
+{page_chrome.FOOT}""")
+
+
 def unsubscribe_page(user_id, alert_id, token) -> str:
     """A person, not a mail client, opened the unsubscribe link: one
     button that POSTs it, so a link scanner's GET turns nothing off."""
@@ -2065,17 +2098,21 @@ def unsubscribe_page(user_id, alert_id, token) -> str:
     from urllib.parse import urlencode as _urlencode
 
     action = "/api/alerts/unsubscribe?" + _urlencode({"u": user_id or "", "a": alert_id or "", "t": token or ""})
-    return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="robots" content="noindex" /><title>Unsubscribe from this alert</title>
-<style>body{{margin:0;background:#0a0a0b;color:#f4f1ee;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;}}
-main{{max-width:480px;margin:80px auto;padding:0 24px;}}h1{{font-size:24px;font-weight:500;margin:0 0 12px;}}
-p{{color:#9a9ca3;line-height:1.5;}}button{{margin-top:16px;padding:14px 24px;border:0;border-radius:12px;background:#2fb36a;color:#0b1a10;font-size:15px;font-weight:600;cursor:pointer;}}
-a{{color:#c9cacf;}}</style></head>
-<body><main><h1>Unsubscribe from this alert?</h1>
-<p>You will stop getting mail for this one alert. Your other alerts stay as they are, and you can turn this one back on from <a href="/account">your account</a>.</p>
-<form method="post" action="{_html.escape(action)}"><button type="submit">Unsubscribe</button></form>
-</main></body></html>"""
+    return _unsubscribe_html("Unsubscribe from this alert?", (
+        '<p>You\'ll stop getting email for this alert. Your other alerts stay as they are, and you can turn '
+        'this one back on from <a href="/account">your account</a>.</p>'
+        f'<form method="post" action="{_html.escape(action)}"><button type="submit" class="pg-btn pg-btn-fill">Unsubscribe</button></form>'))
+
+
+def unsubscribed_page(status: int, body: dict) -> str:
+    """What the person sees after the button: route_unsubscribe's answer."""
+    if status == 200:
+        return _unsubscribe_html("Unsubscribed", '<p>You\'re unsubscribed from this alert. You can turn it back on from '
+                                 '<a href="/account">your account</a>.</p>')
+    if body.get("error") == "no alert with that id":
+        return _unsubscribe_html("Unsubscribed", "<p>This alert no longer exists, so you won't get any more email from it.</p>")
+    return _unsubscribe_html("This link doesn't work", '<p>This unsubscribe link doesn\'t work. Turn the alert off from '
+                             '<a href="/account">your account</a>.</p>')
 
 
 def route_list_alerts(user_id: str) -> dict:
@@ -2275,13 +2312,13 @@ def route_create_alert(claims: dict, body: dict) -> dict:
         raise ValueError(f"unknown filter key(s): {', '.join(sorted(unknown))}")
     email = claims.get("email")
     if not email:
-        raise ValueError("account has no email on file")
+        raise ValueError("Your account has no email address, so there's nowhere to send alerts.")
     if not email_is_verified(claims):
-        raise ValueError("confirm your email address before creating an alert")
+        raise ValueError("Confirm your email address before you create an alert.")
     # Each alert is a query on every evaluation pass, for everyone.
     # shortcut: two creates at once can both pass this count; fine at this size.
     if len(route_list_alerts(claims["sub"])["alerts"]) >= MAX_ALERTS:
-        raise ValueError(f"you can have up to {MAX_ALERTS} alerts; delete one to add another")
+        raise ValueError(f"You can have up to {MAX_ALERTS} alerts. Delete one to add another.")
 
     now = datetime.now(timezone.utc).isoformat()
     item = {

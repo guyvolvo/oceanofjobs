@@ -50,7 +50,7 @@ check("the subject names the sender and the body carries name, address and messa
 status, body = handler.route_contact({"email": "x", "message": "long enough message here"})
 check("a malformed address is refused with the reason", status == 400 and "email" in body["error"] and len(ses.sent) == 1)
 status, body = handler.route_contact({"email": "a@b.co", "message": "hi"})
-check("a message too short to mean anything is refused", status == 400 and "short" in body["error"] and len(ses.sent) == 1)
+check("a message too short to mean anything is refused", status == 400 and "at least 10 characters" in body["error"] and len(ses.sent) == 1)
 status, body = handler.route_contact({"email": "a@b.co", "message": "x" * 5001})
 check("a message past 5,000 characters is refused", status == 400 and len(ses.sent) == 1)
 status, body = handler.route_contact({"email": "bot@spam.example", "message": "buy things now please", "website": "http://spam"})

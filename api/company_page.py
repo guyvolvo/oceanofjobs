@@ -32,7 +32,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 from job_page import FOOT, SENIORITY_LABELS, SITE, _head, _parse
-from page_chrome import ago_short, ats_is_site, ats_name, fmt_int, monogram, plural, short_date, topbar
+from page_chrome import ago_short, ats_is_site, ats_name, fmt_int, long_date, monogram, plural, short_date, topbar
 from same_company import SAME_COMPANY
 from titles import split_title
 
@@ -119,16 +119,23 @@ def _join(items: list[str], limit: int) -> str:
     return text + (f" and {rest} more" if rest > 0 else "")
 
 
+def open_count(jobs, facts) -> int:
+    """How many jobs are open. jobs is capped at MAX_LISTED + 1 rows, so
+    the handler counts them all when there are more."""
+    return facts.get("open") or len(jobs)
+
+
 def meta_description(company, jobs, facts) -> str:
     name = company_label(company)
-    n = len(jobs)
+    n = open_count(jobs, facts)
     if not n:
-        return f"{name} has no open roles on Ocean of Jobs right now. The board has listed {facts['total']} of its roles since {facts['since']}."
+        d = _parse(facts.get("since"))
+        listed = f" We've listed {fmt_int(facts['total'])} of its jobs since {long_date(d)}." if facts.get("total") and d else ""
+        return f"{name} has no open jobs right now.{listed}"
     places = _places(jobs)
     where = f" in {_join(places, 3)}" if places else ""
     titles = _join([j.get("title", "").strip() for j in jobs[:3] if j.get("title")], 3)
-    role = "open role" if n == 1 else "open roles"
-    text = f"{n} {role} at {name}{where}: {titles}. Every listing links to the company's own application page."
+    text = f"{fmt_int(n)} open {plural(n, 'job')} at {name}{where}: {titles}. Every job links to the company's own application page."
     return text if len(text) <= 300 else text[:297].rsplit(" ", 1)[0] + "..."
 
 
@@ -184,7 +191,7 @@ def _weeks_svg(weeks, now) -> str:
         parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar:.1f}" height="{h:.1f}" style="fill:{fill}"/>'
                      f'<text x="{x + bar / 2:.1f}" y="{y - 5:.1f}" text-anchor="middle" font-size="10" class="pg-svg-ink">{w["n"]}</text>'
                      f'<text x="{x + bar / 2:.1f}" y="96" text-anchor="middle" font-size="10" class="pg-svg-grey">{html.escape(label)}</text>')
-    return (f'<svg viewBox="0 0 300 100" role="img" aria-label="New roles listed per week" class="pg-weeks">{"".join(parts)}</svg>'
+    return (f'<svg viewBox="0 0 300 100" role="img" aria-label="New jobs listed per week" class="pg-weeks">{"".join(parts)}</svg>'
             '<div class="pg-muted pg-tiny">* this week so far</div>')
 
 
@@ -203,8 +210,8 @@ def render(company, jobs, facts, now=None) -> str:
     now = now or datetime.now(timezone.utc)
     name = company_label(company)
     domain = company.get("domain") or ""
-    n = len(jobs)
-    title = (f"{name} jobs: {n} open {'role' if n == 1 else 'roles'} | Ocean of Jobs" if n
+    n = open_count(jobs, facts)
+    title = (f"{fmt_int(n)} open {plural(n, 'job')} at {name} | Ocean of Jobs" if n
              else f"{name} jobs | Ocean of Jobs")
     desc = meta_description(company, jobs, facts)
     head = _head(title, desc, canonical_url(domain), robots=None if n else "noindex,follow",
@@ -221,7 +228,7 @@ def render(company, jobs, facts, now=None) -> str:
     if places:
         about.append(esc(_join(places[:2], 2)) if len(places) <= 2 else esc(f"{places[0]}, {places[1]} and {len(places) - 2} more"))
     about.append(f'<a href="https://{esc(domain)}" rel="nofollow noopener" target="_blank">{esc(domain)} <span aria-hidden="true">↗</span></a>')
-    summary = f"{n} open {'role' if n == 1 else 'roles'}" + (f" in {esc(_join(places, 3))}" if places else "")
+    summary = f"{fmt_int(n)} open {plural(n, 'job')}" + (f" in {esc(_join(places, 3))}" if places else "")
 
     # The four tiles.
     since = esc(facts.get("since") or "")
@@ -230,7 +237,7 @@ def render(company, jobs, facts, now=None) -> str:
         d = _parse(facts["since"])
         since_text = f"listed since {short_date(d)}" if d else f"listed since {since}"
     tiles = [
-        (f'<span class="pg-tile-n pg-tile-green">{fmt_int(n)}</span>', f"Open {plural(n, 'role')}", f"{fmt_int(facts.get('total') or 0)} {since_text}".strip()),
+        (f'<span class="pg-tile-n pg-tile-green">{fmt_int(n)}</span>', f"Open {plural(n, 'job')}", f"{fmt_int(facts.get('total') or 0)} {since_text}".strip()),
     ]
     if facts.get("new_7d") is not None:
         prev = facts.get("new_prev_7d")
@@ -239,8 +246,9 @@ def render(company, jobs, facts, now=None) -> str:
     if places:
         tiles.append((f'<span class="pg-tile-n">{fmt_int(len(places))}</span>', plural(len(places), "Location"),
                       esc(_join(places, 3))))
-    tiles.append((f'<span class="pg-tile-n pg-tile-text">{esc("Own site" if ats_is_site(company.get("ats")) else system)}</span>', "Hiring system",
-                  "Applications go to their site"))
+    own_site = ats_is_site(company.get("ats"))
+    tiles.append((f'<span class="pg-tile-n pg-tile-text">{esc("Own site" if own_site else system)}</span>', "Hiring system",
+                  "Applications go through their own site" if own_site else f"Applications go through {esc(system)}"))
     tiles_html = "".join(f'<div class="pg-tile">{a}<div class="pg-tile-label">{esc(b)}</div><div class="pg-muted pg-tile-sub">{c}</div></div>'
                          for a, b, c in tiles)
 
@@ -266,19 +274,19 @@ def render(company, jobs, facts, now=None) -> str:
                 f'<span class="pg-role-when">{esc(when)}</span></a>')
         more = ""
         if n > SHOWN_AT_FIRST:
-            more = f'<button type="button" class="pg-show-all" data-show-all>Show all {fmt_int(min(n, MAX_LISTED))} roles</button>'
+            more = f'<button type="button" class="pg-show-all" data-show-all>Show all {fmt_int(min(n, MAX_LISTED))} jobs</button>'
         if n > MAX_LISTED:
             more += f'<a class="pg-show-all" href="/board?company={esc(domain)}">All {fmt_int(n)} on the board</a>'
-        listing = (f'<section class="pg-card pg-roles"><div class="pg-roles-head"><span class="pg-roles-title"><b>{fmt_int(n)}</b> open {plural(n, "role")}</span>'
+        listing = (f'<section class="pg-card pg-roles"><div class="pg-roles-head"><span class="pg-roles-title"><b>{fmt_int(n)}</b> open {plural(n, "job")}</span>'
                    f'<span class="pg-muted">Newest first</span></div>'
                    f'<div class="pg-teams">{"".join(teams)}</div>{"".join(rows)}{more}'
-                   f'<p class="pg-roles-none pg-muted" hidden>No open roles on that team right now.</p></section>')
+                   f'<p class="pg-roles-none pg-muted" hidden>No open jobs on that team right now.</p></section>')
     else:
         last = facts.get("last_open")
         seen = f" The last one closed {esc(_age(last, now))}." if last else ""
-        listing = (f'<section class="pg-card pg-roles"><div class="pg-roles-head"><span class="pg-roles-title">No open roles right now</span></div>'
+        listing = (f'<section class="pg-card pg-roles"><div class="pg-roles-head"><span class="pg-roles-title">No open jobs right now</span></div>'
                    f'<p class="pg-muted pg-roles-empty">Nothing is open at {esc(name)} at the moment.{seen} '
-                   f'The board checks its careers page on every run and lists what appears.</p></section>')
+                   f'We check their careers page at least every four hours and list new jobs when they appear.</p></section>')
 
     # The sidebar: where, how fast, and where the data comes from.
     side = []
@@ -295,12 +303,13 @@ def render(company, jobs, facts, now=None) -> str:
                         f'<div class="pg-track"><div class="pg-track-fill pg-track-rest" style="width:{min(100, 100 * k / biggest):.0f}%"></div></div><span class="pg-track-n">{fmt_int(k)}</span></div>')
         side.append(f'<section class="pg-card"><div class="pg-card-title">Where they\'re hiring</div><div class="pg-tracks">{"".join(bars)}</div></section>')
     if facts.get("weeks"):
-        side.append(f'<section class="pg-card"><div class="pg-card-title">New roles per week</div>{_weeks_svg(facts["weeks"], now)}</section>')
-    data_bits = [f"Scraped from {esc(name)}'s {'own careers site' if ats_is_site(company.get('ats')) else esc(system) + ' board'} every few minutes."]
-    if facts.get("closed") is not None and facts.get("since"):
-        d = _parse(facts["since"])
-        data_bits.append(f"{fmt_int(facts['closed'])} {plural(facts['closed'], 'role')} listed since {short_date(d) if d else esc(facts['since'])} "
-                         f"{'has' if facts['closed'] == 1 else 'have'} since closed.")
+        side.append(f'<section class="pg-card"><div class="pg-card-title">New jobs per week</div>{_weeks_svg(facts["weeks"], now)}</section>')
+    # Four hours is loader/scrape_state.py CEILING_S: no board waits longer.
+    data_bits = [f"Collected from {esc(name)}'s {'own careers site' if own_site else esc(system) + ' board'}, checked at least every four hours."]
+    d = _parse(facts.get("since"))
+    if facts.get("closed") is not None and facts.get("total") and d:
+        data_bits.append(f"We've listed {fmt_int(facts['total'])} of its jobs since {long_date(d)}. "
+                         f"{fmt_int(facts['closed'])} of them {'has' if facts['closed'] == 1 else 'have'} closed.")
     side.append(f'<section class="pg-card"><div class="pg-card-title">About the data</div><p class="pg-muted pg-about">{" ".join(data_bits)}</p></section>')
 
     crumbs = ['<a href="/companies">Companies</a>']
@@ -321,7 +330,7 @@ def render(company, jobs, facts, now=None) -> str:
       </div>
       <div class="pg-co-acts">
         <button type="button" class="pg-btn" data-alert-company><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me</button>
-        <a class="pg-btn pg-btn-fill" href="/board?company={esc(domain)}">See all {fmt_int(n)} on the board</a>
+        {f'<a class="pg-btn pg-btn-fill" href="/board?company={esc(domain)}">See all {fmt_int(n)} on the board</a>' if n else ""}
       </div>
     </header>
     <div class="pg-tiles">{tiles_html}</div>
@@ -379,7 +388,7 @@ def render_redirect(target: str) -> str:
 
 def render_missing(domain: str) -> str:
     title = "Company not found | Ocean of Jobs"
-    what = "The board does not track a company at this address. It may be spelled differently, or it may not have a careers page we can read."
+    what = "We don't list a company at this address. Check the spelling, or search all companies."
     # Only a well-formed domain goes back into the page.
     canonical = canonical_url(domain) if is_domain(domain) else f"{SITE}/companies"
     head = _head(title, what, canonical, robots="noindex", og_type="website")
@@ -387,8 +396,8 @@ def render_missing(domain: str) -> str:
   <main class="pg-main" id="main" tabindex="-1">
     <div class="pg-article">
       <h1 class="job-page-title pg-title">Company not found</h1>
-      <p>{html.escape(what)}</p>
-      <p><a class="pg-apply pg-apply-off" href="/board">Browse open listings</a></p>
+      <p>We don't list a company at this address. Check the spelling, or <a href="/companies">search all companies</a>.</p>
+      <p><a class="pg-apply pg-apply-off" href="/board">Browse open jobs</a></p>
     </div>
   </main>
 {FOOT}"""

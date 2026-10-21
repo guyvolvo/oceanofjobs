@@ -237,12 +237,14 @@ def render(role: str, place: str, page: _Page, built: set, names: dict, now: dat
         share = 100 * page.remote / n
         tiles.append((f"{share:.0f}%", "Remote", f"{fmt_int(page.remote)} of {fmt_int(n)} open jobs"))
     else:
-        tiles.append((fmt_int(len(page.places)), plural(len(page.places), "Country", "Countries"), "where these employers are based"))
+        tiles.append((fmt_int(len(page.places)), plural(len(page.places), "Country", "Countries"), "countries named in these listings"))
     pay = _salary(page)
     if pay:
         per = "a year" if p[4] == "YEAR" else "a month"
+        k = len(page.salaries)
         tiles.append((_money(pay[0], p[3]), f"Median stated salary, {per}",
-                      f"Middle half {_money(pay[1], p[3])} to {_money(pay[2], p[3])}, from {fmt_int(len(page.salaries))} listings that state one"))
+                      f"Middle half {_money(pay[1], p[3])} to {_money(pay[2], p[3])}, from {fmt_int(k)} {plural(k, 'listing')} "
+                      f"with a {'yearly' if p[4] == 'YEAR' else 'monthly'} {p[3]} salary"))
     tiles_html = "".join(f'<div class="pg-tile"><span class="pg-tile-n">{a}</span><div class="pg-tile-label">{esc(b)}</div>'
                          f'<div class="pg-muted pg-tile-sub">{c}</div></div>' for a, b, c in tiles)
 
@@ -334,13 +336,15 @@ def render_thin(role: str, place: str, n: int, built: set) -> str:
     esc = html.escape
     up = path_for(role) if (role, "") in built and place else "/jobs"
     h1 = heading(role, place)
-    return (head(f"{h1} | Ocean of Jobs", f"Too few open {ROLE[role][2]} jobs here right now for a page of their own.",
-                 SITE + path_for(role, place), robots="noindex,follow", og_type="website") + topbar("jobs")
+    what = f"Only {fmt_int(n)} open right now." if n else f"No open {ROLE[role][2]} jobs here right now."
+    browse = esc(heading(role, "")) if up != "/jobs" else "jobs by role"
+    more = (f'<a href="{esc(_board(role, place))}">See them on the board</a> or <a href="{up}">browse {browse}</a>.' if n
+            else f'<a href="{up}">Browse {browse}</a>.')
+    return (head(f"{h1} | Ocean of Jobs", what, SITE + path_for(role, place), robots="noindex,follow", og_type="website") + topbar("jobs")
             + f"""  <main class="pg-main" id="main" tabindex="-1">
     <div class="pg-article">
       <h1 class="job-page-title pg-title">{esc(h1)}</h1>
-      <p>{fmt_int(n)} open right now, too few for a page of their own. <a href="{esc(_board(role, place))}">See them on the board</a>
-      or <a href="{up}">browse {esc(heading(role, "")) if up != "/jobs" else "all roles"}</a>.</p>
+      <p>{what} {more}</p>
     </div>
   </main>
 {FOOT}""")

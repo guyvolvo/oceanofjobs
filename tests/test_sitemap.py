@@ -62,7 +62,7 @@ check("an index, a pages sitemap, the feed, two job shards and a company shard",
       sorted(docs) == ["feed.xml", "sitemap-companies-1.xml", "sitemap-jobs-1.xml", "sitemap-jobs-2.xml", "sitemap-pages.xml", "sitemap.xml"], repr(sorted(docs)))
 w = pages_az["w"][0].decode("utf-8")
 check("the directory links each company under its name's first letter, with its open count",
-      '<a href="/company/wix.com">Wix</a> <span>4 open</span>' in w and "noindex" not in w
+      '<a href="/company/wix.com">Wix</a> <span>4 open tech jobs</span>' in w and "noindex" not in w
       and '<link rel="canonical" href="https://oceanofjobs.com/companies/w" />' in w, w[-900:])
 check("every letter has a page that links to every other letter",
       all(p[1].startswith("text/html") and p[0].count(b'href="/companies/') == len(sitemap.LETTERS) for p in pages_az.values()))
@@ -128,7 +128,7 @@ check("the feed is newest first and skips closed and stale listings",
 first = items[0]
 check("an item has a title with the company, a permalink guid, a date and a description",
       first.find("title").text == "Engineer at Wix" and first.find("guid").text == "https://oceanofjobs.com/job/a1"
-      and first.find("pubDate").text.startswith("Thu, 17 Sep 2026") and "Wix · Tel Aviv, Israel · R&D" in first.find("description").text,
+      and first.find("pubDate").text.startswith("Thu, 17 Sep 2026") and "Wix · Tel Aviv, Israel · R&D. " in first.find("description").text and "—" not in first.find("description").text,
       repr((first.find("title").text, first.find("pubDate").text, first.find("description").text)))
 check("escaping survives a title with angle brackets and an ampersand in the blurb",
       any(i.find("title").text == "Dev <Lead> at Wix" for i in items) and "Build & ship" in items[0].find("description").text)

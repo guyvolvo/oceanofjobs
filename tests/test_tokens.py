@@ -177,7 +177,7 @@ status, _ = call("/api/me/apply/queue/0123456789abcdef", "PUT", live)
 check("and can once it is on", status.startswith("204") and ("u-serve", "#queue#0123456789abcdef") in table.items, status)
 status, body = call("/api/me/apply/queue/97602f3e8d77ca9a", "PUT", live)
 check("a job on a site the extension can't fill is refused, with the reason",
-      status.startswith("422") and b"workday" in body and ("u-serve", "#queue#97602f3e8d77ca9a") not in table.items, status + body.decode()[:200])
+      status.startswith("422") and b"through Workday yet" in body and ("u-serve", "#queue#97602f3e8d77ca9a") not in table.items, status + body.decode()[:200])
 status, _ = call("/api/me/apply/queue/aaaaaaaaaaaaaaaa", "PUT", live)
 check("and an unknown job is 404", status.startswith("404"), status)
 status, _ = call("/api/me/apply/queue/0123456789abcdef", "DELETE", live)

@@ -50,11 +50,11 @@ def ld_of(page):
 
 p = company_page.render(WIX, jobs, facts, NOW)
 check("a tracked company is 200", company_page.status_for(WIX) == 200)
-check("title is the query: '<name> jobs', with the open count", "<title>Wix jobs: 4 open roles | Ocean of Jobs</title>" in p)
+check("title names the company with the open count", "<title>4 open jobs at Wix | Ocean of Jobs</title>" in p)
 check("canonical is the company's own page", '<link rel="canonical" href="https://oceanofjobs.com/company/wix.com" />' in p)
 check("indexable while it has an open role", 'name="robots"' not in p)
 check("h1 is the name alone, and the summary says what the page is",
-      '<h1 class="job-page-title pg-title">Wix</h1>' in p and "4 open roles in Tel Aviv, Berlin" in p and "Wix jobs</h1>" not in p)
+      '<h1 class="job-page-title pg-title">Wix</h1>' in p and "4 open jobs in Tel Aviv, Berlin" in p and "Wix jobs</h1>" not in p)
 check("every open role links its own page, with place, team, level and age",
       p.count('class="pg-role" href="/job/id') == 4
       and '<a class="pg-role" href="/job/id01" data-team="R&amp;D"><span class="pg-role-text"><span class="pg-role-title">Senior Backend Engineer</span><span class="pg-role-line">Tel Aviv · R&amp;D<span class="pg-tag pg-tag-small">Senior</span></span></span><span class="pg-role-when">1d</span></a>' in p
@@ -63,11 +63,11 @@ check("the teams are filter buttons with counts",
       '<button type="button" class="pg-opt on" data-team="" aria-pressed="true">All teams <span class="pg-opt-n">4</span></button>' in p
       and 'data-team="R&amp;D" aria-pressed="false">R&amp;D <span class="pg-opt-n">3</span>' in p and 'data-team="Design"' in p, p[p.find("pg-teams"):][:400])
 check("the four tiles: open roles with the total since, locations, hiring system",
-      '<span class="pg-tile-n pg-tile-green">4</span><div class="pg-tile-label">Open roles</div><div class="pg-muted pg-tile-sub">412 listed since Nov 3, 2025</div>' in p
+      '<span class="pg-tile-n pg-tile-green">4</span><div class="pg-tile-label">Open jobs</div><div class="pg-muted pg-tile-sub">412 listed since Nov 3, 2025</div>' in p
       and '<span class="pg-tile-n">2</span><div class="pg-tile-label">Locations</div><div class="pg-muted pg-tile-sub">Tel Aviv, Berlin</div>' in p
-      and 'pg-tile-text">SmartRecruiters</span><div class="pg-tile-label">Hiring system</div>' in p, p[p.find("pg-tiles"):][:900])
+      and 'pg-tile-text">SmartRecruiters</span><div class="pg-tile-label">Hiring system</div><div class="pg-muted pg-tile-sub">Applications go through SmartRecruiters</div>' in p, p[p.find("pg-tiles"):][:900])
 check("where they are hiring, as bars by city", "Where they're hiring" in p and 'href="/board?company=wix.com&amp;city=Tel Aviv">Tel Aviv</a>' in p and 'style="width:100%"' in p)
-check("about the data names the hiring system", "Scraped from Wix's SmartRecruiters board every few minutes." in p)
+check("about the data names the hiring system", "Collected from Wix's SmartRecruiters board, checked at least every four hours." in p)
 t = company_page.render(WIX, [job(5, "Ambulant Begeleider Maastricht | regelmatige werktijden | 24-28 uur", department="Zorg")], facts, NOW)
 check("a packed title is split into title, grey subtitle and an hours tag",
       '<span class="pg-role-title">Ambulant Begeleider Maastricht<span class="pg-role-sub"> · regelmatige werktijden</span></span>' in t
@@ -77,7 +77,7 @@ rich = dict(facts, new_7d=18, new_prev_7d=27, closed=39, category="Healthcare",
 r = company_page.render(WIX, jobs, rich, NOW)
 check("with the counted facts: new this week, the weeks chart, the closed count, the category in the header and crumbs",
       '<span class="pg-tile-n">18</span><div class="pg-tile-label">New this week</div><div class="pg-muted pg-tile-sub">27 the week before</div>' in r
-      and 'aria-label="New roles listed per week"' in r and "39 roles listed since Nov 3, 2025 have since closed." in r
+      and 'aria-label="New jobs listed per week"' in r and "We've listed 412 of its jobs since Nov 3, 2025. 39 of them have closed." in r
       and "Healthcare · Tel Aviv, Berlin · " in r and '<a href="/board?department=Healthcare">Healthcare</a> / Wix' in r, r[r.find("pg-crumbs"):][:300])
 wk = company_page.week_buckets([ago(1), ago(2), ago(9), ago(20), "junk"], NOW)
 check("week buckets: four weeks ending this one, oldest first, the junk ignored", len(wk) == 4 and sum(w["n"] for w in wk) == 4 and wk[-1]["n"] >= 2, repr([w["n"] for w in wk]))
@@ -87,8 +87,14 @@ check("the header links the company site (nofollow) and the board filtered to it
       and 'href="/board?company=wix.com">See all 4 on the board</a>' in p and "Alert me</button>" in p)
 md = re.search(r'<meta name="description" content="([^"]*)"', p).group(1)
 check("meta description counts, places and names the newest roles",
-      md.startswith("4 open roles at Wix in Tel Aviv, Berlin: Senior Backend Engineer, Product Designer &lt;UX&gt;, Data Engineer."), md)
+      md.startswith("4 open jobs at Wix in Tel Aviv, Berlin: Senior Backend Engineer, Product Designer &lt;UX&gt;, Data Engineer."), md)
 ld = ld_of(p)
+# The rows stop at MAX_LISTED + 1; the handler passes the real count.
+big = company_page.render(WIX, [job(i % 90 + 1, f"Role {i}") for i in range(company_page.MAX_LISTED + 1)], dict(facts, open=26000), NOW)
+check("a company past the row cap shows the counted total, and lists only the cap",
+      "<title>26,000 open jobs at Wix | Ocean of Jobs</title>" in big and "See all 26,000 on the board</a>" in big
+      and "Show all 300 jobs</button>" in big and "All 26,000 on the board</a>" in big
+      and '<span class="pg-tile-n pg-tile-green">26,000</span>' in big and big.count('href="/job/') == company_page.MAX_LISTED)
 check("markup: a CollectionPage about the Organization, listing the job pages",
       ld and ld["@type"] == "CollectionPage" and ld["about"]["@type"] == "Organization" and ld["about"]["url"] == "https://wix.com"
       and ld["about"]["logo"] == "https://wix.com/favicon.png" and ld["mainEntity"]["numberOfItems"] == 4
@@ -103,7 +109,10 @@ check("the shared head and foot are the listing page's", 'class="job-page-body"'
 e = company_page.render(WIX, [], {"total": 412, "since": "2025-11-03", "last_open": ago(40)}, NOW)
 check("no open roles: 200, noindex, and the page says when the last one closed",
       company_page.status_for(WIX) == 200 and '<meta name="robots" content="noindex,follow" />' in e
-      and "<title>Wix jobs | Ocean of Jobs</title>" in e and "The last one closed 1 month ago." in e)
+      and "<title>Wix jobs | Ocean of Jobs</title>" in e and "The last one closed 1 month ago." in e
+      and "We check their careers page at least every four hours" in e and "See all 0" not in e)
+check("with none open, the description says so with a readable date",
+      'content="Wix has no open jobs right now. We&#x27;ve listed 412 of its jobs since Nov 3, 2025."' in e)
 check("its markup carries no empty list", "mainEntity" not in (ld_of(e) or {}))
 
 # Aliases redirect to the one page.
@@ -120,7 +129,8 @@ check("only a hostname is a page", company_page.is_domain("wix.com") and company
       and not company_page.is_domain("wix") and not company_page.is_domain("Wix.com") and not company_page.is_domain("a/b.com")
       and not company_page.is_domain("x.com/../y"))
 m = company_page.render_missing("nope.example")
-check("the 404 page is noindex and offers the board", 'content="noindex"' in m and 'href="/board"' in m)
+check("the 404 page is noindex and offers the board and the directory",
+      'content="noindex"' in m and 'href="/board"' in m and '<a href="/companies">search all companies</a>' in m)
 
 print()
 if failures:

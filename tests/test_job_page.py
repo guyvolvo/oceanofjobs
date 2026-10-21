@@ -64,7 +64,7 @@ check("the visible page has the title, company, place and apply link",
       all(s in p for s in ('<h1 class="job-page-title pg-title">Senior Software Engineer</h1>', ">Wix<", "Tel Aviv, Israel",
                            'href="https://boards.greenhouse.io/wix/jobs/4599111"')), p[p.find("<h1"):][:200])
 check("the apply button names the company and the ready box names the hiring system",
-      "Apply on Wix" in p and "You'll finish on Wix's own site, via Greenhouse." in p, p[p.find("Ready"):][:200])
+      "Apply on Wix" in p and "You'll apply on Wix's Greenhouse page." in p, p[p.find("Ready"):][:200])
 check("the meta line carries the place, the workplace and the posted date",
       "Hybrid</span>" in p and "Posted Sep 17</span>" in p)
 check("facts with nothing to say are not rows: no dash values, the level is a row",
@@ -91,9 +91,9 @@ check("a title with separators is split: the first part, a grey subtitle, an hou
       and ">24–28 uur</span>" in t and 'Hours</span><span class="pg-fact-v">24–28 uur' in t, t[t.find("<h1"):][:300])
 x = job_page.render(job(), NOW, extra={"company_open": 14, "company_category": "Software Engineering",
                                        "company_jobs": [job(id="id02", title="Backend Engineer")], "similar": [job(id="id03", title="Platform Engineer", company_name="Monday")]})
-check("the sidebar lists more at the company and similar roles, each a link to its page",
-      "More at Wix" in x and 'href="/job/id02"' in x and "Similar roles" in x and 'href="/job/id03"' in x and "Alert me for roles like this" in x
-      and "Software Engineering · 14 open roles" in x)
+check("the sidebar lists more at the company and similar jobs, each a link to its page",
+      "More at Wix" in x and 'href="/job/id02"' in x and "Similar jobs" in x and 'href="/job/id03"' in x and "Alert me about jobs like this" in x
+      and "Software Engineering · 14 open jobs" in x)
 check("description became paragraphs and a list",
       "<p>Build things.</p><ul><li>Ship</li><li>Measure</li></ul><p>Be kind.</p>" in p, p[p.find("Description"):][:300])
 check("the board link keeps the old deep link working", 'href="/board?job=b561172d4d0ff1d6"' in p)
@@ -173,13 +173,13 @@ recent = job(closed_at=(NOW - timedelta(days=3)).isoformat())
 c = job_page.render(recent, NOW)
 check("a job closed three days ago is still a page", job_page.status_for(recent, NOW) == 200)
 check("but says so, and asks not to be indexed",
-      "This listing closed on 15 Sep 2026" in c and 'name="robots" content="noindex,follow"' in c)
+      "This job closed on Sep 15, 2026" in c and 'name="robots" content="noindex,follow"' in c)
 check("with no JobPosting markup and no apply link", ld_of(c) is None and "greenhouse.io" not in c)
 check("and points at the company's open roles", 'href="/board?company=wix.com"' in c)
 check("a job closed six weeks ago is gone", job_page.status_for(job(closed_at=(NOW - timedelta(days=45)).isoformat()), NOW) == 410)
 check("an unknown job is not found", job_page.status_for(None, NOW) == 404)
 g = job_page.render_missing(410, "deadbeef")
-check("the gone page is noindex and says why", 'content="noindex"' in g and "retired" in g)
+check("the gone page is noindex and says why", 'content="noindex"' in g and "This job closed more than 30 days ago." in g)
 
 # Markup safety.
 s = job_page.render(job(title="C++ <Senior> Engineer", description='Close </script><b>x</b> early'), NOW)

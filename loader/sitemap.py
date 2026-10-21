@@ -56,7 +56,7 @@ sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "api"))
 
 from job_filters import FRESH_CLAUSE  # noqa: E402
-from page_chrome import FOOT, fmt_int, head, topbar  # noqa: E402
+from page_chrome import FOOT, fmt_int, head, plural, topbar  # noqa: E402
 
 SITE = "https://oceanofjobs.com"
 SHARD = 40_000
@@ -201,10 +201,10 @@ def directory_pages(rows: list[tuple]) -> dict[str, str]:
             for k in LETTERS)
         body = "".join(
             f'<li><a href="/company/{html.escape(d, quote=True)}">{html.escape(label)}</a>'
-            f' <span>{fmt_int(n)} open</span></li>' for label, d, n in items)
+            f' <span>{fmt_int(n)} open tech {plural(n, "job")}</span></li>' for label, d, n in items)
         title = f"Companies hiring, {shown} | Ocean of Jobs"
-        what = (f"{fmt_int(len(items))} companies starting with {shown} that have open roles on Ocean of Jobs."
-                if items else f"No company starting with {shown} has open roles right now.")
+        what = (f"{fmt_int(len(items))} {plural(len(items), 'company', 'companies')} starting with {shown} with open tech jobs."
+                if items else f"No company starting with {shown} has open tech jobs right now.")
         pages[key] = (head(title, what, f"{SITE}/companies/{key}", robots=None if items else "noindex,follow",
                            og_type="website")
                       + topbar("companies")
@@ -249,7 +249,7 @@ def feed(conn: sqlite3.Connection, now: datetime) -> str:
         where = (r["location"] or "").strip()
         summary = " · ".join(x for x in (company, where, r["department"]) if x)
         blurb = (r["blurb"] or "").strip()
-        desc = summary + (f" — {blurb}" if blurb else "")
+        desc = summary + (f". {blurb}" if blurb else "")
         items.append(
             "    <item>\n"
             f"      <title>{html.escape(r['title'])} at {html.escape(company)}</title>\n"
@@ -263,10 +263,10 @@ def feed(conn: sqlite3.Connection, now: datetime) -> str:
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n'
             "  <channel>\n"
-            "    <title>Ocean of Jobs newest listings</title>\n"
+            "    <title>Newest jobs on Ocean of Jobs</title>\n"
             f"    <link>{SITE}/board</link>\n"
             f'    <atom:link href="{SITE}/feed.xml" rel="self" type="application/rss+xml" />\n'
-            "    <description>The newest listings on OceanOfJobs.com, the open-source job board.</description>\n"
+            "    <description>The newest jobs on Ocean of Jobs, the open-source job board.</description>\n"
             "    <language>en</language>\n"
             f"    <lastBuildDate>{built}</lastBuildDate>\n"
             + "".join(items)
