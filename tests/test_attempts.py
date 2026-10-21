@@ -50,6 +50,22 @@ def job(n, url=None):
     return {"job_id": f"{n:016x}", "url": url or GH.format(1000 + n), "title": "Engineer", "company": "acme.com"}
 
 
+def serializable(A):
+    """DynamoDB runs each transaction atomically and in isolation; moto
+    applies its items one by one, visible to other threads midway. A lock
+    around each transaction restores what DynamoDB guarantees, while the
+    threads still race on every read and every condition."""
+    lock = threading.Lock()
+    real = A.client.transact_write_items
+
+    def tx(**kw):
+        with lock:
+            return real(**kw)
+
+    A.client.transact_write_items = tx
+    return A
+
+
 def fresh_table():
     ddb = boto3.resource("dynamodb", region_name="il-central-1")
     name = f"t{fresh_table.n}"
@@ -59,7 +75,7 @@ def fresh_table():
                          AttributeDefinitions=[{"AttributeName": "user_id", "AttributeType": "S"},
                                                {"AttributeName": "alert_id", "AttributeType": "S"}],
                          BillingMode="PAY_PER_REQUEST")
-    return t, at.Attempts(t)
+    return t, serializable(at.Attempts(t))
 
 
 fresh_table.n = 0
