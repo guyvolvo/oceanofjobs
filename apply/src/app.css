@@ -19,8 +19,8 @@
 
 :root[data-mode="light"] {
   color-scheme: light;
-  --color-kumo-canvas: #f2f0ef;
-  --color-kumo-elevated: #f8f7f6;
+  --color-kumo-canvas: #e9e6e2;
+  --color-kumo-elevated: #fbfaf9;
   --color-kumo-recessed: #ebe8e5;
   --color-kumo-base: #fdfcfb;
   --color-kumo-control: #fdfcfb;
@@ -29,8 +29,8 @@
   --color-kumo-fill: #e2dfdb;
   --color-kumo-fill-hover: #dedad5;
   --color-kumo-interact: #a7ad9f;
-  --color-kumo-line: #d2cfcb;
-  --color-kumo-hairline: #e2dfdb;
+  --color-kumo-line: #cbc7c2;
+  --color-kumo-hairline: #d9d5d0;
   --color-kumo-contrast: #40513b;
   --color-kumo-focus: #609966;
   --color-kumo-brand: #3f6f45;
@@ -60,18 +60,18 @@
 
 :root[data-mode="dark"] {
   color-scheme: dark;
-  --color-kumo-canvas: #17181c;
-  --color-kumo-elevated: #1c1d22;
-  --color-kumo-recessed: #141519;
-  --color-kumo-base: #212228;
-  --color-kumo-control: #1e1f24;
+  --color-kumo-canvas: #0e0f11;
+  --color-kumo-elevated: #18191d;
+  --color-kumo-recessed: #121316;
+  --color-kumo-base: #1e1f24;
+  --color-kumo-control: #131417;
   --color-kumo-overlay: #23252b;
   --color-kumo-tint: #2b2e35;
   --color-kumo-fill: #2b2e35;
   --color-kumo-fill-hover: #34373f;
   --color-kumo-interact: #4a4c52;
-  --color-kumo-line: #44464d;
-  --color-kumo-hairline: #2b2c31;
+  --color-kumo-line: #46484f;
+  --color-kumo-hairline: #303238;
   --color-kumo-contrast: #ededec;
   --color-kumo-focus: #2fae60;
   --color-kumo-brand: #2fae60;
@@ -114,14 +114,14 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 
 .oj-main { max-width: 1140px; margin: 0 auto; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 20px; }
 .oj-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.oj-head h1 { margin: 0; font: 500 24px/1.15 var(--font-sans); letter-spacing: -0.02em; color: var(--text-color-kumo-strong); }
+.oj-head h1 { margin: 0; font: 600 26px/1.15 var(--font-sans); letter-spacing: -0.02em; color: var(--text-color-kumo-strong); }
 .oj-head p { margin: 4px 0 0; color: var(--text-color-kumo-subtle); }
 .oj-tabs { overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
 
 .oj-stack { display: flex; flex-direction: column; gap: 16px; }
 .oj-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
-.oj-card-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.oj-card-title { margin: 0; font-size: 15px; font-weight: 500; color: var(--text-color-kumo-strong); }
+.oj-card-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+.oj-card-title { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--text-color-kumo-strong); }
 .oj-note { margin: 0; color: var(--text-color-kumo-subtle); }
 .oj-figure { font: 500 28px/1.1 var(--font-mono); color: var(--text-color-kumo-strong); font-variant-numeric: tabular-nums; }
 .oj-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
@@ -158,3 +158,10 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 .oj-grow { flex: 1; min-width: 0; }
 .oj-try-answer { margin: 0; white-space: pre-wrap; color: var(--text-color-kumo-strong); }
 .oj-grow > *, .oj-grow input { width: 100%; }
+
+/* The site header sits on the page's own ground here, as one surface with
+   the dashboard below it (style.css gives it the paper colour elsewhere). */
+.home.site-header { --h-bg: var(--color-kumo-canvas); }
+@media (max-width: 640px) { .oj-card-body { padding: 16px; } }
+/* The segmented tabs hug their labels, as one compact control (Kumo stretches the track). */
+.oj-tabs > * { width: max-content; max-width: none; box-shadow: inset 0 0 0 1px var(--color-kumo-hairline); border-radius: 10px; }

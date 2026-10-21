@@ -124,7 +124,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           description="Jobs stay in your queue until your plan's limit resets." />
       ) : null}
       <div className="oj-tabs">
-        <Tabs variant="underline" tabs={tabs} value={section} onValueChange={go} />
+        <Tabs variant="segmented" tabs={tabs} value={section} onValueChange={go} />
       </div>
       <Suspense fallback={waiting}><div role="tabpanel">
         {section === "overview" && (s ? <Overview s={s} ext={ext} queue={data.queue} reload={load} /> : waiting)}
