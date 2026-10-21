@@ -32,6 +32,7 @@ from decimal import Decimal
 
 import agent
 import apply
+import countries
 
 MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast"  # fixed in infra/ai-worker.mjs too; the rates below are its
 AI_URL = "https://oceanofjobs.com/__ai"
@@ -133,7 +134,9 @@ def facts(profile: dict, prefs: dict) -> dict:
     known = {
         "location": profile["contact"]["location"],
         "links": {k: v for k, v in profile["links"].items() if v},
-        "authorized_to_work_in": profile["work"]["authorized_countries"],
+        # Names, not codes: given ["IL"] and no location, the model answered
+        # "No" to "Are you authorized to work in Israel?".
+        "authorized_to_work_in": [f"{countries.label_for(c)} ({c})" for c in profile["work"]["authorized_countries"]],
         # Named so the model can't read it as "can't work anywhere": the live
         # run answered "when can you start" with "I need sponsorship to work
         # in Israel" for someone authorized there.
@@ -264,6 +267,15 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
             raise CantAnswer("your fixed answer to this question isn't one of the form's options")
         return {"answer": value, "remaining": remaining, "suggested": suggest, "source": "fixed", "agent_version": ag["version"] or None}
     profile = apply.get_profile(table, user_id)
+    # "Are you authorized to work in <one country>?" is answered from the
+    # profile's own list, never by the model. An empty list stays unknown.
+    authorized = profile["work"]["authorized_countries"]
+    asked = countries.countries_of(question) if agent.WORK_AUTH.search(apply.normalise_question(question)) else []
+    if authorized and len(asked) == 1:
+        value = "Yes" if asked[0] in authorized else "No"
+        value = agent.pick_option(value, options) if options else value
+        if value is not None:
+            return {"answer": value, "remaining": remaining, "suggested": suggest, "source": "profile"}
     saved = agent.saved_answer(profile, question, job_id)
     if saved and (not options or agent.pick_option(saved["answer"], options)):
         return {"answer": agent.pick_option(saved["answer"], options) if options else saved["answer"], "remaining": remaining,

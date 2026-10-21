@@ -121,8 +121,8 @@ t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "pro", "sta
 check("Pro goes on to 3,000", ai_answers.draft(t, "u", fresh(2), {}, run=run("30 days"), report=reported.append, now=NOW)["remaining"] == 2699)
 check("a new month starts again", ai_answers.draft(t, "u", fresh(3), {}, run=run("30 days"), report=reported.append,
                                                    now=datetime(2026, 11, 1, tzinfo=timezone.utc))["remaining"] == 2999)
-ai_answers.draft(t, "u", {"question": "Are you authorized to work in Israel?", "options": ["Yes", "No"]}, {},
-                 run=run("Yes | authorized_to_work_in: IL"), report=reported.append, now=NOW)
+ai_answers.draft(t, "u", {"question": "Is your notice period 30 days?", "options": ["Yes", "No"]}, {},
+                 run=run("Yes | notice_period: 30 days"), report=reported.append, now=NOW)
 check("a multiple-choice question sends its options and asks for one exactly",
       'Options (answer with exactly one of these): ["Yes", "No"]' in sent[-1][1]["content"], sent[-1][1]["content"][-120:])
 before = len(apply.get_profile(t, "u")["answers"])

@@ -231,13 +231,16 @@ const fits = (field, answer) =>
 
 // A required question with no saved answer. Basic and Pro get it drafted
 // (and saved) by our server; Free, or a plan out of AI answers, falls back
-// to the user's own key. undefined means skip the job.
+// to the user's own key. undefined means skip the job. ctx.wroteIt says
+// whether the AI wrote this answer just now, for the Submit gate.
 async function answerUnknown(field, job, ctx) {
+  ctx.wroteIt = false;
   if (ctx.serverAi) {
     try {
-      const { answer } = await api('/me/apply/draft', {
+      const { answer, source } = await api('/me/apply/draft', {
         method: 'POST', body: { question: field.label, options: field.options || [], job: { id: job.id, title: job.title, company: job.company_name || job.company_domain } },
       });
+      ctx.wroteIt = source === 'ai';
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
       // 422: the profile cannot answer this, and a second model would only guess.
@@ -249,6 +252,7 @@ async function answerUnknown(field, job, ctx) {
   if (!ctx.ai || !ctx.ai.key) return undefined;
   const answer = await draftAnswer(field, ctx.profile, ctx.preferences, job, ctx.ai).catch(() => undefined);
   if (!fits(field, answer)) return undefined;
+  ctx.wroteIt = true;
   await api('/me/apply/answers', { method: 'POST', body: { question: field.label, answer, job_id: job.id } }).catch(() => {});
   return answer;
 }
@@ -328,10 +332,10 @@ async function applyTo(job, ctx) {
         if (f.type === 'file' || oojMatch.isEeo(f)) continue;
         const answer = await answerUnknown(f, job, ctx);
         if (answer === undefined) continue;
-        ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer, source: 'ai', approval: 'pending' }];
+        ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer, ...(ctx.wroteIt ? { source: 'ai', approval: 'pending' } : {}) }];
         plan.missing.splice(plan.missing.indexOf(f), 1);
         plan.fills.push({ ...f, value: answer });
-        drafted.add(f.label);
+        if (ctx.wroteIt) drafted.add(f.label);
       }
     }
     if (plan.missing.length) {

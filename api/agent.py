@@ -264,6 +264,14 @@ def _topic(text) -> set:
     return out
 
 
+# "Are you authorized to work in <country>?": answered from the profile's
+# country list (ai_answers.draft) when it names one country. Only the
+# question that asks whether they ARE allowed: "Do you need a work permit?"
+# asks the opposite, and "yes, authorized" would answer it backwards.
+WORK_AUTH = re.compile(r"^(are|is) you\b.*\b(authori[sz]ed|eligible|permitted|allowed|entitled) to work\b"
+                       r"|^do you (have|hold) (the )?(legal )?right to work\b")
+
+
 # An answer that agrees to what the question asks.
 AFFIRMS = re.compile(r"^(yes|yeah|true|i do|i have|i am|i m|i hold|i can|i will|correct)\b")
 

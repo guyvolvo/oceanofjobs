@@ -133,11 +133,28 @@ with mock_aws():
     check("a relevant fact is accepted", draft("Will you require visa sponsorship?",
                                                "Yes | needs_visa_sponsorship_outside_those_countries: true", options=["Yes", "No"])["answer"] == "Yes")
     check("a question that isn't yes/no needs no citation", draft("Which city are you in?", "Haifa")["answer"] == "Haifa")
-    check("the sponsorship fact says where it applies", '"needs_visa_sponsorship_outside_those_countries"' in sent[-1][1]["content"])
+
+    # Work authorization for one named country comes from the profile, never the model.
+    calls, counted = len(sent), month()
+    out = draft("Are you legally authorized to work in Israel?", "No | anything", options=["Yes", "No"])
+    check("'authorized to work in Israel' is Yes from the profile's list, the model never asked", out == {**out, "answer": "Yes", "source": "profile"}
+          and len(sent) == calls and month() == counted, repr(out))
+    check("and another country is No", draft("Are you authorized to work in the United States?", "Yes")["answer"] == "No")
+    check("the reverse question isn't answered from the list", refused("Do you need a work permit for Germany?", "No", options=["Yes", "No"]) is not None)
+    check("countries reach the model by name", '"authorized_to_work_in": ["Israel (IL)"]' in sent[-1][1]["content"], sent[-1][1]["content"][:300])
+    apply.put_profile(table, "nolist", {"work": {"notice_period": "30 days"}})
+    table.put_item(Item={"user_id": "nolist", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
+    try:
+        ai_answers.draft(table, "nolist", {"question": "Are you authorized to work in Israel?", "options": ["Yes", "No"]}, {},
+                         run=model("No"), report=lambda total: None, now=NOW)
+        check("with no countries listed, it stays unknown rather than No", False)
+    except ai_answers.CantAnswer:
+        check("with no countries listed, it stays unknown rather than No", True)
+    check("the sponsorship fact says where it applies", any('"needs_visa_sponsorship_outside_those_countries"' in m[1]["content"] for m in sent))
     apply.put_profile(table, "z", {"work": {"authorized_countries": ["IL"]}})
     known = ai_answers.facts(apply.get_profile(table, "z"), {})
     check("a fact the user hasn't given isn't sent at all, not even as null", "needs_visa_sponsorship_outside_those_countries" not in known
-          and "notice_period" not in known and known["authorized_to_work_in"] == ["IL"], repr(known))
+          and "notice_period" not in known and known["authorized_to_work_in"] == ["Israel (IL)"], repr(known))
     check("a number from the user's facts is allowed", draft("How big was the team you led?", "I led a team of five engineers.")["source"] == "ai")
     check("and a year from them too", draft("When did you lead the team at Acme?", "From 2021 to 2024.")["source"] == "ai")
 
