@@ -88,7 +88,7 @@ await ctx.route("**/*", async (r) => {
     const p = u.pathname, m = req.method();
     state.calls.push(`${m} ${p}`);
     if (p === "/api/me/apply/profile") return r.fulfill({ json: { profile: state.profile, preferences: { skills: [] } } });
-    if (p === "/api/me/apply/usage") return r.fulfill({ json: { plan: "basic", period: "month", limit: 100, used: 0, remaining: 100 } });
+    if (p === "/api/me/apply/usage" || p === "/api/me/apply/summary") return r.fulfill({ json: { plan: "basic", period: "month", limit: 100, used: 0, remaining: 100 } });
     if (p === "/api/me/apply/history") return r.fulfill({ json: { applied: [] } });
     if (p === "/api/me/apply/queue" && m === "GET") return r.fulfill({ json: { queue: state.queue } });
     if (p.startsWith("/api/me/apply/queue/") && m === "DELETE") { state.queue = []; return r.fulfill({ status: 204, body: "" }); }

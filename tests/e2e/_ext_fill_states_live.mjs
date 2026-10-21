@@ -53,7 +53,7 @@ await ctx.route("**/*", (r) => {
   const u = new URL(req.url());
   if (u.hostname === "oceanofjobs.com") {
     if (u.pathname === "/api/me/apply/profile") return r.fulfill({ json: { profile, preferences: { skills: ["Python"] } } });
-    if (u.pathname === "/api/me/apply/usage") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
+    if (u.pathname === "/api/me/apply/usage" || u.pathname === "/api/me/apply/summary") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
     if (u.pathname === "/api/me/apply/history") return r.fulfill({ json: { applied: [] } });
     // The AI answers every other question and declines the rest, so a form
     // has both suggested answers and required fields left for the user.

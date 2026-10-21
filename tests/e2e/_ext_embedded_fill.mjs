@@ -88,7 +88,7 @@ async function launch(ext) {
       const p = u.pathname;
       if (p.startsWith("/api/me/apply/")) log && log.api.push(p);
       if (p === "/api/me/apply/profile") return r.fulfill({ json: { profile, preferences: { skills: ["Python"] } } });
-      if (p === "/api/me/apply/usage") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
+      if (p === "/api/me/apply/usage" || p === "/api/me/apply/summary") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
       if (p === "/api/me/apply/history") return r.fulfill({ json: { applied: [] } });
       if (p === "/api/me/apply/draft") {
         const body = req.postDataJSON();

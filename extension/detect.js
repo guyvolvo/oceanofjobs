@@ -14,12 +14,13 @@
   const { reasonText, filledText, plural } = globalThis.oojMatch;
   const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
   const SUBMITTED = 'Application submitted. You can find it in your application history.';
+  const UNCONFIRMED_TEXT = "We couldn't confirm the site received it, so it counts as one application for now. If it wasn't sent, dispute it on your Auto apply page.";
   const send = (msg) => chrome.runtime.sendMessage(msg).catch(() => null);
   const site = Object.keys(all).find((n) => n !== 'generic' && all[n].onSite(location.href));
 
   // The confirmation page after a form we filled: tell the extension.
   if (site && all[site].outcome() === 'submitted') {
-    send({ type: 'confirmedHere' });
+    send({ type: 'settleHere', result: 'submitted' });
     return;
   }
   const dedicated = site && all[site].matches(location.href) ? all[site] : null;
@@ -32,7 +33,14 @@
   if (isTop) {
     chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       if (msg.type === 'formBelow') show({ frameId: msg.frameId, url: msg.url });
-      else if (msg.type === 'filledHere') {
+      else if (msg.type === 'fillFromApply') {
+        // /apply opened this job: start the card's fill, as a click would.
+        const go = built && built.root.querySelector('.go');
+        const ready = !!go && !go.disabled && !go.hidden && go.textContent === 'Fill application';
+        if (ready) go.click();
+        reply(ready);
+        return false;
+      } else if (msg.type === 'filledHere') {
         show({ frameId: msg.result.frameId, url: msg.result.url }, msg.result).then(reply);
         return true;
       } else return false;
@@ -234,7 +242,7 @@
       msg.className = 'msg warn';
       if (s && s.unknown) {
         // Pressing again could send it twice.
-        msg.textContent = "We couldn't confirm whether the application was submitted. Check the page before trying again.";
+        msg.textContent = UNCONFIRMED_TEXT;
         go.hidden = true;
         return;
       }
@@ -276,7 +284,19 @@
       if (!submitting || go.disabled) return;
       go.disabled = true;
       go.textContent = 'Submitting…';
+      // The server reserves a credit and must acknowledge before the site's
+      // button is pressed. No acknowledgement, no click.
+      const company = new URL(location.href).searchParams.get('for') || location.pathname.split('/')[1] || '';
+      const ok = await send({ type: 'startSubmit', url: location.href, title, company });
+      if (!ok || !ok.ok) {
+        msg.className = 'msg warn';
+        msg.textContent = reasonText((ok && ok.error) || UNEXPECTED);
+        go.disabled = false;
+        go.textContent = 'Submit application';
+        return;
+      }
       if (!(await ats.submit())) {
+        send({ type: 'settleHere', result: { failed: 'submit button not found' } });
         msg.className = 'msg warn';
         msg.textContent = reasonText('submit button not found');
         go.hidden = true;
@@ -287,18 +307,24 @@
         const out = ats.outcome();
         if (out === 'submitted') {
           clearInterval(watch);
-          send({ type: 'confirmedHere' });
+          send({ type: 'settleHere', result: 'submitted' });
           msg.className = 'msg ok';
           msg.textContent = SUBMITTED;
           go.hidden = true;
         } else if ((out && out.failed) || Date.now() - started > 30000) {
           clearInterval(watch);
+          send({ type: 'settleHere', result: out && out.failed ? out : null });
           msg.className = 'msg warn';
-          // The credit the fill claimed comes back only when the tab closes unsent, so no word of it here.
-          msg.textContent = out && out.failed ? `Not submitted: ${reasonText(out.failed).replace(/\.$/, '')}. Fix the issue on the form, then try again.`
-            : 'No confirmation received yet. Check the page to see whether the application went through.';
-          go.disabled = false;
-          go.textContent = 'Submit application';
+          if (out && /^form errors/i.test(out.failed)) {
+            // The site's own errors: nothing was sent and the credit is back.
+            msg.textContent = `Not submitted: ${reasonText(out.failed).replace(/\.$/, '')}. Fix the issue on the form, then try again.`;
+            go.disabled = false;
+            go.textContent = 'Submit application';
+          } else {
+            // Pressing again could send it twice, so the button goes.
+            msg.textContent = UNCONFIRMED_TEXT;
+            go.hidden = true;
+          }
         }
       }, 1000);
     });

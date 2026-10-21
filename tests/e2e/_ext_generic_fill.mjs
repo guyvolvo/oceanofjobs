@@ -92,7 +92,7 @@ await ctx.route("**/*", (r) => {
   if (u.hostname === "oceanofjobs.com") {
     const p = u.pathname;
     if (p === "/api/me/apply/profile") return r.fulfill({ json: { profile, preferences: { skills: ["Python"] } } });
-    if (p === "/api/me/apply/usage") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
+    if (p === "/api/me/apply/usage" || p === "/api/me/apply/summary") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
     if (p === "/api/me/apply/history") return r.fulfill({ json: { applied: [] } });
     // The AI suggestion for a question with no saved answer: the first
     // option, so selects and radios get exercised too.

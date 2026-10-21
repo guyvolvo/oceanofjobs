@@ -17,7 +17,7 @@ const profile = { contact: { first_name: "Test", last_name: "Person", email: "te
 await ctx.route("https://oceanofjobs.com/api/**", (r) => {
   const u = new URL(r.request().url()); calls.push(r.request().method() + " " + u.pathname);
   if (u.pathname.endsWith("/me/apply/profile")) return r.fulfill({ json: { profile, preferences: { skills: ["Python"] } } });
-  if (u.pathname.endsWith("/me/apply/usage")) return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
+  if (/\/me\/apply\/(usage|summary)$/.test(u.pathname)) return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
   if (u.pathname.endsWith("/me/apply/history")) return r.fulfill({ json: { applied: [] } });
   if (u.pathname.endsWith("/me/apply/claim")) return r.fulfill({ json: { remaining: 49 } });
   return r.fulfill({ status: 204, body: "" });

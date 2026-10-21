@@ -40,27 +40,140 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
   return data;
 }
 
-// The history shows the reason as written here; the codes stay in the extension.
+// A job skipped before any attempt starts (closed, unsupported, already
+// applied): kept as a free record so a run doesn't pick it again. The
+// history shows the reason as written here; the codes stay in the extension.
 const report = (job_id, status, reason) =>
   api('/me/apply/result', { method: 'POST', body: { job_id, status, reason: oojMatch.reasonText(reason) } }).catch(() => {});
+
+// Application attempts (api/AUTO_APPLY_CONTRACT.md). One id per attempt,
+// made before the first call and reused for every retry of the same call,
+// so a lost response can never reserve, charge or refund twice. A retry
+// after a network error repeats the API call, never the submission.
+const newAttemptId = () => crypto.randomUUID().replace(/-/g, '');
+const SERVER_GONE = "Couldn't reach Ocean of Jobs, so nothing was submitted. Try again in a minute.";
+
+// One attempt call: {data} on success, {refused: code, error} when the
+// server said no (final), {transient: true} when it couldn't be reached or
+// failed (the same call may be repeated).
+async function attemptCall(path, body, tries = 3) {
+  for (let i = 0; i < tries; i++) {
+    try {
+      return { data: await api(path, { method: 'POST', body }) };
+    } catch (e) {
+      if (e.status && e.status < 500 && e.status !== 429) {
+        return { refused: (e.body && e.body.code) || String(e.status), status: e.status, error: e.body && e.body.error };
+      }
+    }
+    if (i < tries - 1) await new Promise((r) => setTimeout(r, 1000 * 3 ** i));
+  }
+  return { transient: true };
+}
+
+// Reports that must reach the server: settlements and Filled entries.
+// Kept in storage until the server acknowledges them, so they survive the
+// popup closing, the browser restarting and the network dropping.
+async function sendDurable(path, body) {
+  const { outbox = [] } = await chrome.storage.local.get('outbox');
+  outbox.push({ path, body, at: new Date().toISOString() });
+  await chrome.storage.local.set({ outbox });
+  await flushOutbox();
+}
+
+let flushing = false;
+async function flushOutbox() {
+  if (flushing) return;
+  flushing = true;
+  try {
+    const { outbox = [] } = await chrome.storage.local.get('outbox');
+    const left = [];
+    for (const item of outbox) {
+      const r = await attemptCall(item.path, item.body, 1);
+      // Acknowledged, or refused for good (already settled, expired, no such
+      // attempt): either way, sending it again can't change anything.
+      if (r.transient) left.push(item);
+    }
+    // Reports added while this ran are kept too.
+    const { outbox: now = [] } = await chrome.storage.local.get('outbox');
+    const sent = new Set(outbox.filter((i) => !left.includes(i)).map((i) => JSON.stringify(i)));
+    const keep = now.filter((i) => !sent.has(JSON.stringify(i)));
+    await chrome.storage.local.set({ outbox: keep });
+    if (keep.length) chrome.alarms.create('outbox', { delayInMinutes: 1 });
+  } finally {
+    flushing = false;
+  }
+}
+
+// Attempts this browser has started and not yet reported, so a crash or
+// restart can be reported on the next start: past the Submit gate it is
+// Submission unconfirmed (the click may have happened), before it a release.
+async function track(attemptId, phase) {
+  const { inflight = {} } = await chrome.storage.local.get('inflight');
+  if (phase) inflight[attemptId] = { phase, at: new Date().toISOString() };
+  else delete inflight[attemptId];
+  await chrome.storage.local.set({ inflight });
+}
+
+async function settle(attemptId, outcome, reason = '', questions) {
+  await track(attemptId, null);
+  const body = { outcome, reason: oojMatch.reasonText(reason) };
+  if (questions) body.questions = questions;
+  await sendDurable(`/me/apply/attempts/${attemptId}/settle`, body);
+}
+
+async function recoverInflight() {
+  const { inflight = {} } = await chrome.storage.local.get('inflight');
+  for (const [id, { phase }] of Object.entries(inflight)) {
+    if (phase === 'started') await settle(id, 'unconfirmed', 'The browser closed while the application was being submitted.');
+    else await settle(id, 'failed', 'The browser closed before the application was submitted.');
+  }
+  await flushOutbox();
+}
+
+// Reserve a credit for one job. {attemptId} or {error, limit, taken}.
+async function reserve(job) {
+  const attemptId = newAttemptId();
+  await track(attemptId, 'reserved');
+  const r = await attemptCall('/me/apply/attempts', {
+    attempt_id: attemptId, job_id: job.id, url: job.url, title: job.title, company: job.company_name || job.company_domain,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
+  if (r.data) return { attemptId };
+  await track(attemptId, null);
+  // Reserved but the answer was lost: release it rather than wait 30 minutes.
+  if (r.transient) await sendDurable(`/me/apply/attempts/${attemptId}/settle`, { outcome: 'failed', reason: SERVER_GONE });
+  return { error: r.error || SERVER_GONE, limit: r.refused === 'limit_reached', taken: r.refused === 'job_taken' };
+}
+
+// The Submit gate: true only when the server acknowledged submission start.
+// Anything else (expired, refused, unreachable) means don't click.
+async function gate(attemptId) {
+  const r = await attemptCall(`/me/apply/attempts/${attemptId}/submission-started`, {});
+  if (r.data && r.data.submit === true) {
+    await track(attemptId, 'started');
+    return { ok: true };
+  }
+  if (r.refused === 'expired') {
+    await track(attemptId, null);
+    return { error: 'This application took too long to prepare, so it was not submitted. Try again.' };
+  }
+  await settle(attemptId, 'failed', r.transient ? SERVER_GONE : (r.error || 'Not submitted.'));
+  return { error: r.transient ? SERVER_GONE : (r.error || 'Not submitted.') };
+}
+
+// After the click: the site's own validation errors (or a CAPTCHA it put
+// up) mean nothing was sent; any other uncertainty is Submission
+// unconfirmed, never Submitted.
+function afterClick(result) {
+  if (result === 'submitted') return ['submitted', ''];
+  const why = (result && result.failed) || '';
+  if (/^(form errors|captcha|ashby will not take|submit button not found)/i.test(why)) return ['failed', why];
+  return ['unconfirmed', why || 'no confirmation after submitting'];
+}
 
 function setBadge(n) {
   chrome.action.setBadgeText({ text: n ? String(n) : '' });
   chrome.action.setBadgeBackgroundColor({ color: '#40513b' });
-}
-
-async function addNeeds(field, job) {
-  const { needs = [] } = await chrome.storage.local.get('needs');
-  if (!needs.some((n) => oojMatch.normalise(n.question) === oojMatch.normalise(field.label))) {
-    needs.push({ question: field.label, job_id: job.id, company: job.company_name || job.company_domain, title: job.title, url: job.url, at: new Date().toISOString() });
-  }
-  await chrome.storage.local.set({ needs });
-}
-
-// Questions the user has answered on the website since we asked.
-async function pruneNeeds(answers) {
-  const { needs = [] } = await chrome.storage.local.get('needs');
-  await chrome.storage.local.set({ needs: needs.filter((n) => oojMatch.findAnswer(n.question, answers) === undefined) });
 }
 
 async function draftAnswer(field, profile, preferences, job, ai) {
@@ -180,19 +293,27 @@ async function applyTo(job, ctx) {
     await report(job.id, 'skipped', 'unsupported site');
     return 'skipped';
   }
+  // Reserve before opening the form (contract R1). Every way out below
+  // settles the attempt; before the gate that always releases the credit.
+  const held = await reserve(job);
+  if (held.limit) return 'limit';
+  if (held.taken) return 'skipped';
+  if (!held.attemptId) return 'failed';
+  const id = held.attemptId;
+  let clicked = false;
   const tab = await chrome.tabs.create({ url: ats.formUrl ? ats.formUrl(job.url) : job.url, active: false });
   try {
     if (!(await waitForLoad(tab.id))) {
-      await report(job.id, 'skipped', 'page did not load');
-      return 'skipped';
+      await settle(id, 'failed', 'page did not load');
+      return 'failed';
     }
     const [main] = ats.pageData
       ? await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: 'MAIN', func: ats.pageData })
       : [];
     const page = await inTab(tab.id, job.ats, 'read', [main ? main.result : null]);
     if (!page || page.error) {
-      await report(job.id, 'skipped', (page && page.error) || 'application form not found');
-      return 'skipped';
+      await settle(id, 'failed', (page && page.error) || 'application form not found');
+      return 'failed';
     }
     const plan = oojMatch.planFill(page.fields, ctx.profile, job);
     if (plan.missing.length && ctx.settings.unknowns === 'ai') {
@@ -206,40 +327,33 @@ async function applyTo(job, ctx) {
       }
     }
     if (plan.missing.length) {
-      for (const f of plan.missing) await addNeeds(f, job);
-      await report(job.id, 'skipped', 'needs answer: ' + plan.missing.map((f) => f.label).join('; '));
+      // Paused until the user answers (R15): the job stays out of runs and
+      // shows in Needs attention with its questions.
+      const questions = plan.missing.map((f) => f.label);
+      await settle(id, 'needs_input', 'needs answer: ' + questions.join('; '), questions);
       return 'skipped';
     }
-
-    try {
-      await api('/me/apply/claim', { method: 'POST', body: { job_id: job.id, company: job.company_domain, title: job.title, url: job.url } });
-    } catch (e) {
-      if (e.status === 402) return 'limit';
-      if (e.status === 409) return 'skipped';
-      throw e;
-    }
-    // Claimed from here on, so every way out reports a result.
-    try {
-      const filled = await inTab(tab.id, job.ats, 'fill', [plan.fills, ctx.cv]);
-      if (!filled || filled.errors.length) {
-        await report(job.id, 'failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form'));
-        return 'failed';
-      }
-      if (!(await inTab(tab.id, job.ats, 'submit'))) {
-        await report(job.id, 'failed', 'submit button not found');
-        return 'failed';
-      }
-      const result = await waitForOutcome(tab.id, job.ats, page.redirectTo);
-      if (result === 'submitted') {
-        await report(job.id, 'submitted', '');
-        return 'submitted';
-      }
-      await report(job.id, 'failed', result.failed);
-      return result.failed === 'captcha' ? 'captcha' : 'failed';
-    } catch (e) {
-      await report(job.id, 'failed', String(e.message || e).slice(0, 200));
+    const filled = await inTab(tab.id, job.ats, 'fill', [plan.fills, ctx.cv]);
+    if (!filled || filled.errors.length) {
+      await settle(id, 'failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form'));
       return 'failed';
     }
+    const ok = await gate(id);
+    if (!ok.ok) return 'failed';
+    clicked = true;
+    if (!(await inTab(tab.id, job.ats, 'submit'))) {
+      // The gate passed but no button was pressed: nothing was sent.
+      await settle(id, 'failed', 'submit button not found');
+      return 'failed';
+    }
+    const [outcome, why] = afterClick(await waitForOutcome(tab.id, job.ats, page.redirectTo));
+    await settle(id, outcome, why);
+    if (outcome === 'failed' && /^captcha/i.test(why)) return 'captcha';
+    return outcome;
+  } catch (e) {
+    // After the gate the click may have happened: unconfirmed, never retried.
+    await settle(id, clicked ? 'unconfirmed' : 'failed', String(e.message || e).slice(0, 200));
+    return clicked ? 'unconfirmed' : 'failed';
   } finally {
     chrome.tabs.remove(tab.id).catch(() => {});
   }
@@ -274,20 +388,24 @@ async function run() {
   running = true;
   try {
     const st = await chrome.storage.local.get(['token', 'paused', 'cv', 'ai']);
-    if (!st.token || st.paused || !st.cv) return;
-    const [{ profile, preferences }, usage, { applied: history }] = await Promise.all([
-      api('/me/apply/profile'), api('/me/apply/usage'), api('/me/apply/history?limit=50'),
+    if (!st.token) return;
+    await flushOutbox();
+    if (st.paused || !st.cv) return;
+    const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const [{ profile, preferences }, summary, { applied: history }] = await Promise.all([
+      api('/me/apply/profile'), api('/me/apply/summary?tz=' + tz), api('/me/apply/history?limit=200'),
     ]);
     await chrome.storage.local.set({ authError: false });
-    await pruneNeeds(profile.answers);
     const now = Date.now();
-    setBadge(oojMatch.appliedToday(history, now));
+    // The server's numbers (summary), never counted here: the server holds
+    // the plan's limit and the user's daily maximum for every path.
+    setBadge(summary.applied_today);
     const settings = profile.settings || {};
     const guardrails = settings.guardrails || {};
-    let left = oojMatch.budget(usage, history, guardrails, now, PER_RUN);
+    let left = Math.min(PER_RUN, summary.remaining == null ? PER_RUN : summary.remaining);
     if (!left) return;
 
-    const ctx = { profile, preferences, settings, cv: st.cv, ai: st.ai, serverAi: ['basic', 'pro'].includes(usage.plan) };
+    const ctx = { profile, preferences, settings, cv: st.cv, ai: st.ai, serverAi: ['basic', 'pro'].includes(summary.plan) };
     const queueMode = settings.mode === 'queue';
     // Queued jobs come first in both modes. The user or their AI assistant
     // chose each one, so the minimum match does not apply and a skip may retry.
@@ -319,10 +437,9 @@ async function run() {
       if (outcome === 'limit') break;
       if (queuedIds.has(job.id)) await api(`/me/apply/queue/${encodeURIComponent(job.id)}`, { method: 'DELETE' }).catch(() => {});
       if (outcome === 'captcha') break;
-      if (outcome === 'submitted') {
+      if (outcome === 'submitted' || outcome === 'unconfirmed') {
         left--;
-        history.push({ job_id: job.id, company: job.company_domain, status: 'submitted', at: new Date().toISOString() });
-        setBadge(oojMatch.appliedToday(history, Date.now()));
+        history.push({ job_id: job.id, company: job.company_domain, status: outcome, at: new Date().toISOString() });
       }
     }
   } catch (e) {
@@ -346,8 +463,9 @@ async function pageJobId(url) {
 let accountCache = null;
 async function account() {
   if (accountCache && Date.now() - accountCache.at < 5 * 60000) return accountCache;
+  const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [{ profile, preferences }, usage, { applied }] = await Promise.all([
-    api('/me/apply/profile'), api('/me/apply/usage'), api('/me/apply/history?limit=100'),
+    api('/me/apply/profile'), api('/me/apply/summary?tz=' + tz), api('/me/apply/history?limit=200'),
   ]);
   accountCache = { at: Date.now(), profile, preferences, usage, history: applied };
   return accountCache;
@@ -355,7 +473,7 @@ async function account() {
 
 // Whether to offer filling this page, and if not, why: the card always
 // says what stands in the way rather than staying silent.
-const ACCOUNT_URL = 'https://oceanofjobs.com/account#autoapply';
+const ACCOUNT_URL = 'https://oceanofjobs.com/apply';
 const NOT_CONNECTED = 'Connect Ocean of Jobs to fill in this application.';
 const EXPIRED = 'Your connection has expired. Connect again to continue.';
 const NO_CV = 'Add your CV in extension settings before applying.';
@@ -385,8 +503,24 @@ async function offerHere(url) {
   }
   if (!st.cv) return { show: true, blocked: NO_CV, action: { label: 'Add CV', options: true } };
   const id = await pageJobId(url);
-  if (a.history.some((h) => h.job_id === id && h.status === 'submitted')) return { show: true, blocked: ALREADY };
+  if (a.history.some((h) => h.job_id === id && (h.status === 'submitted' || h.status === 'unconfirmed'))) return { show: true, blocked: ALREADY };
   return { show: true, remaining: a.usage.remaining };
+}
+
+// The job a tab shows: the board's id when /apply's "Apply to next" opened
+// it, so its reservation and its queue entry line up; otherwise a stable
+// hash of the page address (the server matches both by canonical identity).
+async function jobForTab(tabId, url, title, company) {
+  const key = `tabjob:${tabId}`;
+  const { [key]: board } = await chrome.storage.session.get(key);
+  const id = board && new URL(board.url).host === new URL(url).host ? board.id : await pageJobId(url);
+  return { id, url, title: title || '', company_name: company || '', company_domain: company || '', board: !!board };
+}
+
+// A fill the user will check and send: in History as Filled, no credit.
+async function recordFilled(job) {
+  await sendDurable('/me/apply/filled', { attempt_id: newAttemptId(), job_id: job.id, url: job.url, title: job.title,
+    company: job.company_name || job.company_domain });
 }
 
 async function fillHere(msg, tabId, frameId) {
@@ -402,18 +536,25 @@ async function fillHere(msg, tabId, frameId) {
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: ['basic', 'pro'].includes(a.usage.plan) };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
-  try {
-    await api('/me/apply/claim', { method: 'POST', body: { job_id: job.id, company: job.company_domain, title: job.title, url: job.url } });
-  } catch (e) {
-    if (e.status === 402) return { error: (e.body && e.body.error) || 'Your plan has no applications left.' };
-    if (e.status === 409) return { error: ALREADY };
-    throw e;
-  }
+  // Filling costs nothing (R8); a credit is reserved only when the user
+  // presses Submit on the card (startSubmit).
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
-  const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
-  pendingHere[tabId] = job.id;
-  await chrome.storage.local.set({ pendingHere });
+  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company));
   return result;
+}
+
+// "Submit application" on the card: reserve a credit and pass the gate
+// before the card presses the site's button. {ok} or {error}.
+async function startSubmit(msg, tabId) {
+  const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
+  const held = await reserve(job);
+  if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
+  const ok = await gate(held.attemptId);
+  if (!ok.ok) return ok;
+  const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
+  pendingHere[tabId] = { attemptId: held.attemptId, jobId: job.board ? job.id : null };
+  await chrome.storage.local.set({ pendingHere });
+  return { ok: true };
 }
 
 async function readForm(tabId, name, frameId) {
@@ -539,11 +680,12 @@ async function assist(tabId, frameId, name, page, url, title) {
     return { error: e.status === 401 ? EXPIRED : UNREACHABLE };
   }
   const u = new URL(url);
-  const job = { id: await pageJobId(url), url, title: title || '', company_name: u.hostname, company_domain: u.hostname, location: '', ats: name };
+  const job = { ...(await jobForTab(tabId, url, title, u.hostname)), location: '', ats: name };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: ['basic', 'pro'].includes(a.usage.plan) };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
+  await recordFilled(job);
   return { ...result, ats: name, frameId, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
 }
 
@@ -653,29 +795,31 @@ async function submitHere(msg, sender) {
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   if (info && info.botCheck) return { error: BOT_CHECK };
   if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
-  const id = await pageJobId(msg.url);
-  try {
-    await api('/me/apply/claim', { method: 'POST', body: { job_id: id, company: msg.company, title: msg.title, url: msg.url } });
-  } catch (e) {
-    if (e.status === 402) return { error: (e.body && e.body.error) || 'Your plan has no applications left.' };
-    if (e.status === 409) return { error: ALREADY };
-    throw e;
-  }
+  const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
+  const held = await reserve(job);
+  if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
+  const ok = await gate(held.attemptId);
+  if (!ok.ok) return { error: ok.error };
   accountCache = null;
-  // Claimed from here on, so every way out reports a result.
+  // Past the gate: every way out settles, and an uncertain one is
+  // Submission unconfirmed (never retried).
+  let before = null;
   let out;
   try {
-    const before = await inTab(tabId, 'generic', 'submit', [], frameId);
+    before = await inTab(tabId, 'generic', 'submit', [], frameId);
     out = before ? await watchHere(tabId, frameId, before) : { failed: 'submit button not found' };
   } catch (e) {
     out = { failed: String(e.message || e).slice(0, 200) };
   }
-  if (out === 'submitted') {
-    await report(id, 'submitted', '');
-    return { submitted: true };
+  if (!before && out && out.failed === 'submit button not found') {
+    await settle(held.attemptId, 'failed', out.failed);
+    return { failed: out.failed };
   }
-  await report(id, 'failed', out ? out.failed : 'no confirmation');
-  return out ? { failed: out.failed } : { unknown: true };
+  const [outcome, why] = afterClick(out || null);
+  await settle(held.attemptId, outcome, why);
+  if (job.board && outcome !== 'failed') await api(`/me/apply/queue/${job.id}`, { method: 'DELETE' }).catch(() => {});
+  if (outcome === 'submitted') return { submitted: true };
+  return outcome === 'failed' ? { failed: why } : { unknown: true };
 }
 
 // generic.outcome() in the form's frame for up to 20 seconds. A navigation
@@ -727,35 +871,72 @@ async function queueView() {
   return { total: queue.length, items };
 }
 
-// The user submitted a form we filled, or closed it without submitting.
-async function settleHere(tabId, status, reason) {
+// The outcome the card saw after pressing Submit, or the tab closed after
+// the gate: the click may have happened, so that one is unconfirmed.
+async function settleHere(tabId, result) {
   const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
-  const id = pendingHere[tabId];
-  if (!id) return;
+  const p = pendingHere[tabId];
+  if (!p) return;
   delete pendingHere[tabId];
   await chrome.storage.local.set({ pendingHere });
   accountCache = null;
-  await report(id, status, reason);
+  const [outcome, why] = result === 'closed' ? ['unconfirmed', 'The tab was closed before the site confirmed the application.'] : afterClick(result);
+  await settle(p.attemptId, outcome, why);
+  if (p.jobId && outcome !== 'failed') await api(`/me/apply/queue/${p.jobId}`, { method: 'DELETE' }).catch(() => {});
 }
 
-chrome.tabs.onRemoved.addListener((tabId) => settleHere(tabId, 'skipped', 'not submitted'));
+chrome.tabs.onRemoved.addListener((tabId) => {
+  settleHere(tabId, 'closed');
+  chrome.storage.session.remove(`tabjob:${tabId}`);
+});
 
+// The popup's numbers, all from the server's summary and needs: nothing is
+// counted in the extension.
 async function status() {
-  const st = await chrome.storage.local.get(['token', 'paused', 'cv', 'needs', 'authError', 'lastRun', 'lastError']);
+  const st = await chrome.storage.local.get(['token', 'paused', 'cv', 'authError', 'lastRun', 'lastError', 'outbox']);
   const out = {
     connected: !!st.token && !st.authError, authError: !!st.authError, paused: !!st.paused,
-    hasCv: !!st.cv, needs: st.needs || [], lastRun: st.lastRun || null, lastError: st.lastError || null,
+    hasCv: !!st.cv, needs: [], lastRun: st.lastRun || null, lastError: st.lastError || null, pending: (st.outbox || []).length,
   };
   if (!out.connected) return out;
   try {
-    const [usage, { applied }] = await Promise.all([api('/me/apply/usage'), api('/me/apply/history?limit=50')]);
-    out.usage = usage;
-    out.appliedToday = oojMatch.appliedToday(applied, Date.now());
-    setBadge(out.appliedToday);
+    const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const [summary, { needs }] = await Promise.all([api('/me/apply/summary?tz=' + tz), api('/me/apply/needs')]);
+    out.summary = summary;
+    out.usage = { plan: summary.plan, period: summary.period, remaining: summary.remaining };
+    out.appliedToday = summary.applied_today;
+    // One row per question, grouped by job in the popup.
+    out.needs = needs.flatMap((n) => n.questions.map((question) => ({
+      question, job_id: n.job_id, title: n.title, company: n.company,
+      link: n.link && n.link.startsWith('/') ? 'https://oceanofjobs.com' + n.link : n.link || n.url,
+    })));
+    setBadge(summary.applied_today);
   } catch (e) {
     if (e.status === 401) { out.connected = false; out.authError = true; }
   }
   return out;
+}
+
+// /apply's "Apply to next": the first job in the queue, opened in a new
+// active tab with its card filling it in. The user checks and submits.
+async function applyNext() {
+  const { queue = [] } = await api('/me/apply/queue');
+  for (const item of queue) {
+    const job = await fetchJob(item.job_id);
+    const ats = job && globalThis.oojAts[job.ats];
+    if (!ats || !ats.matches(job.url)) continue;
+    const url = ats.formUrl ? ats.formUrl(job.url) : job.url;
+    const tab = await chrome.tabs.create({ url, active: true });
+    await chrome.storage.session.set({ [`tabjob:${tab.id}`]: { id: job.id, url } });
+    if (await waitForLoad(tab.id)) {
+      for (let i = 0; i < 10; i++) {
+        if (await chrome.tabs.sendMessage(tab.id, { type: 'fillFromApply' }, { frameId: 0 }).catch(() => false)) break;
+        await new Promise((r) => setTimeout(r, 700));
+      }
+    }
+    return { ok: true, job_id: job.id };
+  }
+  return { error: 'No job in your queue can be filled in yet.' };
 }
 
 function schedule() {
@@ -775,11 +956,29 @@ async function syncAllSites() {
   }]).catch(() => {});
 }
 
-chrome.runtime.onInstalled.addListener(() => { schedule(); syncAllSites(); });
-chrome.runtime.onStartup.addListener(schedule);
+chrome.runtime.onInstalled.addListener(() => { schedule(); syncAllSites(); recoverInflight(); });
+chrome.runtime.onStartup.addListener(() => { schedule(); recoverInflight(); });
 chrome.permissions.onAdded.addListener(syncAllSites);
 chrome.permissions.onRemoved.addListener(syncAllSites);
-chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'run') run(); });
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === 'run') run();
+  if (a.name === 'outbox') flushOutbox();
+});
+
+// The /apply dashboard on oceanofjobs.com (externally_connectable).
+chrome.runtime.onMessageExternal.addListener((msg, sender, reply) => {
+  if (!sender.url || new URL(sender.url).origin !== 'https://oceanofjobs.com') return false;
+  if (msg && msg.type === 'ping') {
+    chrome.storage.local.get(['token', 'authError']).then((st) =>
+      reply({ ok: true, version: chrome.runtime.getManifest().version, connected: !!st.token && !st.authError }));
+    return true;
+  }
+  if (msg && msg.type === 'applyNext') {
+    applyNext().catch((e) => ({ error: e.status === 401 ? EXPIRED : UNEXPECTED })).then(reply);
+    return true;
+  }
+  return false;
+});
 
 chrome.storage.onChanged.addListener((changes) => {
   // A fresh token from the website: start soon instead of waiting 15 minutes.
@@ -797,16 +996,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   }
   if (msg.type === 'answer') {
     api('/me/apply/answers', { method: 'POST', body: { question: msg.question, answer: msg.answer } }).then(async () => {
-      const { needs = [] } = await chrome.storage.local.get('needs');
-      const done = needs.find((n) => n.question === msg.question);
-      const left = needs.filter((n) => n.question !== msg.question);
-      await chrome.storage.local.set({ needs: left });
       accountCache = null;
-      // A board job with nothing else to answer goes back in the queue; a
-      // page that is not on the board answers 404, which is fine.
+      // The job goes back in the queue once every question it waited on
+      // has a saved answer; a page that isn't on the board answers 404.
+      const [{ needs }, { profile }] = await Promise.all([api('/me/apply/needs'), api('/me/apply/profile')]);
+      const job = needs.find((n) => n.job_id === msg.job_id);
       let requeued = false;
-      if (done && done.job_id && !left.some((n) => n.job_id === done.job_id)) {
-        requeued = await api(`/me/apply/queue/${encodeURIComponent(done.job_id)}`, { method: 'PUT' }).then(() => true, () => false);
+      if (job && job.questions.every((q) => oojMatch.findAnswer(q, profile.answers) !== undefined)) {
+        requeued = await api(`/me/apply/queue/${encodeURIComponent(job.job_id)}`, { method: 'PUT' }).then(() => true, () => false);
       }
       reply({ ok: true, requeued });
     }, (e) => reply({ error: e.message || String(e) }));
@@ -863,6 +1060,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     fillTab(msg.tabId).catch(() => ({ error: "Couldn't fill in this page. Reload it and try again." })).then(reply);
     return true;
   }
-  if (msg.type === 'confirmedHere') { settleHere(sender.tab.id, 'submitted', '').then(() => reply({ ok: true })); return true; }
+  if (msg.type === 'startSubmit') {
+    startSubmit(msg, sender.tab.id).catch(() => ({ error: SERVER_GONE })).then(reply);
+    return true;
+  }
+  if (msg.type === 'settleHere') { settleHere(sender.tab.id, msg.result).then(() => reply({ ok: true })); return true; }
   return false;
 });

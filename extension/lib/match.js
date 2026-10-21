@@ -273,7 +273,8 @@
     const g = ctx.guardrails || {};
     const history = ctx.history || [];
     const mine = history.filter((h) => h.job_id === job.id);
-    if (mine.some((h) => h.status === 'submitted')) return 'already applied';
+    // Submission unconfirmed counts too: it is never retried (contract R5).
+    if (mine.some((h) => h.status === 'submitted' || h.status === 'unconfirmed')) return 'already applied';
     if (!ctx.retrySkipped && mine.length) return 'already tried';
     if (isBlocked(job.company_domain, g.blocked_companies)) return 'blocked company';
     const days = g.one_per_company_days;

@@ -43,7 +43,7 @@ await ctx.route("**/*", (r) => {
   if (u.hostname === "careers.example.test") return r.fulfill({ contentType: "text/html", body: u.pathname === "/apply" ? FORM : PLAIN });
   if (u.hostname === "oceanofjobs.com") {
     if (u.pathname === "/api/me/apply/profile") return r.fulfill({ json: { profile, preferences: { skills: [] } } });
-    if (u.pathname === "/api/me/apply/usage") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
+    if (u.pathname === "/api/me/apply/usage" || u.pathname === "/api/me/apply/summary") return r.fulfill({ json: { plan: "pro", period: "day", limit: 50, used: 0, remaining: 50 } });
     if (u.pathname === "/api/me/apply/history") return r.fulfill({ json: { applied: [] } });
     // The AI drafts the "why" question and declines the clearance number,
     // so one field is suggested and one stays required and empty.

@@ -40,7 +40,7 @@ await ctx.route("**/*", async (r) => {
     const p = u.pathname, m = req.method();
     calls.push(`${m} ${p}${p === "/api/jobs" ? u.search : ""}`);
     if (p === "/api/me/apply/profile") return r.fulfill({ json: { profile: state.profile, preferences: { skills: ["Python"] } } });
-    if (p === "/api/me/apply/usage") return r.fulfill({ json: { plan: state.plan, period: "day", limit: 50, used: 0, remaining: 50 } });
+    if (p === "/api/me/apply/usage" || p === "/api/me/apply/summary") return r.fulfill({ json: { plan: state.plan, period: "day", limit: 50, used: 0, remaining: 50 } });
     if (p === "/api/me/apply/history") return r.fulfill({ json: { applied: state.history } });
     if (p === "/api/me/apply/queue" && m === "GET") return r.fulfill({ json: { queue: state.queue } });
     if (p.startsWith("/api/me/apply/queue/") && m === "DELETE") {

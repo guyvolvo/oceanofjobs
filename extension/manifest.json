@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ocean of Jobs",
-  "version": "1.8.92",
+  "version": "1.9.0",
   "description": "Fills in job applications using your Ocean of Jobs profile. Supports automatic submission on Greenhouse, Ashby, and Workable.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -73,6 +73,7 @@
     "https://api.anthropic.com/*",
     "https://api.openai.com/*"
   ],
+  "externally_connectable": { "matches": ["https://oceanofjobs.com/*"] },
   "content_scripts": [
     {
       "matches": [

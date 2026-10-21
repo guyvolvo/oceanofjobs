@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const ACCOUNT = 'https://oceanofjobs.com/account#autoapply';
+const ACCOUNT = 'https://oceanofjobs.com/apply';
 const { plural, reasonText, filledText } = oojMatch;
 
 for (const a of document.querySelectorAll('.open-options')) {
@@ -134,7 +134,7 @@ function render(s) {
     const li = document.createElement('li');
     li.className = 'need-job';
     const a = document.createElement('a');
-    a.href = n.job_id ? `https://oceanofjobs.com/job/${encodeURIComponent(n.job_id)}` : n.url || '#';
+    a.href = n.link || '#';
     a.target = '_blank';
     a.rel = 'noopener';
     a.textContent = [n.title, n.company].filter(Boolean).join(' · ') || 'A job';
@@ -158,7 +158,7 @@ function render(s) {
       e.preventDefault();
       if (!input.value.trim()) return input.focus();
       save.disabled = true;
-      const r = await chrome.runtime.sendMessage({ type: 'answer', question: n.question, answer: input.value.trim() });
+      const r = await chrome.runtime.sendMessage({ type: 'answer', question: n.question, answer: input.value.trim(), job_id: n.job_id });
       if (r && r.ok) return render(await chrome.runtime.sendMessage({ type: 'status' }));
       save.disabled = false;
       save.textContent = 'Try again';
