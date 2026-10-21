@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ocean of Jobs",
-  "version": "1.9.5",
+  "version": "1.9.6",
   "description": "Fills in job applications using your Ocean of Jobs profile. Supports automatic submission on Greenhouse, Ashby, and Workable.",
   "icons": {
     "16": "icons/icon-16.png",
