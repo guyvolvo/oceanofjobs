@@ -47,6 +47,7 @@ import job_page
 import page_chrome
 import ai_answers
 import apply
+import attempts
 import paddle
 import tokens
 from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
@@ -730,6 +731,51 @@ def _history_view(rows: list[dict]) -> list[dict]:
     return out
 
 
+# Refusals from api/attempts.py: (status, code, retryable). The extension
+# reads the code. "expired" (410) means the reservation is gone and it must
+# not submit; any other failure to reach the server, or a 5xx, is transient
+# and the same request may be repeated, since every call is idempotent.
+_ATTEMPT_REFUSALS = [
+    (attempts.NotFound, 404, "not_found"), (attempts.Expired, 410, "expired"), (attempts.NotEligible, 409, "not_eligible"),
+    (attempts.LimitReached, 402, "limit_reached"), (attempts.JobTaken, 409, "job_taken"),
+    (attempts.NotDisputable, 409, "not_disputable"), (attempts.Conflict, 409, "conflict"), (ValueError, 400, "invalid"),
+]
+
+
+def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict:
+    """/api/me/apply/attempts: api/AUTO_APPLY_CONTRACT.md as routes. Every
+    operation is under the caller's own user id, so another user's attempt
+    is simply not found. No client uses these yet."""
+    A = attempts.Attempts(_alerts_table)
+    parts = sub.split("/")
+    attempt_id = parts[1] if len(parts) > 1 else ""
+    action = parts[2] if len(parts) > 2 else ""
+    op = action or ("reserve" if method == "POST" else "get")
+    try:
+        if len(parts) == 1 and method == "POST":
+            return ok(200, {"attempt": A.reserve(user_id, str(body.get("attempt_id") or ""), body, tz=body.get("tz"))})
+        if len(parts) == 2 and method == "GET":
+            row = A._get(user_id, attempts.ATTEMPT + attempt_id)
+            if not row:
+                raise attempts.NotFound("no such attempt")
+            return ok(200, {"attempt": A.view(row)})
+        if len(parts) == 3 and method == "POST":
+            if action == "submission-started":
+                return ok(200, {"attempt": A.submission_started(user_id, attempt_id), "submit": True})
+            if action == "settle":
+                return ok(200, {"attempt": A.settle(user_id, attempt_id, str(body.get("outcome") or ""), str(body.get("reason") or ""))})
+            if action == "dispute":
+                return ok(200, {"attempt": A.dispute(user_id, attempt_id, tz=body.get("tz"))})
+        return ok(404, {"error": "no such route", "code": "not_found", "retryable": False})
+    except tuple(e for e, _, _ in _ATTEMPT_REFUSALS) as e:
+        status, code = next((s, c) for cls, s, c in _ATTEMPT_REFUSALS if isinstance(e, cls))
+        attempts.log("refused", user_id, attempt_id, f"op={op} code={code}")
+        return ok(status, {"error": str(e), "code": code, "retryable": False})
+    except Exception as e:  # noqa: BLE001
+        attempts.log("error", user_id, attempt_id, f"op={op} {type(e).__name__}")
+        return ok(503, {"error": "Couldn't record that. Try the same request again.", "code": "unavailable", "retryable": True})
+
+
 def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) -> dict:
     """/api/me/apply/*: automatic applications (apply.py). Used by the
     account page with the user's session, by the browser extension
@@ -747,9 +793,12 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         # Account deletion: the profile, the applied history and the queue.
         rows = _alerts_table.query(KeyConditionExpression=Key("user_id").eq(user_id)).get("Items", [])
         for r in rows:
-            if r["alert_id"] == apply.PROFILE_ROW or r["alert_id"].startswith((apply.APPLIED, apply.QUEUE)):
+            if r["alert_id"] == apply.PROFILE_ROW or r["alert_id"].startswith(
+                    (apply.APPLIED, apply.QUEUE, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY)):
                 _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
         return ok(204)
+    if sub == "attempts" or sub.startswith("attempts/"):
+        return _route_attempts(user_id, method, sub, body, ok)
     if sub == "profile":
         if method == "GET":
             prefs = route_get_profile(user_id).get("profile") or {}

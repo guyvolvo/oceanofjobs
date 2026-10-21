@@ -20,6 +20,7 @@ its job lock, conditioned on the attempt's current state, so a repeated or
 racing request can't charge, release or refund twice.
 """
 
+import hashlib
 import re
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -64,6 +65,16 @@ class Conflict(Exception):
     contract doesn't allow."""
 
 
+class NotFound(Exception):
+    """No attempt with this id for this user. Another user's attempt reads
+    the same: rows live under the caller's own user id."""
+
+
+class NotEligible(Conflict):
+    """Submission start for an attempt that is already settled or past
+    submission start: don't submit."""
+
+
 class LimitReached(Exception):
     pass
 
@@ -97,6 +108,20 @@ def periods(now: datetime, tz: str | None) -> tuple[str, str]:
     """(YYYY-MM, YYYY-MM-DD) of now in the user's time zone. R13."""
     local = now.astimezone(_zone(tz))
     return local.strftime("%Y-%m"), local.strftime("%Y-%m-%d")
+
+
+def billing_period(now: datetime, tz: str | None) -> str:
+    """The period the dispute allowance counts in (R12). The calendar month
+    in the user's time zone for now; the one place to change when it
+    follows Paddle's billing periods instead."""
+    return periods(now, tz)[0]
+
+
+def log(event: str, user_id: str, attempt_id: str = "", detail: str = "") -> None:
+    """One line for the box journal and Lambda logs. The user only as a
+    short hash, and never reasons, answers, CVs or tokens."""
+    who = hashlib.sha256(user_id.encode()).hexdigest()[:10]
+    print(f"attempts {event} user={who} attempt={attempt_id} {detail}".rstrip(), flush=True)
 
 
 def limits(table, user_id: str) -> tuple[int | None, int | None]:
@@ -209,11 +234,11 @@ class Attempts:
         now = _utc(now)
         a = self._get(user_id, ATTEMPT + attempt_id)
         if not a:
-            raise Conflict("no such attempt")
+            raise NotFound("no such attempt")
         if a["state"] == STARTED:
             return self.view(a)
         if a["state"] != RESERVED:
-            raise Conflict(f"an attempt that is {a['state']} can't start a submission")
+            raise NotEligible(f"an attempt that is {a['state']} can't start a submission")
         if a["expires_at"] <= now.isoformat():
             self.expire(user_id, now)
             raise Expired("the reservation expired; don't submit")
@@ -237,12 +262,16 @@ class Attempts:
 
     # R4 to R7, R10
     def settle(self, user_id: str, attempt_id: str, outcome: str, reason: str = "", now: datetime | None = None) -> dict:
+        return self._settle(user_id, attempt_id, outcome, reason, now)[0]
+
+    def _settle(self, user_id: str, attempt_id: str, outcome: str, reason: str, now: datetime | None) -> tuple[dict, bool]:
+        """(the attempt, whether this call changed it)."""
         now = _utc(now)
         a = self._get(user_id, ATTEMPT + attempt_id)
         if not a:
-            raise Conflict("no such attempt")
+            raise NotFound("no such attempt")
         if a["state"] == outcome:
-            return self.view(a)  # the same report again
+            return self.view(a), False  # the same report again
         effect = SETTLE.get((a["state"], outcome))
         if effect is None:
             raise Conflict(f"an attempt that is {a['state']} can't become {outcome}")
@@ -270,10 +299,11 @@ class Attempts:
         if reasons is not None:
             again = self._get(user_id, ATTEMPT + attempt_id)
             if again["state"] == a["state"]:
+                log("settle_failed", user_id, attempt_id, f"from={a['state']} to={outcome} reasons={reasons}")
                 raise RuntimeError(f"settlement failed: {reasons}")
-            return self.settle(user_id, attempt_id, outcome, reason, now)  # moved by a racing report: decide again
+            return self._settle(user_id, attempt_id, outcome, reason, now)  # moved by a racing report: decide again
         a.update(state=outcome, reason=reason, settled_at=now.isoformat())
-        return self.view(a)
+        return self.view(a), True
 
     # R9
     def expire(self, user_id: str, now: datetime | None = None) -> int:
@@ -285,15 +315,25 @@ class Attempts:
             if a["state"] in OPEN and a["expires_at"] <= now.isoformat():
                 to = ABANDONED if a["state"] == RESERVED else UNCONFIRMED
                 try:
-                    self.settle(user_id, a["attempt_id"], to, "expired", now)
-                    n += 1
+                    n += self._settle(user_id, a["attempt_id"], to, "expired", now)[1]
                 except Conflict:
                     pass  # settled by its own report meanwhile
+                except Exception as e:  # noqa: BLE001
+                    # Left open and still holding its credit, which can't
+                    # overspend; the next read or sweep tries again.
+                    log("expire_failed", user_id, a["attempt_id"], repr(e)[:200])
         return n
 
     def sweep(self, now: datetime | None = None) -> int:
         """Expiry for every user, for a periodic job, so it never depends
-        on a client calling in."""
+        on a client calling in. Safe to repeat and to overlap: every
+        settlement is conditioned on the attempt's state, so a second run
+        finds nothing left to do, and one user's failure doesn't stop the
+        others.
+
+        shortcut: a full table scan, fine while the alerts table is small
+        (50 items, 57KB on 2026-10-21); past about 100k items, give open
+        attempts a sparse index and query that instead."""
         now = _utc(now)
         users, kw = set(), {"FilterExpression": "begins_with(alert_id, :p) AND #s IN (:r, :st) AND expires_at <= :t",
                             "ExpressionAttributeNames": {"#s": "state"},
@@ -305,21 +345,27 @@ class Attempts:
             if "LastEvaluatedKey" not in page:
                 break
             kw["ExclusiveStartKey"] = page["LastEvaluatedKey"]
-        return sum(self.expire(u, now) for u in users)
+        settled = 0
+        for u in users:
+            try:
+                settled += self.expire(u, now)
+            except Exception as e:  # noqa: BLE001
+                log("sweep_user_failed", u, "", repr(e)[:200])
+        return settled
 
     # R12
     def dispute(self, user_id: str, attempt_id: str, now: datetime | None = None, tz: str | None = None) -> dict:
         now = _utc(now)
         a = self._get(user_id, ATTEMPT + attempt_id)
         if not a:
-            raise Conflict("no such attempt")
+            raise NotFound("no such attempt")
         if a["state"] == DISPUTED:
             return self.view(a)  # refunded once already; a repeat refunds nothing
         if a["state"] != UNCONFIRMED:
             raise NotDisputable("only a submission that wasn't confirmed can be disputed")
         if now - datetime.fromisoformat(a["settled_at"]) > DISPUTE_WINDOW:
             raise NotDisputable("the 14 days to dispute this have passed")
-        billing = periods(now, tz or a.get("tz"))[0]
+        billing = billing_period(now, tz or a.get("tz"))
         items = [
             {"Update": {"TableName": self.name, "Key": self._key(user_id, ATTEMPT + attempt_id),
                         "UpdateExpression": "SET #s = :to, refunded_at = :t, audit = list_append(audit, :ev)",

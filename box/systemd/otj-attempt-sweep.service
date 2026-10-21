@@ -1,0 +1,10 @@
+[Unit]
+Description=Ocean of Jobs: settle expired application reservations (box/attempt_sweep.py)
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/srv/otj/app
+EnvironmentFile=/etc/otj-api.env
+ExecStart=/srv/otj/venv/bin/python box/attempt_sweep.py
+Nice=10
+TimeoutStartSec=4min

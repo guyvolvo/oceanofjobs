@@ -166,7 +166,7 @@ status, _ = call("/api/me/apply/usage", auth=live)
 check("an MCP token cannot reach the auto-apply routes", status.startswith("403"), status)
 status, body = call("/api/me/apply/queue", auth=live)
 check("an MCP token reads the auto-apply queue", status.startswith("200") and b'"queue"' in body, status)
-for path in ("/api/me/apply/profile", "/api/me/apply/queuex"):
+for path in ("/api/me/apply/profile", "/api/me/apply/queuex", "/api/me/apply/attempts"):
     status, _ = call(path, auth=live)
     check(f"but not {path}", status.startswith("403"), status)
 status, body = call("/api/me/apply/queue/0123456789abcdef", "PUT", live)
