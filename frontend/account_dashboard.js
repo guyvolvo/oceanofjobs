@@ -278,7 +278,7 @@
     host.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", async () => {
       if (draft.skills.length >= MAX_SKILLS) {
         note.hidden = false;
-        note.innerHTML = `Your profile holds its full ${MAX_SKILLS} skills. Take one out in <a href="#skills">Skills</a> to add <b>${esc(b.dataset.add)}</b>.`;
+        note.innerHTML = `You have the maximum of ${MAX_SKILLS} skills. Remove one in <a href="#skills">Skills</a> to add <b>${esc(b.dataset.add)}</b>.`;
         return;
       }
       b.disabled = true;
@@ -291,6 +291,8 @@
       } catch {
         draft.skills = draft.skills.filter((sk) => sk !== b.dataset.add);
         b.disabled = false;
+        note.hidden = false;
+        note.textContent = "Couldn't add that skill. Try again.";
       }
     }));
   }
@@ -456,7 +458,7 @@
       const text = document.getElementById("acct-getmatched-text");
       const n = (draft.skills || []).length;
       if (text) text.textContent = n
-        ? `Your ${n} skill${n === 1 ? "" : "s"} don't match any open roles yet. Upload a newer CV or widen your locations to see matches and salary estimates.`
+        ? `Your ${n} skill${n === 1 ? "" : "s"} don't match any open jobs yet. Add skills from a newer CV or widen your locations to see matches and salary estimates.`
         : "Add your skills from a CV, or widen your locations, to see matches and salary estimates.";
     }
     // The best-matches list reads the same answer, so the page does not

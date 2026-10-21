@@ -11,19 +11,19 @@
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Account | Ocean of Jobs</title>
-  <meta name="description" content="Your saved alerts, the skills you want matched, and what we store about you." />
+  <meta name="description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
   <!-- Link preview, same card as the board: a pasted link to any page
        shows the site, not a blank. Absolute URLs, for crawlers. -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/account" />
   <meta property="og:title" content="Account | Ocean of Jobs" />
-  <meta property="og:description" content="Your saved alerts, the skills you want matched, and what we store about you." />
+  <meta property="og:description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
   <meta property="og:image" content="https://oceanofjobs.com/og.jpg?v=3" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Account | Ocean of Jobs" />
-  <meta name="twitter:description" content="Your saved alerts, the skills you want matched, and what we store about you." />
+  <meta name="twitter:description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
   <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
   <!-- No og: tags and noindex: this page is only meaningful signed in,
        and a shared link to it would show a stranger their own empty
@@ -132,9 +132,9 @@
               <span class="acct-id-email" id="account-email" hidden></span>
             </div>
             <div class="acct-hero-actions">
-              <a class="btn" href="#skills" data-cv-upload><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Upload CV</a>
+              <a class="btn" href="#skills" data-cv-upload><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Add skills from a CV</a>
               <button type="button" class="btn" data-alert-form><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>New alert</button>
-              <a class="btn primary" id="acct-open-matches" href="/board?view=matches">Open best matches<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+              <a class="btn primary" id="acct-open-matches" href="/board?view=matches">See best matches<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
               <span class="acct-provider" id="account-provider" hidden></span>
               <button type="button" class="btn ghost acct-signout" id="acct-hero-signout">Log out</button>
             </div>
@@ -185,7 +185,7 @@
                 <h3 class="acct-getmatched-title">Get matched to jobs</h3>
                 <p class="acct-getmatched-text" id="acct-getmatched-text">Add your skills or widen your locations to see matches and salary estimates.</p>
                 <div class="acct-getmatched-actions">
-                  <a class="btn" href="#skills"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>Upload CV</a>
+                  <a class="btn" href="#skills"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>Add skills from a CV</a>
                   <a class="btn ghost" href="#preferences">Edit locations</a>
                 </div>
               </section>
@@ -245,7 +245,7 @@
               <div class="cv-drop" id="cv-drop">
                 <input type="file" id="cv-file" accept=".pdf,.txt,.md,application/pdf,text/plain" hidden />
                 <p class="cv-drop-lead">Drop a CV here</p>
-                <p class="cv-drop-sub">PDF or plain text</p>
+                <p class="cv-drop-sub">PDF or plain text. Read in your browser. Only the skills you save are stored.</p>
                 <button class="btn btn-small" id="cv-analyze" type="button">Choose a file</button>
                 <span class="cv-filename" id="cv-filename"></span>
               </div>
