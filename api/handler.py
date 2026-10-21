@@ -197,6 +197,17 @@ def route_company_page(domain: str):
         ORDER BY posted_at IS NULL, datetime(posted_at) DESC, datetime(first_seen) DESC, id
         LIMIT ?
         """, (domain, company_page.MAX_LISTED + 1)).fetchall()]
+    # The rows stop at MAX_LISTED + 1, so past that the page needs the
+    # real number (Domino's has 26,000). idx_jobs_open_facets carries
+    # company_domain, posted_at and closed_at, so the count walks it and
+    # reads no table rows. Named, so the planner cannot take an index
+    # without posted_at (idx_jobs_open_company) and read every row.
+    n_open = len(jobs)
+    if n_open > company_page.MAX_LISTED:
+        hint = " INDEXED BY idx_jobs_open_facets" if has_fts_index(conn).facets_index else ""
+        n_open = conn.execute(
+            f"SELECT COUNT(*) FROM jobs{hint} WHERE company_domain = ? AND closed_at IS NULL AND {FRESH_CLAUSE}",
+            (domain,)).fetchone()[0]
     total, since, closed = conn.execute(
         "SELECT COUNT(*), MIN(first_seen), SUM(closed_at IS NOT NULL) FROM jobs WHERE company_domain = ?", (domain,)).fetchone()
     last_open = None
@@ -214,7 +225,7 @@ def route_company_page(domain: str):
     # GROUP BY over the company's rows would read each one from the
     # table (Domino's has 26,000), for a line under the name.
     cats = Counter(j.get("category") for j in jobs if j.get("category"))
-    facts = {"total": total or 0, "since": (since or company.get("first_seen") or "")[:10], "last_open": last_open,
+    facts = {"open": n_open, "total": total or 0, "since":(since or company.get("first_seen") or "")[:10], "last_open": last_open,
              "closed": closed or 0, "new_7d": sum(1 for t in recent if t and t >= week_ago),
              "new_prev_7d": sum(1 for t in recent if t and two_weeks <= t < week_ago),
              "weeks": company_page.week_buckets(recent, now),
