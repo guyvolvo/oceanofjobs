@@ -43,7 +43,7 @@ FAQ = """
         <div class="price-faq">
           <div class="home-feature">
             <h3>What counts as an application?</h3>
-            <p>An application counts when the extension submits it. If the extension skips a job because, for example, a form asks a question you haven't answered, it won't count. Unused applications don't roll over to the next month.</p>
+            <p>An application counts when the extension submits it. If the site doesn't confirm it got the application, it still counts, and you can refund the credit within 14 days if it didn't go through. A form the extension fills in and you submit yourself doesn't count, and neither does a job it skips, for example because a form asks a question you haven't answered. Unused applications don't roll over to the next month.</p>
           </div>
           <div class="home-feature">
             <h3>Do I need an AI subscription?</h3>
