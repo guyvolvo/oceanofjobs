@@ -11,7 +11,7 @@ For example, to fetch the 10 newest open jobs in the United States:
 curl "https://oceanofjobs.com/api/jobs?country=US&limit=10"
 ```
 
-Endpoints under `/api/me` are different: they access your own account and require a sign-in token.
+Endpoints under `/api/me` work on your own account, so they need a token. Send the ID token you get from logging in on the site as `Authorization: Bearer <id_token>`. A personal access token, the `ooj_...` one from your account page, also works on `/api/me/saved` and `/api/me/apply/queue`.
 
 ## API reference
 
@@ -21,7 +21,7 @@ For code generation and client integrations, you can also use the [OpenAPI speci
 
 ## Rate limits and caching
 
-- Rate limit: 20 requests per second across all users, with bursts of up to 40. Exceeding the limit returns HTTP `429`.
+- Rate limit: 60 requests every 10 seconds from each address. Exceeding the limit returns HTTP `429`.
 - Bulk exports: To retrieve a large number of jobs, paginate through `/api/jobs?limit=500` sequentially rather than sending parallel requests.
 - Caching: Most GET endpoints are cached for 60 seconds in the browser and 180 seconds at the edge. `/api/pipeline-status` and `/api/geo` are not cached.
 - Cross-origin requests: GET and OPTIONS requests are allowed from any origin.
