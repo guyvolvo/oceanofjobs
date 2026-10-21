@@ -142,7 +142,7 @@ def head(title, description, canonical, robots=None, ld=None, og_type="article")
   <meta name="twitter:title" content="{esc(title)}" />
   <meta name="twitter:description" content="{esc(description)}" />
   <meta name="twitter:image" content="{CARD}" />
-  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="{SITE}/feed.xml" />
+  <link rel="alternate" type="application/rss+xml" title="Newest jobs on Ocean of Jobs" href="{SITE}/feed.xml" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
