@@ -245,6 +245,12 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
         request.uri = uri + ".html";
         return request;
       }
+      // Role pages, written with the sitemap (api/role_pages.py):
+      // /jobs -> jobs.html, /jobs/data-engineer/remote -> jobs/data-engineer/remote.html.
+      if ((uri === "/jobs" || uri.indexOf("/jobs/") === 0) && last.indexOf(".") === -1) {
+        request.uri = uri + ".html";
+        return request;
+      }
 
       // /account -> account.html on the way to S3, invisibly. Anything
       // with an extension is a real file (style.css, logo.png, the
