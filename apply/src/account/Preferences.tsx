@@ -72,7 +72,8 @@ export function Preferences({ profile, save, onEditing }: {
       </Card>
       <Card title="Alert settings">
         <PrefRow id="cadence" label="Alert intervals" summary={cadenceSummary({ ...profile, ...shown })} open={open === "cadence"} onToggle={() => toggle("cadence")}>
-          <Radio.Group legend="Alert intervals" value={draft.cadence} onValueChange={(v) => setDraft((d) => ({ ...d, cadence: v as Cadence }))}>
+          <Radio.Group value={draft.cadence} onValueChange={(v) => setDraft((d) => ({ ...d, cadence: v as Cadence }))}>
+            <Radio.Legend className="sr-only">Alert intervals</Radio.Legend>
             <Radio.Item value="instant" label="Instant" />
             <Radio.Item value="daily" label="Daily at" />
             <Radio.Item value="weekly" label="Weekly at" />

@@ -68,6 +68,10 @@ jobs:
           # The dashboard's pages load /auth.js from frontend/, so they are
           # stamped too; its own bundles are already content-hashed.
           sed -i -E "s#(src|href)=\"([^\":]+\.(js|css))\"#\1=\"\2?v=$v\"#g" frontend/*.html apply/dist/index.html apply/dist/account.html
+          # Not the bundles: Vite's loader finds its stylesheets by exact href,
+          # so a stamped one is loaded twice and the second copy overrides the
+          # account page's own CSS (seen live 2026-10-22).
+          sed -i -E "s#(/apply/assets/[^\"?]+)\?v=$v#\1#g" apply/dist/index.html apply/dist/account.html
           grep -n '?v=' frontend/*.html apply/dist/index.html apply/dist/account.html
 
       - name: Sync frontend/ to S3

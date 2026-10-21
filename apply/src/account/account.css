@@ -20,8 +20,8 @@
 .oj-error { margin: 0; color: var(--text-color-kumo-danger); }
 .oj-section-head { min-height: 32px; }
 
-/* Two cards side by side on a wide screen, stacked below 960px. */
-.oj-split { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+/* Two cards side by side on a wide screen, stacked below 960px; a row's cards share its height. */
+.oj-split { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 960px) { .oj-split { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
 .oj-split > * { min-width: 0; }
 
