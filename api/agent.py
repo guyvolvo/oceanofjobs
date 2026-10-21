@@ -115,7 +115,7 @@ def get(table, user_id: str, agent_id: str = DEFAULT_ID) -> dict:
     row = table.get_item(Key={"user_id": user_id, "alert_id": AGENT + agent_id}, ConsistentRead=True).get("Item")
     agent = {k: row[k] for k in defaults()} if row else defaults()
     agent["version"] = int(agent["version"])
-    return {**agent, "editable": apply.plan_of(table, user_id) in ai_answers.CAPS}
+    return {**agent, "editable": apply.plan_of(table, user_id) in ai_answers.CAPS, "resume": resume_view(get_resume(table, user_id, agent_id))}
 
 
 def put(table, user_id: str, body: dict, now: datetime | None = None, agent_id: str = DEFAULT_ID) -> dict:
@@ -429,3 +429,48 @@ def check_motivation(text: str, posting: str, company: str = "") -> str:
     if len(shared) < 2:
         raise Refused("the draft didn't say anything specific from the job posting")
     return text
+
+
+# The user's resume, as text. /apply reads the file in the browser and sends
+# only its text; the file never reaches us. Saved only after the user ticks
+# the box agreeing to the privacy policy, and that consent is kept with it.
+# The model gets the first RESUME_PROMPT characters as facts (ai_answers).
+RESUME = "#agent_resume#"
+MAX_RESUME, RESUME_PROMPT = 8000, 6000
+RESUME_TYPES = (".pdf", ".docx", ".md")
+PRIVACY_VERSION = "2026-10-21"  # the privacy page that describes this
+
+
+def get_resume(table, user_id: str, agent_id: str = DEFAULT_ID) -> dict | None:
+    return table.get_item(Key={"user_id": user_id, "alert_id": RESUME + agent_id}).get("Item")
+
+
+def resume_view(row: dict | None) -> dict | None:
+    """What /apply shows about it: never the text."""
+    if not row:
+        return None
+    return {"name": row["name"], "chars": int(row["chars"]), "truncated": bool(row.get("truncated")), "uploaded_at": row["uploaded_at"]}
+
+
+def put_resume(table, user_id: str, body: dict, now: datetime | None = None, agent_id: str = DEFAULT_ID) -> dict:
+    now = now or datetime.now(timezone.utc)
+    body = body if isinstance(body, dict) else {}
+    if apply.plan_of(table, user_id) not in ai_answers.CAPS:
+        raise NotIncluded("Your own AI agent is part of Basic and Pro")
+    if body.get("consent") is not True:
+        raise ValueError("Agree to the privacy policy to add your resume")
+    name = str(body.get("name") or "").strip()[:200]
+    if not name.lower().endswith(RESUME_TYPES):
+        raise ValueError("Add a PDF, DOCX or Markdown file")
+    text = re.sub(r"[ \t]+", " ", re.sub(r"\n{3,}", "\n\n", str(body.get("text") or ""))).strip()
+    if len(text) < 50:
+        raise ValueError("No text could be read from that file")
+    row = {"user_id": user_id, "alert_id": RESUME + agent_id, "name": name, "text": text[:MAX_RESUME], "chars": min(len(text), MAX_RESUME),
+           "truncated": len(text) > MAX_RESUME, "uploaded_at": now.isoformat(), "consent_at": now.isoformat(),
+           "consent_version": PRIVACY_VERSION}
+    table.put_item(Item=row)
+    return resume_view(row)
+
+
+def delete_resume(table, user_id: str, agent_id: str = DEFAULT_ID) -> None:
+    table.delete_item(Key={"user_id": user_id, "alert_id": RESUME + agent_id})

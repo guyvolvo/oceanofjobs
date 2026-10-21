@@ -2,16 +2,17 @@
 // sound, facts it may use, fixed answers to common questions, what it must
 // never claim, and whether new AI answers wait for the user. The server
 // enforces every rule here; the checks below only name the field.
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Input, InputArea } from "@cloudflare/kumo/components/input";
 import { Select } from "@cloudflare/kumo/components/select";
 import { Radio } from "@cloudflare/kumo/components/radio";
+import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Banner } from "@cloudflare/kumo/components/banner";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { Info, Plus, WarningCircle } from "@phosphor-icons/react";
+import { FileArrowUp, Info, Plus, WarningCircle } from "@phosphor-icons/react";
 import { apply, send, ApiError } from "./api";
 import { ConfirmDanger } from "./shared";
 
@@ -25,9 +26,11 @@ type AgentData = {
   never_claim: string[];
   review: "pause" | "use";
   editable: boolean;
+  resume: Resume;
 };
+type Resume = { name: string; chars: number; truncated: boolean; uploaded_at: string } | null;
 type Row = { key: number; text: string };
-type Form = Omit<AgentData, "facts" | "never_claim" | "editable"> & { facts: Row[]; never: Row[] };
+type Form = Omit<AgentData, "facts" | "never_claim" | "editable" | "resume"> & { facts: Row[]; never: Row[] };
 
 // Questions the agent recognises, in the words forms use. "Why" questions
 // are about one company or role, so they can't have one fixed answer.
@@ -93,6 +96,92 @@ function List({ items, onChange, max, limit, label, placeholder, area }: {
   );
 }
 
+// A resume's text, read here in the browser: the file itself is never sent.
+// PDFs through the site's own pdf.js and cv_skills.js (as the account page
+// reads CVs), DOCX through mammoth, Markdown as it is.
+const loadScript = (src: string) => new Promise<void>((resolve, reject) => {
+  if (document.querySelector(`script[src="${src}"]`)) return resolve();
+  const el = Object.assign(document.createElement("script"), { src, onload: () => resolve(), onerror: () => reject(new Error(src)) });
+  document.head.append(el);
+});
+
+async function readResume(file: File): Promise<string> {
+  const ext = file.name.toLowerCase().split(".").pop();
+  if (ext === "md") return file.text();
+  if (ext === "docx") {
+    const mammoth = await import("mammoth");
+    return (await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })).value;
+  }
+  if (ext === "pdf") {
+    const url = "/vendor/pdfjs/pdf.min.mjs";
+    const pdfjs = await import(/* @vite-ignore */ url);
+    pdfjs.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.mjs";
+    await loadScript("/cv_skills.js");
+    const cv = (window as unknown as { CvSkills: { textFromPdf: (p: unknown, d: Uint8Array) => Promise<string> } }).CvSkills;
+    return cv.textFromPdf(pdfjs, new Uint8Array(await file.arrayBuffer()));
+  }
+  throw new Error(ext === "doc" ? "Save it as a .docx file first, then add it." : "Add a PDF, DOCX or Markdown file.");
+}
+
+function ResumeField({ resume, editable, onChange }: { resume: Resume; editable: boolean; onChange: (r: Resume) => void }) {
+  const toasts = useKumoToastManager();
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const add = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const text = await readResume(file);
+      const r = await apply<{ resume: Resume }>("agent/resume", send("PUT", { name: file.name, text, consent: true }));
+      onChange(r.resume);
+      toasts.add({ variant: "success", title: "Resume added", description: "The AI can now answer from it." });
+    } catch (e) {
+      toasts.add({ variant: "error", title: "Couldn't add your resume", description: e instanceof Error && e.message ? e.message : "Try again." });
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await apply("agent/resume", send("DELETE"));
+      onChange(null);
+      setAgree(false);
+      toasts.add({ variant: "success", title: "Resume removed" });
+    } catch {
+      toasts.add({ variant: "error", title: "Couldn't remove your resume", description: "Try again." });
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (resume) {
+    return (
+      <div className="oj-answer oj-row oj-row-between">
+        <div>
+          <span className="oj-job">{resume.name}</span>
+          <span className="oj-sub">
+            {resume.chars.toLocaleString()} characters{resume.truncated ? ", the first 8,000 kept" : ""} · added {new Date(resume.uploaded_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+          </span>
+        </div>
+        <Button size="sm" variant="secondary" loading={busy} disabled={!editable} onClick={remove}>Remove</Button>
+      </div>
+    );
+  }
+  return (
+    <div className="oj-answer">
+      <Checkbox checked={agree} disabled={!editable} onCheckedChange={(c) => setAgree(c === true)}
+        label={<>I agree to the <a className="oj-link" href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>. My resume's text is saved to my account so the AI can answer from it.</>} />
+      <div className="oj-row">
+        <Button variant="secondary" icon={<FileArrowUp />} loading={busy} disabled={!editable || !agree} onClick={() => input.current?.click()}>Add resume</Button>
+        <span className="oj-note">PDF, DOCX or Markdown</span>
+      </div>
+      <input ref={input} type="file" accept=".pdf,.docx,.md" hidden onChange={(e) => add(e.target.files?.[0])} />
+    </div>
+  );
+}
+
 function TryIt({ editable }: { editable: boolean }) {
   const [question, setQuestion] = useState("");
   const [job, setJob] = useState("");
@@ -144,6 +233,7 @@ export function Agent() {
   const toasts = useKumoToastManager();
   const [form, setForm] = useState<Form | null>(null);
   const [editable, setEditable] = useState(false);
+  const [resume, setResume] = useState<Resume>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -152,7 +242,8 @@ export function Agent() {
   const load = useCallback(() => {
     setLoadFailed(false);
     setConflict(false);
-    apply<{ agent: AgentData }>("agent").then((r) => { setForm(toForm(r.agent)); setEditable(r.agent.editable); }).catch(() => setLoadFailed(true));
+    apply<{ agent: AgentData }>("agent").then((r) => { setForm(toForm(r.agent)); setEditable(r.agent.editable); setResume(r.agent.resume); })
+      .catch(() => setLoadFailed(true));
   }, []);
   useEffect(load, [load]);
 
@@ -211,6 +302,7 @@ export function Agent() {
 
           <Card title="About you" note={["Add facts the AI can use when answering questions. Only include things that are true. For example: \"I led a team of five engineers at Acme from 2021 to 2024.\"",
             <>Salary, notice period, work authorization, and location are managed in <a className="oj-link" href="#settings">Settings</a>.</>]}>
+            <ResumeField resume={resume} editable={editable} onChange={setResume} />
             <List items={form.facts} onChange={(r) => set("facts", r)} max={LIMITS.facts} limit={LIMITS.fact} label="Fact" area
               placeholder="A fact about your experience" />
           </Card>

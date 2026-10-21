@@ -297,6 +297,9 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     if used >= CAPS[plan]:
         raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.")
     known = facts(profile, prefs)
+    resume = agent.get_resume(table, user_id)
+    if resume:
+        known["resume"] = resume["text"][:agent.RESUME_PROMPT]
     job_text = f"Job: {job_line or 'not given'}{f' ({where})' if where else ''}"
     # A yes/no or choice answer must quote the fact it rests on. Without
     # one the model answered "No" to "Do you hold a security clearance?" and

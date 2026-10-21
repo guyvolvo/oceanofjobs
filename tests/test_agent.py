@@ -159,6 +159,40 @@ with mock_aws():
     check("a language that isn't offered is refused", refused(lambda: agent.put(table, "u", {**agent.get(table, "u"), "style": {"language": "klingon"}}),
                                                            says="style.language"))
 
+    # The resume: its text, kept only with consent; never the file, never shown back.
+    import ai_answers  # noqa: E402
+    text = "Dana Example\nData engineer. Led a team of five at Acme 2021-2024. Built a Kafka pipeline for 2 billion events a day."
+    s, b = call("PUT", "agent/resume", {"name": "dana.pdf", "text": text})
+    check("without the privacy box ticked, nothing is saved", s == 400 and "privacy policy" in b["error"] and not agent.get_resume(table, "u"))
+    s, b = call("PUT", "agent/resume", {"name": "dana.doc", "text": text, "consent": True})
+    check("a .doc file is refused", s == 400 and "PDF, DOCX or Markdown" in b["error"])
+    s, b = call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True}, token_use="ooj")
+    check("the extension can't add one", s == 403)
+    s, b = call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True})
+    row = agent.get_resume(table, "u")
+    check("with consent the text is saved, with when and which policy was agreed to", s == 200 and row["text"] == text
+          and row["consent_version"] == agent.PRIVACY_VERSION and row["consent_at"], repr(row))
+    check("the page sees its name and size, not its text", agent.get(table, "u")["resume"] == {**b["resume"], "name": "dana.pdf"}
+          and "text" not in b["resume"], repr(b))
+    s, b = call("PUT", "agent/resume", {"name": "long.md", "text": "x " * 6000, "consent": True})
+    check("a long resume is kept to 8,000 characters and says so", b["resume"]["chars"] == 8000 and b["resume"]["truncated"] is True)
+    call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True})
+    seen = []
+
+    def model(messages):
+        seen.append(messages)
+        return "Yes | Built a Kafka pipeline for 2 billion events a day", 500, 20
+    ai_answers.PER_MINUTE = 10**6
+    out = ai_answers.draft(table, "u", {"question": "Do you have experience with Kafka?", "options": ["Yes", "No"]}, {}, run=model,
+                           report=lambda total: None)
+    check("the AI gets the resume as facts and can cite it", out["answer"] == "Yes" and "Built a Kafka pipeline" in seen[-1][1]["content"])
+    s, _ = call("DELETE", "agent/resume")
+    check("removing it deletes the text", s == 204 and agent.get_resume(table, "u") is None and agent.get(table, "u")["resume"] is None)
+    call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True})
+    handler.route_apply("u", "DELETE", "", {"body": ""}, {})
+    left = [i["alert_id"] for i in table.scan()["Items"] if i["user_id"] == "u" and i["alert_id"].startswith(("#agent", "#ai_rate"))]
+    check("deleting the account deletes the agent and the resume", left == [], repr(left))
+
 print()
 if failures:
     print("%d failed:" % len(failures))

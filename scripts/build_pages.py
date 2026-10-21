@@ -51,7 +51,7 @@ FAQ = """
           </div>
           <div class="home-feature">
             <h3>Where is my CV stored?</h3>
-            <p>Your CV file stays in the browser extension on your device and is sent to the employer when you apply. Your profile and saved answers are stored in your Ocean of Jobs account, so you can access them from another computer.</p>
+            <p>Your CV file stays in the browser extension on your device and is sent to the employer when you apply. If you add your resume to your AI agent, its text (not the file) is saved to your account so the AI can answer from it, and you can remove it at any time. Your profile and saved answers are stored in your Ocean of Jobs account, so you can access them from another computer.</p>
           </div>
           <div class="home-feature">
             <h3>Can I cancel or get a refund?</h3>

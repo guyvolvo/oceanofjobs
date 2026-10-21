@@ -801,7 +801,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         rows = _alerts_table.query(KeyConditionExpression=Key("user_id").eq(user_id)).get("Items", [])
         for r in rows:
             if r["alert_id"] == apply.PROFILE_ROW or r["alert_id"].startswith(
-                    (apply.APPLIED, apply.QUEUE, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY)):
+                    (apply.APPLIED, apply.QUEUE, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY,
+                     agent.AGENT, agent.RESUME, ai_answers.RATE_ROW)):
                 _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
         return ok(204)
     if sub == "attempts" or sub.startswith("attempts/"):
@@ -819,6 +820,19 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
                             "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
         if method == "PUT":
             return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, body.get("profile") or {})})
+    if sub == "agent/resume" and method in ("PUT", "DELETE"):
+        # Added or removed only from /apply with a signed-in session.
+        if event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("token_use") == "ooj":
+            return ok(403, {"error": "Your resume is added on your Auto apply page", "code": "forbidden"})
+        if method == "DELETE":
+            agent.delete_resume(_alerts_table, user_id)
+            return ok(204)
+        try:
+            return ok(200, {"resume": agent.put_resume(_alerts_table, user_id, body)})
+        except agent.NotIncluded as e:
+            return ok(402, {"error": str(e), "code": "not_included"})
+        except ValueError as e:
+            return ok(400, {"error": str(e), "code": "invalid"})
     if sub == "agent":
         token_use = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("token_use")
         if method == "GET":
