@@ -336,40 +336,56 @@
     'No application form on this page.': 'No application form found on this page.',
     'A CAPTCHA stands in front of the form. Solve it, then try again.': 'Complete the CAPTCHA, then try again.',
     'application form not found': "Couldn't find the application form.",
-    'not on the page': "The application form isn't available on this page.",
+    'not on the page': "This field isn't on the page.",
     'job closed': 'This job is no longer accepting applications.',
     'job not found': "Couldn't find this job listing.",
-    'no options to pick from': 'No matching option was available.',
+    'page did not load': "The application page didn't load.",
+    'submit button not found': "Couldn't find the Submit button. Submit the form yourself.",
+    'no options to pick from': 'The list had no options to choose from.',
     'no dropdown on the page': "Couldn't find the dropdown for this question.",
     'no input to type into': "Couldn't find the field for this answer.",
     'no phone box on the page': "Couldn't find the phone number field.",
-    'the phone country did not stick': "Couldn't set the phone country. Please check it manually.",
+    'the phone country did not stick': "Couldn't set the phone country. Check it yourself.",
     'no file input': "Couldn't find the file upload field.",
-    'needs a date': 'Enter the required date manually.',
-    'sections like this one are not filled': 'This section needs to be completed manually.',
+    'needs a date': 'Enter the required date yourself.',
+    'sections like this one are not filled': 'Fill in this section yourself.',
     'no CV saved in the extension': 'Add your CV in extension settings, then try again.',
-    captcha: 'Complete the CAPTCHA before submitting.',
-    'no confirmation after submitting': "We couldn't confirm that the application was submitted. Check the page.",
-    'no confirmation': "We couldn't confirm that the application was submitted. Check the page.",
+    captcha: 'The site asked for a CAPTCHA.',
+    'no confirmation after submitting': "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
+    'no confirmation': "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
     'Greenhouse asked for an email security code': 'Greenhouse sent an email security code. Enter it on the page to continue.',
-    'unsupported site': "This site isn't supported for applications yet.",
+    'unsupported site': "Can't apply automatically on this site. Open the job to fill it in yourself.",
+    'blocked company': 'This company is on your Never apply to list.',
+    'applied to this company recently': 'You applied to this company recently.',
+    'already applied': "You've already applied to this job.",
+    'tab closed': 'The tab was closed before the site confirmed the application.',
+    'not submitted': 'The tab was closed before the application was sent.',
   };
   const PREFIXES = [
     ['form errors: ', 'The form needs your attention: '],
     ['Ashby will not take this application: ', "Ashby couldn't submit this application: "],
-    ['needs answer: ', 'Answer this question before continuing: '],
+    ['needs answer: ', 'Needs your answer: '],
   ];
+
+  // One reason's own wording, or null when it has none.
+  function wording(r) {
+    if (REASONS[r]) return REASONS[r];
+    for (const [code, text] of PREFIXES) if (r.startsWith(code)) return text + r.slice(code.length);
+    const opt = /^no option matches (".*")$/.exec(r);
+    return opt ? `None of the options match ${opt[1]}.` : null;
+  }
 
   // An internal reason as the popup, the card and the application history
   // show it. A field's own reason keeps its label ("Country: ..."), and a
   // reason with no wording of its own comes back unchanged.
   function reasonText(reason) {
     const r = String(reason == null ? '' : reason);
-    if (REASONS[r]) return REASONS[r];
-    for (const [code, text] of PREFIXES) if (r.startsWith(code)) return text + r.slice(code.length);
+    const own = wording(r);
+    if (own) return own;
     if (r.startsWith('could not fill ')) return "Couldn't fill in " + r.slice(15).split('; ').map(reasonText).join('; ');
     const field = /^(.+): ([^:]+)$/.exec(r);
-    return field && REASONS[field[2]] ? `${field[1]}: ${REASONS[field[2]]}` : r;
+    const text = field && wording(field[2]);
+    return text ? `${field[1]}: ${text}` : r;
   }
 
   // What a fill did, for the popup and the card. Counts of zero are left out.

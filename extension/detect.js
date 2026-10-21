@@ -278,7 +278,7 @@
       go.textContent = 'Submitting…';
       if (!(await ats.submit())) {
         msg.className = 'msg warn';
-        msg.textContent = "Couldn't find the Submit button. Submit the application using the form.";
+        msg.textContent = reasonText('submit button not found');
         go.hidden = true;
         return;
       }

@@ -204,7 +204,8 @@ def claim(table, user_id: str, body: dict, now: datetime | None = None) -> dict:
         raise AlreadyApplied("already applied to this job")
     u = usage(table, user_id, now)
     if u["remaining"] <= 0:
-        raise LimitReached(f"your {u['plan']} plan's {u['limit']} applications a {u['period']} are used")
+        when = "this month" if u["period"] == "month" else "today"
+        raise LimitReached(f"You've used all {u['limit']} applications on the {u['plan'].capitalize()} plan {when}.")
     table.put_item(Item={"user_id": user_id, "alert_id": APPLIED + job_id, "job_id": job_id,
                          "company": _text(body.get("company"), 200), "title": _text(body.get("title"), 300),
                          "url": _text(body.get("url"), 1000), "status": "claimed", "reason": "",
@@ -230,44 +231,66 @@ def result(table, user_id: str, body: dict, now: datetime | None = None) -> None
 # The extension's internal reason codes as the owner's copy words them
 # (extension/lib/match.js reasonText); older history rows still hold codes.
 _REASONS = {
-    "no confirmation after submitting": "We couldn't confirm that the application was submitted. Check the page.",
-    "no confirmation": "We couldn't confirm that the application was submitted. Check the page.",
+    "no application form on this page.": "No application form found on this page.",
+    "a captcha stands in front of the form. solve it, then try again.": "Complete the CAPTCHA, then try again.",
+    "no confirmation after submitting": "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
+    "no confirmation": "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
     "not submitted": "The tab was closed before the application was sent.",
-    "captcha": "Complete the CAPTCHA before submitting.",
-    "unsupported site": "This site isn't supported for applications yet.",
+    "tab closed": "The tab was closed before the site confirmed the application.",
+    "captcha": "The site asked for a CAPTCHA.",
+    "unsupported site": "Can't apply automatically on this site. Open the job to fill it in yourself.",
     "job closed": "This job is no longer accepting applications.",
     "job not found": "Couldn't find this job listing.",
     "application form not found": "Couldn't find the application form.",
+    "not on the page": "This field isn't on the page.",
     "page did not load": "The application page didn't load.",
-    "submit button not found": "Couldn't find the Submit button. Submit the application using the form.",
-    "no options to pick from": "No matching option was available.",
+    "submit button not found": "Couldn't find the Submit button. Submit the form yourself.",
+    "no options to pick from": "The list had no options to choose from.",
     "no dropdown on the page": "Couldn't find the dropdown for this question.",
     "no input to type into": "Couldn't find the field for this answer.",
     "no phone box on the page": "Couldn't find the phone number field.",
-    "the phone country did not stick": "Couldn't set the phone country. Please check it manually.",
+    "the phone country did not stick": "Couldn't set the phone country. Check it yourself.",
     "no file input": "Couldn't find the file upload field.",
-    "needs a date": "Enter the required date manually.",
+    "needs a date": "Enter the required date yourself.",
+    "sections like this one are not filled": "Fill in this section yourself.",
     "no cv saved in the extension": "Add your CV in extension settings, then try again.",
+    "greenhouse asked for an email security code": "Greenhouse sent an email security code. Enter it on the page to continue.",
+    "blocked company": "This company is on your Never apply to list.",
+    "applied to this company recently": "You applied to this company recently.",
+    "already applied": "You've already applied to this job.",
 }
-UNCONFIRMED = {"no confirmation after submitting", "no confirmation"}
+_PREFIXES = (("form errors: ", "The form needs your attention: "), ("needs answer: ", "Needs your answer: "),
+             ("ashby will not take this application: ", "Ashby couldn't submit this application: "))
+# The codes, and the words the extension sends in their place since it
+# began reporting reasonText() instead of the code.
+UNCONFIRMED = {"no confirmation after submitting", "no confirmation",
+               "we couldn't confirm that the application was submitted. check the page.",
+               _REASONS["no confirmation"].lower()}
+
+
+def _wording(r: str) -> str | None:
+    """One reason's own wording, or None when it has none."""
+    low = r.lower()
+    if low in _REASONS:
+        return _REASONS[low]
+    for prefix, lead in _PREFIXES:
+        if low.startswith(prefix):
+            return lead + r[len(prefix):]
+    m = re.match(r'no option matches (".*")$', r, re.I)
+    return f"None of the options match {m.group(1)}." if m else None
 
 
 def reason_text(reason: str) -> str:
     """A stored reason in the words the extension now shows."""
     r = (reason or "").strip()
-    low = r.lower()
-    if low in _REASONS:
-        return _REASONS[low]
-    for prefix, lead in (("form errors: ", "The form needs your attention: "), ("needs answer: ", "Answer this question before continuing: "),
-                         ("ashby will not take this application: ", "Ashby couldn't submit this application: ")):
-        if low.startswith(prefix):
-            return lead + r[len(prefix):]
-    if low.startswith("could not fill "):
+    own = _wording(r)
+    if own:
+        return own
+    if r.lower().startswith("could not fill "):
         return "Couldn't fill in " + "; ".join(reason_text(part) for part in r[len("could not fill "):].split("; "))
-    field, sep, rest = r.partition(": ")
-    if sep and rest.lower() in _REASONS:
-        return f"{field}: {_REASONS[rest.lower()]}"
-    return r
+    field, sep, rest = r.rpartition(": ")
+    text = sep and ":" not in rest and _wording(rest)
+    return f"{field}: {text}" if text else r
 
 
 def history(table, user_id: str, limit: int = 50) -> list[dict]:

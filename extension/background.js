@@ -597,7 +597,7 @@ async function submitHere(msg, sender) {
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   if (info && info.botCheck) return { error: BOT_CHECK };
-  if (!info || !info.text) return { error: "Couldn't find the Submit button. Submit the application using the form." };
+  if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
   const id = await pageJobId(msg.url);
   try {
     await api('/me/apply/claim', { method: 'POST', body: { job_id: id, company: msg.company, title: msg.title, url: msg.url } });
@@ -661,9 +661,11 @@ async function suggestAnswer(field, job, ctx) {
 async function queueView() {
   const { queue = [] } = await api('/me/apply/queue');
   const items = await Promise.all(queue.slice(0, 25).map(async (q) => {
-    const job = await fetchJob(q.job_id).catch(() => null);
+    // null: the server has no such job. undefined: it could not be asked.
+    const job = await fetchJob(q.job_id).catch(() => undefined);
     return {
-      id: q.job_id, title: job ? job.title : oojMatch.reasonText('job closed'), company: job ? (job.company_name || job.company_domain) : '',
+      id: q.job_id, title: job ? job.title : job === null ? oojMatch.reasonText('job closed') : "Couldn't load this job.",
+      company: job ? (job.company_name || job.company_domain) : '',
       supported: !!(job && globalThis.oojAts[job.ats] && globalThis.oojAts[job.ats].matches(job.url)),
     };
   }));
