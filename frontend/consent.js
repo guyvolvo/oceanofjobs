@@ -16,7 +16,10 @@
   function canStore() {
     try { localStorage.setItem(KEY + "_test", "1"); localStorage.removeItem(KEY + "_test"); return true; } catch (e) { return false; }
   }
-  function get() { try { return localStorage.getItem(KEY) || (canStore() ? null : "no"); } catch (e) { return "no"; } }
+  // Brave sends Global Privacy Control by default and can keep a site's
+  // storage for one page only, so the banner came back on every load there.
+  // GPC is the reader saying no already: Analytics stays off, nobody is asked.
+  function get() { try { return localStorage.getItem(KEY) || (canStore() && !navigator.globalPrivacyControl ? null : "no"); } catch (e) { return "no"; } }
   function set(v) { try { localStorage.setItem(KEY, v); } catch (e) { /* the choice lasts this page only */ } }
 
   var loaded = false;
