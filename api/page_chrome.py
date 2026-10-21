@@ -192,7 +192,7 @@ FOOT = """  <script src="/count.js"></script>
   </script>
   <footer class="pg-foot">
     <span>oceanofjobs.com · listings scraped from company hiring systems</span>
-    <span><a href="/board">Browse the board</a> · <a href="/docs/api">API</a> · <a href="/privacy">Privacy</a></span>
+    <span><a href="/board">Browse the board</a> · <a href="/jobs">Jobs by role</a> · <a href="/docs/api">API</a> · <a href="/privacy">Privacy</a></span>
   </footer>
 </body>
 </html>

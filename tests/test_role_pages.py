@@ -79,6 +79,23 @@ check("roles_for matches several roles", role_pages.roles_for("Senior ML Enginee
 check("roles_for skips other jobs", role_pages.roles_for("Head Chef") == [])
 check("AI keeps its capitals", role_pages.heading("ai-engineer", "remote") == "Remote AI engineer jobs")
 
+# Job pages link to role pages the last build made indexable (api/handler.py _role_links).
+import os  # noqa: E402
+import tempfile  # noqa: E402
+tmp = Path(tempfile.mkdtemp())
+(tmp / "role-pages.json").write_text(json.dumps(["/jobs/data-engineer", "/jobs/data-engineer/united-states", "/jobs/data-engineer/remote"]))
+for k, v in {"DATA_PATH": str(tmp / "jobs.db"), "ALERTS_TABLE": "t", "DATA_BUCKET": "b", "DATA_KEY": "jobs.db",
+             "AWS_DEFAULT_REGION": "il-central-1", "AWS_ACCESS_KEY_ID": "x", "AWS_SECRET_ACCESS_KEY": "x"}.items():
+    os.environ.setdefault(k, v)
+import handler  # noqa: E402
+links = handler._role_links({"title": "Senior Data Engineer", "country": "US", "workplace_type": "remote"})
+check("a remote US data engineer links to the country, remote and worldwide pages",
+      links == [("/jobs/data-engineer/united-states", "Data engineer jobs in the United States"),
+                ("/jobs/data-engineer/remote", "Remote data engineer jobs"), ("/jobs/data-engineer", "Data engineer jobs worldwide")], str(links))
+check("no links to pages that are not indexable",
+      handler._role_links({"title": "Data Engineer", "country": "DE", "workplace_type": "onsite"}) == [("/jobs/data-engineer", "Data engineer jobs worldwide")])
+check("other jobs get none", handler._role_links({"title": "Head Chef", "country": "US"}) == [])
+
 print()
 if failures:
     print("%d failed" % len(failures))

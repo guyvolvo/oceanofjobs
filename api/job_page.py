@@ -430,6 +430,11 @@ def render(job, now=None, extra=None) -> str:
         similar = (f'<section class="pg-card"><div class="pg-card-title">Similar roles</div>{rows}'
                    f'<button type="button" class="pg-btn pg-btn-wide" data-alert-like><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me for roles like this</button></section>')
 
+    browse = ""
+    if extra.get("role_links"):
+        links = "".join(f'<a href="{esc(href)}">{esc(label)}</a>' for href, label in extra["role_links"])
+        browse = f'<section class="pg-card"><div class="pg-card-title">Browse jobs like this</div><div class="pg-links">{links}</div></section>'
+
     alert_filter = {"department": job.get("category") or job.get("department") or "", "country": (job.get("country") or "").split(",")[0]}
     body = f"""{TOPBAR}
   <main class="pg-main" id="main" tabindex="-1">
@@ -457,6 +462,7 @@ def render(job, now=None, extra=None) -> str:
         </section>
         {more}
         {similar}
+        {browse}
       </aside>
     </div>
   </main>

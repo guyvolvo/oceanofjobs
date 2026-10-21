@@ -44,6 +44,7 @@ most of the applier's time rewriting files a crawler reads daily.
 """
 
 import html
+import json
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -300,6 +301,8 @@ def build(db_path: Path, now: datetime | None = None) -> dict[str, tuple[bytes, 
         out[f"companies/{key}.html"] = (page.encode("utf-8"), "text/html; charset=utf-8")
     for key, page in roles.items():
         out[key] = (page.encode("utf-8"), "text/html; charset=utf-8")
+    # Which role pages are indexable, for job pages to link to (api/handler.py).
+    out["role-pages.json"] = (json.dumps(role_paths).encode("utf-8"), "application/json")
     return out
 
 
@@ -339,6 +342,8 @@ def publish(frontend_bucket: str, db_path: Path, tmp: Path | None = None) -> lis
         if _fresh_enough(s3, frontend_bucket):
             return []
         docs = build(db_path)
+        if tmp:
+            (Path(tmp) / "role-pages.json").write_bytes(docs["role-pages.json"][0])
         written = []
         # Shards first, the index last, so a crawler that reads the new
         # index never asks for a shard that is not there yet.

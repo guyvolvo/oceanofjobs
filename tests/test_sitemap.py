@@ -3,6 +3,7 @@
 Run directly, no framework:  python tests/test_sitemap.py
 """
 
+import json
 import re
 import sqlite3
 import sys
@@ -55,6 +56,7 @@ docs = sitemap.build(db, NOW)
 pages_az = {k: docs.pop(f"companies/{k}.html") for k in sitemap.LETTERS}
 # Role pages (api/role_pages.py, tested in test_role_pages.py) ride along as HTML.
 roles = {k: docs.pop(k) for k in [k for k in docs if k == "jobs.html" or k.startswith("jobs/")]}
+check("the indexable role pages are listed as JSON", isinstance(json.loads(docs.pop("role-pages.json")[0]), list))
 check("every role and place gets an HTML file", len(roles) >= 80 and all(v[1].startswith("text/html") for v in roles.values()), str(len(roles)))
 check("an index, a pages sitemap, the feed, two job shards and a company shard",
       sorted(docs) == ["feed.xml", "sitemap-companies-1.xml", "sitemap-jobs-1.xml", "sitemap-jobs-2.xml", "sitemap-pages.xml", "sitemap.xml"], repr(sorted(docs)))

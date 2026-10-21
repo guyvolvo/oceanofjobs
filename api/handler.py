@@ -269,10 +269,39 @@ def route_job_page(job_id: str):
         job["description"] = blob
     extra = {"X-Robots-Tag": "noindex"} if job.get("closed_at") else None
     sidebar = _job_page_sidebar(conn, job) if not job.get("closed_at") else None
+    if sidebar is not None:
+        sidebar["role_links"] = _role_links(job)
     # Ten minutes at the edge: a listing's page changes when it closes,
     # and the sitemap tells crawlers about new ones, so nothing here
     # needs the API's three-minute window.
     return _html_response(200, job_page.render(job, extra=sidebar), cache_seconds=600, edge_seconds=PAGE_EDGE_SECONDS, extra_headers=extra)
+
+
+_role_pages = {"mtime": None, "paths": frozenset()}
+
+
+def _role_links(job) -> list[tuple[str, str]]:
+    """Up to four role pages for a listing: its role in its country,
+    remote if it is, then worldwide. Only pages the last sitemap build
+    made indexable (role-pages.json beside the database), so a job page
+    never links to a thin or missing one."""
+    path = Path(os.environ.get("DATA_PATH") or "/var/lib/otj/jobs.db").with_name("role-pages.json")
+    try:
+        mtime = path.stat().st_mtime
+        if mtime != _role_pages["mtime"]:
+            _role_pages.update(mtime=mtime, paths=frozenset(json.loads(path.read_text())))
+    except (OSError, ValueError):
+        return []
+    import role_pages
+    code = (job.get("country") or "").split(",")[0]
+    country = next((p[0] for p in role_pages.PLACES[2:] if p[1] == code), None)
+    out = []
+    for role in role_pages.roles_for(job.get("title") or "")[:2]:
+        for place in [country, "remote" if job.get("workplace_type") == "remote" else None, ""]:
+            href = role_pages.path_for(role, place) if place is not None else None
+            if href and href in _role_pages["paths"] and len(out) < 4 and href not in (h for h, _ in out):
+                out.append((href, role_pages.heading(role, place) + ("" if place else " worldwide")))
+    return out
 
 
 def _job_page_sidebar(conn, job) -> dict:
