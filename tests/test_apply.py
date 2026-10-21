@@ -66,7 +66,7 @@ saved = apply.put_profile(t, "u", {
     "contact": {"first_name": "  Guy ", "email": "g@example.com", "unknown": "x"},
     "work": {"authorized_countries": ["il", "US", "nope", "us"], "needs_sponsorship": "yes", "salary": "x" * 300},
     "eeo": {"gender": "decline", "race": ""},
-    "answers": [{"question": "Why us?", "answer": "Because"}, {"question": "why  us", "answer": "dupe"}, {"question": "", "answer": "x"}],
+    "answers": [{"question": "How did you hear about us?", "answer": "Because"}, {"question": "how did you  hear about us", "answer": "dupe"}, {"question": "", "answer": "x"}],
     "settings": {"mode": "auto", "sources": ["board", "spam"], "unknowns": "ai",
                  "guardrails": {"daily_limit": "10", "blocked_companies": ["Wix.com", "bad domain!"], "min_match": None}},
     "junk": 1,
@@ -88,7 +88,7 @@ for bad in ({"settings": {"guardrails": {"daily_limit": 500}}}, {"settings": {"g
     except ValueError:
         pass
 
-apply.add_answer(t, "u", "Why US?!", "Better answer")
+apply.add_answer(t, "u", "How did you HEAR about us?!", "Better answer")
 check("a saved answer replaces the old one to the same question",
       [a["answer"] for a in apply.get_profile(t, "u")["answers"]] == ["Better answer"])
 

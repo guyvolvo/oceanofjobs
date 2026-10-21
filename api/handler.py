@@ -804,12 +804,18 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
     if sub == "profile":
         if method == "GET":
             prefs = route_get_profile(user_id).get("profile") or {}
-            return ok(200, {"profile": apply.get_profile(_alerts_table, user_id),
+            profile = apply.get_profile(_alerts_table, user_id)
+            # The extension fills forms from these; /apply's settings (a
+            # signed-in session) shows them all so they can be removed.
+            claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+            if claims.get("token_use") == "ooj":
+                profile["answers"] = apply.reusable_answers(profile["answers"])
+            return ok(200, {"profile": profile,
                             "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
         if method == "PUT":
             return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, body.get("profile") or {})})
     if sub == "answers" and method == "POST":
-        apply.add_answer(_alerts_table, user_id, body.get("question"), body.get("answer"))
+        apply.add_answer(_alerts_table, user_id, body.get("question"), body.get("answer"), body.get("job_id"))
         return ok(204)
     if sub == "usage" and method == "GET":
         # The summary's numbers in the old shape, for clients that still ask here.

@@ -157,10 +157,12 @@
   // Same normalised text, or the same words give or take filler. A company
   // name is never filler, so "worked for Figma" does not answer "worked
   // for Airbnb".
-  function findAnswer(question, answers) {
+  function findAnswer(question, answers, jobId) {
     const q = normalise(question);
     if (!q) return undefined;
-    const usable = (answers || []).filter((a) => blank(a.answer) !== undefined);
+    // An answer tied to a job ("why do you want to work here?") fills that
+    // job only; it names the company it was written for.
+    const usable = (answers || []).filter((a) => blank(a.answer) !== undefined && (!a.job_id || a.job_id === jobId));
     const exact = usable.find((a) => normalise(a.question) === q);
     if (exact) return String(exact.answer);
     const near = usable.find((a) => sameQuestion(q, normalise(a.question)));
@@ -214,7 +216,7 @@
       // period list or a start date) gives way to a saved answer for this
       // exact question.
       let value = key ? profileValue(key, profile, job) : undefined;
-      if (!fits(value)) value = findAnswer(f.label, profile.answers);
+      if (!fits(value)) value = findAnswer(f.label, profile.answers, job && job.id);
       if (!fits(value)) value = undefined;
       if (value === undefined) { if (f.required) missing.push({ ...f, key }); continue; }
       fills.push({ ...f, key, value });

@@ -87,6 +87,20 @@ test('findAnswer matches normalised wording, not a different company', () => {
   assert.equal(m.findAnswer('Anything else?', [{ question: 'Anything else?', answer: '  ' }]), undefined);
 });
 
+test('an answer tied to a job fills that job only', () => {
+  const saved = [
+    { question: 'Why do you want to work here?', answer: "Riskified's fraud work", job_id: 'a1a1a1a1a1a1a1a1' },
+    { question: 'How did you hear about us?', answer: 'LinkedIn' },
+  ];
+  assert.equal(m.findAnswer('Why do you want to work here?', saved, 'a1a1a1a1a1a1a1a1'), "Riskified's fraud work");
+  assert.equal(m.findAnswer('Why do you want to work here?', saved, 'b2b2b2b2b2b2b2b2'), undefined);
+  assert.equal(m.findAnswer('Why do you want to work here?', saved), undefined);
+  assert.equal(m.findAnswer('How did you hear about us?', saved, 'b2b2b2b2b2b2b2b2'), 'LinkedIn');
+  const plan = m.planFill([{ label: 'Why do you want to work here?', type: 'textarea', required: true }],
+    { answers: saved }, { id: 'b2b2b2b2b2b2b2b2' });
+  assert.equal(plan.fills.length, 0);
+});
+
 test('work authorization follows the job country', () => {
   assert.equal(m.profileValue('work_auth', profile, { country: 'IL' }), 'Yes');
   assert.equal(m.profileValue('work_auth', profile, { country: 'US' }), 'No');

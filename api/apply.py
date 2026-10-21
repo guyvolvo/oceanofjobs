@@ -81,6 +81,20 @@ def normalise_question(q: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", str(q or "").lower())).strip()
 
 
+# Questions about one employer or one role. Their answers name that company
+# or job, so an answer saved for one application must never fill another:
+# it is kept with its job_id and used for that job only (extension 1.9.3,
+# lib/match.js findAnswer). Matched on the normalised question.
+JOB_SPECIFIC = re.compile(
+    r"\bwhy (do|would) you (want|like|wish)|\bwhy are you (interested|applying|excited|drawn)|\bwhy (this|our|us|join|work)\b"
+    r"|\binterests? you (about|in)\b|\bwhat (excites|attracts|draws|motivates|appeals to) you\b|\bcover (letter|note)\b"
+    r"|\b(good|great|strong|right) fit for (this|the|our)\b")
+
+
+def job_specific(question) -> bool:
+    return bool(JOB_SPECIFIC.search(normalise_question(question)))
+
+
 def clean_profile(body: dict) -> dict:
     """The profile as stored: every field bounded, every choice from a
     closed list. Unknown keys are dropped."""
@@ -102,10 +116,13 @@ def clean_profile(body: dict) -> dict:
     answers, seen = [], set()
     for a in (body.get("answers") or [])[:MAX_ANSWERS]:
         q, ans = _text((a or {}).get("question"), MAX_TEXT), _text((a or {}).get("answer"), MAX_LONG)
-        key = normalise_question(q)
-        if key and ans and key not in seen:
+        # A job-specific answer keeps the job it was written for.
+        job = str((a or {}).get("job_id") or "")
+        job = job if JOB_ID.match(job) and job_specific(q) else ""
+        key = (normalise_question(q), job)
+        if key[0] and ans and key not in seen:
             seen.add(key)
-            answers.append({"question": q, "answer": ans})
+            answers.append({"question": q, "answer": ans, **({"job_id": job} if job else {})})
     out["answers"] = answers
     s = body.get("settings") or {}
     st = out["settings"]
@@ -138,16 +155,30 @@ def put_profile(table, user_id: str, body: dict, now: datetime | None = None) ->
     return cleaned
 
 
-def add_answer(table, user_id: str, question, answer) -> None:
-    """One saved answer, from the extension. Replaces an answer to the
-    same question rather than adding a second."""
+def add_answer(table, user_id: str, question, answer, job_id=None) -> None:
+    """One saved answer, from the extension or /apply. Replaces an answer to
+    the same question rather than adding a second. A job-specific question
+    keeps the job it was answered for; without one it isn't saved at all,
+    since it could only ever be reused for the wrong company."""
     profile = get_profile(table, user_id)
     key = normalise_question(question)
     if not key or not _text(answer):
         raise ValueError("question and answer are required")
-    profile["answers"] = [a for a in profile["answers"] if normalise_question(a["question"]) != key]
-    profile["answers"].insert(0, {"question": _text(question), "answer": _text(answer, MAX_LONG)})
+    job = ""
+    if job_specific(question):
+        job = str(job_id or "")
+        if not JOB_ID.match(job):
+            return
+    profile["answers"] = [a for a in profile["answers"] if (normalise_question(a["question"]), a.get("job_id", "")) != (key, job)]
+    profile["answers"].insert(0, {"question": _text(question), "answer": _text(answer, MAX_LONG), **({"job_id": job} if job else {})})
     put_profile(table, user_id, profile)
+
+
+def reusable_answers(answers: list[dict]) -> list[dict]:
+    """Saved answers an application may use: a job-specific one only with
+    the job it belongs to. Answers saved before 1.9.3 have no job, so a
+    job-specific one among them is dropped rather than reused."""
+    return [a for a in answers if not job_specific(a["question"]) or a.get("job_id")]
 
 
 def plan_of(table, user_id: str) -> str:

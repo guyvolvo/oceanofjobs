@@ -23,7 +23,7 @@ type Form = {
   eeo: Record<EeoKey, { pick: "skip" | "decline" | "answer"; text: string }>;
   mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai";
   min_match: string; daily: string; per_company: string; blocked: string;
-  answers: { id: number; question: string; answer: string }[];
+  answers: { id: number; question: string; answer: string; job_id?: string }[];
 };
 
 let nextId = 0;
@@ -62,7 +62,8 @@ function fromForm(f: Form): Profile {
       const e = f.eeo[k];
       return [k, e.pick === "decline" ? "decline" : e.pick === "answer" ? e.text.trim() || null : null];
     })) as Profile["eeo"],
-    answers: f.answers.map((a) => ({ question: a.question.trim(), answer: a.answer.trim() })).filter((a) => a.question && a.answer),
+    answers: f.answers.map((a) => ({ question: a.question.trim(), answer: a.answer.trim(), ...(a.job_id ? { job_id: a.job_id } : {}) }))
+      .filter((a) => a.question && a.answer),
     settings: {
       mode: f.mode, sources: f.sources, unknowns: f.unknowns,
       guardrails: {

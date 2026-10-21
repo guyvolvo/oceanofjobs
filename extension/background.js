@@ -230,7 +230,7 @@ async function answerUnknown(field, job, ctx) {
   if (ctx.serverAi) {
     try {
       const { answer } = await api('/me/apply/draft', {
-        method: 'POST', body: { question: field.label, options: field.options || [], job: { title: job.title, company: job.company_name || job.company_domain } },
+        method: 'POST', body: { question: field.label, options: field.options || [], job: { id: job.id, title: job.title, company: job.company_name || job.company_domain } },
       });
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
@@ -243,7 +243,7 @@ async function answerUnknown(field, job, ctx) {
   if (!ctx.ai || !ctx.ai.key) return undefined;
   const answer = await draftAnswer(field, ctx.profile, ctx.preferences, job, ctx.ai).catch(() => undefined);
   if (!fits(field, answer)) return undefined;
-  await api('/me/apply/answers', { method: 'POST', body: { question: field.label, answer } }).catch(() => {});
+  await api('/me/apply/answers', { method: 'POST', body: { question: field.label, answer, job_id: job.id } }).catch(() => {});
   return answer;
 }
 
@@ -862,7 +862,7 @@ async function suggestAnswer(field, job, ctx) {
       const { answer } = await api('/me/apply/draft', {
         method: 'POST',
         body: { question: field.label, options: field.options || [], mode: 'suggest',
-          job: { title: job.title, company: job.company_name, location: job.location } },
+          job: { id: job.id, title: job.title, company: job.company_name, location: job.location } },
       });
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
@@ -1015,14 +1015,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     return true;
   }
   if (msg.type === 'answer') {
-    api('/me/apply/answers', { method: 'POST', body: { question: msg.question, answer: msg.answer } }).then(async () => {
+    api('/me/apply/answers', { method: 'POST', body: { question: msg.question, answer: msg.answer, job_id: msg.job_id } }).then(async () => {
       accountCache = null;
       // The job goes back in the queue once every question it waited on
       // has a saved answer; a page that isn't on the board answers 404.
       const [{ needs }, { profile }] = await Promise.all([api('/me/apply/needs'), api('/me/apply/profile')]);
       const job = needs.find((n) => n.job_id === msg.job_id);
       let requeued = false;
-      if (job && job.questions.every((q) => oojMatch.findAnswer(q, profile.answers) !== undefined)) {
+      if (job && job.questions.every((q) => oojMatch.findAnswer(q, profile.answers, job.job_id) !== undefined)) {
         requeued = await api(`/me/apply/queue/${encodeURIComponent(job.job_id)}`, { method: 'PUT' }).then(() => true, () => false);
       }
       reply({ ok: true, requeued });

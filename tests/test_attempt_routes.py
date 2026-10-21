@@ -59,6 +59,25 @@ with mock_aws():
     def rows(user, prefix):
         return [i for i in table.scan()["Items"] if i["user_id"] == user and i["alert_id"].startswith(prefix)]
 
+    # 0. Saved answers: the extension never gets another company's "why us".
+    import apply  # noqa: E402
+    route_get_profile = handler.route_get_profile
+    handler.route_get_profile = lambda user_id: {"profile": {}}
+    apply.put_profile(table, "zoe", {"answers": [{"question": "Why do you want to work here?", "answer": "Riskified's fraud work."},
+                                                 {"question": "Notice period?", "answer": "30 days"}]})
+
+    def profile_as(token_use):
+        event = {"requestContext": {"authorizer": {"jwt": {"claims": {"sub": "zoe", "token_use": token_use}}}}}
+        return json.loads(handler.route_apply("zoe", "GET", "profile", event, {})["body"])["profile"]["answers"]
+    check("an extension token gets general answers only, not an old answer that names a company",
+          [a["question"] for a in profile_as("ooj")] == ["Notice period?"], repr(profile_as("ooj")))
+    check("a signed-in session sees every answer, so it can remove them",
+          [a["question"] for a in profile_as("id")] == ["Why do you want to work here?", "Notice period?"])
+    s, _ = call("zoe", "POST", "answers", {"question": "Why do you want to work here?", "answer": "Monday's product.", "job_id": f"{7:016x}"})
+    check("answering it for one job keeps it for that job", s == 204 and {"question": "Why do you want to work here?",
+          "answer": "Monday's product.", "job_id": f"{7:016x}"} in profile_as("ooj"), repr(profile_as("ooj")))
+    handler.route_get_profile = route_get_profile
+
     # 1. Ownership: another user's attempt reads as not found, for every operation.
     s, b = call("alice", "POST", "attempts", {"attempt_id": "alice-0001", **job(1)})
     check("a user reserves an attempt", s == 200 and b["attempt"]["state"] == "reserved", repr((s, b)))

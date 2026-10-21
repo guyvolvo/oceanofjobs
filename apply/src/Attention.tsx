@@ -23,7 +23,7 @@ function Questions({ need, reload }: { need: Need; reload: () => void }) {
     setBusy(true);
     try {
       for (const [i, question] of need.questions.entries()) {
-        await apply("answers", send("POST", { question, answer: answers[i].trim() }));
+        await apply("answers", send("POST", { question, answer: answers[i].trim(), job_id: need.job_id }));
       }
       await apply(`queue/${encodeURIComponent(need.job_id)}`, send("PUT"));
       toasts.add({ variant: "success", title: "Answers saved", description: `${need.title} is back in your queue.` });

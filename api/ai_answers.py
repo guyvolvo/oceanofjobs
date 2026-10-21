@@ -103,7 +103,8 @@ def facts(profile: dict, prefs: dict) -> dict:
         "salary_expectation": profile["work"]["salary"],
         "skills": prefs.get("skills") or [],
         "seniority": prefs.get("seniority"),
-        "earlier_answers": profile["answers"][:30],
+        # Never another job's "why us": it names that company.
+        "earlier_answers": [a for a in profile["answers"] if not apply.job_specific(a["question"])][:30],
     }
 
 
@@ -135,9 +136,16 @@ def _month_row(now: datetime) -> str:
     return "#ai#" + now.strftime("%Y-%m")
 
 
-def _count(table, user_id: str, row: str, n: float) -> float:
+def _count(table, user_id: str, row: str, n: float, cap: int | None = None) -> float:
+    """Adds n to the row's total. With a cap, only while the total is under
+    it, in the same write, so two answers at once can't both pass at 299."""
+    values = {":n": Decimal(str(n))}
+    kw = {}
+    if cap is not None:
+        values[":cap"] = Decimal(cap)
+        kw["ConditionExpression"] = "attribute_not_exists(n) OR n < :cap"
     resp = table.update_item(Key={"user_id": user_id, "alert_id": row}, UpdateExpression="ADD n :n",
-                             ExpressionAttributeValues={":n": Decimal(str(n))}, ReturnValues="UPDATED_NEW")
+                             ExpressionAttributeValues=values, ReturnValues="UPDATED_NEW", **kw)
     return float(resp["Attributes"]["n"])
 
 
@@ -182,8 +190,14 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
         raise CantAnswer("your profile doesn't answer this question")
     # A user's AI answers count only when one is produced; the service's own
     # cost above counts every call.
-    used = _count(table, user_id, _month_row(now), 1)
+    try:
+        used = _count(table, user_id, _month_row(now), 1, cap=CAPS[plan])
+    except Exception as e:  # noqa: BLE001 -- another answer took the last one first
+        if getattr(e, "response", {}).get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.") from None
+        raise
     answer = text[:apply.MAX_LONG]
     if not suggest:
-        apply.add_answer(table, user_id, question, answer)
+        # A job-specific answer is kept for its job only (apply.add_answer).
+        apply.add_answer(table, user_id, question, answer, job.get("id"))
     return {"answer": answer, "remaining": max(0, CAPS[plan] - int(used)), "suggested": suggest}
