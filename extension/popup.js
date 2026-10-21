@@ -18,9 +18,57 @@ chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
   $('fill-why').hidden = !ask;
 });
 
-// Fills the form in the tab the popup was opened on. Opening the popup
-// is what grants access to that tab (activeTab).
+// The fill button says what it would do on this tab. Opening the popup
+// grants access to the tab (activeTab), so the page is read before any
+// click; nothing is filled until the click.
+const FILL = {
+  checking: ['Checking this page…', true],
+  none: ['No application detected', true],
+  form: ['Fill application', false],
+  unsupported: ["This site isn't supported", true],
+  filling: ['Filling application…', true],
+  review: ['Review filled fields', false],
+  done: ['Application filled', true],
+};
+let fillState = 'checking';
+function setFill(state) {
+  fillState = state;
+  $('fill').textContent = FILL[state][0];
+  $('fill').disabled = FILL[state][1];
+}
+const activeTab = () => chrome.tabs.query({ active: true, currentWindow: true }).then(([t]) => t);
+// The popup closes when the user clicks into the page, so a fill is
+// remembered per tab (and address) for "Review filled fields" next time.
+const filledKey = (tab) => `filled:${tab.id}`;
+
+async function detect() {
+  const tab = await activeTab();
+  if (!tab) return setFill('none');
+  const { [filledKey(tab)]: filled } = await chrome.storage.session.get(filledKey(tab));
+  if (filled && filled.url === tab.url) return setFill(filled.review ? 'review' : 'done');
+  const r = await chrome.runtime.sendMessage({ type: 'pageState', tabId: tab.id }).catch(() => null);
+  setFill((r && r.state) || 'none');
+}
+
+async function review() {
+  const tab = await activeTab();
+  const { [filledKey(tab)]: filled = {} } = await chrome.storage.session.get(filledKey(tab));
+  const r = await chrome.runtime.sendMessage({ type: 'reviewFields', tabId: tab.id, frameId: filled.frameId || 0 }).catch(() => null);
+  const out = $('fill-result');
+  out.className = 'note ok';
+  out.hidden = false;
+  if (!r || !r.left) {
+    await chrome.storage.session.set({ [filledKey(tab)]: { ...filled, review: false } });
+    setFill('done');
+    out.textContent = 'Nothing left to check. Look over the form, then submit it.';
+    return;
+  }
+  const what = r.kind === 'required' ? 'Required field, still empty.' : 'Answer suggested by AI. Check it before you submit.';
+  out.textContent = `${what} ${r.index} of ${r.left} to check.`;
+}
+
 $('fill').addEventListener('click', async () => {
+  if (fillState === 'review') return review();
   // Before any await: Chrome shows the prompt only during the click.
   const asking = ask && chrome.permissions.request({ origins: [ALL_SITES] });
   if (asking) {
@@ -30,17 +78,19 @@ $('fill').addEventListener('click', async () => {
     await asking.catch(() => false);
     $('fill-why').hidden = true;
   }
-  const btn = $('fill'), out = $('fill-result');
-  btn.disabled = true;
-  btn.textContent = 'Filling in…';
+  const out = $('fill-result');
+  setFill('filling');
   out.hidden = true;
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = await activeTab();
   const r = tab ? await chrome.runtime.sendMessage({ type: 'fillTab', tabId: tab.id }) : { error: 'No application form found on this page.' };
-  btn.disabled = false;
-  btn.textContent = 'Fill in this page';
   out.className = !r || r.error ? 'note error' : 'note ok';
   out.textContent = !r || r.error ? reasonText((r && r.error) || "Couldn't fill in this page. Reload it and try again.") : filledText(r);
   out.hidden = false;
+  if (!r || r.error) return detect();
+  const needsLook = r.missing.length > 0 || r.suggested > 0;
+  const now = await activeTab();
+  await chrome.storage.session.set({ [filledKey(now)]: { url: now.url, frameId: r.frameId || 0, review: needsLook } });
+  setFill(needsLook ? 'review' : 'done');
 });
 
 let paused = false;
@@ -120,7 +170,7 @@ function render(s) {
   $('pause').textContent = paused ? 'Resume' : 'Pause';
   $('state').textContent = paused
     ? "Auto apply is paused. The extension won't apply on its own until you resume."
-    : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString()}. Looks for jobs to apply to every 15 minutes.` : 'Looks for jobs to apply to every 15 minutes.';
+    : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not checked yet';
 }
 
 // The queue: the count on open, the jobs once expanded.
@@ -162,5 +212,8 @@ async function renderQueue() {
 
 chrome.runtime.sendMessage({ type: 'status' }).then((s) => {
   render(s);
-  if (s.connected) renderQueue();
+  if (s.connected) {
+    renderQueue();
+    detect();
+  }
 });

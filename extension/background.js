@@ -108,7 +108,7 @@ async function draftAnswer(field, profile, preferences, job, ai) {
 }
 
 const fits = (field, answer) =>
-  answer !== undefined && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0);
+  answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0);
 
 // A required question with no saved answer. Basic and Pro get it drafted
 // (and saved) by our server; Free, or a plan out of AI answers, falls back
@@ -444,12 +444,12 @@ async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
   await chrome.scripting.executeScript({
     target: frameId ? { tabId, frameIds: [frameId] } : { tabId },
     args: [suggested.map((f) => f.name), plan.missing.map((f) => f.name)],
-    func: (amber, red) => [[amber, '#e0a43a'], [red, '#ff6b5e']].forEach(([names, color]) => names.forEach((n) => {
+    func: (amber, red) => [[amber, '#e0a43a', 'ai'], [red, '#ff6b5e', 'required']].forEach(([names, color, kind]) => names.forEach((n) => {
       const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } }).filter(Boolean)];
       const el = docs.map((d) => d.querySelector(`[data-ooj-box="${CSS.escape(n)}"]`)).find(Boolean)
         || document.getElementById(n) || document.getElementById(n.replace(/_/g, '-')) || document.querySelector(`[name="${CSS.escape(n)}"]`);
       const box = el && (el.hasAttribute('data-ooj-box') ? el : el.closest('.select__control') || el.closest('fieldset') || el);
-      if (box) { box.style.outline = `2px solid ${color}`; box.style.outlineOffset = '2px'; }
+      if (box) { box.style.outline = `2px solid ${color}`; box.style.outlineOffset = '2px'; box.dataset.oojReview = kind; }
     })),
   });
   const errors = (filled && filled.errors) || ['could not fill the form'];
@@ -477,7 +477,7 @@ async function frameWithForm(tabId, ms) {
   }
 }
 
-// "Fill in this page" in the popup, on whatever site the tab shows. The
+// "Fill application" in the popup, on whatever site the tab shows. The
 // popup's click grants activeTab for the page; a form in an iframe is
 // reached through the host permissions. No credit is claimed: the user
 // reviews and submits the form themselves.
@@ -523,7 +523,7 @@ async function fillTab(tabId) {
     }
     moved = true;
   }
-  if (!page || page.openUrl) return { error: 'Application form opened. Click "Fill in this page" again to continue.' };
+  if (!page || page.openUrl) return { error: 'Application form opened. Click "Fill application" again to continue.' };
   return assist(tabId, frameId, name, page, tab.url, tab.title);
 }
 
@@ -544,7 +544,62 @@ async function assist(tabId, frameId, name, page, url, title) {
     serverAi: ['basic', 'pro'].includes(a.usage.plan) };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
-  return { ...result, ats: name, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
+  return { ...result, ats: name, frameId, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
+}
+
+// What the popup's fill button offers on a tab, before any click: opening
+// the popup grants activeTab, so the page is read with the same readers a
+// fill uses, and nothing is filled or sent. 'form' when a fill would find a
+// form (or an Apply link to follow), 'none' when it would not, 'unsupported'
+// where Chrome lets no extension in (browser pages, the Web Store, PDFs).
+async function pageState(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+  let u;
+  try { u = new URL(tab.url); } catch { return 'unsupported'; }
+  if (!/^https?:$/.test(u.protocol) || u.hostname === 'chromewebstore.google.com'
+      || (u.hostname === 'chrome.google.com' && u.pathname.startsWith('/webstore')) || /\.pdf$/i.test(u.pathname)) return 'unsupported';
+  const reachable = await chrome.scripting.executeScript({ target: { tabId }, func: () => true }).then(() => true, () => false);
+  if (!reachable) return 'unsupported';
+  const name = adapterFor(tab.url);
+  try {
+    const form = globalThis.oojAts[name].formUrl && globalThis.oojAts[name].formUrl(tab.url);
+    if (form && form !== tab.url) return 'form';
+  } catch { /* not a single job's page */ }
+  const page = await readForm(tabId, name).catch(() => null);
+  if (page && !page.error && !page.frame && (page.openUrl || (page.fields && page.fields.length))) return 'form';
+  return (await frameWithForm(tabId, 0)) ? 'form' : 'none';
+}
+
+// "Review filled fields": moves to the next field the last fill marked,
+// required ones still empty first, then answers AI suggested. Each click
+// goes one further; {left: 0} once nothing needs attention.
+async function reviewFields(tabId, frameId) {
+  const [res] = await chrome.scripting.executeScript({
+    target: frameId ? { tabId, frameIds: [frameId] } : { tabId },
+    func: () => {
+      const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } }).filter(Boolean)];
+      const boxes = docs.flatMap((d) => [...d.querySelectorAll('[data-ooj-review]')]);
+      const fieldOf = (b) => (b.matches('input, select, textarea') ? b : b.querySelector('input:not([type=hidden]), select, textarea'));
+      const empty = (b) => {
+        const choices = [...b.querySelectorAll('input[type=checkbox], input[type=radio]')];
+        if (choices.length) return !choices.some((i) => i.checked);
+        const el = fieldOf(b);
+        return !!el && !String(el.value || '').trim();
+      };
+      const queue = [...boxes.filter((b) => b.dataset.oojReview === 'required' && empty(b)), ...boxes.filter((b) => b.dataset.oojReview === 'ai')];
+      const at = queue.findIndex((b) => b.hasAttribute('data-ooj-current'));
+      boxes.forEach((b) => b.removeAttribute('data-ooj-current'));
+      if (!queue.length) return { left: 0 };
+      const i = (at + 1) % queue.length;
+      const box = queue[i];
+      box.setAttribute('data-ooj-current', '');
+      box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      const el = fieldOf(box) || box.querySelector('button, [tabindex]');
+      if (el) el.focus({ preventScroll: true });
+      return { left: queue.length, index: i + 1, kind: box.dataset.oojReview };
+    },
+  });
+  return res ? res.result : { left: 0 };
 }
 
 const site = (url) => new URL(url).hostname.split('.').slice(-2).join('.');
@@ -794,6 +849,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     submitHere(msg, sender)
       .catch((e) => ({ error: e.status === 401 ? EXPIRED : UNEXPECTED }))
       .then(reply);
+    return true;
+  }
+  if (msg.type === 'pageState') {
+    pageState(msg.tabId).catch(() => 'none').then((state) => reply({ state }));
+    return true;
+  }
+  if (msg.type === 'reviewFields') {
+    reviewFields(msg.tabId, msg.frameId).catch(() => ({ left: 0 })).then(reply);
     return true;
   }
   if (msg.type === 'fillTab') {
