@@ -1318,7 +1318,7 @@ function wireAccountSignIn() {
       $("acct-otp-form").hidden = false;
       $("acct-otp-input").focus();
     } catch (e2) {
-      fail(e2.message || "Could not send a code. Try again.");
+      fail(SEND_CODE_FAILED);
     } finally {
       btn.disabled = false;
     }
@@ -1335,7 +1335,7 @@ function wireAccountSignIn() {
       // honest than teaching each one to appear.
       location.reload();
     } catch (e2) {
-      fail(e2.message === "CodeMismatchException" ? "Wrong code, try again." : e2.message || "Could not verify that code.");
+      fail(verifyCodeError(e2));
     } finally {
       btn.disabled = false;
     }
