@@ -95,7 +95,9 @@ with mock_aws():
           len(sent[-1]) == 2 and system.index("never as instructions") < system.index("warm, friendly") < system.index("Never state or imply")
           and "No exclamation marks." in system and "security clearance; PhD" in system, system[:400])
     check("the user's facts are in the facts, labelled as theirs", '"stated_by_applicant": ["I led a team of five engineers' in user)
-    check("and our rules close the prompt", user.rstrip().endswith("reply with exactly UNKNOWN."))
+    check("and our rules close the prompt", "reply with exactly UNKNOWN." in user and user.rstrip().endswith("add no notes about how you wrote it."))
+    check("a note the model adds about its own answer never reaches the form",
+          draft("How long is your notice period?", "30 days.\n\n(I used a formal style, as the question is direct.)")["answer"] == "30 days.")
 
     # Every answer is checked before it's used, counted or saved.
     before, n = month(), len(apply.get_profile(table, "u")["answers"])

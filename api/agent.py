@@ -186,7 +186,8 @@ STYLE_LENGTH = {"short": "Use one or two sentences, or a single value when the q
                 "medium": "Use at most four sentences, or a single value when the question asks for one."}
 STYLE_LANGUAGE = {"question": "Answer in the language of the question.", "en": "Answer in English."}
 CLOSING = ("Before you answer: use only the facts above. Style preferences change how an answer sounds, never what it "
-           "claims. If the facts don't contain what the question needs, reply with exactly UNKNOWN.")
+           "claims. If the facts don't contain what the question needs, reply with exactly UNKNOWN. Reply with the answer "
+           "only: it goes into the form as it is, so add no notes about how you wrote it.")
 
 
 def messages(ag: dict, base: str, facts_: dict, job_line: str, question: str) -> list[dict]:
@@ -297,6 +298,17 @@ def check_answer(text: str, *, options: list, allowed: str, never_claim: list, l
         text = answer.strip()
         plain = apply.normalise_question(text)
         if not plain or UNSURE.search(plain):
+            raise Refused("your profile doesn't answer this question")
+    if not options:
+        # The model adds notes about its own answer: "(I used a formal style...)".
+        # They'd go into the form, so the answer stops before the first one.
+        kept = []
+        for para in re.split(r"\n\s*\n", text):
+            if re.match(r"\s*(\(|note\b|i used\b|this answer\b)", para, re.I):
+                break
+            kept.append(para.strip())
+        text = "\n\n".join(p for p in kept if p)
+        if not text:
             raise Refused("your profile doesn't answer this question")
     if options:
         # The model adds a full stop or a note after the option ("Yes.",
