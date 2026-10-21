@@ -635,7 +635,7 @@ def lambda_handler(event, context):
                 body = json.loads(event.get("body") or "{}")
                 updated = route_update_alert(user_id, alert_id, body)
                 if updated is None:
-                    return _response(404, json.dumps({"error": "no alert with that id"}))
+                    return _response(404, json.dumps({"error": "This alert doesn't exist anymore."}))
                 return _response(200, json.dumps(updated, default=str))
             if method == "DELETE":
                 route_delete_alert(user_id, alert_id)
@@ -806,8 +806,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             if row is None:
                 return ok(404, {"error": "no job with that id"})
             if row[0] not in apply.FILLABLE_ATS:
-                return ok(422, {"error": f"The extension can't apply on this job's site ({row[0] or 'unknown'}) yet. "
-                                         f"It fills {_and(a.title() for a in sorted(apply.FILLABLE_ATS))} forms for now."})
+                return ok(422, {"error": f"The extension can't apply through {page_chrome.ats_name(row[0])} yet. "
+                                         f"It fills {_and(page_chrome.ats_name(a) for a in sorted(apply.FILLABLE_ATS))} forms for now."})
             apply.enqueue(_alerts_table, user_id, job_id)
             return ok(204)
         if method == "DELETE":
@@ -1573,11 +1573,11 @@ def route_contact(body: dict) -> tuple[int, dict]:
     email = str(body.get("email") or "").strip()[:254]
     message = str(body.get("message") or "").strip()
     if not _EMAIL_RE.match(email):
-        return 400, {"error": "a valid email address is needed for a reply"}
+        return 400, {"error": "Enter a valid email so we can reply."}
     if len(message) < 10:
-        return 400, {"error": "the message is too short"}
+        return 400, {"error": "Write at least 10 characters."}
     if len(message) > 5000:
-        return 400, {"error": "the message is too long (5,000 characters at most)"}
+        return 400, {"error": "Keep the message to 5,000 characters or fewer."}
     global _ses_client
     if _ses_client is None:
         _ses_client = boto3.client("sesv2")
@@ -1592,7 +1592,7 @@ def route_contact(body: dict) -> tuple[int, dict]:
         )
     except Exception as e:
         print(f"contact mail failed: {e!r}")
-        return 502, {"error": "the message could not be sent right now"}
+        return 502, {"error": "Couldn't send your message. Try again in a few minutes."}
     return 200, {"ok": True}
 
 
@@ -2312,13 +2312,13 @@ def route_create_alert(claims: dict, body: dict) -> dict:
         raise ValueError(f"unknown filter key(s): {', '.join(sorted(unknown))}")
     email = claims.get("email")
     if not email:
-        raise ValueError("account has no email on file")
+        raise ValueError("Your account has no email address, so there's nowhere to send alerts.")
     if not email_is_verified(claims):
-        raise ValueError("confirm your email address before creating an alert")
+        raise ValueError("Confirm your email address before you create an alert.")
     # Each alert is a query on every evaluation pass, for everyone.
     # shortcut: two creates at once can both pass this count; fine at this size.
     if len(route_list_alerts(claims["sub"])["alerts"]) >= MAX_ALERTS:
-        raise ValueError(f"you can have up to {MAX_ALERTS} alerts; delete one to add another")
+        raise ValueError(f"You can have up to {MAX_ALERTS} alerts. Delete one to add another.")
 
     now = datetime.now(timezone.utc).isoformat()
     item = {

@@ -161,7 +161,7 @@ try:
                                {"filter": {"search": "python"}})
     check("an alert for an unconfirmed address is refused", False, "it was created")
 except ValueError as e:
-    check("an alert for an unconfirmed address is refused", "confirm" in str(e) and not handler._alerts_table.items, str(e))
+    check("an alert for an unconfirmed address is refused", "Confirm your email" in str(e) and not handler._alerts_table.items, str(e))
 item = handler.route_create_alert({"sub": "u1", "email": "me@example.com", "email_verified": "true"},
                                   {"filter": {"search": "python"}})
 check("an alert for a confirmed address is created", item["email"] == "me@example.com" and len(handler._alerts_table.items) == 1)
