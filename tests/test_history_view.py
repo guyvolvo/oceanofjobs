@@ -51,14 +51,21 @@ a, b, c, d = rows
 check("a board job takes the board's title and company name", a["title"] == "Kubernetes Researcher" and a["company"] == "PointFive", repr(a))
 check("and links to its board page", a["link"] == "/job/aaaaaaaaaaaaaaaa", repr(a))
 check("no confirmation is unconfirmed, not failed, in today's words",
-      a["status"] == "unconfirmed" and a["reason"] == "We couldn't confirm that the application was submitted. Check the page.", repr(a))
+      a["status"] == "unconfirmed" and a["reason"] == "The form was sent, but the site didn't confirm it. Look for a confirmation email.", repr(a))
 check("a company with no stored name keeps its domain", b["company"] == "wayve.ai", repr(b))
-check("field reasons keep the field name", b["reason"] == "Couldn't fill in Location: No matching option was available.", b["reason"])
+check("field reasons keep the field name", b["reason"] == "Couldn't fill in Location: The list had no options to choose from.", b["reason"])
 check("a page not on the board keeps its own title and links to that page",
       c["title"] == "System Architect" and c["link"] == "https://www.fetcherr.io/careers/1", repr(c))
 check("a skipped send reads as a closed tab", c["reason"] == "The tab was closed before the application was sent.", c["reason"])
 check("form errors keep the site's message", d["reason"] == "The form needs your attention: Resume/CV is required." and d["status"] == "failed", repr(d))
-check("an already worded reason passes through", apply.reason_text("Answer this question before continuing: X") == "Answer this question before continuing: X")
+check("an already worded reason passes through", apply.reason_text("Needs your answer: X") == "Needs your answer: X")
+check("a field's option mismatch keeps the value",
+      apply.reason_text('Country: no option matches "Israel"') == 'Country: None of the options match "Israel".',
+      apply.reason_text('Country: no option matches "Israel"'))
+check("guardrail skips read as words", apply.reason_text("blocked company") == "This company is on your Never apply to list.")
+worded = handler._history_view([{"job_id": "eeeeeeeeeeeeeeee", "status": "failed",
+                                 "reason": "The form was sent, but the site didn't confirm it. Look for a confirmation email."}])[0]
+check("a reason the extension already worded is still unconfirmed", worded["status"] == "unconfirmed", repr(worded))
 
 print()
 if failures:

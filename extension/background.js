@@ -356,14 +356,14 @@ async function account() {
 // Whether to offer filling this page, and if not, why: the card always
 // says what stands in the way rather than staying silent.
 const ACCOUNT_URL = 'https://oceanofjobs.com/account#autoapply';
-const NOT_CONNECTED = 'Connect Ocean of Jobs to fill out this application.';
+const NOT_CONNECTED = 'Connect Ocean of Jobs to fill in this application.';
 const EXPIRED = 'Your connection has expired. Connect again to continue.';
 const NO_CV = 'Add your CV in extension settings before applying.';
 const ALREADY = "You've already applied to this job with Ocean of Jobs.";
 const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
 const READ_ERROR = "Couldn't read the application form on this page.";
 const BOT_CHECK = "This site requires you to submit the form yourself. Review your answers and use the site's Submit button.";
-const unreachable = (e) => `Ocean of Jobs couldn't be reached${e && e.status ? ` (HTTP ${e.status})` : ''}. Try again shortly.`;
+const UNREACHABLE = "Couldn't load your Ocean of Jobs account. Try again in a minute.";
 async function offerHere(url) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
   if (!st.token || st.authError) {
@@ -378,10 +378,10 @@ async function offerHere(url) {
     a = await account();
   } catch (e) {
     if (e.status === 401) return { show: true, blocked: EXPIRED, action: { label: 'Connect account', url: ACCOUNT_URL } };
-    return { show: true, blocked: unreachable(e) };
+    return { show: true, blocked: UNREACHABLE };
   }
   if (!((a.profile.settings || {}).sources || []).includes('ats_pages')) {
-    return { show: true, blocked: 'Enable "Jobs I view anywhere on the web" in your auto-apply settings, then reload this page.', action: { label: 'Open settings', url: ACCOUNT_URL } };
+    return { show: true, blocked: 'Turn on "Jobs I open on Greenhouse, Ashby or Workable" under Auto apply on your account, then reload this page.', action: { label: 'Open Auto apply', url: ACCOUNT_URL } };
   }
   if (!st.cv) return { show: true, blocked: NO_CV, action: { label: 'Add CV', options: true } };
   const id = await pageJobId(url);
@@ -518,7 +518,7 @@ async function fillTab(tabId) {
     tab = await chrome.tabs.get(tabId);
     if (!page && tab.url === before) {
       // Nothing to inject into and nothing moved: a browser page, the Web Store.
-      if (!moved) return { error: "This page isn't supported." };
+      if (!moved) return { error: "The extension can't fill in this page." };
       break;
     }
     moved = true;
@@ -536,7 +536,7 @@ async function assist(tabId, frameId, name, page, url, title) {
     accountCache = null;
     a = await account();
   } catch (e) {
-    return { error: e.status === 401 ? EXPIRED : unreachable(e) };
+    return { error: e.status === 401 ? EXPIRED : UNREACHABLE };
   }
   const u = new URL(url);
   const job = { id: await pageJobId(url), url, title: title || '', company_name: u.hostname, company_domain: u.hostname, location: '', ats: name };
@@ -597,7 +597,7 @@ async function submitHere(msg, sender) {
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   if (info && info.botCheck) return { error: BOT_CHECK };
-  if (!info || !info.text) return { error: "Couldn't find the Submit button. Submit the application using the form." };
+  if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
   const id = await pageJobId(msg.url);
   try {
     await api('/me/apply/claim', { method: 'POST', body: { job_id: id, company: msg.company, title: msg.title, url: msg.url } });
@@ -661,9 +661,11 @@ async function suggestAnswer(field, job, ctx) {
 async function queueView() {
   const { queue = [] } = await api('/me/apply/queue');
   const items = await Promise.all(queue.slice(0, 25).map(async (q) => {
-    const job = await fetchJob(q.job_id).catch(() => null);
+    // null: the server has no such job. undefined: it could not be asked.
+    const job = await fetchJob(q.job_id).catch(() => undefined);
     return {
-      id: q.job_id, title: job ? job.title : oojMatch.reasonText('job closed'), company: job ? (job.company_name || job.company_domain) : '',
+      id: q.job_id, title: job ? job.title : job === null ? oojMatch.reasonText('job closed') : "Couldn't load this job.",
+      company: job ? (job.company_name || job.company_domain) : '',
       supported: !!(job && globalThis.oojAts[job.ats] && globalThis.oojAts[job.ats].matches(job.url)),
     };
   }));

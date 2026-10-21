@@ -183,7 +183,7 @@
     }
     const title = String((document.querySelector('h1') || {}).textContent || document.title).trim().slice(0, 300);
     if (offer.assist) {
-      msg.textContent = 'Fill out this application using your profile. Review your answers before submitting.';
+      msg.textContent = 'Fill in this application using your profile. Review your answers before submitting.';
       go.addEventListener('click', async () => {
         go.disabled = true;
         go.textContent = 'Filling in…';
@@ -238,7 +238,7 @@
         go.hidden = true;
         return;
       }
-      msg.textContent = s && s.failed ? `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. Your credit has been returned. Fix the issue on the form, then try again.`
+      msg.textContent = s && s.failed ? `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This doesn't count toward your applications. Fix the issue on the form, then try again.`
         : reasonText((s && s.error) || UNEXPECTED);
       go.disabled = false;
       go.textContent = 'Submit application';
@@ -248,7 +248,7 @@
   function dedicatedCard(root, offer, title, msg, go) {
     const ats = dedicated;
     go.textContent = 'Fill in this application';
-    msg.textContent = 'Fill out the application using your profile, review your answers, then submit it here.'
+    msg.textContent = 'Fill in the application using your profile, review your answers, then submit it here.'
       + (offer.remaining != null ? ` ${offer.remaining} ${plural(offer.remaining, 'application')} left on your plan.` : '');
     let submitting = false;
     go.addEventListener('click', async () => {
@@ -278,7 +278,7 @@
       go.textContent = 'Submitting…';
       if (!(await ats.submit())) {
         msg.className = 'msg warn';
-        msg.textContent = "Couldn't find the Submit button. Submit the application using the form.";
+        msg.textContent = reasonText('submit button not found');
         go.hidden = true;
         return;
       }
