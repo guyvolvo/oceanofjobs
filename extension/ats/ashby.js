@@ -271,8 +271,14 @@
     // shows up as "no confirmation" after 45 s instead.
     const errors = [...document.querySelectorAll('.ashby-application-form-container [class*="_validationError_"], .ashby-application-form-container [class*="_errorsContainer_"]')]
       .map(text).filter(Boolean);
+    // Real submits (Wayve, monday, Enclave, PointFive on 2026-10-20) went
+    // through but showed no success container, so a gone form plus Ashby's
+    // thank-you text also counts.
+    const formGone = !document.querySelector('.ashby-application-form-container input, .ashby-application-form-container textarea');
+    const thanks = /thank(s| you) for (applying|your (application|interest))|application (has been |was )?(submitted|received)|we('ve| have) received your application/i
+      .test(document.body ? document.body.innerText : '');
     return decide({
-      success: !!document.querySelector('.ashby-application-form-success-container'),
+      success: !!document.querySelector('.ashby-application-form-success-container') || (formGone && thanks),
       failure: failure && failure.innerText.replace(/\s+/g, ' ').trim().slice(0, 200),
       captcha: [...document.querySelectorAll('iframe')].some((f) => /recaptcha\/(api2|enterprise)\/bframe|hcaptcha|challenges\.cloudflare/.test(f.src) && visible(f)),
       errors,
