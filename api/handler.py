@@ -884,8 +884,15 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         return ok(204)
     if sub in ("draft", "agent/preview") and method == "POST":
         prefs = route_get_profile(user_id).get("profile") or {}
+        job_id = str((body.get("job") or {}).get("id") or "")
+        posting = None
+        if agent.is_motivation(body.get("question")) and apply.JOB_ID.match(job_id):
+            try:
+                posting = route_job_detail(job_id)
+            except Exception as e:  # noqa: BLE001 -- no posting means no draft, not an error
+                print(f"posting for a draft failed: {e!r}")
         try:
-            return ok(200, ai_answers.draft(_alerts_table, user_id, body, prefs, save=sub == "draft"))
+            return ok(200, ai_answers.draft(_alerts_table, user_id, body, prefs, save=sub == "draft", posting=posting))
         except (ai_answers.NotIncluded, ai_answers.CapReached) as e:
             return ok(402, {"error": str(e)})
         except ai_answers.CantAnswer as e:

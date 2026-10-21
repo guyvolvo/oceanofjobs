@@ -156,8 +156,8 @@ with mock_aws():
           draft("Tell us about something you built.", "I led a team of five engineers at Acme. | I led a team of five engineers at Acme")["source"] == "ai")
     check("an example with no fact behind it is refused", refused("Describe a challenging project you worked on.", "I rebuilt the billing system.")
           == "no fact in your profile supports this answer")
-    check("a motivation with no fact behind it is refused", refused("Why do you want to work here?", "I love your mission.", job={"id": "c3c3c3c3c3c3c3c3"})
-          == "no fact in your profile supports this answer")
+    check("a motivation with no job posting to draw on is refused", refused("Why do you want to work here?", "I love your mission.", job={"id": "c3c3c3c3c3c3c3c3"})
+          == "there's no job posting to draft this from")
     check("a real choice must be one the facts name, not just cite something related",
           refused("Which visa type do you need?", "TN | needs_visa_sponsorship_outside_those_countries: true", options=["H1-B", "TN", "L-1"])
           == "no fact in your profile names this option")
@@ -194,9 +194,9 @@ with mock_aws():
     out = draft("When did you lead the team at Acme?", "anything")
     check("asking again (a lost reply) returns the saved answer, free", out["source"] == "saved" and out["answer"] == "From 2021 to 2024."
           and len(sent) == calls and month() == counted)
-    draft("Why do you want to work here?", "I led a team of five engineers at Acme. | I led a team of five engineers at Acme", job={"id": JOB, "company": "Acme"})
-    check("a job-specific answer comes back free for its own job", draft("Why do you want to work here?", "x", job={"id": JOB})["source"] == "saved")
-    check("and goes to the model for another", draft("Why do you want to work here?", "I led a team of five engineers. | I led a team of five engineers",
+    draft("Cover letter", "I led a team of five engineers at Acme. | I led a team of five engineers at Acme", job={"id": JOB, "company": "Acme"})
+    check("a job-specific answer comes back free for its own job", draft("Cover letter", "x", job={"id": JOB})["source"] == "saved")
+    check("and goes to the model for another", draft("Cover letter", "I led a team of five engineers. | I led a team of five engineers",
                                                     job={"id": "b2b2b2b2b2b2b2b2", "company": "Initech"})["source"] == "ai")
 
     # The gate: an automatic run with an AI answer that's still pending.
@@ -275,6 +275,57 @@ with mock_aws():
     A.settle("u", aid, "unconfirmed", "the tab was closed", NOW)
     check("one interrupted after the click is unconfirmed, never submitted",
           next(r for r in A.history("u", NOW) if r["attempt_id"] == aid)["status"] == "unconfirmed")
+
+    # What draws them to the company: drafted from the posting, always reviewed.
+    POSTING = {"title": "Security Operations Engineer", "company_name": "Cyera", "description": (
+        "Cyera is building a security operating model for the age of AI. You will join an AI-assisted SOC built from the ground up, "
+        "own escalated investigations end to end, and improve the detections, playbooks and automations behind it. You will also "
+        "operate the Cyera platform in our own environment and turn operator experience into product feedback.")}
+
+    def motive(answer, posting=POSTING, **extra):
+        return ai_answers.draft(table, "u", {"question": "What do you like about this company?", "job": {"id": "e5e5e5e5e5e5e5e5"}, **extra},
+                                {"skills": ["Python"]}, run=model(answer), report=lambda total: None, now=NOW, posting=posting, save=False)
+    out = motive("I like that Cyera is building a security operating model for the age of AI. Operating the Cyera platform in its own "
+                 "environment and turning operator experience into product feedback is the work I want.")
+    check("a motivation question is drafted from the job posting, marked always review", out["source"] == "ai" and out.get("always_review") is True
+          and "operator experience" in out["answer"], repr(out))
+    check("the posting reaches the model, the applicant's facts don't", "Job posting (from the employer): Cyera is building" in sent[-1][1]["content"]
+          and "stated_by_applicant" not in sent[-1][1]["content"] and "skills" not in sent[-1][1]["content"])
+    out = motive("My experience leading engineers fits. I am also drawn to the AI-assisted SOC built from the ground up and the detections behind it.")
+    check("a sentence about the applicant is cut, and the next one tidied", out["answer"] == "I am drawn to the AI-assisted SOC built from the ground up and the detections behind it.",
+          repr(out["answer"]))
+    try:
+        motive("I love Cyera's innovative culture and the exciting opportunities it offers.")
+        check("generic praise is refused", False)
+    except ai_answers.CantAnswer as e:
+        check("generic praise is refused", "generic praise" in str(e))
+    try:
+        motive("Cyera seems like a good company to work for.")
+        check("a draft with nothing from the posting is refused", False)
+    except ai_answers.CantAnswer as e:
+        check("a draft with nothing from the posting is refused", "specific from the job posting" in str(e))
+    calls = len(sent)
+    try:
+        motive("anything", posting=None)
+        check("with no posting, nothing is drafted", False)
+    except ai_answers.CantAnswer as e:
+        check("with no posting, nothing is drafted, and the model isn't asked", "no job posting" in str(e) and len(sent) == calls)
+    agent.put(table, "u", {**agent.get(table, "u"), "review": "use"}, now=NOW)
+    motive_q = "What do you like about this company?"
+    ai_answers.draft(table, "u", {"question": motive_q, "job": {"id": "f6f6f6f6f6f6f6f6"}}, {}, run=model(
+        "I like that Cyera is building a security operating model for the age of AI and an AI-assisted SOC from the ground up."),
+        report=lambda total: None, now=NOW, posting=POSTING)
+    aid = "gate-000020"
+    A.reserve("u", aid, {"job_id": "f6f6f6f6f6f6f6f6", "url": "https://boards.greenhouse.io/cyera/jobs/20", "title": "Engineer"}, datetime.now(timezone.utc))
+    s, b = handler.route_apply("u", "POST", f"attempts/{aid}/submission-started", {"body": json.dumps({"mode": "auto", "answers": [
+        {"question": motive_q, "answer": "I like that Cyera is building a security operating model for the age of AI and an AI-assisted SOC from the ground up.",
+         "job_id": "f6f6f6f6f6f6f6f6"}]})}, {})["statusCode"], None
+    check("a motivation draft is held at the gate even with Send without review on", s == 409)
+    s = handler.route_apply("u", "POST", f"attempts/{aid}/submission-started", {"body": json.dumps({"mode": "card", "answers": [
+        {"question": motive_q, "answer": "I like that Cyera is building a security operating model for the age of AI and an AI-assisted SOC from the ground up.",
+         "job_id": "f6f6f6f6f6f6f6f6"}]})}, {})["statusCode"]
+    check("and passes when the user presses Submit on the card", s == 200)
+    agent.put(table, "u", {**agent.get(table, "u"), "review": "pause"}, now=NOW)
 
 print()
 if failures:

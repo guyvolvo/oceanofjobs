@@ -235,9 +235,11 @@ def _report(total: float) -> None:
 
 
 def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_report,
-          now: datetime | None = None, save: bool = True) -> dict:
+          now: datetime | None = None, save: bool = True, posting: dict | None = None) -> dict:
     """An answer to one form question. save=False is /apply's "Try it"
-    (agent/preview): the same pipeline and the same count, nothing saved."""
+    (agent/preview): the same pipeline and the same count, nothing saved.
+    posting is the job's own listing ({title, company_name, description}),
+    for a company-motivation question (agent.MOTIVATION)."""
     now = now or datetime.now(timezone.utc)
     plan = apply.plan_of(table, user_id)
     if plan not in CAPS:
@@ -285,6 +287,13 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
 
     if agent.is_trait(question):
         raise CantAnswer("only you can answer this one about yourself")
+    # What draws them to this company: drafted from the posting or not at all.
+    motive = agent.is_motivation(question)
+    description = str((posting or {}).get("description") or "")
+    if motive and len(description) < 200:
+        raise CantAnswer("there's no job posting to draft this from")
+    if motive and not job_line:
+        job_line = " at ".join(x for x in (str(posting.get("title") or ""), str(posting.get("company_name") or "")) if x)
     if used >= CAPS[plan]:
         raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.")
     known = facts(profile, prefs)
@@ -293,8 +302,12 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     # one the model answered "No" to "Do you hold a security clearance?" and
     # "Yes" to "Are you 18 or older?" from nothing. Not for suggestions: the
     # user reviews the whole form before sending it.
-    cite = not suggest and agent.needs_support(question, options)
-    messages = agent.messages(ag, SUGGEST_PROMPT if suggest else PROMPT, known, job_text, question + choose + (agent.CITE if cite else ""))
+    cite = not suggest and not motive and agent.needs_support(question, options)
+    if motive:
+        job_text += "\nJob posting (from the employer): " + description[:2000]
+    base = (SUGGEST_PROMPT if suggest else PROMPT) + (" " + agent.MOTIVATION_PROMPT if motive else "")
+    messages = agent.messages({**ag, "facts": []} if motive else ag, base, {} if motive else known, job_text,
+                              question + choose + (agent.CITE if cite else ""))
     # Both limits fail closed: an error writing either refuses the call
     # (NotConfigured, 503) rather than letting it through uncounted.
     try:
@@ -326,6 +339,8 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     try:
         text = agent.check_answer(text, options=options, allowed=allowed, never_claim=ag["never_claim"], length=ag["style"]["length"],
                                   question=question, support_from=facts_text if cite else None)
+        if motive and not options:
+            text = agent.check_motivation(text, description, str((posting or {}).get("company_name") or job.get("company") or ""))
     except agent.Refused as e:
         raise CantAnswer(str(e)) from None
     # A user's AI answers count only when one is produced; the service's own
@@ -339,6 +354,7 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     answer = text[:apply.MAX_LONG]
     if not suggest and save:
         # A job-specific answer is kept for its job only (apply.add_answer).
-        apply.add_answer(table, user_id, question, answer, job.get("id"), source="ai", agent_version=ag["version"] or None)
+        apply.add_answer(table, user_id, question, answer, job.get("id"), source="ai", agent_version=ag["version"] or None,
+                         always_review=motive)
     return {"answer": answer, "remaining": max(0, CAPS[plan] - int(used)), "suggested": suggest, "source": "ai",
-            "agent_version": ag["version"] or None, "approval": "pending"}
+            "agent_version": ag["version"] or None, "approval": "pending", **({"always_review": True} if motive else {})}

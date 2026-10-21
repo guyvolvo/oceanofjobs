@@ -43,6 +43,8 @@ const LIMITS = { notes: 500, facts: 20, fact: 300, never: 30, phrase: 100, value
 const SOURCE: Record<string, string> = {
   fixed: "Your fixed answer", saved: "One of your saved answers", profile: "From your Settings", ai: "Written by the AI. This used 1 AI answer.",
 };
+// A job on the board, from its link or its id: oceanofjobs.com/job/<id>.
+const jobId = (text: string) => (/(?:\/job\/)?([0-9a-f]{8,32})\b/i.exec(text.trim()) || [])[1]?.toLowerCase() || "";
 
 let nextKey = 0;
 const rows = (texts: string[]): Row[] => texts.map((text) => ({ key: nextKey++, text }));
@@ -89,14 +91,17 @@ function List({ items, onChange, max, limit, label, placeholder, area }: {
 
 function TryIt({ editable }: { editable: boolean }) {
   const [question, setQuestion] = useState("");
+  const [job, setJob] = useState("");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ answer?: string; source?: string; refused?: string } | null>(null);
+  const [result, setResult] = useState<{ answer?: string; source?: string; review?: boolean; refused?: string } | null>(null);
   const run = async () => {
     if (!question.trim()) return;
     setBusy(true);
     try {
-      const r = await apply<{ answer: string; source: string }>("agent/preview", send("POST", { question: question.trim() }));
-      setResult({ answer: r.answer, source: r.source });
+      const id = jobId(job);
+      const r = await apply<{ answer: string; source: string; always_review?: boolean }>("agent/preview",
+        send("POST", { question: question.trim(), ...(id ? { job: { id } } : {}) }));
+      setResult({ answer: r.answer, source: r.source, review: r.always_review });
     } catch (e) {
       setResult({ refused: e instanceof ApiError && e.status !== 0 && e.status < 500 ? e.message : "Couldn't reach the AI. Try again." });
     } finally {
@@ -113,6 +118,9 @@ function TryIt({ editable }: { editable: boolean }) {
         </div>
         <Button variant="secondary" loading={busy} disabled={!editable || !question.trim()} onClick={run}>Try it</Button>
       </div>
+      <Input label="Job (optional)" placeholder="Paste a job link from Ocean of Jobs, e.g. oceanofjobs.com/job/486388384e045a4a" value={job}
+        disabled={!editable} onChange={(e) => setJob(e.target.value)}
+        description="Questions about why you want a job, like &quot;What do you like about this company?&quot;, are drafted from that job's posting." />
       {result ? (
         result.refused ? (
           <p className="oj-note" role="status">No answer: {result.refused}. In a real application, this question would wait for you in Needs attention.</p>
@@ -120,6 +128,7 @@ function TryIt({ editable }: { editable: boolean }) {
           <div className="oj-stack oj-tight" role="status">
             <p className="oj-try-answer">{result.answer}</p>
             <span className="oj-note">{SOURCE[result.source || ""] || result.source}</span>
+            {result.review ? <span className="oj-note">A draft about why you want this job. It always waits for your review, even with Send without review on.</span> : null}
           </div>
         )
       ) : null}

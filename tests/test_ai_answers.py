@@ -152,27 +152,27 @@ check("and the saved answer itself stays whole",
 t = FakeTable()
 t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
 RISKIFIED, MONDAY = "a1a1a1a1a1a1a1a1", "b2b2b2b2b2b2b2b2"
-why = {"question": "Why do you want to work here?", "job": {"id": RISKIFIED, "title": "Data Engineer", "company": "Riskified"}}
+why = {"question": "Cover letter", "job": {"id": RISKIFIED, "title": "Data Engineer", "company": "Riskified"}}
 SKILLS = {"skills": ["fraud detection"]}  # a fact the motivation answers below can cite
 ai_answers.draft(t, "u", why, SKILLS, run=run("Riskified's fraud work is what I want to build. | skills: fraud detection"), report=reported.append, now=NOW)
 saved = apply.get_profile(t, "u")["answers"]
 check("an AI answer to 'why work here' is kept for the job it was written for",
-      saved == [{"question": "Why do you want to work here?", "answer": "Riskified's fraud work is what I want to build.", "job_id": RISKIFIED, "source": "ai", "approval": "pending"}], repr(saved))
+      saved == [{"question": "Cover letter", "answer": "Riskified's fraud work is what I want to build.", "job_id": RISKIFIED, "source": "ai", "approval": "pending"}], repr(saved))
 ai_answers.draft(t, "u", {"question": "How did you hear about us?", "job": {"id": RISKIFIED}}, {}, run=run("LinkedIn"), report=reported.append, now=NOW)
 check("a general answer is still saved for every job",
       {"question": "How did you hear about us?", "answer": "LinkedIn", "source": "ai", "approval": "pending"} in apply.get_profile(t, "u")["answers"])
-ai_answers.draft(t, "u", {"question": "Why do you want to work here?", "job": {"id": MONDAY, "company": "monday.com"}}, SKILLS,
+ai_answers.draft(t, "u", {"question": "Cover letter", "job": {"id": MONDAY, "company": "monday.com"}}, SKILLS,
                  run=run("monday.com's product is one I use daily. | skills: fraud detection"), report=reported.append, now=NOW)
 check("the same question at another company gets its own answer from the model", "Riskified" not in sent[-1][1]["content"]
       and "monday.com" in sent[-1][1]["content"], sent[-1][1]["content"][-300:])
 check("and is kept for that job, beside Riskified's", sorted(a.get("job_id", "") for a in apply.get_profile(t, "u")["answers"]
-                                                       if a["question"].startswith("Why")) == [RISKIFIED, MONDAY])
-ai_answers.draft(t, "u", {"question": "Why are you interested in this position?"}, SKILLS, run=run("It fits. | skills: fraud detection"), report=reported.append, now=NOW)
+                                                       if a["question"] == "Cover letter") == [RISKIFIED, MONDAY])
+ai_answers.draft(t, "u", {"question": "Cover note"}, SKILLS, run=run("It fits. | skills: fraud detection"), report=reported.append, now=NOW)
 check("without a job a job-specific answer isn't saved at all",
-      not any(a["question"].startswith("Why are you interested") for a in apply.get_profile(t, "u")["answers"]))
-legacy = [{"question": "Why do you want to work here?", "answer": "Riskified's fraud work."},
+      not any(a["question"] == "Cover note" for a in apply.get_profile(t, "u")["answers"]))
+legacy = [{"question": "Cover letter", "answer": "Riskified's fraud work."},
           {"question": "Cover letter", "answer": "Dear Riskified"}, {"question": "Notice period?", "answer": "30 days"},
-          {"question": "Why do you want to work here?", "answer": "monday.com", "job_id": MONDAY}]
+          {"question": "Cover letter", "answer": "monday.com", "job_id": MONDAY}]
 check("answers saved before job ids are dropped when job-specific, kept when general",
       apply.reusable_answers(legacy) == [legacy[2], legacy[3]], repr(apply.reusable_answers(legacy)))
 check("the classifier: job-specific", all(apply.job_specific(q) for q in (

@@ -285,8 +285,10 @@ class Attempts:
             if not (mine and mine["source"] == "ai") and not (mine is None and given.get("source") == "ai"):
                 continue
             approval = mine["approval"] if mine else "pending"
+            # A company-motivation draft is never sent unreviewed (agent.MOTIVATION).
+            always = bool(mine and mine.get("always_review"))
             allowed = ("approved" if approval == "approved" else "user_submit" if mode == "card"
-                       else "automatic" if review == "use" and approval != "rejected" else None)
+                       else "automatic" if review == "use" and approval != "rejected" and not always else None)
             if allowed is None:
                 waiting.append(question)
             out.append({"question": question, "answer": text, "source": "ai", "approval": approval, "allowed_by": allowed,

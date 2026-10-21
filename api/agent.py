@@ -267,7 +267,8 @@ EVIDENCE = re.compile(r"\btell (us|me) about (yourself|a time|a project|your)\b|
                       r"accomplishment|achievement|experience|role)\b|\b(greatest|biggest|proudest) (achievement|accomplishment)\b"
                       r"|\bgive (us |me )?an example\b|\bwhy (do|would) you (want|like|wish)\b|\bwhy are you (interested|applying|excited)\b"
                       r"|\bwhy (this|our|us|join)\b|\bwhy should we hire\b|\bwhat makes you (a good|the right|a great|a strong)\b"
-                      r"|\bcover (letter|note)\b|\binterests? you (about|in)\b")
+                      r"|\bcover (letter|note)\b|\binterests? you (about|in)\b"
+                      r"|\b(good|great|strong|right|best) (fit|match|candidate)\b")
 
 
 def is_trait(question) -> bool:
@@ -370,4 +371,58 @@ def check_answer(text: str, *, options: list, allowed: str, never_claim: list, l
         raise Refused(f"the answer has numbers that aren't in your profile ({', '.join(sorted(invented))})")
     if not options and len(text) > LENGTH_LIMIT[length]:
         raise Refused("the answer was longer than your agent's length setting allows")
+    return text
+
+
+# Questions about what draws the applicant to this company or role. The AI
+# may draft these from the job posting (what the company says about its
+# product, team and work), never from generic praise, and the draft always
+# waits for the user's review, even with "Send without review" on: it puts
+# a motivation in their mouth. "Why are you a good fit?" isn't one of these:
+# it's about the applicant, and quotes their facts (EVIDENCE).
+MOTIVATION = re.compile(r"\bwhat do you like about\b|\bwhy (do|would) you (want|like|wish) to (work|join)\b|\bwhy (this|our) (company|team)\b"
+                        r"|\bwhy (us|join us)\b|\bwhy (this|the) (role|position|job)\b|\bwhy are you (interested|applying|excited)\b"
+                        r"|\bwhat (interests|excites|attracts|draws|appeals to) you (about|in|to)\b")
+GENERIC_PRAISE = re.compile(r"\binnovat|\bcollaborative environment\b|\btalented team\b|\bexcited about the opportunity\b"
+                            r"|\bimpressed by\b|\bexciting (opportunit|challenge)|\bcutting[ -]edge\b|\bworld[ -]class\b|\bdynamic (environment|team|company)\b"
+                            r"|\b(great|amazing|strong|vibrant|inclusive) (company )?culture\b|\bpassionate about\b|\bfast[ -]paced\b"
+                            r"|\bindustry leader\b|\bleading (company|player|provider)\b|\b(values|mission) (align|resonate)|\bgrowth opportunit")
+MOTIVATION_PROMPT = (
+    "This question asks what draws the applicant to this company or role. Write two or three sentences in the applicant's voice "
+    "about specific things the job posting below says: the product, the problem the team works on, the technology. Say nothing "
+    "about the applicant's own experience, skills or background; they add that themselves. No generic praise: don't call the "
+    "company innovative, exciting, fast-paced or a leader, and don't mention its culture or mission unless the posting describes "
+    "them. If the posting doesn't say enough to be specific, reply with exactly UNKNOWN.")
+# A sentence about the applicant rather than the company. On real postings
+# the drafts invented "Kafka and Kubernetes that I'm familiar with" and
+# "experience working with Legal and Compliance"; such sentences are cut.
+APPLICANT_CLAIM = re.compile(r"\b(my|i have|i ve|i m familiar|i am familiar|i led|i worked|i built|i managed|as a|we worked|i bring)\b")
+
+
+def is_motivation(question) -> bool:
+    return bool(MOTIVATION.search(apply.normalise_question(question)))
+
+
+def check_motivation(text: str, posting: str, company: str = "") -> str:
+    """A motivation draft must be about this posting, not about any company,
+    and only about the company: sentences about the applicant are cut, and
+    so is a last sentence the length limit stopped halfway."""
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    if sentences and not re.search(r"[.!?][\"')]*$", sentences[-1]):
+        sentences = sentences[:-1]
+    kept = [s for s in sentences if not APPLICANT_CLAIM.search(apply.normalise_question(s))]
+    if kept and kept[0] != sentences[0]:
+        # The opening sentence went: "I'm also drawn to..." would start the answer.
+        first = re.sub(r"^(Additionally|Also),\s*", "", kept[0])
+        first = re.sub(r"^(I'm|I am|I) also\b", r"\1", first)
+        kept[0] = first[:1].upper() + first[1:]
+    text = " ".join(kept)
+    if not text:
+        raise Refused("the draft was about you, not the company; add your own reasons")
+    if GENERIC_PRAISE.search(text.lower()):
+        raise Refused("the draft was generic praise, not something from the job posting")
+    skip = _words(company) | GENERIC
+    shared = {w for w in _words(text) & _words(posting) if len(w) >= 5} - skip
+    if len(shared) < 2:
+        raise Refused("the draft didn't say anything specific from the job posting")
     return text

@@ -108,6 +108,9 @@ def _provenance(a: dict) -> dict:
     out = {"source": source, "approval": approval}
     if source == "ai" and str(a.get("agent_version", "")).isdigit():
         out["agent_version"] = int(a["agent_version"])
+    # A company-motivation draft: never sent without the user's approval.
+    if source == "ai" and a.get("always_review"):
+        out["always_review"] = True
     return out
 
 
@@ -188,7 +191,7 @@ def put_profile(table, user_id: str, body: dict, now: datetime | None = None) ->
     return _save(table, user_id, cleaned, now)
 
 
-def add_answer(table, user_id: str, question, answer, job_id=None, source="user", agent_version=None) -> None:
+def add_answer(table, user_id: str, question, answer, job_id=None, source="user", agent_version=None, always_review=False) -> None:
     """One saved answer, from the extension or /apply. Replaces an answer to
     the same question rather than adding a second. A job-specific question
     keeps the job it was answered for; without one it isn't saved at all,
@@ -205,7 +208,8 @@ def add_answer(table, user_id: str, question, answer, job_id=None, source="user"
     profile["answers"] = [a for a in profile["answers"] if answer_key(a) != (key, job)]
     # The user's own answer is approved; an AI one waits for review.
     origin = USER_ANSWER if source == "user" else {"source": "ai", "approval": "pending",
-                                                   **({"agent_version": agent_version} if agent_version is not None else {})}
+                                                   **({"agent_version": agent_version} if agent_version is not None else {}),
+                                                   **({"always_review": True} if always_review else {})}
     profile["answers"].insert(0, {"question": _text(question), "answer": _text(answer, MAX_LONG), **({"job_id": job} if job else {}), **origin})
     _save(table, user_id, clean_profile(profile))
 
