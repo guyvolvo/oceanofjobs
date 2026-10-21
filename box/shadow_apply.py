@@ -84,6 +84,12 @@ WORK = DB.with_name("delta-resolved.json")
 # backstop against a runaway batch; it is just not a reading of this
 # program's own appetite.
 MAX_APPLY_BYTES = 96 * 1024 * 1024
+# A run keeps taking batches until it has held the disk this long or
+# another job is waiting for it. One batch per run left the timer's gap
+# between batches. Four minutes plus the batch in hand is about what one
+# slow batch held the lock for before (281s, 2026-10-21), so the
+# publisher and the snapshot wait no longer than they did.
+APPLY_BUDGET_S = 4 * 60
 # Whether this box is the only applier. See the module docstring.
 PRIMARY = os.environ.get("OTJ_PRIMARY") == "1"
 # Listings closed longer ago than this leave the snapshot for S3. Same
@@ -344,7 +350,32 @@ def _apply() -> int:
         print("nothing pending")
         return 0
     _refresh_logos()
+    batches = 0
+    while True:
+        rc, take = _apply_batch(pending)
+        if rc:
+            return rc
+        batches += 1
+        left = sorted(SPOOL.glob("*.json"))
+        if not left or time.monotonic() - started >= APPLY_BUDGET_S or someone_waiting(but="apply"):
+            break
+        pending = left
 
+    alerts_started = time.monotonic()
+    if _alerts_now(len(left) + len(take), len(take)):
+        alerts = _run_alerts()
+    else:
+        _owe_alerts()
+        alerts = ", alerts next time"
+    print(f"run: {batches} batches, {len(left)} fragments left{alerts}, "
+          f"total {time.monotonic() - started:.1f}s (alerts {time.monotonic() - alerts_started:.0f}s)")
+    return 0
+
+
+def _apply_batch(pending: list[Path]) -> tuple[int, list[Path]]:
+    """Apply the oldest fragments in `pending` that fit MAX_APPLY_BYTES as
+    one loader run. Returns the loader's exit code and what it took."""
+    started = time.monotonic()
     take, total = [], 0
     for p in pending:
         size = p.stat().st_size
@@ -358,7 +389,7 @@ def _apply() -> int:
         print(f"{len(take)} fragments held nothing to apply")
         for p in take:
             p.unlink(missing_ok=True)
-        return 0
+        return 0, take
     read_s = time.monotonic() - started
 
     _write_status("merging", f"applying {len(take)} of {len(pending)} delta fragments")
@@ -368,9 +399,12 @@ def _apply() -> int:
            "--drop-description", "--skip-vacuum", "--skip-known", "--box"]
     if logos.exists():
         cmd += ["--logos", str(logos)]
-    if PRIMARY:
+    if PRIMARY and len(pending) - len(take) <= len(take):
         # Caps the file instead of letting it grow forever. Paced to
-        # once a day inside archive.py.
+        # once a day inside archive.py. Only once the queue is about
+        # caught up, the same test as alerts: a capped batch deletes
+        # 20,000 rows and their index entries, about as many page writes
+        # as the batch of fragments it rides with (2026-10-21).
         #
         # --archive-bucket, never --bucket. --bucket drives the loader's
         # whole pull-modify-push cycle, so passing it here downloaded
@@ -392,7 +426,7 @@ def _apply() -> int:
         # successful push".
         _write_status("error", f"load_to_sqlite.py exited {load.returncode}")
         print(f"load_to_sqlite.py exited {load.returncode}", file=sys.stderr)
-        return load.returncode
+        return load.returncode, take
 
     for p in take:
         p.unlink(missing_ok=True)
@@ -404,17 +438,6 @@ def _apply() -> int:
         # or the Lambda would lose fragments the way the box used to.
         cleared = delete_fragments(BUCKET, [DELTA_PREFIX + p.name for p in take])
     apply_s = time.monotonic() - started
-    # The /stats and /facets answers, under this box's own prefix
-    # (PRECOMPUTED_PREFIX, see precompute.py) so the Lambda's copies are
-    # never touched while the two run side by side. Paced inside
-    # publish: it looks at the artifact's age and leaves a fresh one.
-    alerts_started = time.monotonic()
-    if _alerts_now(len(pending), len(take)):
-        alerts = _run_alerts()
-    else:
-        _owe_alerts()
-        alerts = ", alerts next time"
-    alerts_s = time.monotonic() - alerts_started
     # The artifacts the site reads are built by box/publish.py on its own
     # timer, not here. They are not part of applying deltas, and their
     # memory used to add to this process's: the sitemap build alone is
@@ -422,10 +445,9 @@ def _apply() -> int:
     # reached the cgroup limit and stopped applies finishing at all.
     print(f"applied {companies} companies from {len(take)} of {len(pending)} spooled fragments "
           f"({total / 1048576:.0f}MB): read {read_s:.1f}s, apply {apply_s:.1f}s, "
-          f"cleared {cleared}{alerts}, total {time.monotonic() - started:.1f}s "
-          f"(loader {loader_s:.0f}s, alerts {alerts_s:.0f}s)")
+          f"cleared {cleared} (loader {loader_s:.0f}s)")
     _write_status("idle", f"last apply: {companies} companies from {len(take)} fragments")
-    return 0
+    return 0, take
 
 
 if __name__ == "__main__":

@@ -473,6 +473,9 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
     # is what says which path asked for them.
     reindex_why = {"text": 0, "new": 0, "meta": 0, "blob_reads": 0}
     meta_before: dict[str, tuple] = {}
+    # Unchanged listings whose last_seen is worth moving. See LAST_SEEN_EVERY_S.
+    seen_again: list[tuple[str, str]] = []
+    last_seen_floor = datetime.fromtimestamp(time.time() - LAST_SEEN_EVERY_S, timezone.utc).isoformat(timespec="seconds")
     # Before the loop, and whether or not this payload mentions them: a
     # duplicate that stopped being polled would otherwise keep its open
     # jobs forever, since only a --batch run ever prunes.
@@ -689,12 +692,7 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
             desc = j.get("description")
             prior_desc = None
             reindex = False
-            row = None
-            if desc or fts_full:
-                row = conn.execute(
-                    "SELECT description_sha, description, title, location, department"
-                    " FROM jobs WHERE id = ?", (jid,)
-                ).fetchone()
+            row = conn.execute(f"SELECT {_STORED_COLUMNS} FROM jobs WHERE id = ?", (jid,)).fetchone()
             if desc:
                 sha = description_sha(desc)
                 # Captured before the upsert below overwrites it: the FTS
@@ -704,6 +702,17 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
                     changed_descriptions.append((jid, desc))
                     reindex = True
                 j["description_sha"] = sha
+            if would_not_change(row, j, ts, already_tracked):
+                # 96% of the listings a fragment carries (2026-10-21): the
+                # sweep sends a whole board when any one listing on it
+                # moves. The upsert rewrote each of them anyway, and every
+                # index holding a column it sets (closed_at among them, so
+                # every partial index on the box) took a delete and an
+                # insert per row. last_seen is all that is left to record,
+                # and no index holds it.
+                if (row["last_seen"] or "") < last_seen_floor:
+                    seen_again.append((ts, jid))
+                continue
             upsert_job(conn, jid, domain, j, confidence=job_confidence, ts=ts, already_tracked_company=already_tracked)
             if reindex and fts_cols:
                 reindex_why["text"] += 1
@@ -728,6 +737,7 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
         if adopted_from:
             _adopt_job_ages(conn, domain, adopted_from)
 
+    conn.executemany("UPDATE jobs SET last_seen = ? WHERE id = ?", seen_again)
     close_missing_jobs(conn, seen_ids_by_domain, ts)
 
     if meta_before:
@@ -793,6 +803,60 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
         )
 
     return covered
+
+
+# How stale last_seen may get on a listing that is still there unchanged.
+# It is the job page's "checked N ago", and moving it on every pass of a
+# board the sweep resends every few minutes cost a table page for about
+# every two listings: 22,000 of a 96MB batch's 51,000 page writes. Boards
+# that answer 304 never move it at all, so it was never finer than this.
+LAST_SEEN_EVERY_S = 3600
+
+# What load_resolved reads before deciding, per listing, whether
+# upsert_job has anything to write.
+_STORED_COLUMNS = ("closed_at, title, location, department, url, posted_at, description_chars,"
+                   " description, description_sha, skills, country, city, salary_text, salary_is_estimate,"
+                   " salary_source, seniority, workplace_type, raw_json, last_seen")
+
+
+def would_not_change(row, j: dict, ts: str, already_tracked_company: bool) -> bool:
+    """True when upsert_job(j) on this stored row would write nothing but
+    last_seen. Mirrors its ON CONFLICT branches, and only says True where
+    every branch provably keeps the stored value, so a case it does not
+    cover costs one ordinary upsert, never a wrong row. A closed row is
+    never unchanged: the upsert reopens it. tests/test_unchanged_skip.py
+    replays payloads through both paths to keep the two in step."""
+    if row is None or row["closed_at"] is not None or row["raw_json"] is not None:
+        return False
+    location = j.get("location")
+    if ((j.get("title") or "") != row["title"] or location != row["location"]
+            or j.get("department") != row["department"] or http_url(j.get("url")) != row["url"]
+            or j.get("seniority") != row["seniority"] or j.get("workplace_type") != row["workplace_type"]
+            or (j.get("country") or country_string(location)) != row["country"]
+            or (j.get("city") or city_string(location)) != row["city"]):
+        return False
+    posted = ts if j.get("ats") == "comeet" and already_tracked_company else j.get("posted_at")
+    if posted != row["posted_at"] and not (
+            j.get("ats") in ("workday", "comeet", "checkpoint") and row["posted_at"] is not None):
+        return False
+    chars = j.get("description_chars", 0)
+    if chars and chars > 0 and chars != row["description_chars"]:
+        return False
+    desc = j.get("description")
+    if desc and j.get("description_sha") != row["description_sha"]:
+        return False
+    skills = ",".join(j.get("skills") or [])
+    if skills and skills != row["skills"]:
+        return False
+    text = j.get("salary_text")
+    estimate = int(bool(j.get("salary_is_estimate")))
+    source = j.get("salary_source") or (None if not text else "table" if estimate else "disclosed")
+    if text:
+        return (text, estimate, source) == (row["salary_text"], row["salary_is_estimate"], row["salary_source"])
+    # No figure this poll: every branch keeps the stored one, except an
+    # 'estimated' source and the withdrawal of an estimate by a poll that
+    # carried the description.
+    return source != "estimated" and not (desc and row["salary_is_estimate"] == 1)
 
 
 def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confidence: str, ts: str, already_tracked_company: bool = True) -> bool:
@@ -2112,6 +2176,14 @@ def _mostly_free_pages(conn: sqlite3.Connection) -> bool:
 # run once an hour. Every other caller still runs them every time.
 BOX_SWEEP_SECONDS = 3600
 
+# SQLite's page cache for the box's apply, against its 2MB default. A
+# batch dirties tens of thousands of pages, so with the default they
+# spilled to the WAL and were rewritten there over and over, and every
+# lookup re-read the B-tree's upper levels. Measured over 36 fragments on
+# the 2026-10-21 snapshot: read calls 2.15M to 1.05M, writes 1.13M to
+# 0.95M, for a loader peaking at about 230MB.
+BOX_CACHE_KB = 65536
+
 
 def _box_sweep_due(conn: sqlite3.Connection) -> bool:
     last = _meta_get(conn, "box_sweep_at")
@@ -2222,6 +2294,7 @@ def main() -> int:
         opened = time.monotonic()
         conn = open_db(args.out)
         if args.box:
+            conn.execute(f"PRAGMA cache_size = -{BOX_CACHE_KB}")
             # The search index in its own file beside jobs.db, read-write,
             # so index_description and the archive reach it as `jobs_fts`
             # (box/STAGE2-FTS.md). Absent before the split: nothing to do.
