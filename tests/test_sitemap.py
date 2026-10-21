@@ -35,10 +35,10 @@ conn.executescript((ROOT / "db" / "schema.sql").read_text(encoding="utf-8"))
 conn.execute("INSERT INTO companies (domain, ats, first_seen, last_checked, company_name) VALUES ('wix.com','greenhouse','2026-09-01','2026-09-18','Wix')")
 
 
-def job(jid, posted, first_seen="2026-09-10T08:00:00+00:00", closed=None, title="Engineer", desc="Build & ship"):
-    conn.execute("INSERT INTO jobs (id, company_domain, ats, title, location, department, url, posted_at, first_seen, last_seen, closed_at, description, confidence)"
-                 " VALUES (?, 'wix.com', 'greenhouse', ?, 'Tel Aviv, Israel', 'R&D', 'https://x/y', ?, ?, '2026-09-18T11:00:00+00:00', ?, ?, 'verified')",
-                 (jid, title, posted, first_seen, closed, desc))
+def job(jid, posted, first_seen="2026-09-10T08:00:00+00:00", closed=None, title="Engineer", desc="Build & ship", chars=900):
+    conn.execute("INSERT INTO jobs (id, company_domain, ats, title, location, department, url, posted_at, first_seen, last_seen, closed_at, description, description_chars, confidence)"
+                 " VALUES (?, 'wix.com', 'greenhouse', ?, 'Tel Aviv, Israel', 'R&D', 'https://x/y', ?, ?, '2026-09-18T11:00:00+00:00', ?, ?, ?, 'verified')",
+                 (jid, title, posted, first_seen, closed, desc, chars))
 
 
 # Shard size is shrunk so sharding is exercised without 80,001 rows.
@@ -88,6 +88,19 @@ urls2 = [e.text for e in s2.findall("s:url/s:loc", ns)]
 check("open, fresh listings only, at their own pages, in id order across shards",
       urls1 == [f"https://oceanofjobs.com/job/{i}" for i in ("a1", "a2", "a3")]
       and urls2 == ["https://oceanofjobs.com/job/a4"], repr((urls1, urls2)))
+
+# Title-only listings wait for a description, from the column or the
+# nightly backfill's list.
+bare = sqlite3.connect(":memory:")
+bare.executescript((ROOT / "db" / "schema.sql").read_text(encoding="utf-8"))
+bare.execute("INSERT INTO companies (domain, ats, first_seen, last_checked) VALUES ('wix.com','greenhouse','2026-09-01','2026-09-18')")
+for jid, chars in (("full", 900), ("bare1", 0), ("bare2", 0)):
+    bare.execute("INSERT INTO jobs (id, company_domain, ats, title, url, posted_at, first_seen, last_seen, description_chars, confidence)"
+                 " VALUES (?, 'wix.com', 'greenhouse', 'Engineer', 'https://x/y', '2026-09-17T10:00:00+00:00', '2026-09-17T10:00:00+00:00',"
+                 " '2026-09-18T11:00:00+00:00', ?, 'verified')", (jid, chars))
+listed = "".join(sitemap.job_shards(bare, frozenset({"bare2"})))
+check("a title-only listing waits until it has a description",
+      "/job/full<" in listed and "/job/bare2<" in listed and "/job/bare1<" not in listed, listed[-400:])
 check("closed and outdated listings are left out",
       not any("closed1" in u or "stale1" in u for u in urls1 + urls2))
 mods = {e.find("s:loc", ns).text.rsplit("/", 1)[1]: (e.find("s:lastmod", ns).text if e.find("s:lastmod", ns) is not None else None)

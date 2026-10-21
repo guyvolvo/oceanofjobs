@@ -139,10 +139,18 @@ def pages_sitemap(now: datetime, role_paths: list[str] = ()) -> str:
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n")
 
 
-def job_shards(conn: sqlite3.Connection) -> list[str]:
+def job_shards(conn: sqlite3.Connection, described: frozenset = frozenset()) -> list[str]:
     """One XML document per shard, in id order so a listing keeps its
-    shard between runs and a crawler's per-file bookkeeping stays useful."""
-    rows = conn.execute(f"SELECT id, posted_at, first_seen FROM jobs WHERE {open_clause(conn)} ORDER BY id").fetchall()
+    shard between runs and a crawler's per-file bookkeeping stays useful.
+
+    Only listings with a description: 22% of open tech listings were a
+    title alone (2026-10-21), and a crawler that rarely visits should
+    spend its visits on pages with something to read. described is the
+    nightly backfill's list (box/describe_backfill.py), whose text lives
+    only in S3; a listing joins the sitemap the night it gets one."""
+    rows = [r for r in conn.execute(
+        f"SELECT id, posted_at, first_seen, COALESCE(description_chars, 0) FROM jobs WHERE {open_clause(conn)} ORDER BY id")
+        if r[3] >= 200 or r[0] in described]
     shards = []
     for start in range(0, len(rows), SHARD):
         body = "".join(_url(f"{SITE}/job/{r[0]}", _w3c(r[1], r[2])) for r in rows[start:start + SHARD])
@@ -271,7 +279,10 @@ def build(db_path: Path, now: datetime | None = None) -> dict[str, tuple[bytes, 
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
-        shards = job_shards(conn)
+        # shortcut: described-ids.txt also holds listings whose source had
+        # no text, about 2% of it; split the file if that grows.
+        done = db_path.with_name("described-ids.txt")
+        shards = job_shards(conn, frozenset(done.read_text().split()) if done.exists() else frozenset())
         rows = company_rows(conn)
         companies = company_shards(rows)
         rss = feed(conn, now)
