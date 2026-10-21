@@ -262,8 +262,8 @@
           sentOk = true;
           form.hidden = true;
           sent.hidden = false;
-        } catch (err) {
-          fail(`Not sent: ${err.message}. The email address on the left works too.`);
+        } catch {
+          fail("Not sent. Try again, or email guyvoloshin@oceanofjobs.com.");
         } finally {
           send.disabled = false;
         }
