@@ -57,14 +57,14 @@ with mock_aws():
         table.put_item(Item={"user_id": u, "alert_id": apply.PLAN_ROW, "plan": "pro", "status": "active"})
     calls = []
 
-    def run(answer="Yes", p=600, c=20):
+    def run(answer="Python", p=600, c=20):
         def call(messages):
             calls.append(messages)
             return answer, p, c
         return call
 
     def draft(user, now=NOW, question=None, **kw):
-        return ai_answers.draft(table, user, {"question": question or f"Do you know Python? ({len(calls)})"}, {}, run=kw.get("model", run()),
+        return ai_answers.draft(table, user, {"question": question or f"Which language do you use most? ({len(calls)})"}, {}, run=kw.get("model", run()),
                                 report=lambda total: None, now=now)
 
     def day_total():
@@ -79,8 +79,8 @@ with mock_aws():
     except ai_answers.RateLimited as e:
         check("the 21st call in a minute is refused, saying when to try again", e.retry_after == 55, repr(e.retry_after))
     check("without reaching the model", len(calls) == ai_answers.PER_MINUTE)
-    check("another user isn't affected", draft("v")["answer"] == "Yes")
-    check("the next minute starts again", draft("u", now=NOW + timedelta(minutes=1))["answer"] == "Yes")
+    check("another user isn't affected", draft("v")["answer"] == "Python")
+    check("the next minute starts again", draft("u", now=NOW + timedelta(minutes=1))["answer"] == "Python")
     check("and the counter is one row per user, not one per minute",
           len([i for i in table.scan()["Items"] if i["alert_id"].startswith("#ai_rate")]) == 2)
 
@@ -98,7 +98,7 @@ with mock_aws():
     def capture(messages):
         probe["held"] = round(ai_answers.neurons(sum(len(m["content"]) for m in messages), ai_answers.MAX_OUT), 2)
         raise ai_answers.NotConfigured("probe")
-    raises(lambda: draft("w", now=NOW + timedelta(minutes=2), question="Do you know Rust?", model=capture), ai_answers.NotConfigured)
+    raises(lambda: draft("w", now=NOW + timedelta(minutes=2), question="Which systems language do you like?", model=capture), ai_answers.NotConfigured)
     held = probe["held"]
     table.put_item(Item={"user_id": ai_answers.SYSTEM_USER, "alert_id": DAY, "n": Decimal(str(ai_answers.DAILY_NEURONS - held * 1.5))})
     before = len(calls)
@@ -107,12 +107,12 @@ with mock_aws():
     def first_model(messages):
         # While the first call holds its worst case, a second one arrives.
         try:
-            draft("w", now=NOW + timedelta(minutes=2), question="Do you know Rust?")
+            draft("w", now=NOW + timedelta(minutes=2), question="Which systems language do you like?")
             second["result"] = "answered"
         except ai_answers.BudgetExhausted as e:
             second["result"] = e
         return run()(messages)
-    draft("w", now=NOW + timedelta(minutes=2), question="Do you know Rust?", model=first_model)
+    draft("w", now=NOW + timedelta(minutes=2), question="Which systems language do you like?", model=first_model)
     e = second.get("result")
     check("near the budget, a second call while the first holds its share is refused, until midnight UTC",
           isinstance(e, ai_answers.BudgetExhausted) and e.retry_after == 86400 - (12 * 3600 + 2 * 60 + 5), repr(e))

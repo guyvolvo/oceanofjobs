@@ -149,6 +149,8 @@ function render(s) {
     row.className = 'answer-row';
     const input = document.createElement('input');
     input.placeholder = 'Your answer';
+    // The AI's draft, waiting for the user to approve or change it.
+    input.value = n.draft || '';
     input.setAttribute('aria-label', `Answer: ${n.question}`);
     const save = document.createElement('button');
     save.className = 'btn';

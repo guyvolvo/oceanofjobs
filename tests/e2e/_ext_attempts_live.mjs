@@ -45,7 +45,7 @@ const profile = {
   eeo: { gender: "decline", race: "decline", veteran: "decline", disability: "decline" }, answers: [],
   settings: { mode: "queue", sources: ["board", "ats_pages"], unknowns: "ai", guardrails: {} },
 };
-const state = { attempts: {}, events: [], submits: [], host: "" };
+const state = { attempts: {}, events: [], submits: [], host: "", gates: [], approved: new Set(), review: false };
 // A submission: a write to the job's own site that isn't the CV parser.
 // Other hosts (analytics, LinkedIn's widget) are the page's own traffic.
 await ctx.route("**/*", async (r) => {
@@ -62,6 +62,11 @@ await ctx.route("**/*", async (r) => {
     if (p === "draft") return r.fulfill({ json: { answer: body.options && body.options.length ? body.options[0] : "Test answer" } });
     if (p === "filled") return r.fulfill({ json: { attempt: { state: "filled" } } });
     if (p === "attempts") {
+      // The job lock: an attempt that reached the gate keeps the job.
+      if (!state.attempts[body.attempt_id] && Object.values(state.attempts).some((x) => x.job_id === body.job_id
+          && ["submission_started", "unconfirmed", "submitted"].includes(x.state))) {
+        return r.fulfill({ status: 409, json: { code: "job_taken", error: "already applied", retryable: false } });
+      }
       state.attempts[body.attempt_id] = state.attempts[body.attempt_id] || { job_id: body.job_id, state: "reserved" };
       state.events.push([Date.now(), "reserve"]);
       return r.fulfill({ json: { attempt: state.attempts[body.attempt_id] } });
@@ -70,12 +75,17 @@ await ctx.route("**/*", async (r) => {
     const a = state.attempts[id];
     if (!a) return r.fulfill({ status: 404, json: { code: "not_found", retryable: false } });
     if (action === "submission-started") {
+      state.gates.push(body);
+      const held = state.review && body.mode === "auto" ? (body.answers || []).filter((x) => x.source === "ai" && !state.approved.has(x.question)) : [];
+      if (held.length) {
+        return r.fulfill({ status: 409, json: { code: "needs_review", error: "check AI answers", retryable: false, questions: held.map((x) => x.question) } });
+      }
       a.state = "submission_started";
       state.events.push([Date.now(), "gate"]);
       return r.fulfill({ json: { attempt: a, submit: true } });
     }
     if (action === "settle") {
-      if (a.state !== body.outcome) { a.state = body.outcome; a.reason = body.reason; a.settles = (a.settles || 0) + 1; }
+      if (a.state !== body.outcome) { a.state = body.outcome; a.reason = body.reason; a.questions = body.questions; a.settles = (a.settles || 0) + 1; }
       return r.fulfill({ json: { attempt: a } });
     }
     return r.fulfill({ status: 404, json: {} });
@@ -152,6 +162,53 @@ for (const job of jobs) {
     check("at most one submission request, never repeated", state.submits.length <= 1, JSON.stringify(state.submits));
     check("with the employer's request blocked it is never recorded as submitted", a.state !== "submitted", a.state);
     check("settled once", a.settles === 1 && ["unconfirmed", "failed"].includes(a.state), JSON.stringify(a));
+  }
+}
+
+// Review (custom agent step 3): an AI answer the user hasn't approved stops
+// an automatic run at the gate. The job pauses with its questions, nothing
+// is sent; once the user approves, the next run passes and clicks once, and
+// a retry of the same job is refused rather than sent twice.
+state.review = true;
+for (const job of jobs.filter((j) => ["greenhouse", "ashby"].includes(j.ats))) {
+  console.log(`\nreview, ${job.ats}: ${job.url}`);
+  state.attempts = {}; state.events = []; state.submits = []; state.gates = []; state.approved = new Set(); state.host = new URL(job.url).hostname;
+  profile.answers = [];
+  const run = () => sw.evaluate(async (j) => {
+    const { profile } = await api("/me/apply/profile");
+    const st = await chrome.storage.local.get(["cv"]);
+    return applyTo(j, { profile, preferences: {}, settings: profile.settings, cv: st.cv, ai: null, serverAi: true });
+  }, job);
+  let result;
+  try { result = await run(); } catch (e) { check("ran without error", false, e.message.split("\n")[0]); continue; }
+  const first = Object.values(state.attempts)[0] || {};
+  const sentAi = (state.gates[0] && state.gates[0].answers || []).filter((x) => x.source === "ai");
+  console.log(`  run 1: ${JSON.stringify(result)}; ${first.state}; AI answers at the gate: ${sentAi.length}; submit requests: ${state.submits.length}`);
+  if (!sentAi.length) {
+    check("this form needed no AI answer, so review didn't apply", result !== "failed" || first.state !== "needs_input", JSON.stringify(first));
+    continue;
+  }
+  check("the gate got every filled answer, the AI's marked", state.gates[0].mode === "auto" && state.gates[0].answers.length > sentAi.length);
+  check("an unapproved AI answer stops the run: paused for review, nothing sent", first.state === "needs_input" && state.submits.length === 0
+    && JSON.stringify(first.questions) === JSON.stringify(sentAi.map((x) => x.question)), JSON.stringify(first));
+  // The user approves (here: saves each drafted answer as their own).
+  profile.answers = sentAi.map((x) => ({ question: x.question, answer: x.answer, source: "user", approval: "approved" }));
+  state.approved = new Set(sentAi.map((x) => x.question));
+  state.submits = [];
+  result = await run();
+  const second = Object.values(state.attempts).find((x) => x !== first) || {};
+  console.log(`  run 2: ${JSON.stringify(result)}; ${second.state}; submit requests: ${state.submits.length}`);
+  check("once approved, the next run passes the gate and sends once", state.gates.length === 2 && second.state !== "needs_input"
+    && state.submits.length <= 1 && second.state !== "submitted", JSON.stringify({ second, submits: state.submits }));
+  const before = state.submits.length;
+  result = await run();
+  if (second.state === "failed") {
+    // The site refused it before anything was sent: the job is free to try again.
+    check("after a failure that sent nothing, a retry may run, and still never sends twice", state.submits.length <= 1,
+      JSON.stringify({ result, submits: state.submits }));
+  } else {
+    check("after a click, a retry of the same job is refused, not sent again", result === "skipped" && state.submits.length === before,
+      JSON.stringify({ result, submits: state.submits }));
   }
 }
 

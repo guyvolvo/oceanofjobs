@@ -859,8 +859,18 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         q = {r["job_id"] for r in apply.queue(_alerts_table, user_id)}
         needs = attempts.Attempts(_alerts_table).needs(user_id, q)
         shown = {r["job_id"]: r for r in _history_view([dict(n, status="needs_input") for n in needs])}
+        saved = {apply.answer_key(a): a for a in apply.get_profile(_alerts_table, user_id)["answers"]}
+
+        def drafts(n):
+            out = {}
+            for question in n["questions"]:
+                job = n["job_id"] if apply.job_specific(question) else ""
+                a = saved.get((apply.normalise_question(question), job))
+                if a and a["source"] == "ai" and a["approval"] == "pending":
+                    out[question] = a["answer"]
+            return out
         return ok(200, {"needs": [{**n, "title": shown[n["job_id"]]["title"], "company": shown[n["job_id"]]["company"],
-                                   "link": shown[n["job_id"]]["link"]} for n in needs]})
+                                   "link": shown[n["job_id"]]["link"], "drafts": drafts(n)} for n in needs]})
     if sub == "filled" and method == "POST":
         try:
             return ok(200, {"attempt": attempts.Attempts(_alerts_table).filled(user_id, str(body.get("attempt_id") or ""), body)})

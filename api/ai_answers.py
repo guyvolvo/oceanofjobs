@@ -127,8 +127,10 @@ def neurons(prompt_tokens: int, completion_tokens: int) -> float:
 def facts(profile: dict, prefs: dict) -> dict:
     """What the model may use: the application profile and search
     preferences, never the demographic answers or who the applicant is
-    (name, email, phone): no answer needs them."""
-    return {
+    (name, email, phone): no answer needs them. A fact the user hasn't
+    given is left out, not sent as null: unknown isn't false, and a model
+    shown "needs_visa_sponsorship: null" answers "No"."""
+    known = {
         "location": profile["contact"]["location"],
         "links": {k: v for k, v in profile["links"].items() if v},
         "authorized_to_work_in": profile["work"]["authorized_countries"],
@@ -144,6 +146,7 @@ def facts(profile: dict, prefs: dict) -> dict:
         "earlier_answers": [{"question": a["question"], "answer": a["answer"][:MAX_EARLIER]}
                             for a in profile["answers"] if not apply.job_specific(a["question"])][:30],
     }
+    return {k: v for k, v in known.items() if v not in (None, "", [], {})}
 
 
 def workers_ai(messages: list[dict]) -> tuple[str, int, int]:
@@ -270,7 +273,12 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
         raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.")
     known = facts(profile, prefs)
     job_text = f"Job: {job_line or 'not given'}{f' ({where})' if where else ''}"
-    messages = agent.messages(ag, SUGGEST_PROMPT if suggest else PROMPT, known, job_text, question + choose)
+    # A yes/no or choice answer must quote the fact it rests on. Without
+    # one the model answered "No" to "Do you hold a security clearance?" and
+    # "Yes" to "Are you 18 or older?" from nothing. Not for suggestions: the
+    # user reviews the whole form before sending it.
+    cite = not suggest and agent.needs_support(question, options)
+    messages = agent.messages(ag, SUGGEST_PROMPT if suggest else PROMPT, known, job_text, question + choose + (agent.CITE if cite else ""))
     # Both limits fail closed: an error writing either refuses the call
     # (NotConfigured, 503) rather than letting it through uncounted.
     try:
@@ -297,10 +305,11 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     report(_count(table, SYSTEM_USER, day, round(neurons(p, c) - held, 2)))
     # Checked before it's counted or saved: a refused answer costs the user
     # nothing (the service's neurons above are still counted).
-    allowed = " ".join([json.dumps(known, ensure_ascii=False), " ".join(f["text"] for f in ag["facts"]), job_text, question, " ".join(options)])
+    facts_text = " ".join([json.dumps(known, ensure_ascii=False), " ".join(f["text"] for f in ag["facts"])])
+    allowed = " ".join([facts_text, job_text, question, " ".join(options)])
     try:
         text = agent.check_answer(text, options=options, allowed=allowed, never_claim=ag["never_claim"], length=ag["style"]["length"],
-                                  question=question)
+                                  question=question, support_from=facts_text if cite else None)
     except agent.Refused as e:
         raise CantAnswer(str(e)) from None
     # A user's AI answers count only when one is produced; the service's own

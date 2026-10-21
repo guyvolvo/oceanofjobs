@@ -21,7 +21,8 @@ export type HistoryRow = {
   job_id: string; attempt_id: string | null; company: string; title: string; url: string;
   link: string; status: Status; reason: string; at: string; disputable: boolean;
 };
-export type Need = { attempt_id: string; job_id: string; title: string; company: string; link: string; questions: string[] };
+export type Need = { attempt_id: string; job_id: string; title: string; company: string; link: string; questions: string[];
+  drafts?: Record<string, string> };
 export type QueueItem = { job_id: string; added_at: string; position: number; title: string; company: string; link: string; ats: string };
 export type Profile = {
   contact: { first_name: string; last_name: string; email: string; phone: string; location: string };

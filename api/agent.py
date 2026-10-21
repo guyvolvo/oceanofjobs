@@ -230,17 +230,66 @@ def numbers(text: str) -> set:
     return found | {COUNT_WORDS[m.group(1)] for m in COUNTED.finditer(t)}
 
 
+# Yes/no questions, by their first word. These and choice questions must
+# cite a fact (needs_support): a confident "No" with nothing behind it reads
+# to an employer as a fact about the applicant.
+YES_NO = re.compile(r"^(do|does|did|are|is|was|were|have|has|had|can|could|will|would|should|may)\b")
+CITE = ("\nReply on one line: the answer, then \" | \", then the exact words from the facts that support it. "
+        "If no fact supports an answer, reply with exactly UNKNOWN.")
+
+
+def needs_support(question, options) -> bool:
+    return bool(options) or bool(YES_NO.search(apply.normalise_question(question)))
+
+
+def _words(text) -> set:
+    return {w for w in re.sub(r"[^a-z0-9]+", " ", str(text or "").lower()).split() if len(w) > 2 or w.isdigit()}
+
+
+# Words that say nothing about what a question is about.
+GENERIC = set("you your yours are have has had the and for with this that will would could should can did does any ever "
+              "been being now future currently please how what when where which who why our their there here from into about "
+              "able willing comfortable want like".split())
+
+
+def _topic(text) -> set:
+    """A text's meaningful words, roughly stemmed, so "working" meets "work"."""
+    out = set()
+    for w in _words(text) - GENERIC:
+        for end in ("ing", "ed", "es", "s"):
+            if w.endswith(end) and len(w) - len(end) >= 3:
+                w = w[: -len(end)]
+                break
+        out.add(w)
+    return out
+
+
 # An answer that agrees to what the question asks.
 AFFIRMS = re.compile(r"^(yes|yeah|true|i do|i have|i am|i m|i hold|i can|i will|correct)\b")
 
 
-def check_answer(text: str, *, options: list, allowed: str, never_claim: list, length: str, question: str = "") -> str:
+def check_answer(text: str, *, options: list, allowed: str, never_claim: list, length: str, question: str = "",
+                 support_from: str | None = None) -> str:
     """The answer as it may be used, or Refused with the reason. These are
-    guardrails, not proof: review is the backstop (AI_AGENT_DESIGN.md)."""
+    guardrails, not proof: review is the backstop (AI_AGENT_DESIGN.md).
+    With support_from, the answer must end in " | <words from the facts>",
+    every one of them found in support_from."""
     text = str(text or "").strip()
     plain = apply.normalise_question(text)
     if not plain or UNSURE.search(plain):
         raise Refused("your profile doesn't answer this question")
+    if support_from is not None:
+        first = text.splitlines()[0]
+        answer, sep, support = first.partition("|")
+        cited = _words(support)
+        # The quoted fact has to exist and be about the question: the model
+        # answered "Do you hold a PhD?" with "No | I led a team of five".
+        if not sep or not cited or not cited <= _words(support_from) or not _topic(support) & _topic(question):
+            raise Refused("no fact in your profile supports this answer")
+        text = answer.strip()
+        plain = apply.normalise_question(text)
+        if not plain or UNSURE.search(plain):
+            raise Refused("your profile doesn't answer this question")
     if options:
         # The model adds a full stop or a note after the option ("Yes.",
         # "No\n\n(This answer is...)"): its first line, without them.

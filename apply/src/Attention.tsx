@@ -13,7 +13,8 @@ import { JobCell, JobLink, fmtDate, plural } from "./shared";
 
 function Questions({ need, reload }: { need: Need; reload: () => void }) {
   const toasts = useKumoToastManager();
-  const [answers, setAnswers] = useState<string[]>(() => need.questions.map(() => ""));
+  // The AI's draft, when it wrote one, ready to approve as is or edit.
+  const [answers, setAnswers] = useState<string[]>(() => need.questions.map((q) => need.drafts?.[q] ?? ""));
   const [busy, setBusy] = useState(false);
   const ready = answers.every((a) => a.trim());
 
@@ -44,6 +45,7 @@ function Questions({ need, reload }: { need: Need; reload: () => void }) {
         </div>
         {need.questions.map((q, i) => (
           <InputArea key={q} label={q} autoResize minRows={2} value={answers[i]}
+            description={need.drafts?.[q] ? "The AI drafted this answer. Check it, change anything that isn't right, then save." : undefined}
             onValueChange={(v) => setAnswers((a) => a.map((x, j) => (j === i ? v : x)))} />
         ))}
         <div className="oj-row">

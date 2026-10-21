@@ -62,7 +62,8 @@ async function attemptCall(path, body, tries = 3) {
       return { data: await api(path, { method: 'POST', body }) };
     } catch (e) {
       if (e.status && e.status < 500 && e.status !== 429) {
-        return { refused: (e.body && e.body.code) || String(e.status), status: e.status, error: e.body && e.body.error };
+        return { refused: (e.body && e.body.code) || String(e.status), status: e.status, error: e.body && e.body.error,
+          questions: (e.body && e.body.questions) || [] };
       }
     }
     if (i < tries - 1) await new Promise((r) => setTimeout(r, 1000 * 3 ** i));
@@ -146,13 +147,18 @@ async function reserve(job) {
 }
 
 // The Submit gate: true only when the server acknowledged submission start.
-// Anything else (expired, refused, unreachable) means don't click.
-async function gate(attemptId) {
-  const r = await attemptCall(`/me/apply/attempts/${attemptId}/submission-started`, {});
+// Anything else (expired, refused, unreachable) means don't click. An
+// automatic run sends the answers it filled ({answers, mode: 'auto'}): the
+// server holds back AI answers the user hasn't approved (needs_review,
+// {review: questions}; the caller pauses the job) and keeps a copy of what
+// was sent. The card sends mode 'card': the user pressed Submit themselves.
+async function gate(attemptId, sent = {}) {
+  const r = await attemptCall(`/me/apply/attempts/${attemptId}/submission-started`, sent);
   if (r.data && r.data.submit === true) {
     await track(attemptId, 'started');
     return { ok: true };
   }
+  if (r.refused === 'needs_review') return { review: r.questions.length ? r.questions : ['an AI answer'] };
   if (r.refused === 'expired') {
     await track(attemptId, null);
     return { error: 'This application took too long to prepare, so it was not submitted. Try again.' };
@@ -316,14 +322,16 @@ async function applyTo(job, ctx) {
       return 'failed';
     }
     const plan = oojMatch.planFill(page.fields, ctx.profile, job);
+    const drafted = new Set();
     if (plan.missing.length && ctx.settings.unknowns === 'ai') {
       for (const f of [...plan.missing]) {
         if (f.type === 'file' || oojMatch.isEeo(f)) continue;
         const answer = await answerUnknown(f, job, ctx);
         if (answer === undefined) continue;
-        ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer }];
+        ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer, source: 'ai', approval: 'pending' }];
         plan.missing.splice(plan.missing.indexOf(f), 1);
         plan.fills.push({ ...f, value: answer });
+        drafted.add(f.label);
       }
     }
     if (plan.missing.length) {
@@ -338,7 +346,17 @@ async function applyTo(job, ctx) {
       await settle(id, 'failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form'));
       return 'failed';
     }
-    const ok = await gate(id);
+    // Every answered question, as filled; the server decides which are the
+    // AI's from the saved answers, and only says no to those.
+    const answers = plan.fills.filter((f) => f.type !== 'file' && !oojMatch.isEeo(f) && f.label).slice(0, 50)
+      .map((f) => ({ question: f.label, answer: String(f.value), job_id: job.id, ...(drafted.has(f.label) ? { source: 'ai' } : {}) }));
+    const ok = await gate(id, { answers, mode: 'auto' });
+    if (ok.review) {
+      // Paused for the user to check the AI's answers (Needs attention);
+      // nothing was clicked, and the credit goes back.
+      await settle(id, 'needs_input', 'check AI answers: ' + ok.review.join('; '), ok.review);
+      return 'skipped';
+    }
     if (!ok.ok) return 'failed';
     clicked = true;
     if (!(await inTab(tab.id, job.ats, 'submit'))) {
@@ -569,7 +587,7 @@ async function startSubmit(msg, tabId) {
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
-  const ok = await gate(held.attemptId);
+  const ok = await gate(held.attemptId, { mode: 'card' });
   if (!ok.ok) return ok;
   const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
   pendingHere[tabId] = { attemptId: held.attemptId, jobId: job.board ? job.id : null };
@@ -818,7 +836,7 @@ async function submitHere(msg, sender) {
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
-  const ok = await gate(held.attemptId);
+  const ok = await gate(held.attemptId, { mode: 'card' });
   if (!ok.ok) return { error: ok.error };
   accountCache = null;
   // Past the gate: every way out settles, and an uncertain one is
@@ -927,7 +945,7 @@ async function status() {
     out.appliedToday = summary.applied_today;
     // One row per question, grouped by job in the popup.
     out.needs = needs.flatMap((n) => n.questions.map((question) => ({
-      question, job_id: n.job_id, title: n.title, company: n.company,
+      question, job_id: n.job_id, title: n.title, company: n.company, draft: (n.drafts || {})[question] || '',
       link: n.link && n.link.startsWith('/') ? 'https://oceanofjobs.com' + n.link : n.link || n.url,
     })));
     setBadge(summary.applied_today);
@@ -1022,7 +1040,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       const [{ needs }, { profile }] = await Promise.all([api('/me/apply/needs'), api('/me/apply/profile')]);
       const job = needs.find((n) => n.job_id === msg.job_id);
       let requeued = false;
-      if (job && job.questions.every((q) => oojMatch.findAnswer(q, profile.answers, job.job_id) !== undefined)) {
+      const decided = (profile.answers || []).filter((a) => a.approval !== 'pending');
+      if (job && job.questions.every((q) => oojMatch.findAnswer(q, decided, job.job_id) !== undefined)) {
         requeued = await api(`/me/apply/queue/${encodeURIComponent(job.job_id)}`, { method: 'PUT' }).then(() => true, () => false);
       }
       reply({ ok: true, requeued });
