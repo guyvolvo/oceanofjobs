@@ -9,8 +9,8 @@
         <p><strong>Location.</strong> To show relevant local jobs, we use the country your connection originates from, as reported by our content delivery network. It is used only to render the current page and is not stored.</p>
 
         <h3>Browser storage</h3>
-        <p>The following data is kept in your browser's local storage and is not sent to our servers: theme, filters, saved searches, panel layout, starred jobs, cached results, flags that prevent duplicate visit counts, and your response to the location prompt.</p>
-        <p>Once you sign in, two exceptions apply. Your authentication tokens are sent with each request to verify your identity, and your starred jobs are synced to your account so they are available across devices.</p>
+        <p>The following data is kept in your browser's local storage and is not sent to our servers: theme, filters, saved searches, panel layout, saved jobs, cached results, flags that prevent duplicate visit counts, and your response to the location prompt.</p>
+        <p>Once you sign in, two exceptions apply. Your authentication tokens are sent with each request to verify your identity, and your saved jobs are synced to your account so they are available across devices.</p>
 
         <h3>Accounts</h3>
         <p><strong>Sign-in.</strong> You can sign in with Google, GitHub or a one-time code sent to your email. Amazon Cognito stores your sign-in record: your email address and, if you use Google, the name and profile picture Google provides.</p>
@@ -18,7 +18,7 @@
         <ul>
           <li>Alerts (your saved filter criteria)</li>
           <li>Your profile: skills, seniority, preferred work location and arrangement, and digest schedule</li>
-          <li>Starred jobs</li>
+          <li>Saved jobs</li>
           <li>An overview generated from your profile</li>
         </ul>
         <p>Your profile does not include your name, phone number, employment history or CV unless you set up automatic applications (see below).</p>
@@ -26,7 +26,7 @@
         <p><strong>Email digests.</strong> Digests are sent only to verified email addresses. Each digest includes a link to disable the alert.</p>
 
         <h3>Personal access tokens</h3>
-        <p>If you create a personal access token for the MCP server, we store its name, its last four characters, when it was created and last used, and a one-way hash of it. The token itself is shown to you once and is not stored. Revoking a token deletes its record.</p>
+        <p>You can create personal access tokens for the MCP server, and connecting the extension creates one. For each token we store its name, its last four characters, when it was created and last used, and a one-way hash of it. The token itself is shown to you once and is not stored. Revoking a token deletes its record.</p>
 
         <h3>Browser extension and automatic applications</h3>
         <p>If you use automatic applications, your account also stores your application profile: contact details, links, work authorization, salary expectations, the answers you save for application questions, and, only if you choose to fill them in, demographic answers such as gender or veteran status. It is kept so the extension can use it on any computer you sign in on, and you can edit or delete it on your account page.</p>
@@ -61,7 +61,7 @@
         <p>Cloudflare and CloudFront log requests, including IP addresses, for security and operational purposes. Our application server logs the requested URL, timestamp and user agent of each request. Because traffic reaches the server through a tunnel, it never receives your IP address. Server logs are retained for approximately one week.</p>
 
         <h3>Retention and deletion</h3>
-        <p>Alerts are retained while active and removed immediately when deleted. Delete account removes your alerts, revokes your personal access tokens and clears your profile. Your sign-in record, starred jobs and generated overview are retained until you request their removal, at which point they are deleted in full. You may also request a copy of all data we hold about you.</p>
+        <p>Alerts are retained while active and removed immediately when deleted. Delete account removes your alerts, revokes your personal access tokens and clears your profile. Your sign-in record, saved jobs and generated overview are retained until you request their removal, at which point they are deleted in full. You may also request a copy of all data we hold about you.</p>
 
         <h3>Job listings</h3>
         <p>Listings are collected from companies' public career pages and public applicant tracking system APIs. This is publicly available corporate information, not user data.</p>
