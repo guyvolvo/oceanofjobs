@@ -47,7 +47,7 @@ const SITE = "https://oceanofjobs.com";
 // change in what we store retire every old entry at once.
 const CACHE_PREFIX = SITE + "/__mcp_cache/v1";
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
-const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.0.0", websiteUrl: SITE };
+const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.0.1", websiteUrl: SITE };
 const MAX_LIMIT = 25;
 const MAX_OFFSET = 200;
 const MAX_TTL = 300;
