@@ -12,7 +12,7 @@ declare const COGNITO_CLIENT_ID: string;
 export type Plan = "free" | "basic" | "pro";
 export type Summary = {
   plan: Plan; period: "month" | "day"; limit: number; daily_max: number | null;
-  used: number; in_progress: number; remaining: number; applied_today: number;
+  used: number; in_progress: number; remaining: number; applied_today: number; filled_today: number;
   unconfirmed: number; needs_input: number; queued: number; disputes_left: number;
   ai: { used: number; limit: number | null }; tz: string;
 };

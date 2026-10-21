@@ -3,6 +3,9 @@
 const ORIGIN = 'https://oceanofjobs.com';
 
 document.documentElement.dataset.oojExtension = '1';
+// Which extension, so /apply can message this copy: an unpacked one has a
+// different id from the Web Store build.
+document.documentElement.dataset.oojExtensionId = chrome.runtime.id;
 
 window.addEventListener('message', (event) => {
   if (event.source !== window || event.origin !== ORIGIN) return;

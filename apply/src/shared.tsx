@@ -72,10 +72,8 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
       </div>
     );
   }
-  const connectedNote = ext.justConnected ? <span className="oj-note" role="status">The extension is connected to your account.</span> : null;
-  if (!ext.bridge) {
-    return <div className="oj-stack">{connectedNote}<p className="oj-note">This version of the extension can't open jobs from this page. Update it to apply from here.</p></div>;
-  }
+  const connectedNote = <span className="oj-note" role="status">The extension is connected to your account.</span>;
+  if (!ext.bridge) return connectedNote;
   const next = async () => {
     const failed = (description: string) => toasts.add({ variant: "error", title: "Couldn't open the next job", description });
     let res: { ok?: boolean; job_id?: string; error?: string };
@@ -95,7 +93,7 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
   return (
     <div className="oj-row">
       <Button variant="primary" loading={busy} disabled={!queue?.length} onClick={next}>Apply to next</Button>
-      {connectedNote || (!queue?.length ? <span className="oj-note">Your queue is empty.</span> : null)}
+      {queue?.length ? connectedNote : <span className="oj-note">Your queue is empty.</span>}
     </div>
   );
 }

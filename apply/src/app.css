@@ -141,7 +141,7 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 .oj-form { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
 .oj-wide { grid-column: 1 / -1; }
 .oj-answer { display: grid; gap: 8px; grid-template-columns: 1fr; padding: 12px; border: 1px solid var(--color-kumo-hairline); border-radius: 8px; }
-.oj-save { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: var(--color-kumo-canvas); border-top: 1px solid var(--color-kumo-hairline); }
+.oj-save { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
 .oj-tight { gap: 6px; }
 .oj-filter { max-width: 320px; }
 .oj-dialog { padding: 24px; display: flex; flex-direction: column; gap: 12px; max-width: calc(100vw - 32px); }

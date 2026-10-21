@@ -7,7 +7,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 
-const EXT_ID = "kihjppefdadlodaoecffiemijlielhdi";
+// The Web Store build's id. An unpacked copy has another one, which its
+// content script (1.9.2 on) writes to <html data-ooj-extension-id>.
+const STORE_ID = "kihjppefdadlodaoecffiemijlielhdi";
+const extId = () => document.documentElement.dataset.oojExtensionId || STORE_ID;
 
 type Runtime = { sendMessage: (id: string, msg: object, cb: (res: unknown) => void) => void; lastError?: { message?: string } };
 const runtime = (): Runtime | undefined => (window as unknown as { chrome?: { runtime?: Runtime } }).chrome?.runtime;
@@ -18,7 +21,7 @@ export function ask<T>(msg: object, ms = 4000): Promise<T> {
     if (!rt?.sendMessage) return reject(new Error("unavailable"));
     const timer = setTimeout(() => reject(new Error("timeout")), ms);
     try {
-      rt.sendMessage(EXT_ID, msg, (res) => {
+      rt.sendMessage(extId(), msg, (res) => {
         clearTimeout(timer);
         const err = rt.lastError;
         if (err || !res) reject(new Error(err?.message || "no answer"));

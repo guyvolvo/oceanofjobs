@@ -43,7 +43,7 @@ export function Overview({ s, ext, queue, reload }: { s: Summary; ext: Ext; queu
       </LayerCard>
 
       <div className="oj-grid">
-        <Tile label="Applied today" value={s.applied_today} />
+        <Tile label="Applications filled today" value={s.filled_today} />
         <Tile label="In your queue" value={s.queued}>
           <a className="oj-link" href="#queue">View queue</a>
         </Tile>
@@ -65,7 +65,6 @@ export function Overview({ s, ext, queue, reload }: { s: Summary; ext: Ext; queu
             {extBadge}
             {ext.version ? <span className="oj-note oj-num">v{ext.version}</span> : null}
           </div>
-          <p className="oj-note">The extension opens each job, fills in the form from your settings, and leaves it for you to check and submit.</p>
           <div><ExtensionAction ext={ext} queue={queue} onOpened={reload} /></div>
         </div>
       </LayerCard>

@@ -267,6 +267,22 @@ with mock_aws():
     check("the summary shows what's held and what's left", s["in_progress"] == 3 and s["remaining"] == 0 and s["used"] == 0
           and s["daily_max"] == 3 and s["plan"] == "free" and s["period"] == "month", repr(s))
 
+    # Filled today: every job the extension filled in, sent or not, each once.
+    t, A = fresh_table()
+    A.filled("u", "fil-000001", job(1), NOW)
+    A.filled("u", "fil-000002", job(1), NOW)          # the same form filled twice
+    A.reserve("u", "fil-000003", job(1), NOW)         # then sent from the card
+    A.submission_started("u", "fil-000003", NOW)
+    A.settle("u", "fil-000003", at.SUBMITTED, None, NOW)
+    A.reserve("u", "fil-000004", job(2), NOW)
+    A.settle("u", "fil-000004", "failed", "form errors", NOW)
+    A.filled("u", "fil-000005", job(3), NOW - timedelta(days=1))
+    s = A.summary("u", NOW)
+    check("filled today counts each job once, sent or not, and not a failed one or yesterday's",
+          s["filled_today"] == 1 and s["applied_today"] == 1, repr(s))
+    A.filled("u", "fil-000006", job(4), NOW)
+    check("a fill the user sends themselves counts too", A.summary("u", NOW)["filled_today"] == 2)
+
     # Applications submitted through the old path are respected.
     t, A = fresh_table()
     t.put_item(Item={"user_id": "u", "alert_id": apply.APPLIED + job(9)["job_id"], "job_id": job(9)["job_id"], "url": job(9)["url"],

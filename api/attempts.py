@@ -514,6 +514,9 @@ class Attempts:
                 "in_progress": max(0, (m["held"] - m["charged"]) + (old_m - old_sub_m)),
                 "remaining": max(0, min(left)) if left else None,
                 "applied_today": d["charged"] + old_sub_d,
+                # Jobs the extension filled in today, sent or left to send, each once.
+                "filled_today": old_sub_d + len({a["job_id"] for a in attempts if a["state"] in (FILLED, SUBMITTED, UNCONFIRMED)
+                                                 and periods(datetime.fromisoformat(a["reserved_at"]), tz)[1] == day}),
                 "unconfirmed": sum(1 for a in attempts if a["state"] == UNCONFIRMED),
                 "needs_input": len(self.needs(user_id, queued_ids)), "queued": queued,
                 "disputes_left": max(0, DISPUTES_PER_PERIOD - self.ledger(user_id, LEDGER_MONTH + billing_period(now, tz))["disputes"]),

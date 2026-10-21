@@ -91,7 +91,9 @@ function DisputeButton({ row, left, reload }: { row: HistoryRow; left: number; r
 }
 
 export function Attention({ needs, history, disputesLeft, reload }: { needs: Need[]; history: HistoryRow[]; disputesLeft: number; reload: () => void }) {
-  const unconfirmed = history.filter((r) => r.status === "unconfirmed");
+  // Only attempts (extension 1.9 on) count against the plan. Older unconfirmed
+  // entries were never charged, so they stay in History and not here.
+  const unconfirmed = history.filter((r) => r.status === "unconfirmed" && r.attempt_id);
   if (!needs.length && !unconfirmed.length) {
     return (
       <LayerCard>
@@ -112,8 +114,8 @@ export function Attention({ needs, history, disputesLeft, reload }: { needs: Nee
       {unconfirmed.length ? (
         <section className="oj-stack" aria-labelledby="unconfirmed-title">
           <h2 className="oj-card-title" id="unconfirmed-title">Submission unconfirmed</h2>
-          <Banner variant="alert" icon={<Info weight="fill" />} title="The credit is charged for now"
-            description="The extension pressed submit but couldn't confirm the site received it. If an application didn't go through, dispute it within 14 days to get the credit back." />
+          <Banner variant="alert" icon={<Info weight="fill" />} title="These count as applications for now"
+            description="The extension pressed Submit, but the site never confirmed it got the application. Each one uses one application from your plan. If one didn't go through, dispute it within 14 days and you get that application back." />
           <LayerCard className="oj-table">
             <Table>
               <Table.Header>

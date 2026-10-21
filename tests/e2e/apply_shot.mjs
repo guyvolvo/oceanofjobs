@@ -14,7 +14,7 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 const ago = (h) => new Date(Date.now() - h * 36e5).toISOString();
 
 const API = {
-  summary: { plan: "basic", period: "month", limit: 100, daily_max: 10, used: 37, in_progress: 2, remaining: 61, applied_today: 4, unconfirmed: 2, needs_input: 1, queued: 3, disputes_left: 3, ai: { used: 12, limit: 200 }, tz: "Asia/Jerusalem" },
+  summary: { plan: "basic", period: "month", limit: 100, daily_max: 10, used: 37, in_progress: 2, remaining: 61, applied_today: 4, filled_today: 6, unconfirmed: 2, needs_input: 1, queued: 3, disputes_left: 3, ai: { used: 12, limit: 200 }, tz: "Asia/Jerusalem" },
   queue: { queue: [
     { job_id: "a1b2c3d4", added_at: ago(30), position: 1, title: "Senior Backend Engineer", company: "Wix", link: "/job/a1b2c3d4", ats: "greenhouse" },
     { job_id: "b2c3d4e5", added_at: ago(20), position: 2, title: "Platform Engineer, Developer Experience", company: "monday.com", link: "/job/b2c3d4e5", ats: "ashby" },
