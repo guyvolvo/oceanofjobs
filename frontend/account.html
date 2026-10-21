@@ -305,7 +305,7 @@
             <section class="account-block" id="autoapply">
               <div class="aa-status">
                 <div class="acct-row-text">
-                  <span class="acct-row-label" id="aa-plan">Free plan</span>
+                  <span class="acct-row-label" id="aa-plan">Plan</span>
                   <span class="acct-row-note" id="aa-usage">Loading…</span>
                 </div>
                 <div class="aa-connect">
@@ -362,29 +362,29 @@
                 <div class="pref-group" id="aa-settings">
                   <h3 class="pref-group-title">4. Application settings</h3>
                   <div class="aa-choice" role="radiogroup" aria-label="Mode">
-                    <label><input type="radio" name="aa-mode" value="queue" /> <span><b>Review before submitting</b><br>Choose the jobs you want to apply to. The extension fills in the forms and applies to those jobs only.</span></label>
-                    <label><input type="radio" name="aa-mode" value="auto" /> <span><b>Apply automatically</b><br>The extension applies to jobs that match your preferences, within your daily limit.</span></label>
+                    <label><input type="radio" name="aa-mode" value="queue" /> <span><b>Only jobs I queue</b><br>The extension applies only to jobs you add to your queue.</span></label>
+                    <label><input type="radio" name="aa-mode" value="auto" /> <span><b>Apply automatically</b><br>The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below.</span></label>
                   </div>
                   <p class="aa-sub">Where to find jobs</p>
                   <div class="aa-choice">
                     <label><input type="checkbox" name="aa-source" value="board" /> <span>Jobs I add to my queue on Ocean of Jobs</span></label>
                     <label><input type="checkbox" name="aa-source" value="matches" /> <span>Jobs matching my <a href="#preferences">preferences</a></span></label>
-                    <label><input type="checkbox" name="aa-source" value="ats_pages" /> <span>Jobs I view anywhere on the web</span></label>
+                    <label><input type="checkbox" name="aa-source" value="ats_pages" /> <span>Jobs I open on Greenhouse, Ashby or Workable</span></label>
                     <label><input type="checkbox" name="aa-source" value="mcp" /> <span>Jobs queued by my AI assistant through MCP</span></label>
                   </div>
                   <p class="aa-sub">If a form asks a question I haven't answered</p>
                   <div class="aa-choice" role="radiogroup" aria-label="Unanswered questions">
                     <label><input type="radio" name="aa-unknowns" value="skip" /> <span><b>Skip the job</b><br>Leave it for me to review.</span></label>
-                    <label><input type="radio" name="aa-unknowns" value="ai" /> <span><b>Draft an answer with AI</b><br>AI answers it from my details and saves the answer to my saved answers, where I can review it. Available on Basic and Pro, or with your own AI key on Free.</span></label>
+                    <label><input type="radio" name="aa-unknowns" value="ai" /> <span><b>Draft an answer with AI</b><br>AI drafts an answer from my details, uses it, and adds it to my saved answers so I can check it later. Included on Basic and Pro. On Free, add your own AI key in the extension's options.</span></label>
                   </div>
                 </div>
 
                 <div class="pref-group">
                   <h3 class="pref-group-title">5. Application limits</h3>
-                  <p class="acct-row-note">Set additional limits on top of your plan. Leave a field empty to use your plan's limit.</p>
+                  <p class="acct-row-note">Optional. These apply on top of your plan's limit. Leave a field empty for no extra limit.</p>
                   <div class="aa-grid">
                     <label class="aa-field"><span>Minimum skills match (%)</span><input class="aa-input" type="number" id="aa-min_match" placeholder="e.g. 60" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Maximum applications per day</span><input class="aa-input" type="number" id="aa-daily" placeholder="e.g. 10" autocomplete="off" /></label>
+                    <label class="aa-field"><span>Maximum applications per day (up to 50)</span><input class="aa-input" type="number" id="aa-daily" placeholder="e.g. 10" autocomplete="off" /></label>
                     <label class="aa-field"><span>Days between applications to the same company</span><input class="aa-input" type="number" id="aa-per_company" placeholder="e.g. 30" autocomplete="off" /></label>
                     <label class="aa-field aa-wide"><span>Never apply to</span><textarea class="aa-input" id="aa-blocked" rows="2" placeholder="Company domains, one per line, e.g. mycurrentemployer.com"></textarea></label>
                   </div>

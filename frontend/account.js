@@ -922,9 +922,9 @@ function wireAutoApply() {
   async function load() {
     const [p, u, h] = await Promise.allSettled([authedFetch("/me/apply/profile"), authedFetch("/me/apply/usage"), authedFetch("/me/apply/history?limit=100")]);
     if (p.status === "fulfilled") fill(p.value.profile);
-    else setStatus("aa-status", "Could not load your auto apply settings.", true);
+    else setStatus("aa-status", "Couldn't load your auto apply settings.", true);
     if (u.status === "fulfilled") paintUsage(u.value);
-    else $("aa-usage").textContent = "";
+    else $("aa-usage").textContent = "Couldn't load your plan and usage.";
     if (h.status === "fulfilled") paintHistory(h.value.applied || []);
   }
 
@@ -940,14 +940,20 @@ function wireAutoApply() {
   $("aa-answers").addEventListener("click", (e) => { if (e.target.closest("[data-remove]")) e.target.closest(".aa-answer").remove(); });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    // The same ranges api/apply.py enforces, checked here so the message
+    // can name the field instead of passing on "51 is outside 1 to 50".
+    const bad = [["min_match", "Minimum skills match", 0, 100], ["daily", "Maximum applications per day", 1, 50],
+      ["per_company", "Days between applications to the same company", 1, 365]]
+      .find(([id, , lo, hi]) => { const n = num(id); return n !== null && !(Number.isInteger(n) && n >= lo && n <= hi); });
+    if (bad) return setStatus("aa-status", `Couldn't save. ${bad[1]} must be ${bad[2]} to ${bad[3]}.`, true);
     const btn = form.querySelector("[type=submit]");
     btn.classList.add("btn-busy");
     try {
       const { profile } = await authedFetch("/me/apply/profile", { method: "PUT", body: JSON.stringify({ profile: collect() }) });
       fill(profile);
       setStatus("aa-status", "Saved.");
-    } catch (err) {
-      setStatus("aa-status", err.message || "Could not save.", true);
+    } catch {
+      setStatus("aa-status", "Couldn't save. Try again.", true);
     } finally {
       btn.classList.remove("btn-busy");
     }
@@ -975,8 +981,8 @@ function wireAutoApply() {
         method: "POST", body: JSON.stringify({ name: "Chrome extension", expires_in_days: null, scope: "extension" }),
       });
       window.postMessage({ type: "ooj:connect", token: made.token }, location.origin);
-    } catch (err) {
-      $("aa-ext-state").textContent = err.message || "Could not connect. Try again.";
+    } catch {
+      $("aa-ext-state").textContent = "Couldn't connect the extension. Try again.";
     } finally {
       connect.classList.remove("btn-busy");
     }
