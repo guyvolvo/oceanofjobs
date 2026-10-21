@@ -102,6 +102,30 @@
     } else {
       rows.push(`<button type="button" class="hero-nav-item hero-nav-signin" data-act="signin">${icons.person}Log in</button>`);
     }
+    // The shared header (every page but the homepage): its own sections,
+    // read from the bar, so the phone list is the same site map.
+    const shared = document.querySelector(".site-header .site-menus");
+    if (shared) {
+      for (const el of shared.children) {
+        if (el.matches(".site-menu-link")) {
+          rows.push(`<a class="hero-nav-item" href="${esc(el.getAttribute("href"))}">${esc(el.textContent)}</a>`);
+          continue;
+        }
+        rows.push(`<div class="hero-nav-group">${esc(el.querySelector(".site-menu-btn").textContent)}</div>`);
+        for (const a of el.querySelectorAll(".site-menu-item")) {
+          rows.push(`<a class="hero-nav-item" href="${esc(a.getAttribute("href"))}">${esc(a.textContent)}</a>`);
+        }
+      }
+      if (who) {
+        rows.push(`<div class="hero-nav-group">Account</div>`);
+        rows.push(`<a class="hero-nav-item" href="/account">${icons.person}Account</a>`);
+        rows.push(`<a class="hero-nav-item" href="/account#alerts">${icons.bell}Alerts</a>`);
+      }
+      rows.push(`<button type="button" class="hero-nav-item" data-act="theme">${isDark() ? icons.sun : icons.moon}${isDark() ? "Light mode" : "Dark mode"}</button>`);
+      if (who) rows.push(`<button type="button" class="hero-nav-item hero-nav-out" data-act="signout">${icons.out}Log out</button>`);
+      panel.innerHTML = '<div class="hero-nav-list">' + rows.join("") + "</div>";
+      return;
+    }
     // The desktop header's menus, in its order: Jobs, Companies, Docs, Pricing.
     if (!onBoard()) rows.push(`<a class="hero-nav-item" href="/board">${icons.board}Jobs</a>`);
     if (location.pathname !== "/companies") rows.push(`<a class="hero-nav-item" href="/companies">${icons.building}Companies</a>`);

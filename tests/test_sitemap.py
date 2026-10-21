@@ -64,8 +64,11 @@ w = pages_az["w"][0].decode("utf-8")
 check("the directory links each company under its name's first letter, with its open count",
       '<a href="/company/wix.com">Wix</a> <span>4 open tech jobs</span>' in w and "noindex" not in w
       and '<link rel="canonical" href="https://oceanofjobs.com/companies/w" />' in w, w[-900:])
+# The site header's own A to Z link is on every page too.
+import site_header  # noqa: E402
+IN_HEADER = site_header.header("companies").count('href="/companies/')
 check("every letter has a page that links to every other letter",
-      all(p[1].startswith("text/html") and p[0].count(b'href="/companies/') == len(sitemap.LETTERS) for p in pages_az.values()))
+      all(p[1].startswith("text/html") and p[0].count(b'href="/companies/') == len(sitemap.LETTERS) + IN_HEADER for p in pages_az.values()))
 check("a letter with no company is kept out of the index but still followed",
       b'content="noindex,follow"' in pages_az["q"][0] and b"/company/" not in pages_az["q"][0])
 companies = docs["sitemap-companies-1.xml"][0].decode("utf-8")

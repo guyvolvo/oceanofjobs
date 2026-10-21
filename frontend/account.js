@@ -955,7 +955,8 @@ function wireTokens() {
 
 function wireSettingsTheme() {
   const here = $("settings-theme");
-  const bar = document.getElementById("theme-toggle");
+  // The header's theme button (hero_account.js), which owns the switch.
+  const bar = document.getElementById("hero-theme");
   if (!here || !bar) return;
   const sync = () => {
     here.textContent = document.documentElement.getAttribute("data-theme") === "dark" ? "Light" : "Dark";

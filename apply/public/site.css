@@ -1,0 +1,6 @@
+/* The site header on /apply: frontend/style.css in its own cascade layer,
+   above Kumo's reset (base) and below its components and utilities, so
+   the header gets the site's rules and every Kumo control keeps its own.
+   Here rather than in index.html so Vite leaves the import to the browser. */
+@layer properties, theme, base, site, components, utilities;
+@import url("/style.css") layer(site);

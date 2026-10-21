@@ -4286,6 +4286,30 @@ a.hero-account-btn { text-decoration: none; }
   .home .hero-bar-right { justify-self: end; }
 }
 
+/* The homepage's bar on every other page (api/site_header.py). The .home
+   wrapper brings the bar's rules along; it sits on the page's own colour
+   rather than the homepage's darker one, and the wrapper is what sticks,
+   since a sticky child can't leave a parent its own height. */
+.home.site-header,
+:root[data-theme="dark"] .home.site-header {
+  --h-bg: var(--white);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: none;
+  border-bottom: 1px solid var(--h-line);
+}
+.site-header .site-menu.is-current > .site-menu-btn,
+.site-header .site-menu-link[aria-current="page"] { color: var(--h-text); font-weight: 500; }
+/* The phone list's section names, between their links (mobile_nav.js). */
+.hero-nav-group {
+  padding: 18px 0 4px;
+  font: 500 12px/1.2 "Geist", var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
 /* Buttons. The big one is a paper pill with a dark oblong arrow cut into
    its right end; the quiet one is a soft fill at the same height. */
 .home-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }

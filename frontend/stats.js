@@ -1170,6 +1170,7 @@ function renderSchema() {
 
 function wireThemeToggle() {
   const btn = $("theme-toggle");
+  if (!btn) return; // the shared header carries the theme now
   // A switch, not a labelled button: the CSS draws the side from
   // :root[data-theme]; the state is all this says.
   const sync = () => { btn.setAttribute("aria-checked", String(document.documentElement.getAttribute("data-theme") === "dark")); };

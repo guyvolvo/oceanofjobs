@@ -10,12 +10,23 @@ different from the homepage. Run after editing the homepage or a page:
   pricing:end markers, plus the questions below.
 - terms, refunds, privacy, checkout: scripts/pages/<name>.html, the
   page's text only.
+
+It also writes the shared header (api/site_header.py) into these pages,
+in place of the homepage's own bar, and between the
+<!-- site-header:<section> --> and <!-- side-nav:<section> --> markers
+of the other static pages and /apply.
 """
 
 import re
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "api"))
+import site_header  # noqa: E402
+
 FRONT = Path(__file__).resolve().parent.parent / "frontend"
+MARKED = [FRONT / n for n in ("stats.html", "404.html", "account.html", "contact.html", "board.html", "companies.html")] \
+    + [FRONT.parent / "apply" / "index.html"]
 PAGES = Path(__file__).resolve().parent / "pages"
 LEGAL = {
     # name: (title, description, noindex)
@@ -53,6 +64,14 @@ FAQ = """
 """
 
 
+def marked(page: str) -> str:
+    """The header and sidebar links written between their markers."""
+    page = re.sub(r"<!-- site-header:(\w*) -->.*?<!-- /site-header -->",
+                  lambda m: f"<!-- site-header:{m.group(1)} -->{site_header.header(m.group(1))}<!-- /site-header -->", page, flags=re.S)
+    return re.sub(r"<!-- side-nav:(\w*) -->.*?<!-- /side-nav -->",
+                  lambda m: f"<!-- side-nav:{m.group(1)} -->{site_header.side(m.group(1))}<!-- /side-nav -->", page, flags=re.S)
+
+
 def shell(home: str, name: str, title: str, desc: str, main: str, noindex: bool = False) -> str:
     """The homepage around another page's main."""
     title = f"{title} | Ocean of Jobs"
@@ -70,6 +89,11 @@ def shell(home: str, name: str, title: str, desc: str, main: str, noindex: bool 
     page = re.sub(r'  <main id="main" tabindex="-1">.*?  </main>',
                   lambda _: '  <main id="main" tabindex="-1">\n    <div class="price-page-top"></div>\n' + main + "  </main>",
                   page, count=1, flags=re.S)
+    # The shared header, not the homepage's own bar.
+    current = {"pricing": "pricing", "checkout": "pricing"}.get(name, "")
+    page = re.sub(r'  <header class="home-bar hero-bar-head">.*?</header>\n',
+                  lambda _: f"  <!-- site-header:{current} --><!-- /site-header -->\n", page, count=1, flags=re.S)
+    page = marked(page)
     page = re.sub(r'(<script src="hero_nav.js"></script>\n).*?(  <script src="mobile_nav.js"></script>)',
                   lambda m: m.group(1) + m.group(2), page, count=1, flags=re.S)
     assert f"<title>{title}</title>" in page and 'getElementById("home-poll")' not in page
@@ -92,6 +116,9 @@ def main():
     for name, page in out.items():
         (FRONT / f"{name}.html").write_text(page, encoding="utf-8")
         print(f"wrote frontend/{name}.html", len(page))
+    for path in MARKED:
+        path.write_text(marked(path.read_text(encoding="utf-8")), encoding="utf-8")
+        print(f"header in {path.relative_to(FRONT.parent)}")
 
 
 if __name__ == "__main__":

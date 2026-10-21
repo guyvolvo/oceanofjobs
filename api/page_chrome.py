@@ -8,6 +8,8 @@ import html
 import json
 from datetime import datetime, timezone
 
+import site_header
+
 SITE = "https://oceanofjobs.com"
 CARD = f"{SITE}/og.jpg?v=3"  # bump v when og.jpg changes: link previews cache by URL
 
@@ -160,33 +162,25 @@ def head(title, description, canonical, robots=None, ld=None, og_type="article")
 
 
 def topbar(current: str = "") -> str:
-    """The bar: the mark, the four pages, a search that lands on the
-    board, and Log in. `current` is "jobs" or "companies"."""
-    def nav(key, href, label):
-        on = ' class="on" aria-current="page"' if key == current else ""
-        return f'<a href="{href}"{on}>{label}</a>'
+    """The body's start and the site header (api/site_header.py).
+    `current` is a site_header.SECTIONS key, such as "jobs"."""
     return f"""<body class="job-page-body">
 <a class="skip-link" href="#main">Skip to content</a>
-  <header class="pg-bar">
-    <div class="pg-bar-in">
-      <a class="pg-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="24" height="24" alt="" /><span translate="no">oceanofjobs.com</span></a>
-      <nav class="pg-nav" aria-label="Site">{nav("jobs", "/board", "Jobs")}{nav("companies", "/companies", "Companies")}{nav("stats", "/stats", "Statistics")}{nav("api", "/docs/api", "API")}</nav>
-      <form class="pg-search" action="/board" method="get" role="search">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input type="search" name="search" aria-label="Search jobs" placeholder="Search jobs…" autocomplete="off" />
-      </form>
-      <a class="pg-login" href="/account">Log in</a>
-    </div>
-  </header>
+  {site_header.header(current)}
 """
 
 
 FOOT = """  <script src="/count.js"></script>
-  <script>
+""" + "".join(f'  <script src="{src}"></script>\n' for src in site_header.SCRIPTS) + """  <script>
     (function () {
       var side = document.querySelector(".pg-side");
       if (!side) return;
-      var fit = function () { side.style.top = Math.min(16, window.innerHeight - side.offsetHeight - 16) + "px"; };
+      // Below the sticky site header, or as high as fits on a short screen.
+      var bar = document.querySelector(".site-header");
+      var fit = function () {
+        var top = 16 + (bar ? bar.offsetHeight : 0);
+        side.style.top = Math.min(top, window.innerHeight - side.offsetHeight - 16) + "px";
+      };
       fit(); window.addEventListener("resize", fit); window.addEventListener("load", fit);
     })();
   </script>

@@ -5,7 +5,7 @@ import { Empty } from "@cloudflare/kumo/components/empty";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { Button, LinkButton } from "@cloudflare/kumo/components/button";
-import { Moon, Sun, UserCircle, WarningCircle } from "@phosphor-icons/react";
+import { UserCircle, WarningCircle } from "@phosphor-icons/react";
 import { apply, signedIn, ApiError, type HistoryRow, type Need, type QueueItem, type Summary } from "./api";
 import { useExtension } from "./ext";
 import { Overview, PLAN } from "./Overview";
@@ -23,41 +23,17 @@ const fromHash = (): Section => {
   return (SECTIONS as readonly string[]).includes(h) ? (h as Section) : "overview";
 };
 
-function setTheme(light: boolean) {
-  document.documentElement.dataset.mode = light ? "light" : "dark";
-  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (meta) meta.content = light ? "#f2f0ef" : "#17181c";
-}
-const readLight = () => { try { return localStorage.getItem("iljobs_theme") === "light"; } catch { return false; } };
-
-function Bar() {
-  const [light, setLight] = useState(readLight);
-  useEffect(() => setTheme(light), [light]);
+// The site header (outside React) switches the theme on <html data-theme>;
+// Kumo reads data-mode. One follows the other.
+function useSiteTheme() {
   useEffect(() => {
-    // Toggled on another page of the site while this one is open.
-    const on = (e: StorageEvent) => { if (e.key === "iljobs_theme") setLight(readLight()); };
-    addEventListener("storage", on);
-    return () => removeEventListener("storage", on);
+    const root = document.documentElement;
+    const sync = () => { root.dataset.mode = root.getAttribute("data-theme") === "dark" ? "dark" : "light"; };
+    sync();
+    const watch = new MutationObserver(sync);
+    watch.observe(root, { attributeFilter: ["data-theme"] });
+    return () => watch.disconnect();
   }, []);
-  const toggle = () => {
-    try { localStorage.setItem("iljobs_theme", light ? "dark" : "light"); } catch { /* still switches for this visit */ }
-    setLight(!light);
-  };
-  return (
-    <header className="oj-bar">
-      <div className="oj-bar-in">
-        <a className="oj-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a>
-        <nav className="oj-nav" aria-label="Site">
-          <a href="/board">Jobs</a>
-          <a href="/companies">Companies</a>
-          <a href="/docs">Docs</a>
-          <a href="/account">Account</a>
-        </nav>
-        <span className="oj-bar-gap" />
-        <Button variant="ghost" shape="square" icon={light ? <Moon /> : <Sun />} aria-label={light ? "Dark mode" : "Light mode"} onClick={toggle} />
-      </div>
-    </header>
-  );
 }
 
 function SignedOut() {
@@ -168,9 +144,9 @@ export function App() {
     return () => removeEventListener("storage", on);
   }, []);
   const out = useCallback(() => setAuthed(false), []);
+  useSiteTheme();
   return (
     <>
-      <Bar />
       <main className="oj-main" id="main">{authed ? <Dashboard onSignedOut={out} /> : <SignedOut />}</main>
     </>
   );

@@ -107,20 +107,10 @@
 
 html, body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-kumo-default); }
 body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-a { color: inherit; }
+#root a { color: inherit; }
 /* The app in its own stacking context, so Kumo's dialogs and toasts (portals
-   after #root in body) always paint above the sticky bar. */
+   after #root in body) always paint above the site header. */
 #root { isolation: isolate; }
-
-/* The bar: the account page's (style.css .topbar-account), rebuilt
-   here because style.css as a whole would restyle every Kumo control. */
-.oj-bar { position: sticky; top: 0; z-index: 20; background: var(--color-kumo-canvas); border-bottom: 1px solid var(--color-kumo-hairline); font-family: var(--oj-display); }
-.oj-bar-in { display: flex; align-items: center; gap: 20px; min-height: 56px; padding: 0 max(16px, env(safe-area-inset-left)); max-width: 1140px; margin: 0 auto; }
-.oj-mark { display: flex; flex: none; }
-.oj-nav { display: flex; gap: 20px; font-size: 14px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.oj-nav a { text-decoration: none; white-space: nowrap; }
-.oj-nav a:hover { color: var(--text-color-kumo-link); }
-.oj-bar-gap { flex: 1; }
 
 .oj-main { max-width: 1140px; margin: 0 auto; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 20px; }
 .oj-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
@@ -161,6 +151,4 @@ a { color: inherit; }
 @media (max-width: 640px) {
   .oj-hide-sm { display: none; }
   .oj-show-sm { display: flex; margin-top: 6px; }
-  .oj-bar-in { gap: 14px; }
-  .oj-nav { gap: 14px; }
 }
