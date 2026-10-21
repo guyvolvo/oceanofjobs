@@ -204,7 +204,7 @@
   // says when the record starts instead.
   function sparkline(history) {
     const pts = (history || []).map((h) => h.open_n);
-    if (pts.length < 14) return `<span class="dir-hint">Daily counts start ${history?.length ? `on ${esc(history[0].day)}` : "with the next publish run"}.</span>`;
+    if (pts.length < 14) return `<span class="dir-hint">Daily counts start ${history?.length ? `on ${esc(history[0].day)}` : "within a few hours"}.</span>`;
     const w = 280, h = 56, max = Math.max(1, ...pts), min = Math.min(...pts);
     const span = Math.max(1, max - min);
     const xy = pts.map((v, i) => [i * (w / (pts.length - 1)), h - 4 - ((v - min) / span) * (h - 8)]);

@@ -316,7 +316,7 @@ async function toggleQueue(id) {
   paintQueue(id);
   try {
     await authedFetch(`/me/apply/queue/${encodeURIComponent(id)}`, { method: on ? "PUT" : "DELETE" });
-    announce(on ? "Queued for auto apply. The extension applies on its next check." : "Removed from your auto apply queue.");
+    announce(on ? "Queued. The Ocean of Jobs browser extension applies on its next check, if it's installed." : "Removed from your auto apply queue.");
   } catch (err) {
     if (applyQueue.has(id) !== on) return; // clicked again since, and that click owns the button now
     on ? applyQueue.delete(id) : applyQueue.add(id);
@@ -1297,9 +1297,10 @@ function showMatchesPrompt() {
   panel.hidden = false;
   panel.innerHTML = getAuthTokens()
     ? `<span class="match-panel-label">Best matches orders jobs by the skills on your CV.</span>`
-      + ` <a class="link match-panel-edit" href="/account#cv">Analyze your CV</a>`
+      + ` <a class="link match-panel-edit" href="/account#cv">Add your CV</a>`
     : `<span class="match-panel-label">Best matches orders jobs by the skills on your CV.`
-      + ` Sign in, then analyze your CV on your account page.</span>`;
+      + ` <button type="button" class="link-inline" data-open-signin>Log in</button>, then add your CV on your account page.</span>`;
+  panel.querySelector("[data-open-signin]")?.addEventListener("click", () => window.openSignIn());
 }
 
 // The skills the CV analyser saved to the reader's profile. Null when
@@ -2548,7 +2549,7 @@ function jobWhereLine(j) {
 const SALARY_SOURCE_NOTE = {
   disclosed: "Published by the employer on this listing, in their own terms.",
   table: "Our estimate of monthly gross pay, from Israeli market rates for this role and seniority. Not the employer's own figure.",
-  estimated: "Our estimate of monthly gross pay, from what comparable roles actually pay at this company and location. Not the employer's own figure.",
+  estimated: "Our estimate of monthly gross pay, from the pay ranges that similar jobs disclose. Not the employer's own figure.",
 };
 
 // Real disclosed comp shown plainly; an estimate prefixed "Est." and
@@ -2860,7 +2861,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
   } else if (job.description) {
     descriptionHtml = `<div class="job-detail-description">${renderDescriptionLines(job.description)}</div>`;
   } else {
-    descriptionHtml = '<div class="job-detail-description empty">No description was provided, see full details by clicking apply</div>';
+    descriptionHtml = '<div class="job-detail-description empty">This listing has no description. Select Apply to read it on the company\'s site.</div>';
   }
 
   // No close button here any more: the pane has a head of its own and
@@ -6931,11 +6932,9 @@ async function maybeAskCountry() {
   if (state.country.length) return false;
 
   let country = null;
-  let source = null;
   try {
     const geo = await fetch("/api/geo").then((r) => (r.ok ? r.json() : null));
     country = geo && geo.country;
-    source = geo && geo.source;
   } catch {
     return false; // offline or the endpoint is down; the board is what matters
   }
@@ -6983,11 +6982,7 @@ async function maybeAskCountry() {
     box.setAttribute("aria-labelledby", "geo-prompt-title");
     box.innerHTML = `
       <h2 id="geo-prompt-title">Are you in ${escapeHtml(where)}?</h2>
-      <p>To improve user experience we detect the client's location via AWS CloudFront to tailor your interface accordingly. If you do not wish to share your location please press skip, which will show the global job board.</p>
-      <div class="geo-evidence">
-        country <b>${escapeHtml(country)}</b><br />
-        read from <b>${escapeHtml(source || "unknown")}</b>
-      </div>
+      <p>We guessed your country from your connection. Skip to see jobs from every country.</p>
       <div class="geo-actions">
         <button class="btn" id="geo-accept" type="button">Show ${escapeHtml(where)} jobs</button>
         <button class="btn btn-quiet" id="geo-skip" type="button">Skip</button>

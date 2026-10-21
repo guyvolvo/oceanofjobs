@@ -61,7 +61,7 @@ if (shown) {
     const b = document.querySelector(".geo-prompt");
     const acc = document.getElementById("geo-accept"), skip = document.getElementById("geo-skip");
     const cs = getComputedStyle(skip);
-    return { title: b.querySelector("h2").innerText, evidence: b.querySelector(".geo-evidence").innerText.replace(/\s+/g, " "),
+    return { title: b.querySelector("h2").innerText, evidence: !!b.querySelector(".geo-evidence"),
              body: b.querySelector("p").innerText.replace(/\s+/g, " "),
              accept: acc.innerText, skipBg: cs.backgroundColor, skipWeight: cs.fontWeight,
              acceptBg: getComputedStyle(acc).backgroundColor, acceptWeight: getComputedStyle(acc).fontWeight,
@@ -73,7 +73,7 @@ if (shown) {
   // this check. The code alone must fail.
   check("names the country, not the code", /Israel/.test(info.title) && !/\bIL\b/.test(info.title), info.title);
   check("the button names it too", /Israel/.test(info.accept) && !/\bIL\b/.test(info.accept), info.accept);
-  check("shows what was read", /cf-ipcountry/.test(info.evidence), info.evidence);
+  check("no debug readout of the header it came from", !info.evidence);
   check("has a scrim and is a modal", info.scrim && info.modal === "true");
   // The fill, not the weight. Neither button is bold any more, so a
   // weight comparison would pass on two identical buttons and call it a
@@ -83,8 +83,8 @@ if (shown) {
         info.skipBg === "rgba(0, 0, 0, 0)" && info.acceptBg !== "rgba(0, 0, 0, 0)",
         `skip=${info.skipBg} accept=${info.acceptBg}`);
   check("accept is not bold", info.acceptWeight !== "700", info.acceptWeight);
-  check("explains the detection and the skip option",
-        /CloudFront/.test(info.body) && /skip/i.test(info.body), info.body);
+  check("explains the guess and the skip option",
+        /connection/.test(info.body) && /skip/i.test(info.body), info.body);
   await page.screenshot({ path: `${OUT}/geo-prompt.png` });
   await page.click("#geo-accept");
   await page.waitForTimeout(800);
