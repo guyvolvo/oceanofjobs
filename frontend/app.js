@@ -1277,7 +1277,7 @@ function renderMatchPanel() {
     + `My skills <span class="match-panel-count">${state.skills.length}</span>${MS_CHEVRON_SVG}</button>`
     + `<span class="match-panel-label"`
     + ` title="Jobs that share at least one of your CV skills, ordered by how many. Newer jobs count higher, and every two weeks since posting counts as one skill fewer.">`
-    + `Ranked by relevance</span>`
+    + `Ranked by CV skills</span>`
     + `<a class="link match-panel-edit" href="/account#cv">Edit skills</a>`
     + `</div>`
     + `<div class="match-skills-wrap${open ? " open" : ""}" id="match-skills"><div class="match-skills">`
@@ -2192,19 +2192,19 @@ function renderSearchNotice(data) {
               ignored.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · "));
   }
   // Related roles are never added silently: one small switch says the
-  // search is broad and offers exact, or the reverse, and its tooltip
-  // names what the broad search adds. The label is what a click does.
+  // search is broad and offers exact, or the reverse, and the line's
+  // tooltip names what the broad search adds. The label is what a click does.
   const related = (info && !info.exact && info.expanded) || [];
   searchRelatedPhrases = related;
   if (related.length) {
-    const tip = `Also matching ${related.join(", ")}. Click to match only your words.`;
-    bits.push(`<button type="button" class="search-mode" data-search-exact title="${escapeHtml(tip)}">` +
+    const tip = `Also matching ${related.join(", ")}.`;
+    bits.push(`<span title="${escapeHtml(tip)}">Also showing related jobs.</span> <button type="button" class="search-mode" data-search-exact>` +
               `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>` +
-              `Exact search</button>`);
+              `Show exact matches only</button>`);
   } else if (info && info.exact && (info.terms || []).length) {
-    bits.push(`<button type="button" class="search-mode is-exact" data-search-smart title="Matching only your words. Click to include related jobs.">` +
+    bits.push(`Showing exact matches only. <button type="button" class="search-mode is-exact" data-search-smart>` +
               `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.8 2.8M16.2 16.2 19 19M5 19l2.8-2.8M16.2 7.8 19 5"/></svg>` +
-              `Broad search</button>`);
+              `Include related jobs</button>`);
   }
   el.innerHTML = bits.join(" ");
   el.hidden = !bits.length;
@@ -2742,7 +2742,7 @@ function jobRowsHtml(jobs, starred) {
                  hold markup. -->
             <a class="job-title-text job-title-link" href="/job/${encodeURIComponent(j.id)}" title="${escapeHtml(j.title)}">${highlight(j.title)}</a>
             ${j.seniority ? `<span class="badge seniority">${escapeHtml(SENIORITY_LABELS[j.seniority] || j.seniority)}</span>` : ""}
-            ${j.confidence === "best_effort" ? '<span class="badge best-effort" title="Scraped from the company\'s own page, not a live ATS API">best_effort</span>' : ""}
+            ${j.confidence === "best_effort" ? '<span class="badge best-effort" title="Read from the company\'s careers page, so it may be out of date.">Unverified</span>' : ""}
             ${j.closed_at ? '<span class="badge closed" title="This job is no longer open">Closed</span>' : ""}
           </div>
           <!-- The age rides at the end of the details line on a phone,
@@ -2754,7 +2754,7 @@ function jobRowsHtml(jobs, starred) {
           <div class="job-chips"><span class="job-chip-run">${matchedSkills.size ? jobMatchLine(j) : jobSalaryChip(j) + jobSkillChips(j)}</span><span class="job-age-tail ${appliedAt.has(j.id) ? "applied" : ""}">${appliedLabel(j.id) || fmtPostedAgo(j, age)}</span></div>
           <div class="job-links">
             <a class="apply-link" href="${safeHref(j.url)}" target="_blank" rel="noopener" title="Open the original listing to apply">Apply ${EXTERNAL_ARROW_SVG}</a>
-            <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy link</button>
+            <button class="copy-link-btn" data-copy-url="${escapeHtml(j.url || "")}" title="Copy the application link">Copy apply link</button>
           </div>
           <div class="job-salary-line">${jobSalaryLine(j)}</div>
         </td>
@@ -2881,7 +2881,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
          a listing scraped from a career page instead of an ATS, and one
          that has closed. -->
     <h2 class="job-detail-title">${escapeHtml(job.title)}${
-      job.confidence === "best_effort" ? ' <span class="badge best-effort" title="Scraped from the company\'s own page, not a live ATS API">best_effort</span>' : ""}${
+      job.confidence === "best_effort" ? ' <span class="badge best-effort" title="Read from the company\'s careers page, so it may be out of date.">Unverified</span>' : ""}${
       job.closed_at ? ' <span class="badge closed">Closed</span>' : ""}</h2>
 
     <div class="job-detail-actions">
@@ -3192,11 +3192,11 @@ function renderDetailEmpty() {
   const companiesPrev = onBasis(s.companies_hiring, s.companies_now_basis, s.companies_7d_ago);
   add(total == null ? (pending || !lastJobsResponse ? bone : null) : fmtInt(total), "Matching jobs",
       trend(s.open_now_basis, s.open_jobs_7d_ago, `${fmtInt(rolesPrev)} a week ago`));
-  add(pending ? bone : s.new_jobs_24h == null ? null : fmtInt(s.new_jobs_24h), "New today",
+  add(pending ? bone : s.new_jobs_24h == null ? null : fmtInt(s.new_jobs_24h), "New in 24h",
       trend(s.new_jobs_24h, s.prev_new_jobs_24h, `${fmtInt(s.prev_new_jobs_24h)} yesterday`));
   add(pending ? bone : s.companies_hiring == null ? null : fmtInt(s.companies_hiring), "Companies",
       trend(s.companies_now_basis, s.companies_7d_ago, `${fmtInt(companiesPrev)} a week ago`));
-  // Fourth, so it lands under New today in the two-column grid.
+  // Fourth, so it lands under New in 24h in the two-column grid.
   add(pending ? bone : s.new_jobs_7d == null ? null : fmtInt(s.new_jobs_7d), "New this week",
       trend(s.new_jobs_7d, s.prev_new_jobs_7d, `${fmtInt(s.prev_new_jobs_7d)} the week before`));
 
@@ -6272,8 +6272,8 @@ function renderAuthState() {
       <div class="alert-create" id="alert-create">
         <h3 class="alerts-header" id="alert-form-title">New alert</h3>
         <div class="alert-create-fields">
-          <label for="alert-f-search" class="visually-hidden">Words the listing must contain</label>
-          <input type="text" id="alert-f-search" name="search" autocomplete="off" placeholder="Words the listing must contain, e.g. devops…" />
+          <label for="alert-f-search">Keywords</label>
+          <input type="text" id="alert-f-search" name="search" autocomplete="off" placeholder="e.g. devops" />
           <div class="ms" id="alert-ms-department"></div>
           <div class="ms" id="alert-ms-seniority"></div>
           <div class="ms" id="alert-ms-company"></div>
@@ -6552,7 +6552,7 @@ function renderAlertsList(alerts) {
       <div class="alert-row ${a.active ? "" : "paused"} ${a.alert_id === editingAlertId ? "editing" : ""}${dup ? " duplicate" : ""}">
         <button type="button" class="alert-summary" data-id="${a.alert_id}" title="Edit this alert">${escapeHtml(describeAlertFilter(a.filter))}${dup ? `<span class="alert-dup">Duplicate of ${escapeHtml(dup)}</span>` : ""}</button>
         <span class="alert-actions">
-          <button class="alert-toggle" data-id="${a.alert_id}" data-active="${a.active}" role="switch" aria-checked="${a.active}" aria-label="${a.active ? "On" : "Off"}"><span class="alert-toggle-text">${a.active ? "Pause" : "Resume"}</span></button>
+          <button class="alert-toggle" data-id="${a.alert_id}" data-active="${a.active}" role="switch" aria-checked="${a.active}" aria-label="${a.active ? "Alert on" : "Alert paused"}"><span class="alert-toggle-text">${a.active ? "Pause" : "Resume"}</span></button>
           <button class="alert-delete" data-id="${a.alert_id}" aria-label="Delete alert" title="Delete alert">✕</button>
         </span>
       </div>`

@@ -331,7 +331,7 @@
                 var el = function (tag, cls, text) { var n = document.createElement(tag); n.className = cls; if (text) n.textContent = text; if (tag === "button") { n.type = "button"; n.tabIndex = -1; } return n; };
                 var head = el("div", "match-panel-head");
                 head.appendChild(el("button", "match-panel-toggle", "My skills " + skills.length));
-                head.appendChild(el("span", "match-panel-label", "Ranked by relevance"));
+                head.appendChild(el("span", "match-panel-label", "Ranked by CV skills"));
                 head.appendChild(el("span", "link match-panel-edit", "Edit skills"));
                 var wrap = el("div", "match-skills-wrap" + (open ? " open" : ""));
                 var list = el("div", "match-skills");
