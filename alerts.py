@@ -281,7 +281,7 @@ def _find_new_matches(conn: sqlite3.Connection, alert: dict) -> list[dict]:
     rows = conn.execute(
         f"SELECT id, title, company_domain, {name_sql}, {logo_sql}, {place_sql}, location, url, posted_at, first_seen, "
         f"seniority, workplace_type, salary_text, salary_is_estimate, {salary_source_select(conn)} FROM jobs "
-        f"WHERE {where_sql} ORDER BY first_seen DESC LIMIT 50",
+        f"WHERE {where_sql} ORDER BY first_seen DESC LIMIT {MAX_MATCHES}",
         args,
     ).fetchall()
     return [dict(r) for r in rows]
@@ -464,6 +464,14 @@ _MSO_FONT = "Arial,sans-serif"
 LOGO_PNG = f"{SITE_ORIGIN}/img/email-lighthouse.png"
 
 ROWS_SHOWN = 5
+# The most matches one digest fetches. At the cap the mail says "50+",
+# since there may be more.
+MAX_MATCHES = 50
+
+
+def count_text(n: int) -> str:
+    """"12", or "50+" when the fetch stopped at MAX_MATCHES."""
+    return f"{n}+" if n >= MAX_MATCHES else str(n)
 # A listing first posted longer ago than this stays out of the mail,
 # however recently the board happened to pick it up.
 MAX_AGE_DAYS = 30
@@ -533,10 +541,11 @@ def is_fresh(job: dict, now: datetime, days: int = MAX_AGE_DAYS) -> bool:
 
 
 def age_label(job: dict, now: datetime) -> tuple[str, bool]:
-    """('Just posted', True) inside 24 hours, else ('15d ago', False)."""
+    """('Just posted', True) inside 24 hours, else ('15d ago', False);
+    ('', False) for a listing with no date, which says nothing about its age."""
     when = _posted(job)
     if when is None:
-        return "Just posted", True
+        return "", False
     hours = max(0, (now - when).total_seconds() / 3600)
     if hours < 24:
         return "Just posted", True
@@ -650,7 +659,7 @@ def digest_subject(alert: dict | None, matches: list[dict]) -> str:
         return named(matches[0])
     if n == 2:
         return f"{named(matches[0])} and {named(matches[1])}"
-    return f"{named(matches[0])} and {n - 1} more new jobs"
+    return f"{named(matches[0])} and {n - 1}{'+' if n >= MAX_MATCHES else ''} more new jobs"
 
 
 def alert_name(alert: dict | None) -> str:
@@ -666,19 +675,22 @@ def _digest_text(n: int, matches: list[dict], alert: dict | None = None, now: da
     now = now or datetime.now(timezone.utc)
     alert = alert or {}
     shown = matches[:ROWS_SHOWN]
-    lines = [f'{n} new job{"s" if n != 1 else ""} for "{alert_name(alert)}"',
-             f"Since your last alert on {since_label(alert, now)}", ""]
+    lines = [f'{count_text(n)} new job{"s" if n != 1 else ""} for "{alert_name(alert)}"',
+             f"New since {since_label(alert, now)}", ""]
     for j in shown:
         lines.append(clean_title(j["title"], _company(j)))
         lines.append("  " + " · ".join(x for x in (_company(j), row_place(j, alert), age_label(j, now)[0]) if x))
         lines.append("  Apply: " + j["url"])
         lines.append("  " + job_page_url(j))
         lines.append("")
-    lines.append(f"See all {n} job{'s' if n != 1 else ''}: {board_url(alert)}")
+    lines.append(f"See all matching jobs: {board_url(alert)}")
     lines.append(f"Edit this alert: {SITE_ORIGIN}/account")
     lines.append("")
     lines.append(f'You\'re getting this because you created an alert for "{alert_name(alert)}" on oceanofjobs.com.')
-    lines.append(f"Manage alerts or unsubscribe: {SITE_ORIGIN}/account")
+    lines.append(f"Manage alerts: {SITE_ORIGIN}/account")
+    unsubscribe = unsubscribe_url(alert)
+    if unsubscribe:
+        lines.append(f"Unsubscribe from this alert: {unsubscribe}")
     return "\n".join(lines)
 
 
@@ -724,7 +736,7 @@ def _row_html(j: dict, now: datetime, alert: dict | None = None) -> str:
     company = _company(j)
     title = clean_title(j["title"], company)
     age, new = age_label(j, now)
-    age_html = f'<span style="color:{_ACCENT if new else _MUTED};">{esc(age)}</span>'
+    age_html = f'<span style="color:{_ACCENT if new else _MUTED};">{esc(age)}</span>' if age else ""
     meta = " &middot; ".join(x for x in (esc(company), esc(row_place(j, alert)), age_html) if x)
     apply = _button(j["url"], "Apply&nbsp;&#8599;", pad="11px 18px", radius=8, width=92, height=38, font_px=15)
     # The phone gets its own copy of the button, under the words and
@@ -777,12 +789,14 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
     name = alert_name(alert)
     since = since_label(alert, now)
     plural = "s" if n != 1 else ""
-    title = f'{n} new job{plural} for "{name}"'
-    headline = (f'<span style="color:{_ACCENT};">{n}</span> new job{plural} for &ldquo;{esc(name)}&rdquo;')
+    count = count_text(n)
+    title = f'{count} new job{plural} for "{name}"'
+    headline = (f'<span style="color:{_ACCENT};">{count}</span> new job{plural} for &ldquo;{esc(name)}&rdquo;')
     # The inbox list shows this after the subject; nothing else does.
-    preheader = f'{n} new job{plural} matching "{esc(name)}" since {since}'
-    see_all = _button(board_url(alert), f"See all {n} job{plural}", pad="14px 24px", radius=12, width=150, height=46, font_px=15)
+    preheader = f'{count} new job{plural} matching "{esc(name)}" since {since}'
+    see_all = _button(board_url(alert), "See all matching jobs", pad="14px 24px", radius=12, width=220, height=46, font_px=15)
     account = f"{SITE_ORIGIN}/account"
+    unsubscribe = unsubscribe_url(alert)
     link = f"font-family:{_FONT}; color:{_LINK}; text-decoration:underline;"
     return f"""<!doctype html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -836,7 +850,7 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
                       <tr>
                         <td valign="bottom">
                           <div class="otj-head" dir="auto" style="font-family:{_FONT}; font-size:40px; line-height:1.05; font-weight:500; letter-spacing:-0.03em; color:{_TEXT};">{headline}</div>
-                          <div style="padding-top:10px; font-family:{_FONT}; font-size:15px; line-height:1.4; color:{_LINK};">Since your last alert on {since}</div>
+                          <div style="padding-top:10px; font-family:{_FONT}; font-size:15px; line-height:1.4; color:{_LINK};">New since {since}</div>
                         </td>
                       </tr>
                     </table>
@@ -868,7 +882,7 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
           <tr>
             <td style="padding:24px 40px 0 40px; font-family:{_FONT}; font-size:13px; line-height:1.6; color:{_MUTED};">
               You&rsquo;re getting this because you created an alert for &ldquo;{esc(name)}&rdquo; on oceanofjobs.com.<br />
-              <span style="display:inline-block; padding-top:6px;"><a href="{account}" style="{link}">Manage alerts</a> &middot; <a href="{account}" style="{link}">Unsubscribe</a> &middot; <a href="{SITE_ORIGIN}/" style="{link}">oceanofjobs.com</a></span>
+              <span style="display:inline-block; padding-top:6px;"><a href="{account}" style="{link}">Manage alerts</a> &middot; {f'<a href="{esc(unsubscribe)}" style="{link}">Unsubscribe</a> &middot; ' if unsubscribe else ""}<a href="{SITE_ORIGIN}/" style="{link}">oceanofjobs.com</a></span>
             </td>
           </tr>
 

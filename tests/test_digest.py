@@ -92,7 +92,7 @@ check("the count is green inside a 40px headline, 30px on a phone",
       '<span style="color:#2fb36a;">4</span> new jobs for &ldquo;Israel&rdquo;' in h
       and "font-size:40px; line-height:1.05; font-weight:500; letter-spacing:-0.03em" in h
       and ".otj-head { font-size: 30px !important;" in h)
-check("the since line carries the date", ">Since your last alert on Sep 19</div>" in h)
+check("the since line carries the date", ">New since Sep 19</div>" in h)
 
 # Rows
 check("four rows, 4px apart, no rules between them",
@@ -126,33 +126,52 @@ check("titles and meta lines size themselves to their script", h.count('dir="aut
 board = alerts.board_url(ALERT)
 check("the board link carries the alert's own filters, empty ones dropped",
       board == "https://oceanofjobs.com/board?country=IL&department=Product&seniority=senior", board)
-check("See all with the count, then Edit this alert",
-      ">See all 4 jobs</a>" in h and h.count(f'href="{_html.escape(board)}"') == 2 and ">Edit this alert</a>" in h)
-check("why you got this, and the three links",
+check("See all matching jobs, then Edit this alert",
+      ">See all matching jobs</a>" in h and h.count(f'href="{_html.escape(board)}"') == 2 and ">Edit this alert</a>" in h)
+check("why you got this, and the links; no Unsubscribe without a one-click link to give",
       "because you created an alert for &ldquo;Israel&rdquo; on oceanofjobs.com" in h
-      and ">Manage alerts</a>" in h and ">Unsubscribe</a>" in h and h.count(f'href="{alerts.SITE_ORIGIN}/account"') == 3
+      and ">Manage alerts</a>" in h and ">Unsubscribe</a>" not in h and h.count(f'href="{alerts.SITE_ORIGIN}/account"') == 2
       and f'href="{alerts.SITE_ORIGIN}/"' in h)
+alerts._unsub.SECRET = "s3cret"
+try:
+    signed_h = alerts._digest_html(len(matches), matches, ALERT, NOW)
+    signed_t = alerts._digest_text(len(matches), matches, ALERT, NOW)
+    link = alerts.unsubscribe_url(ALERT)
+finally:
+    alerts._unsub.SECRET = ""
+check("with a signed link, Unsubscribe goes to it, not to the account page",
+      f'<a href="{_html.escape(link)}" style="' in signed_h and ">Unsubscribe</a>" in signed_h
+      and f"Unsubscribe from this alert: {link}" in signed_t, signed_h[-900:])
 check("the card comes before the footer text",
-      h.index("border-radius:20px") < h.index('class="otj-head"') < h.index(">See all 4 jobs</a>") < h.index(">Manage alerts</a>"))
+      h.index("border-radius:20px") < h.index('class="otj-head"') < h.index(">See all matching jobs</a>") < h.index(">Manage alerts</a>"))
 
 # Five rows at most, and the button carries the rest
 many = [job(id=f"j{i}", title=f"Role {i}") for i in range(9)]
 big = alerts._digest_html(9, many, ALERT, NOW)
 check("at most five rows are shown", big.count("padding:0 0 4px 0;") == 5 and "Role 4" in big and "Role 5" not in big)
-check("the button says how many there are in total", ">See all 9 jobs</a>" in big)
+check("the button opens every match", ">See all matching jobs</a>" in big)
+capped = [job(id=f"c{i}", title=f"Role {i}") for i in range(alerts.MAX_MATCHES)]
+ch = alerts._digest_html(len(capped), capped, ALERT, NOW)
+check("at the fetch cap the count says 50+, since there may be more",
+      '<span style="color:#2fb36a;">50+</span> new jobs' in ch and '50+ new jobs matching' in ch
+      and alerts._digest_text(len(capped), capped, ALERT, NOW).startswith('50+ new jobs')
+      and alerts.digest_subject(ALERT, capped).endswith("and 49+ more new jobs"), alerts.digest_subject(ALERT, capped))
+undated = alerts._digest_html(1, [job(posted_at=None, first_seen=None)], ALERT, NOW)
+check("a listing with no date shows no age", "Just posted" not in undated and "Wix &middot; Tel Aviv, Israel</div>" in undated,
+      undated[undated.find("Wix &middot;"):][:200])
 
 # Plain text says the same things
 check("text part: headline, since, rows with apply and page links, then the board",
-      t.startswith('4 new jobs for "Israel"\nSince your last alert on Sep 19')
+      t.startswith('4 new jobs for "Israel"\nNew since Sep 19')
       and "Apply: https://boards.greenhouse.io/wix/jobs/1" in t and f"{alerts.SITE_ORIGIN}/job/abc" in t
-      and f"See all 4 jobs: {board}" in t and f"Edit this alert: {alerts.SITE_ORIGIN}/account" in t
-      and "Manage alerts or unsubscribe" in t, t[:200])
+      and f"See all matching jobs: {board}" in t and f"Edit this alert: {alerts.SITE_ORIGIN}/account" in t
+      and f"Manage alerts: {alerts.SITE_ORIGIN}/account" in t and "Unsubscribe" not in t, t[:200])
 check("text part: cleaned titles, no salary", "Data Engineer, Streaming & Batch" in t and "Est." not in t and "₪" not in t)
 
 # Singular, and an alert with no filter at all
 one = alerts._digest_html(1, matches[:1], {"filter": {}}, NOW)
 check("singular reads right", '1</span> new job for &ldquo;your alert&rdquo;' in one and '1 new job matching "your alert"' in one
-      and ">See all 1 job</a>" in one)
+      and ">See all matching jobs</a>" in one)
 check("no filter means a bare board link", 'href="https://oceanofjobs.com/board"' in one)
 check("israel_only still reads as Israel", alerts._filter_summary({"filter": {"israel_only": True}}) == ["Israel"]
       and alerts.alert_name({"filter": {"israel_only": True}}) == "Israel")
