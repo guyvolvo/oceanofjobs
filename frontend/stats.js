@@ -748,7 +748,7 @@ function fmtTime(v, kind, long) {
 
 function groupName(d, v) {
   const map = LABELS[d.columns[0]];
-  return v == null ? "NULL" : (map && map[v]) || String(v);
+  return v == null ? "Unknown" : (map && map[v]) || String(v);
 }
 
 function prettyCol(c, data) {
@@ -921,7 +921,7 @@ function drawColumns(host, d) {
   const ticks = [0, 0.25, 0.5, 0.75, 1];
   const maxChars = Math.max(3, Math.floor(band / 6.6));
   const short = (s) => {
-    s = String(s ?? "NULL");
+    s = String(s ?? "Unknown");
     if (s.length <= maxChars) return s;
     const first = s.split(/[\s&/,-]+/)[0];
     return first.length <= maxChars ? first : `${s.slice(0, Math.max(1, maxChars - 1))}…`;
@@ -982,7 +982,7 @@ function renderBars(columns, rows) {
   const share = !/avg|pct|share|rate|percent/i.test(name || "") && sum > 0;
   return `<div class="st-hbars" role="list">${rows.map((r, i) => `
     <div class="st-hrow" role="listitem">
-      <div class="st-hname" title="${escapeHtml(r[0])}">${escapeHtml((LABELS[columns[0]] || {})[r[0]] || (r[0] ?? "NULL"))}</div>
+      <div class="st-hname" title="${escapeHtml(r[0])}">${escapeHtml((LABELS[columns[0]] || {})[r[0]] || (r[0] ?? "Unknown"))}</div>
       <div><div class="st-hbar" style="width:${((nums[i] / max) * 100).toFixed(2)}%"></div></div>
       <div class="st-hval">${typeof r[vi] === "number" ? fmtValue(r[vi], name) : escapeHtml(String(r[vi] ?? ""))}</div>
       <div class="st-hshare">${share ? `${((nums[i] / sum) * 100).toFixed(1)}%` : ""}</div>
@@ -1057,7 +1057,7 @@ function mountTable(host, d, limit, initialSort, bars = true) {
 }
 
 function cell(v, col, i, d, barCol, barMax, isNum) {
-  if (v == null) return `<td class="null${isNum ? " num" : ""}">${col === "change" || col === "previous" ? "—" : "NULL"}</td>`;
+  if (v == null) return `<td class="null${isNum ? " num" : ""}">${col === "change" || col === "previous" ? "—" : "Unknown"}</td>`;
   if (col === "change" && typeof v === "number") return `<td class="num${v > 0 ? " up" : ""}">${v > 0 ? "+" : ""}${v.toFixed(1)}%</td>`;
   if (typeof v === "number") {
     const bar = i === barCol && v >= 0 ? ` st-barcell" style="--w:${((v / barMax) * 100).toFixed(1)}%` : "";
