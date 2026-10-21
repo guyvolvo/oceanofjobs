@@ -160,7 +160,7 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
         raise NotIncluded("AI answers are included on Basic and Pro")
     used = float((table.get_item(Key={"user_id": user_id, "alert_id": _month_row(now)}).get("Item") or {}).get("n") or 0)
     if used >= CAPS[plan]:
-        raise CapReached(f"this month's {CAPS[plan]} AI answers are used")
+        raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.")
     question = str((body or {}).get("question") or "").strip()[:MAX_QUESTION]
     if not question:
         raise ValueError("question is required")
