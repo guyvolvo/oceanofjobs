@@ -3719,6 +3719,10 @@ body.signin-open .workspace > .section { border-bottom: 0; }
 .site-menu-item:hover,
 .site-menu-item:focus-visible { background: var(--row-hover); outline: none; }
 .site-menu-name { font: 500 15px var(--font-display); }
+/* Docs menu: the name stays left, under the menu's label; its icon sits at the right. */
+.site-menu-item-icon { flex-direction: row; align-items: center; justify-content: space-between; gap: 18px; }
+.site-menu-icon { flex: none; width: 16px; height: 16px; fill: currentColor; opacity: 0.55; }
+.site-menu-item-icon:hover .site-menu-icon, .site-menu-item-icon:focus-visible .site-menu-icon { opacity: 0.9; }
 /* The theme pill at nav size beside the menus. */
 .hero-bar-head .hero-theme { font-size: 14px; }
 .hero-bar-head .hero-account-btn { font: 400 16px/1.2 var(--font-display); }
@@ -4247,7 +4251,8 @@ a.hero-account-btn { text-decoration: none; }
 .home .site-menu-chev { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 /* Under its own menu rather than hung off the right edge: these menus
    sit in the middle of the bar. */
-.home .site-menu-panel { left: -12px; right: auto; background: var(--h-bg); border-color: var(--h-line); }
+/* -19px puts the item text (panel border 1 + padding 6 + item padding 12) under the menu label */
+.home .site-menu-panel { left: -19px; right: auto; background: var(--h-bg); border-color: var(--h-line); }
 .home .site-menu-item { color: var(--h-text); }
 .home .site-menu-name { font: 500 14px "Geist", var(--font); }
 .home .hero-bar-right { flex: 1 1 0; justify-content: flex-end; align-items: center; gap: 10px; }
