@@ -514,7 +514,27 @@ async function jobForTab(tabId, url, title, company) {
   const key = `tabjob:${tabId}`;
   const { [key]: board } = await chrome.storage.session.get(key);
   const id = board && new URL(board.url).host === new URL(url).host ? board.id : await pageJobId(url);
+  company = (await pageCompany(tabId)) || company;
   return { id, url, title: title || '', company_name: company || '', company_domain: company || '', board: !!board };
+}
+
+// The employer the page names: the posting's structured data, then a title
+// like "Engineer at Cyera". Hosted forms (Comeet, Lever) live on the ATS's
+// address, so the address alone would name the ATS. '' when it names none.
+async function pageCompany(tabId) {
+  try {
+    const [r] = await chrome.scripting.executeScript({ target: { tabId }, func: () => {
+      const find = (o) => !o || typeof o !== 'object' ? '' : (o.hiringOrganization && o.hiringOrganization.name)
+        || [].concat(o['@graph'] || [], Array.isArray(o) ? o : []).map(find).find(Boolean) || '';
+      for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+        try { const n = find(JSON.parse(s.textContent)); if (n) return String(n); } catch { /* not JSON */ }
+      }
+      const og = (document.querySelector('meta[property="og:title"]') || {}).content || document.title;
+      const m = / at ([^|–—-]{2,80}?)\s*(?:[|–—-].*)?$/.exec(og || '');
+      return m ? m[1] : '';
+    } });
+    return String((r && r.result) || '').trim().slice(0, 200);
+  } catch { return ''; }
 }
 
 // A fill the user will check and send: in History as Filled, no credit.
