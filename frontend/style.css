@@ -4359,6 +4359,8 @@ a.hero-account-btn { text-decoration: none; }
   color: var(--h-text);
 }
 .home-hero p { max-width: 480px; margin: 22px 0 0; font-size: 17px; line-height: 26px; color: var(--h-muted); }
+.home-hero p.home-soon { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-weight: 500; color: var(--h-text); }
+.home-soon svg { flex: none; fill: currentColor; }
 /* The pill tokens: paper on the dark page, the board's green ink on the
    light one, the same pair as the other big buttons on this page. */
 .home-search {
