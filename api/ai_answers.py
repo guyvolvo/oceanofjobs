@@ -43,6 +43,9 @@ NEURONS_PER_M_OUT = 0.384 / 0.011 * 1000
 CAPS = {"basic": 300, "pro": 3000}
 SYSTEM_USER = "#system"
 MAX_QUESTION = 500
+# Each saved answer as background for the model. Saved answers may be 4,000
+# characters, and 30 of them made one call about 15 times its usual size.
+MAX_EARLIER = 300
 
 PROMPT = (
     "You fill in one job application question for the applicant, using only the facts given. "
@@ -104,7 +107,8 @@ def facts(profile: dict, prefs: dict) -> dict:
         "skills": prefs.get("skills") or [],
         "seniority": prefs.get("seniority"),
         # Never another job's "why us": it names that company.
-        "earlier_answers": [a for a in profile["answers"] if not apply.job_specific(a["question"])][:30],
+        "earlier_answers": [{"question": a["question"], "answer": a["answer"][:MAX_EARLIER]}
+                            for a in profile["answers"] if not apply.job_specific(a["question"])][:30],
     }
 
 

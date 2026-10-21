@@ -4,6 +4,7 @@ call's neurons reach the daily total the 80% alarm reads.
 
 Run directly, no framework:  python tests/test_ai_answers.py
 """
+import json
 import sys
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -112,6 +113,22 @@ out = ai_answers.draft(t, "u", {"question": "Have you been employed by Nebius be
 check("a suggestion uses the suggest prompt and the job's location", out["suggested"] is True and "best helps the applicant" in sent[-1][0]["content"]
       and "SRE at Nebius (Amsterdam)" in sent[-1][1]["content"], sent[-1][1]["content"][-160:])
 check("and is not saved as a saved answer", len(apply.get_profile(t, "u")["answers"]) == before)
+# Saved answers go to the model as background at most 300 characters each;
+# the answers themselves stay whole.
+t = FakeTable()
+t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
+long_answer = "I built data pipelines. " * 150
+apply.put_profile(t, "u", {"answers": [{"question": "Describe your experience", "answer": long_answer},
+                                       {"question": "Notice period?", "answer": "30 days"}]})
+ai_answers.draft(t, "u", {"question": "Years of SQL?"}, {}, run=run("4"), report=reported.append, now=NOW)
+earlier = json.loads(sent[-1][1]["content"].split("\nJob:")[0][len("Facts: "):])["earlier_answers"]
+cut = [a["answer"] for a in earlier if a["question"] == "Describe your experience"]
+check("a long saved answer reaches the model cut to its first 300 characters",
+      len(cut) == 1 and len(cut[0]) == 300 and long_answer.startswith(cut[0]), repr([(a["question"], len(a["answer"])) for a in earlier]))
+check("a short one reaches it unchanged", {"question": "Notice period?", "answer": "30 days"} in earlier, repr(earlier))
+check("and the saved answer itself stays whole",
+      any(a["answer"] == long_answer.strip() for a in apply.get_profile(t, "u")["answers"]))
+
 # Job-specific answers: one written for Riskified must never fill the same
 # question at another company.
 t = FakeTable()
