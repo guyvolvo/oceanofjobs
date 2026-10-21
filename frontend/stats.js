@@ -179,7 +179,7 @@ function ago(iso) {
 async function reopenDatabase() {
   try { worker?.raw?.terminate(); } catch { /* already gone */ }
   worker = null;
-  try { await openDatabase(); } catch (e) { $("explore-status").textContent = "The database could not be reopened. Reload the page."; }
+  try { await openDatabase(); } catch (e) { $("explore-status").textContent = "Couldn't reopen the database. Reload the page."; }
 }
 
 // The pickers' options come from the facets table the builder
@@ -1240,8 +1240,11 @@ async function boot() {
   try {
     await openDatabase();
   } catch (e) {
-    $("explore-status").textContent = "The database runtime could not start.";
-    $("explore-error").textContent = `${e.message || e}. This page needs WebAssembly and a modern browser.`;
+    // Missing WebAssembly is one cause of many, so the detail goes to the
+    // console and the reader gets the step that might help.
+    console.error("statistics database:", e);
+    $("explore-status").textContent = "";
+    $("explore-error").textContent = "Couldn't open the statistics database. Reload the page to try again.";
     $("explore-error").hidden = false;
     $("st-rtitle").textContent = "Statistics are unavailable";
     return;

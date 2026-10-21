@@ -70,9 +70,11 @@
       data = await r.json();
     } catch (e) {
       if (seq !== loadSeq) return;
-      // Said plainly, with the status, rather than bones for ever.
-      $("#dir-count").textContent = "Could not load the list";
-      $("#dir-sub").textContent = /^\d+$/.test(e.message) ? `The API answered ${e.message}. Try again in a minute.` : "The API did not answer. Try again in a minute.";
+      // Said plainly rather than bones for ever. The status goes to the
+      // console; a reader can do nothing with a 503.
+      console.error("companies directory:", e);
+      $("#dir-count").textContent = "Couldn't load companies";
+      $("#dir-sub").textContent = "Try again in a minute.";
       return;
     }
     if (seq !== loadSeq) return;

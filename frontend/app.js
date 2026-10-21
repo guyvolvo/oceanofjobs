@@ -190,8 +190,8 @@ function revertStar(id, attempted) {
   const errEl = document.getElementById("jobs-error");
   if (!errEl) return;
   errEl.textContent = attempted
-    ? "Could not save that listing to your account. The star has been put back."
-    : "Could not remove that listing from your account. The star has been put back.";
+    ? "Couldn't save that job. Try again."
+    : "Couldn't remove that job from your saved jobs. Try again.";
   errEl.style.display = "block";
 }
 
@@ -323,7 +323,11 @@ async function toggleQueue(id) {
     paintQueue(id);
     const errEl = document.getElementById("jobs-error");
     if (!errEl) return;
-    errEl.textContent = on ? `Could not queue that listing. ${err.message}` : `Could not take that listing off your queue. ${err.message}`;
+    // A 403 or 422 carries a reason written for people (api/handler.py
+    // route_apply); anything else is a status code or a dropped connection.
+    errEl.textContent = on
+      ? `Couldn't queue that job. ${err.status === 403 || err.status === 422 ? err.message : "Try again."}`
+      : "Couldn't take that job off your queue. Try again.";
     errEl.style.display = "block";
   }
 }
@@ -353,7 +357,7 @@ async function getJSON(path, { signal } = {}) {
       continue;
     }
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `HTTP ${res.status}`);
+    throw Object.assign(new Error(body.error || `HTTP ${res.status}`), { status: res.status });
   }
 }
 
@@ -1991,7 +1995,7 @@ async function loadJobs({ background = false, append: wantAppend = false } = {})
     // it under an error banner over a transient fetch failure.
     if (!cached) {
       const errEl = document.getElementById("jobs-error");
-      errEl.innerHTML = `Could not load jobs: ${escapeHtml(err.message)}. <button type="button" class="link-inline jobs-retry">Try again</button>`;
+      errEl.innerHTML = `Couldn't load jobs. <button type="button" class="link-inline jobs-retry">Try again</button>`;
       errEl.style.display = "block";
       errEl.querySelector(".jobs-retry").addEventListener("click", () => { errEl.style.display = "none"; loadJobs(); });
     }
@@ -2275,7 +2279,7 @@ async function renderStarredOnly(starred, seq, inFlight) {
     tbody.innerHTML = ""; // bones would otherwise sit there forever behind the error
     showJobsTable(false);
     const errEl = document.getElementById("jobs-error");
-    errEl.textContent = `Could not load your saved listings: ${err.message}`;
+    errEl.textContent = "Couldn't load your saved jobs. Try again.";
     errEl.style.display = "block";
   }
 }
@@ -2842,7 +2846,7 @@ function renderJobDetailBody(job, { descriptionLoading = false, descriptionError
 
   let descriptionHtml;
   if (descriptionError) {
-    descriptionHtml = `<div class="error-state">Could not load the full description: ${escapeHtml(descriptionError)}</div>`;
+    descriptionHtml = '<div class="error-state">Couldn\'t load the description. Select Apply to read it on the company\'s site.</div>';
   } else if (descriptionLoading) {
     // Lines where the text will be, rather than a spinner. The pane is
     // already on screen holding the row's own title and company, so a
@@ -3596,7 +3600,7 @@ async function openJobDetail(id) {
       </div>`;
       panel.querySelector("[data-gone-close]").addEventListener("click", closeJobDetailAndSync);
     } else {
-      panel.innerHTML = `<div class="error-state">Could not load this job: ${escapeHtml(err.message)}</div>`;
+      panel.innerHTML = '<div class="error-state">Couldn\'t load this job. Reload the page to try again.</div>';
     }
   }
 }
@@ -5998,7 +6002,7 @@ async function refreshStats() {
     // Don't bury a perfectly good cached dashboard under an error banner
     // over one failed refresh.
     if (!cachedStats) {
-      const msg = `<div class="error-state" style="grid-column:1/-1">Could not load /api/stats: ${escapeHtml(err.message)}</div>`;
+      const msg = '<div class="error-state" style="grid-column:1/-1">Couldn\'t load the statistics. Reload the page to try again.</div>';
       // Each guarded, because /board has none of these any more (see
       // renderScopedMetrics) while /stats has all four. The other two
       // grids are the same failure, and four copies of one message are
@@ -6455,7 +6459,7 @@ async function authedFetch(path, options = {}) {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `HTTP ${res.status}`);
+    throw Object.assign(new Error(body.error || `HTTP ${res.status}`), { status: res.status });
   }
   return res.status === 204 ? null : res.json();
 }
@@ -6865,8 +6869,10 @@ function wireAlertCreateForm() {
       resetAlertForm();
       renderAlertsList(await loadMyAlerts());
     } catch (err) {
-      const fallback = editing ? "Could not save alert." : "Could not create alert.";
-      showCreateAlertFeedback(err.message || fallback, true);
+      // A 400 is the API saying why in words ("you can have up to 25
+      // alerts..."); a 5xx or a dropped connection is not worth quoting.
+      const why = err.status === 400 && err.message ? `${err.message[0].toUpperCase()}${err.message.slice(1)}.` : null;
+      showCreateAlertFeedback(why || (editing ? "Couldn't save the alert. Try again." : "Couldn't create the alert. Try again."), true);
     } finally {
       // The panel is torn down and rebuilt on sign-out, so this button
       // can be gone by the time the request settles.
