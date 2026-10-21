@@ -1174,6 +1174,10 @@ function wireLeaving() {
       for (const a of alerts) {
         await authedFetch(`/me/alerts/${a.alert_id}`, { method: "DELETE" });
       }
+      const saved = (await authedFetch("/me/saved")).saved || [];
+      for (const r of saved) {
+        await authedFetch(`/me/saved/${encodeURIComponent(r.job_id)}`, { method: "DELETE" });
+      }
       // The auto apply profile, history and queue.
       await authedFetch("/me/apply", { method: "DELETE" });
       // Every token too: one left behind would keep
@@ -1191,7 +1195,7 @@ function wireLeaving() {
       setStatus("account-status", "Deleted. Signing out.");
       setTimeout(signOut, 1200);
     } catch (err) {
-      setStatus("account-status", err.message || "Could not delete.", true);
+      setStatus("account-status", "Couldn't finish deleting your account. Try again.", true);
       btn.classList.remove("btn-busy");
       disarm();
     }
