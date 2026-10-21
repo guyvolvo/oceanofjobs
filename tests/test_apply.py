@@ -146,6 +146,58 @@ check("the queue keeps the order jobs were approved in", [q["job_id"] for q in a
 apply.dequeue(t, "u", jobs[5])
 check("and removes them", [q["job_id"] for q in apply.queue(t, "u")] == [jobs[2]])
 
+
+# Regression, bug 1 (2026-10-21): a submitted application is final. A
+# re-queued job that screens as already applied must not be turned into a
+# skip, refunded, or claimed again, under its own id or another one.
+t2 = FakeTable()
+gh = "https://job-boards.greenhouse.io/embed/job_app?for=celonis&token=8015242003"
+apply.claim(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "url": gh, "company": "celonis.com", "title": "Engineer"}, NOW)
+apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "submitted"}, NOW)
+used = apply.usage(t2, "u", NOW)["used"]
+apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "skipped", "reason": "You've already applied to this job."}, NOW)
+row = t2.items[("u", apply.APPLIED + "aaaaaaaaaaaaaaaa")]
+check("a skip reported for a submitted job leaves it submitted", row["status"] == "submitted" and row["reason"] == "", repr(row))
+check("and refunds nothing", apply.usage(t2, "u", NOW)["used"] == used)
+apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "failed", "reason": "no confirmation"}, NOW)
+check("nor can a failure overwrite it", t2.items[("u", apply.APPLIED + "aaaaaaaaaaaaaaaa")]["status"] == "submitted")
+try:
+    apply.claim(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "url": gh}, NOW + timedelta(days=40))
+    check("a submitted job cannot be claimed again, even months later", False)
+except apply.AlreadyApplied:
+    check("a submitted job cannot be claimed again, even months later", True)
+try:
+    apply.claim(t2, "u", {"job_id": "bbbbbbbbbbbbbbbb", "url": "https://careers.celonis.com/open-roles?gh_jid=8015242003"}, NOW)
+    check("nor under another id, from the company's own careers page", False)
+except apply.AlreadyApplied:
+    check("nor under another id, from the company's own careers page", True)
+check("the queue guard sees it by id", apply.submitted_already(t2, "u", "aaaaaaaaaaaaaaaa"))
+check("and by the job itself", apply.submitted_already(t2, "u", "cccccccccccccccc", "https://boards.greenhouse.io/celonis/jobs/8015242003"))
+check("but not another job", not apply.submitted_already(t2, "u", "cccccccccccccccc", "https://boards.greenhouse.io/celonis/jobs/9999"))
+legacy = FakeTable()
+legacy.put_item(Item={"user_id": "u", "alert_id": apply.APPLIED + "dddddddddddddddd", "job_id": "dddddddddddddddd",
+                      "url": "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808", "status": "submitted", "at": NOW.isoformat()})
+try:
+    apply.claim(legacy, "u", {"job_id": "eeeeeeeeeeeeeeee", "url": "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808/apply"}, NOW)
+    check("rows written before canonical ids still match by their url", False)
+except apply.AlreadyApplied:
+    check("rows written before canonical ids still match by their url", True)
+
+# Regression, bug 2: a job skipped before any claim (a question the profile
+# can't answer) is recorded at no cost, so the next run sees it as tried.
+t3 = FakeTable()
+apply.result(t3, "u", {"job_id": "ffffffffffffffff", "status": "skipped", "reason": "needs answer: Why us?"}, NOW)
+row = t3.items.get(("u", apply.APPLIED + "ffffffffffffffff"))
+check("a skip with no claim is kept as a record", row and row["status"] == "skipped" and row["reason"] == "needs answer: Why us?", repr(row))
+check("and costs nothing", apply.usage(t3, "u", NOW)["used"] == 0)
+check("the job can still be claimed once the question is answered", apply.claim(t3, "u", {"job_id": "ffffffffffffffff"}, NOW) == {"remaining": 29})
+
+for url, want in [(gh, "greenhouse:8015242003"), ("https://boards.greenhouse.io/celonis/jobs/8015242003", "greenhouse:8015242003"),
+                  ("https://jobs.ashbyhq.com/synthesia/ce402b96-d2c2-4651-bb20-2b8cf6166acc/application", "ashby:ce402b96-d2c2-4651-bb20-2b8cf6166acc"),
+                  ("https://apply.workable.com/j/969FF41C4F", "workable:969ff41c4f"), ("https://apply.workable.com/acme/j/969FF41C4F/apply", "workable:969ff41c4f"),
+                  ("https://www.Example.com/Careers/Job-1/?utm=x", "example.com/careers/job-1"), ("", "")]:
+    check(f"canonical {want or 'nothing'}", apply.canonical_job(url) == want, apply.canonical_job(url))
+
 print()
 if failures:
     print("%d failed:" % len(failures))

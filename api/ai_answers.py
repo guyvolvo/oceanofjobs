@@ -177,10 +177,12 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
                                     f"Job: {job_line or 'not given'}{f' ({where})' if where else ''}\nQuestion: {question}{choose}"},
     ]
     text, p, c = run(messages)
-    used = _count(table, user_id, _month_row(now), 1)
     report(_count(table, SYSTEM_USER, "#ai_neurons#" + now.strftime("%Y-%m-%d"), round(neurons(p, c), 2)))
     if not text or text.upper().startswith("UNKNOWN"):
         raise CantAnswer("your profile doesn't answer this question")
+    # A user's AI answers count only when one is produced; the service's own
+    # cost above counts every call.
+    used = _count(table, user_id, _month_row(now), 1)
     answer = text[:apply.MAX_LONG]
     if not suggest:
         apply.add_answer(table, user_id, question, answer)

@@ -802,12 +802,18 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             # Only sites the extension can fill (extension/ats/). Anything
             # else would sit in the queue and be skipped on the next check,
             # after an assistant had told the user it was applying.
-            row = get_connection().execute("SELECT ats FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            conn = get_connection()
+            url_sel = "url" if any(c[1] == "url" for c in conn.execute("PRAGMA table_info(jobs)")) else "NULL"
+            row = conn.execute(f"SELECT ats, {url_sel} FROM jobs WHERE id = ?", (job_id,)).fetchone()
             if row is None:
                 return ok(404, {"error": "no job with that id"})
             if row[0] not in apply.FILLABLE_ATS:
                 return ok(422, {"error": f"The extension can't apply through {page_chrome.ats_name(row[0])} yet. "
                                          f"It fills {_and(page_chrome.ats_name(a) for a in sorted(apply.FILLABLE_ATS))} forms for now."})
+            # A submitted application is final for every caller, the board and
+            # AI assistants included, matched by the job itself, not only its id.
+            if apply.submitted_already(_alerts_table, user_id, job_id, row[1]):
+                return ok(409, {"error": "You've already applied to this job."})
             apply.enqueue(_alerts_table, user_id, job_id)
             return ok(204)
         if method == "DELETE":

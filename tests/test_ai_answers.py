@@ -85,7 +85,8 @@ try:
 except ai_answers.CantAnswer:
     check("UNKNOWN is a refusal", True)
 check("and saves nothing", not any(a["question"] == "Have you worked at Google?" for a in apply.get_profile(t, "u")["answers"]))
-check("but still counts against the month", t.items[("u", "#ai#2026-10")]["n"] == 3)
+check("and costs no AI answer: only answers produced count", t.items[("u", "#ai#2026-10")]["n"] == 2)
+check("though the service's own cost is still recorded", len(reported) == 3, repr(reported))
 
 t.items[("u", "#ai#2026-10")]["n"] = Decimal(300)
 try:

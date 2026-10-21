@@ -470,8 +470,9 @@ async function me(method, path, token, env) {
   }
   if (res.status === 401) throw new ToolError("The personal access token was not accepted: it may be revoked or expired. " + NEEDS_TOKEN);
   // These carry the reason too: auto apply not turned on for MCP (403), a
-  // job on a site the extension can't fill yet (422), an unknown job (404).
-  if ([400, 403, 404, 422].includes(res.status)) {
+  // job on a site the extension can't fill yet (422), an unknown job (404),
+  // a job already applied to (409).
+  if ([400, 403, 404, 409, 422].includes(res.status)) {
     const err = await res.json().catch(() => ({}));
     throw new ToolError(`Ocean of Jobs refused that: ${String(err.error || "bad request").replace(/\.$/, "")}.`);
   }

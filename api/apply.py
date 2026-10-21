@@ -19,6 +19,7 @@ neutral default and the user changes it in onboarding.
 
 import re
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from boto3.dynamodb.conditions import Key
 
@@ -163,6 +164,38 @@ def _applied(table, user_id: str) -> list[dict]:
     return resp.get("Items", [])
 
 
+# One job, whichever address it was reached by: the board's listing URL and
+# a company careers page that embeds the same form both name the ATS's own
+# job id. Anything else falls back to host and path.
+_CANONICAL = [
+    (re.compile(r"greenhouse\.io/.*?(?:[?&](?:token|gh_jid)=|/jobs/)(\d+)", re.I), "greenhouse"),
+    (re.compile(r"[?&]gh_jid=(\d+)", re.I), "greenhouse"),
+    (re.compile(r"jobs\.ashbyhq\.com/[^/?#]+/([0-9a-f-]{36})", re.I), "ashby"),
+    (re.compile(r"workable\.com/(?:[^/?#]+/)?j(?:obs)?/([A-Z0-9]{6,})", re.I), "workable"),
+    (re.compile(r"jobs\.lever\.co/[^/?#]+/([0-9a-f-]{36})", re.I), "lever"),
+]
+
+
+def canonical_job(url: str | None) -> str:
+    u = (url or "").strip()
+    for rx, ats in _CANONICAL:
+        m = rx.search(u)
+        if m:
+            return f"{ats}:{m.group(1).lower()}"
+    p = urlsplit(u)
+    host = p.netloc.lower().removeprefix("www.")
+    return f"{host}{p.path.rstrip('/').lower()}" if host else ""
+
+
+def submitted_already(table, user_id: str, job_id: str, url: str | None = None) -> bool:
+    """Whether this job, by id or by canonical identity, was submitted. The
+    server-side guard every path (extension, board, MCP) goes through."""
+    canon = canonical_job(url)
+    return any(r.get("status") == "submitted"
+               and (r.get("job_id") == job_id or (canon and (r.get("canon") or canonical_job(r.get("url"))) == canon))
+               for r in _applied(table, user_id))
+
+
 def _counts(row: dict, now: datetime) -> bool:
     """Whether a row uses a credit: submitted, or claimed recently enough
     that its result may still come."""
@@ -202,30 +235,59 @@ def claim(table, user_id: str, body: dict, now: datetime | None = None) -> dict:
     existing = table.get_item(Key={"user_id": user_id, "alert_id": APPLIED + job_id}).get("Item")
     if existing and _counts(existing, now):
         raise AlreadyApplied("already applied to this job")
+    # The same job under another id: the board's listing and a careers page
+    # hashed by its address (extension/background.js pageJobId).
+    canon = canonical_job(body.get("url"))
+    if canon and any(_counts(r, now) and (r.get("canon") or canonical_job(r.get("url"))) == canon
+                     for r in _applied(table, user_id) if r.get("job_id") != job_id):
+        raise AlreadyApplied("already applied to this job")
     u = usage(table, user_id, now)
     if u["remaining"] <= 0:
         when = "this month" if u["period"] == "month" else "today"
         raise LimitReached(f"You've used all {u['limit']} applications on the {u['plan'].capitalize()} plan {when}.")
     table.put_item(Item={"user_id": user_id, "alert_id": APPLIED + job_id, "job_id": job_id,
                          "company": _text(body.get("company"), 200), "title": _text(body.get("title"), 300),
-                         "url": _text(body.get("url"), 1000), "status": "claimed", "reason": "",
+                         "url": _text(body.get("url"), 1000), "canon": canon, "status": "claimed", "reason": "",
                          "at": now.isoformat()})
     return {"remaining": u["remaining"] - 1}
 
 
 def result(table, user_id: str, body: dict, now: datetime | None = None) -> None:
-    """The outcome of a claimed job. Skipped and failed give the credit back."""
+    """The outcome of a job. Skipped and failed give the credit back.
+
+    A submitted application is final: no later report changes it, so a
+    re-queued job that screens as already applied cannot erase the
+    submission, refund it, or make the job eligible again. A skip for a
+    job that was never claimed is kept as a record that costs nothing, so
+    an automatic run sees the job as tried instead of picking it (and
+    running the AI on it) every 15 minutes."""
+    now = now or datetime.now(timezone.utc)
     job_id = str((body or {}).get("job_id") or "")
     status = (body or {}).get("status")
     if not JOB_ID.match(job_id) or status not in ("submitted", "skipped", "failed"):
         raise ValueError("job_id and a status of submitted, skipped or failed are required")
     key = {"user_id": user_id, "alert_id": APPLIED + job_id}
-    if not table.get_item(Key=key).get("Item"):
-        raise ValueError("claim the job before reporting it")
-    table.update_item(Key=key, UpdateExpression="SET #s = :s, reason = :r, done_at = :t",
-                      ExpressionAttributeNames={"#s": "status"},
-                      ExpressionAttributeValues={":s": status, ":r": _text(body.get("reason"), 300),
-                                                 ":t": (now or datetime.now(timezone.utc)).isoformat()})
+    reason = _text(body.get("reason"), 300)
+    row = table.get_item(Key=key).get("Item")
+    if not row:
+        if status != "skipped":
+            raise ValueError("claim the job before reporting it")
+        try:
+            table.put_item(Item={**key, "job_id": job_id, "status": "skipped", "reason": reason,
+                                 "at": now.isoformat(), "done_at": now.isoformat()},
+                           ConditionExpression="attribute_not_exists(alert_id)")
+        except table.meta.client.exceptions.ConditionalCheckFailedException:
+            pass  # claimed meanwhile; that claim's own result decides
+        return
+    if row.get("status") == "submitted":
+        return
+    try:
+        table.update_item(Key=key, UpdateExpression="SET #s = :s, reason = :r, done_at = :t",
+                          ConditionExpression="#s <> :sub",
+                          ExpressionAttributeNames={"#s": "status"},
+                          ExpressionAttributeValues={":s": status, ":r": reason, ":t": now.isoformat(), ":sub": "submitted"})
+    except table.meta.client.exceptions.ConditionalCheckFailedException:
+        pass  # submitted between the read and this write: it stays submitted
 
 
 # The extension's internal reason codes as the owner's copy words them

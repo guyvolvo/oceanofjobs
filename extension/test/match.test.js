@@ -160,6 +160,17 @@ test('screenJob applies the guardrails', () => {
   assert.equal(m.screenJob({ id: 'b3', company_domain: 'wix.com', match_score: 2 }, ctx), null);
 });
 
+// Regression, bug 2 (2026-10-21): a job skipped for a question the profile
+// can't answer is now on record (the server keeps unclaimed skips), so an
+// automatic run doesn't pick it, and run the AI on it, every 15 minutes.
+test('a job skipped for a missing answer is not picked again automatically', () => {
+  const skipped = [{ job_id: 'n1', status: 'skipped', reason: 'Needs your answer: Why us?', at: new Date(NOW).toISOString() }];
+  const ctx = { history: skipped, guardrails: {}, now: NOW, retrySkipped: false, minMatch: null };
+  assert.deepEqual(m.pickJobs([{ id: 'n1', company_domain: 'acme.com' }, { id: 'n2', company_domain: 'beta.com' }], ctx).map((j) => j.id), ['n2']);
+  // Answering re-queues it, and a queued job may retry.
+  assert.equal(m.screenJob({ id: 'n1', company_domain: 'acme.com' }, { ...ctx, retrySkipped: true }), null);
+});
+
 test('pickJobs keeps one per company when limited', () => {
   const jobs = [
     { id: 'c1', company_domain: 'wix.com' },

@@ -207,6 +207,14 @@ status, _ = call("/api/me/apply/result", "POST", ext, {"job_id": "0123456789abcd
 check("reports the result", status.startswith("204"), status)
 status, body = call("/api/me/apply/history", auth=ext)
 check("the history shows it submitted", json.loads(body)["applied"][0]["status"] == "submitted", body.decode()[:200])
+# Regression, bug 1: a submitted job can't be queued again by any caller,
+# and a skip reported for it afterwards changes nothing.
+status, body = call("/api/me/apply/queue/0123456789abcdef", "PUT", ext)
+check("queuing a job already applied to is refused", status.startswith("409") and b"already applied" in body
+      and ("u-ext", "#queue#0123456789abcdef") not in table.items, status + body.decode()[:200])
+status, _ = call("/api/me/apply/result", "POST", ext, {"job_id": "0123456789abcdef", "status": "skipped", "reason": "already applied"})
+status2, body = call("/api/me/apply/history", auth=ext)
+check("a later skip leaves it submitted", status.startswith("204") and json.loads(body)["applied"][0]["status"] == "submitted", body.decode()[:200])
 status, _ = call("/api/me/apply/queue/fedcba9876543210", "PUT", ext)
 status2, body = call("/api/me/apply/queue", auth=ext)
 check("queues and lists a job", status.startswith("204") and json.loads(body)["queue"][0]["job_id"] == "fedcba9876543210", status + status2)
