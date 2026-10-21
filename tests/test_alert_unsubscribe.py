@@ -76,6 +76,14 @@ try:
           r["statusCode"] == 200 and "text/html" in r["headers"]["Content-Type"]
           and 'method="post"' in r["body"] and f"t={good}" in r["body"]
           and len(handler._alerts_table.updates) == 1, repr(r)[:200])
+    browser = lambda q: dict(event("POST", q), headers={"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"})
+    r = handler.lambda_handler(browser(f"u=user-1&a=alert-1&t={good}"), None)
+    check("the page's button, from a browser, gets a page that says it worked",
+          r["statusCode"] == 200 and "text/html" in r["headers"]["Content-Type"]
+          and "You're unsubscribed from this alert." in r["body"] and 'href="/account"' in r["body"], repr(r)[:300])
+    r = handler.lambda_handler(browser("u=user-1&a=alert-1&t=" + "0" * 32), None)
+    check("and a broken link gets a page that says so",
+          r["statusCode"] == 403 and "This unsubscribe link doesn't work." in r["body"], repr(r)[:300])
     r = handler.lambda_handler(event("DELETE", ""), None)
     check("other methods are refused", r["statusCode"] == 405)
 finally:

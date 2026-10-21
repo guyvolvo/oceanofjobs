@@ -44,6 +44,7 @@ from help_page import HELP_HTML
 from openapi import spec as openapi_spec
 import company_page
 import job_page
+import page_chrome
 import ai_answers
 import apply
 import paddle
@@ -553,9 +554,16 @@ def lambda_handler(event, context):
             # _mail_headers): a POST turns the one alert off, no session
             # needed, on the strength of the signature in the URL. A GET
             # is a person who followed the link: a page with the button.
+            # That button's POST comes from a browser, which asks for
+            # HTML and gets a page; a mail client's one-click POST and a
+            # script get the JSON.
             q = _query_params(event)
             if method == "POST":
                 status, body = route_unsubscribe(q.get("u"), q.get("a"), q.get("t"))
+                accept = {k.lower(): v for k, v in (event.get("headers") or {}).items()}.get("accept") or ""
+                if "text/html" in accept:
+                    return _html_response(status, unsubscribed_page(status, body),
+                                          extra_headers={"X-Robots-Tag": "noindex"})
                 return _response(status, json.dumps(body))
             if method == "GET":
                 return _html_response(200, unsubscribe_page(q.get("u"), q.get("a"), q.get("t")),
@@ -2069,6 +2077,20 @@ def route_unsubscribe(user_id, alert_id, token) -> tuple[int, dict]:
     return 200, {"unsubscribed": True}
 
 
+def _unsubscribe_html(heading: str, inner: str) -> str:
+    """The unsubscribe pages, in the site's own head, bar and foot."""
+    return (page_chrome.head(f"{heading} | Ocean of Jobs", heading, f"{page_chrome.SITE}/account", robots="noindex",
+                             og_type="website")
+            + page_chrome.topbar()
+            + f"""  <main class="pg-main" id="main" tabindex="-1">
+    <div class="pg-article">
+      <h1 class="job-page-title pg-title">{heading}</h1>
+      {inner}
+    </div>
+  </main>
+{page_chrome.FOOT}""")
+
+
 def unsubscribe_page(user_id, alert_id, token) -> str:
     """A person, not a mail client, opened the unsubscribe link: one
     button that POSTs it, so a link scanner's GET turns nothing off."""
@@ -2076,17 +2098,21 @@ def unsubscribe_page(user_id, alert_id, token) -> str:
     from urllib.parse import urlencode as _urlencode
 
     action = "/api/alerts/unsubscribe?" + _urlencode({"u": user_id or "", "a": alert_id or "", "t": token or ""})
-    return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="robots" content="noindex" /><title>Unsubscribe from this alert</title>
-<style>body{{margin:0;background:#0a0a0b;color:#f4f1ee;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;}}
-main{{max-width:480px;margin:80px auto;padding:0 24px;}}h1{{font-size:24px;font-weight:500;margin:0 0 12px;}}
-p{{color:#9a9ca3;line-height:1.5;}}button{{margin-top:16px;padding:14px 24px;border:0;border-radius:12px;background:#2fb36a;color:#0b1a10;font-size:15px;font-weight:600;cursor:pointer;}}
-a{{color:#c9cacf;}}</style></head>
-<body><main><h1>Unsubscribe from this alert?</h1>
-<p>You will stop getting mail for this one alert. Your other alerts stay as they are, and you can turn this one back on from <a href="/account">your account</a>.</p>
-<form method="post" action="{_html.escape(action)}"><button type="submit">Unsubscribe</button></form>
-</main></body></html>"""
+    return _unsubscribe_html("Unsubscribe from this alert?", (
+        '<p>You\'ll stop getting email for this alert. Your other alerts stay as they are, and you can turn '
+        'this one back on from <a href="/account">your account</a>.</p>'
+        f'<form method="post" action="{_html.escape(action)}"><button type="submit" class="pg-btn pg-btn-fill">Unsubscribe</button></form>'))
+
+
+def unsubscribed_page(status: int, body: dict) -> str:
+    """What the person sees after the button: route_unsubscribe's answer."""
+    if status == 200:
+        return _unsubscribe_html("Unsubscribed", '<p>You\'re unsubscribed from this alert. You can turn it back on from '
+                                 '<a href="/account">your account</a>.</p>')
+    if body.get("error") == "no alert with that id":
+        return _unsubscribe_html("Unsubscribed", "<p>This alert no longer exists, so you won't get any more email from it.</p>")
+    return _unsubscribe_html("This link doesn't work", '<p>This unsubscribe link doesn\'t work. Turn the alert off from '
+                             '<a href="/account">your account</a>.</p>')
 
 
 def route_list_alerts(user_id: str) -> dict:
