@@ -8,7 +8,7 @@ import { ClientIcon } from '@/components/client-icon';
 
 **Server URL:** https://oceanofjobs.com/mcp
 
-The server uses Streamable HTTP and requires no API key. All tools are read-only and use the same public data as the website.
+The server uses Streamable HTTP and requires no API key. The three search tools are read-only and need no account. The saved jobs and auto apply tools change your account and need a token.
 
 ## Connect a client
 
@@ -153,7 +153,7 @@ At least one of `query`, `company`, `city`, or `country` is required. Results ar
 | `seniority` | string | `intern`, `junior`, `mid`, `senior`, `staff`, `principal`, `lead`, `manager`, `director`, or `exec`. |
 | `workplace` | string | `remote`, `hybrid`, or `onsite`. |
 | `max_age_days` | integer | Only return jobs posted within the specified number of days. |
-| `salary_min` | integer | Minimum monthly gross salary in shekels. |
+| `salary_min` | integer | Minimum monthly gross salary in shekels. Jobs with no shekel salary are still returned. |
 | `limit` | integer | Results per call, from 1 to 25. Defaults to 10. |
 | `offset` | integer | Pagination offset, from 0 to 200. Defaults to 0. |
 
@@ -167,8 +167,8 @@ The response includes the job description as plain text, up to 6,000 characters.
 
 The `confidence` field indicates where the listing data came from:
 
-- `verified` - retrieved from the employer's applicant tracking system (ATS) API.
-- `best_effort` - extracted from the employer's careers page.
+- `verified` means it was read from the API of the employer's applicant tracking system, or ATS.
+- `best_effort` means it was read from the employer's careers page.
 
 ### `get_company`
 
@@ -192,7 +192,7 @@ These tools need a personal access token. Without one they answer with an error 
 
 ## Auto apply queue
 
-Three tools hand jobs to the Ocean of Jobs Chrome extension, which applies to them with your profile and CV: "queue the top three for auto apply". The extension picks up queued jobs on its next check, every 15 minutes, so it has to be installed and connected.
+Three tools hand jobs to the Ocean of Jobs Chrome extension, which applies to them with your profile and CV: "queue the top three for auto apply". The extension picks up queued jobs on its next check, every 15 minutes, so it has to be installed and connected. Only jobs on Greenhouse, Ashby and Workable can be queued. Others are refused.
 
 | Tool | What it does |
 |---|---|
@@ -240,17 +240,19 @@ Treat a token like a password. Don't paste it into a chat or commit it to a repo
 
 Each job includes two URLs:
 
-- `url` - the listing on Ocean of Jobs.
-- `apply_url` - the employer's application page.
+- `url` is the listing on Ocean of Jobs.
+- `apply_url` is the employer's application page.
 
-Job records also include fields that describe how the listing has changed over time.
+In the REST API, `url` is the employer's page, and there is no `apply_url`.
+
+Each job has a `lifetime` object with these fields:
 
 | Field | Description |
 |---|---|
 | `first_seen` | When Ocean of Jobs first discovered the listing on the employer's ATS. |
 | `last_seen` | The last time a read of the board returned the listing with a change. An unchanged response still confirms the board was checked, even if this timestamp doesn't advance. |
 | `closed_at` | When a successful check no longer found the listing. `null` means it was still present at the most recent check. |
-| `reappeared_at` | When the same ATS listing ID returned after being absent from our reads for at least two days. This field has been recorded since October 19, 2026. |
+| `reappeared_at` | When the same ATS listing ID returned after being absent from our reads for at least two days. This field has been recorded since October 19, 2026. The REST API calls it `reopened_at`. |
 | `posted_at` | The employer's original posting date, when provided by the ATS. |
 | `days_listed` | How long the listing has been tracked as listed. |
 | `status` | Whether the listing is open or closed. |
@@ -263,6 +265,7 @@ A reappearance doesn't necessarily mean the employer reposted the job. A tempora
 - Each call returns at most 25 results.
 - Pagination is limited to an offset of 200. Use the REST API for larger result sets.
 - Responses may be cached at the edge for up to five minutes, so repeated calls can return the same data.
+- Answers that aren't cached are limited to 120 a minute per Cloudflare location, shared by everyone using it. Past that, a tool answers with an error that asks you to try again in a minute.
 - If the server reaches its daily capacity, it returns a JSON-RPC error. Capacity resets at 00:00 UTC.
 
 ## REST API

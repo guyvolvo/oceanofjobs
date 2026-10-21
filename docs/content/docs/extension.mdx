@@ -4,13 +4,15 @@ icon: extension
 description: The Ocean of Jobs extension fills in and sends job applications for you, from the board, from your AI agent, or on any company's career page.
 ---
 
-The extension runs in Chrome and Brave. It applies in your own browser, with your CV and your answers, so employers see a normal application from you.
+The extension isn't in the Chrome Web Store yet. This page describes how it works once it's available.
+
+The extension runs in Chrome and Brave. It applies in your own browser, with your CV and your answers, so the application comes from you.
 
 ## Install and connect
 
-1. Install [Ocean of Jobs from the Chrome Web Store](https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi).
+1. Install Ocean of Jobs from the Chrome Web Store once it's listed there.
 2. Click the extension's icon, then **Connect account**. Your account page opens and connects the extension.
-3. In the extension's **Settings**, add your CV and your contact details. Every application uses them.
+3. Add your CV in the extension's settings, and your contact details in the auto apply settings on your account page. Every application uses them.
 
 ## Apply from the board
 
@@ -20,22 +22,22 @@ Auto apply works on jobs hosted on Greenhouse, Ashby and Workable. The board onl
 
 ## Questions it can't answer
 
-Some forms ask things your CV doesn't cover, like notice period or whether you need a visa. The extension doesn't guess. The job waits in **Questions you need to answer** in the extension's popup, grouped per job. Answer them there or on your account page, and the job goes back in the queue.
+Some forms ask things your CV doesn't cover, like notice period or whether you need a visa. If you chose **Draft an answer with AI** in your auto apply settings, the extension first asks an AI to answer from your profile. That works on Basic and Pro, or on any plan with your own AI key. If the AI can't answer, or you chose **Skip the job**, the job waits in **Questions you need to answer** in the extension's popup, grouped per job. Answer them there or on your account page, and the job goes back in the queue.
 
-Demographic questions (gender, race, veteran status and similar) are never sent to the AI that drafts answers, and neither are your name, email or phone number. You pick those answers yourself in Settings, or leave them unanswered.
+The AI never sees demographic questions such as gender, race or veteran status, and it never gets your name, email or phone number. You choose those answers on your account page, or leave them unanswered.
 
 ## Any other career page
 
-On a job posting outside the board, a lighthouse button appears at the top right of the page. Click **Fill in this page** and the extension fills every field it can match. Check the form, then press **Submit application**.
+On a job posting outside the board, a lighthouse button appears at the top right of the page. Click it, then **Fill in this form**, and the extension fills every field it can match. On Greenhouse, Ashby and Workable the button says **Fill in this application**. Check the form, then press **Submit application**.
 
 Some sites protect their form with a CAPTCHA or another human check. The extension fills those forms but leaves sending to you, so press the site's own button.
 
-To show the button on every company's site, turn on **Allow access to all sites** in the extension's settings. Without it the extension only works on the job board's own pages and the sites you click it on.
+To show the button on every company's site, turn on **Show the fill button on every careers page** in the extension's settings. Without it, the button shows on supported job sites such as Greenhouse, Lever and Workday. Elsewhere, open the extension and click **Fill in this page**.
 
 ## Use it with your AI agent
 
-An agent connected through the [MCP server](/mcp) can add jobs to your auto-apply queue with your account token. The extension applies to them the same way as jobs you queued yourself. Create the token on your account page.
+An agent connected through the [MCP server](/mcp) can add jobs to your auto apply queue with a personal access token. The extension applies to them the same way as jobs you queued yourself. Create the token on your account page.
 
 ## Plans
 
-The free plan includes a set number of applications each month. [Pricing](https://oceanofjobs.com/pricing) lists the paid plans.
+The free plan includes 30 automatic applications a month. [Pricing](https://oceanofjobs.com/pricing) lists the paid plans.
