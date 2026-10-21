@@ -21,7 +21,10 @@ AGENT = "#agent#"
 DEFAULT_ID = "default"
 TONES = ("plain", "warm", "formal")
 LENGTHS = ("short", "medium")
-LANGUAGES = ("question", "en")
+# The answer's language: the question's own, or one the user picks.
+LANGUAGE_NAMES = {"en": "English", "he": "Hebrew", "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
+                  "it": "Italian", "nl": "Dutch"}
+LANGUAGES = ("question", *LANGUAGE_NAMES)
 REVIEW = ("pause", "use")
 ACTIONS = ("answer", "ai", "ask")
 # v1's topics: the most common unanswered questions. why_company and why_role
@@ -184,7 +187,7 @@ def saved_answer(profile: dict, question, job_id):
 STYLE_TONE = {"plain": "Write plainly.", "warm": "Write in a warm, friendly voice.", "formal": "Write formally."}
 STYLE_LENGTH = {"short": "Use one or two sentences, or a single value when the question asks for one.",
                 "medium": "Use at most four sentences, or a single value when the question asks for one."}
-STYLE_LANGUAGE = {"question": "Answer in the language of the question.", "en": "Answer in English."}
+STYLE_LANGUAGE = {"question": "Answer in the language of the question.", **{k: f"Answer in {v}." for k, v in LANGUAGE_NAMES.items()}}
 CLOSING = ("Before you answer: use only the facts above. Style preferences change how an answer sounds, never what it "
            "claims. If the facts don't contain what the question needs, reply with exactly UNKNOWN. Reply with the answer "
            "only: it goes into the form as it is, so add no notes about how you wrote it.")

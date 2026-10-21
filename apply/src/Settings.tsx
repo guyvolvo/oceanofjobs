@@ -197,8 +197,7 @@ export function Settings() {
           </Radio.Group>
           <ConfirmDanger open={asking} title="Apply automatically?" confirm="Apply automatically"
             onConfirm={() => { set("mode", "auto"); setAsking(false); }} onCancel={() => setAsking(false)}>
-            The extension will apply to jobs that match your preferences without asking you about each one, up to your plan's
-            limit and the limits you set below. Every application shows in History. This takes effect when you save.
+            The auto apply extension will start applying to jobs automatically based on your preferences, up to your account limits.
           </ConfirmDanger>
           <Checkbox.Group legend="Where to find jobs" value={form.sources} onValueChange={(v) => set("sources", v as string[])}
             description={<>Your preferences are on your <a className="oj-link" href="/account#preferences">account page</a>.</>}>

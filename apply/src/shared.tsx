@@ -104,13 +104,13 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
 // choosing it asks once, with a red confirm button, and nothing changes on
 // Cancel. The choice still takes effect only when the form is saved.
 export function ConfirmDanger({ open, title, children, confirm, onConfirm, onCancel }: {
-  open: boolean; title: string; children: ReactNode; confirm: string; onConfirm: () => void; onCancel: () => void;
+  open: boolean; title: string; children?: ReactNode; confirm: string; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
       <Dialog className="oj-dialog">
         <Dialog.Title className="oj-card-title">{title}</Dialog.Title>
-        <Dialog.Description className="oj-note">{children}</Dialog.Description>
+        {children ? <Dialog.Description className="oj-note">{children}</Dialog.Description> : null}
         <div className="oj-row oj-dialog-actions">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
           <Button variant="destructive" className="oj-destructive" onClick={onConfirm}>{confirm}</Button>

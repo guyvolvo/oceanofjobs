@@ -153,6 +153,12 @@ with mock_aws():
     s, b = call("POST", "answers/approve", {"question": "Why do you want to work here?", "job_id": "a1a1a1a1a1a1a1a1", "decision": "approved"})
     check("a job-specific answer is approved for its own job", s == 200 and b["answer"]["job_id"] == "a1a1a1a1a1a1a1a1" and b["answer"]["approval"] == "approved")
 
+    # The answer's language.
+    check("an answer language can be picked", agent.put(table, "u", {**agent.get(table, "u"), "style": {"language": "he"}})["style"]["language"] == "he")
+    check("and the prompt asks for it", "Answer in Hebrew." in agent.messages(agent.load(table, "u"), "rules", {}, "Job: x", "q?")[0]["content"])
+    check("a language that isn't offered is refused", refused(lambda: agent.put(table, "u", {**agent.get(table, "u"), "style": {"language": "klingon"}}),
+                                                           says="style.language"))
+
 print()
 if failures:
     print("%d failed:" % len(failures))

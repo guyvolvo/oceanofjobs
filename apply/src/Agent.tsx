@@ -19,7 +19,7 @@ type Topic = "referral_source" | "start_date" | "relocation" | "onsite_days" | "
 type Action = "answer" | "ai" | "ask";
 type AgentData = {
   version: number;
-  style: { tone: "plain" | "warm" | "formal"; length: "short" | "medium"; language: "question" | "en"; notes: string };
+  style: { tone: "plain" | "warm" | "formal"; length: "short" | "medium"; language: string; notes: string };
   facts: { id: string; text: string }[];
   topics: Record<Topic, { action: Action; value: string }>;
   never_claim: string[];
@@ -42,8 +42,11 @@ const TOPICS: [Topic, string, string][] = [
 const JOB_TOPICS: Topic[] = ["why_company", "why_role"];
 const LIMITS = { notes: 500, facts: 20, fact: 300, never: 30, phrase: 100, value: 300 };
 const SOURCE: Record<string, string> = {
-  fixed: "Your fixed answer", saved: "One of your saved answers", profile: "From your Settings", ai: "Written by the AI. This used 1 AI answer.",
+  fixed: "Your fixed answer", saved: "One of your saved answers", profile: "From your Settings",
 };
+// The answer languages api/agent.py accepts (LANGUAGES).
+const LANGUAGES = { question: "Same as the question", en: "English", he: "Hebrew", es: "Spanish", fr: "French", de: "German",
+  pt: "Portuguese", it: "Italian", nl: "Dutch" };
 // A job on the board, from its link or its id: oceanofjobs.com/job/<id>.
 const jobId = (text: string) => (/(?:\/job\/)?([0-9a-f]{8,32})\b/i.exec(text.trim()) || [])[1]?.toLowerCase() || "";
 
@@ -127,8 +130,8 @@ function TryIt({ editable }: { editable: boolean }) {
           <p className="oj-note" role="status">No answer: {result.refused}. In a real application, this question would wait for you in Needs attention.</p>
         ) : (
           <div className="oj-stack oj-tight" role="status">
-            <p className="oj-try-answer">{result.answer}</p>
-            <span className="oj-note">{SOURCE[result.source || ""] || result.source}</span>
+            <p className="oj-try-answer">{result.source === "ai" ? `AI Agent answer: ${result.answer}` : result.answer}</p>
+            <span className="oj-note">{result.source === "ai" ? "Used 1 AI credit." : SOURCE[result.source || ""] || result.source}</span>
             {result.review ? <span className="oj-note">A draft about why you want this job. It always waits for your review, even with Send without review on.</span> : null}
           </div>
         )
@@ -199,17 +202,11 @@ export function Agent() {
             <Radio.Group appearance="card" value={form.review}
               onValueChange={(v) => (v === "use" ? setAsking(true) : set("review", v as Form["review"]))}>
               <Radio.Legend className="sr-only">When the AI writes a new answer</Radio.Legend>
-              <Radio.Item value="pause" label="Review before sending (recommended)"
-                description="The job waits in Needs attention until you review the answer. You can approve it as written or make changes. Nothing is sent before you approve it." />
-              <Radio.Item value="use" label="Send without review" variant={form.review === "use" ? "error" : "default"} className="oj-danger"
-                description="New AI answers are sent to employers without your approval. The checks catch many mistakes, but they can't catch everything. An incorrect answer could still be sent in your name. You can see which answers the AI wrote in History." />
+              <Radio.Item value="pause" label="Review before sending" />
+              <Radio.Item value="use" label="Send without review" variant={form.review === "use" ? "error" : "default"} className="oj-danger" />
             </Radio.Group>
             <ConfirmDanger open={asking} title="Send AI answers without review?" confirm="Send without review"
-              onConfirm={() => { set("review", "use"); setAsking(false); }} onCancel={() => setAsking(false)}>
-              New AI answers will go to employers without you seeing them first. The checks catch many mistakes, but not all of
-              them, so an incorrect answer could be sent in your name. Answers about why you want a job still wait for you. This
-              takes effect when you save.
-            </ConfirmDanger>
+              onConfirm={() => { set("review", "use"); setAsking(false); }} onCancel={() => setAsking(false)} />
           </Card>
 
           <Card title="About you" note={["Add facts the AI can use when answering questions. Only include things that are true. For example: \"I led a team of five engineers at Acme from 2021 to 2024.\"",
@@ -243,14 +240,14 @@ export function Agent() {
             <List items={form.never} onChange={(r) => set("never", r)} max={LIMITS.never} limit={LIMITS.phrase} label="Phrase" placeholder="e.g. security clearance" />
           </Card>
 
-          <Card title="How answers sound" note="Set the tone and wording you prefer. These instructions affect how answers are written, not what the AI knows about you.">
+          <Card title="AI personalization" note="Set the tone and wording you prefer. These instructions affect how answers are written, not what the AI knows about you.">
             <div className="oj-form">
               <Select className="oj-select" label="Tone" value={form.style.tone} items={{ plain: "Plain", warm: "Warm", formal: "Formal" }}
                 onValueChange={(v) => setStyle({ tone: (v as Form["style"]["tone"]) || "plain" })} />
               <Select className="oj-select" label="Length" value={form.style.length} items={{ short: "One or two sentences", medium: "Up to four sentences" }}
                 onValueChange={(v) => setStyle({ length: (v as Form["style"]["length"]) || "medium" })} />
-              <Select className="oj-select" label="Language" value={form.style.language} items={{ question: "Same as the question", en: "Always English" }}
-                onValueChange={(v) => setStyle({ language: (v as Form["style"]["language"]) || "question" })} />
+              <Select className="oj-select" label="Language" value={form.style.language} items={LANGUAGES}
+                onValueChange={(v) => setStyle({ language: (v as string) || "question" })} />
               <div className="oj-wide">
                 <InputArea label="Style notes" autoResize minRows={2} maxLength={LIMITS.notes} placeholder="e.g. No exclamation marks."
                   value={form.style.notes} onValueChange={(v) => setStyle({ notes: v })} />
