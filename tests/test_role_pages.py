@@ -50,7 +50,11 @@ out, paths = role_pages.build(db, "closed_at IS NULL", NOW)
 check("a role worldwide with 180 jobs gets a page", "jobs/data-engineer.html" in out, str(sorted(out)))
 check("120 in the US gets a country page", "jobs/data-engineer/united-states.html" in out)
 thin = out["jobs/data-engineer/germany.html"]
-check("60 in Germany is under the line: a noindex page", 'content="noindex,follow"' in thin and "60 open right now" in thin)
+check("60 in Germany is under the line: a noindex page", 'content="noindex,follow"' in thin and "Only 60 open right now." in thin)
+empty = role_pages.render_thin("data-engineer", "israel", 0, set())
+check("with none open the thin page says so and only offers the way up",
+      "No open data engineer jobs here right now." in empty and "See them on the board" not in empty
+      and '<a href="/jobs">Browse jobs by role</a>' in empty, empty[empty.find("<p>"):][:300])
 check("which points up to the role's page", 'href="/jobs/data-engineer"' in thin)
 check("30 remote is under the line too", 'content="noindex,follow"' in out["jobs/data-engineer/remote.html"])
 check("every role and place has a file", len([k for k in out if k.startswith("jobs/")]) == len(role_pages.ROLES) * len(role_pages.PLACES))
@@ -67,7 +71,7 @@ blocks = [json.loads(b.replace("\\u003c", "<")) for b in re.findall(r'<script ty
 check("breadcrumbs and an item list instead", sorted(b["@type"] for b in blocks) == ["BreadcrumbList", "ItemList"])
 items = next(b for b in blocks if b["@type"] == "ItemList")["itemListElement"]
 check("the item list holds the 50 newest", len(items) == 50, str(len(items)))
-check("the median salary shows once 30 listings state one", "$170,000" in us and "from 40 listings" in us)
+check("the median salary shows once 30 listings state one", "$170,000" in us and "from 40 listings with a yearly USD salary" in us)
 check("the remote share is counted", "25%" in us and "30 of 120" in us)
 check("company names come from the companies table", "Acme" in us and "Globex" in us)
 check("the board link carries the role and country", "/board?search=data+engineer&amp;country=US" in us)
