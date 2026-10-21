@@ -194,7 +194,7 @@
         <div class="dir-count"><b>${fmt(r.n)}</b><span>${r.new_7d ? `+${fmt(r.new_7d)} this week` : "open jobs"}</span></div>
       </div>`).join("") + (list.length > state.shown
         ? `<div class="dir-more"><button type="button" class="btn ghost" id="dir-more">Show ${Math.min(50, list.length - state.shown)} more</button></div>`
-        : (list.length ? "" : `<div class="dir-empty">No companies match.</div>`));
+        : (list.length ? "" : `<div class="dir-empty">${state.view === "following" && !following.size ? "You don't follow any companies yet. Select Follow on a company under Hiring now." : "No companies match."}</div>`));
   }
 
   function renderAll() { renderSidebar(); renderPills(); renderList(); }

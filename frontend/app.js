@@ -2231,7 +2231,9 @@ async function renderStarredOnly(starred, seq, inFlight) {
   // Stays synchronous for the nothing-saved case. No request, no bones,
   // no flicker on the way to an empty list.
   if (!starred.size) {
-    empty.innerHTML = emptyState("You have not saved any listings yet.");
+    // Not emptyState: the saved view ignores the filters, so offering to
+    // remove one would change nothing here.
+    empty.innerHTML = "<strong>No saved jobs yet</strong><span>Save a job to find it here.</span>";
     empty.style.display = "block";
     tbody.innerHTML = "";
     showJobsTable(false);
@@ -2266,7 +2268,7 @@ async function renderStarredOnly(starred, seq, inFlight) {
     if (!rows.length) {
       // Saved ids that the API no longer knows at all. Rare, and it
       // reads as a bug if the view just goes blank.
-      empty.innerHTML = emptyState("None of your saved listings are available any more.");
+      empty.innerHTML = "<strong>No saved jobs to show</strong><span>The jobs you saved are no longer on the board.</span>";
       empty.style.display = "block";
       tbody.innerHTML = "";
       return;
@@ -4843,7 +4845,8 @@ function renderSavedSearches() {
         <span class="side-cat-n${s.fresh > 0 ? " fresh" : ""}">${s.fresh == null ? "" : `${fmtInt(s.fresh)} new`}</span>
       </button>
       <button type="button" class="side-saved-x" data-forget="${escapeHtml(s.id)}" aria-label="Forget ${escapeHtml(s.name)}">&#10005;</button>
-    </div>`).join("");
+    </div>`).join("")
+    || '<div class="side-hint">Filter the board, then save the search to find it here. Saved searches stay in this browser.</div>';
   const q = currentSearchQuery();
   save.hidden = !q || list.some((s) => s.query === q);
 }
