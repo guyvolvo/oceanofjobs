@@ -8,7 +8,7 @@ name: deploy-frontend
 on:
   push:
     branches: [main]
-    paths: ["frontend/**", "docs/**"]
+    paths: ["frontend/**", "docs/**", "apply/**"]
   workflow_dispatch: {}
 
 permissions:
@@ -36,10 +36,19 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: docs/package-lock.json
+          cache-dependency-path: |
+            docs/package-lock.json
+            apply/package-lock.json
 
       - name: Build the docs
         working-directory: docs
+        run: npm ci && npm run build
+
+      # The auto apply dashboard at /apply: a Vite + React app (apply/),
+      # built here for the same reason as the docs, so a failed build
+      # stops the deploy before anything is uploaded.
+      - name: Build the auto apply dashboard
+        working-directory: apply
         run: npm ci && npm run build
 
       - name: Stamp asset URLs with the commit
@@ -55,8 +64,10 @@ jobs:
           # at fresh copies. Only local scripts and stylesheets: anything
           # with a scheme (the support widget's CDN script) is left alone.
           v=${GITHUB_SHA::8}
-          sed -i -E "s#(src|href)=\"([^\":]+\.(js|css))\"#\1=\"\2?v=$v\"#g" frontend/*.html
-          grep -n '?v=' frontend/*.html
+          # The dashboard's page loads /auth.js from frontend/, so it is
+          # stamped too; its own bundles are already content-hashed.
+          sed -i -E "s#(src|href)=\"([^\":]+\.(js|css))\"#\1=\"\2?v=$v\"#g" frontend/*.html apply/dist/index.html
+          grep -n '?v=' frontend/*.html apply/dist/index.html
 
       - name: Sync frontend/ to S3
         run: |
@@ -94,6 +105,7 @@ jobs:
             --exclude "companies/*" \
             --exclude "media/*" \
             --exclude "docs/*" \
+            --exclude "apply/*" \
             --cache-control "no-cache"
 
       # Its own prefix; the frontend sync excludes docs/* so its --delete
@@ -101,6 +113,13 @@ jobs:
       - name: Sync the docs to S3
         run: |
           aws s3 sync docs/out/ "s3://${{ vars.FRONTEND_BUCKET }}/docs/" --delete \
+            --cache-control "no-cache"
+
+      # Same arrangement as the docs: its own prefix, excluded from the
+      # frontend sync above.
+      - name: Sync the auto apply dashboard to S3
+        run: |
+          aws s3 sync apply/dist/ "s3://${{ vars.FRONTEND_BUCKET }}/apply/" --delete \
             --cache-control "no-cache"
 
       - name: Mark 404.html for a real 404 status
