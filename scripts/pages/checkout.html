@@ -1,5 +1,5 @@
         <h1 class="home-h2">Checkout</h1>
-        <p id="co-msg" aria-live="polite">Opening the secure checkout…</p>
+        <p id="co-msg" aria-live="polite">Opening checkout…</p>
         <p class="legal-updated"><a href="/pricing">Back to pricing</a></p>
         <p class="legal-updated">Payments are handled by Paddle, our Merchant of Record. See the <a class="link" href="/terms">terms</a> and <a class="link" href="/refunds">refund policy</a>.</p>
         <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
@@ -22,7 +22,7 @@
             var msg = document.getElementById("co-msg");
             var say = function (html) { msg.innerHTML = html; };
             if (!TOKEN || !window.Paddle) {
-              say("Checkout isn't open yet. Plans go on sale when the Ocean of Jobs browser extension launches.");
+              say("Couldn't load the Paddle checkout. If you use a content blocker, allow cdn.paddle.com and reload.");
               return;
             }
             if (TOKEN.indexOf("test_") === 0) Paddle.Environment.set("sandbox");
@@ -31,7 +31,7 @@
               // Light or dark to match the page; the brand colour is set in Paddle.
               checkout: { settings: { theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light" } },
               eventCallback: function (e) {
-                if (e.name === "checkout.completed") location.href = "/account#settings";
+                if (e.name === "checkout.completed") location.href = "/account#autoapply";
               },
             });
             var q = new URLSearchParams(location.search);
@@ -41,7 +41,7 @@
             // The plan belongs to an account, so the buyer signs in first and
             // the checkout carries who they are for the webhook to match.
             var tokens = typeof getAuthTokens === "function" ? getAuthTokens() : null;
-            if (!tokens) { say('Sign in first, so the plan is added to your account. <a class="link" href="/account">Sign in</a>'); return; }
+            if (!tokens) { say('Log in first so the plan goes on your account. <a class="link" href="/account">Log in</a>'); return; }
             var claims = JSON.parse(atob(tokens.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
             Paddle.Checkout.open({
               items: [{ priceId: price, quantity: 1 }],

@@ -1,7 +1,7 @@
 // The sign-in dialog, for every page that has one.
 //
 // It used to live in hero_account.js, which only the landing and contact
-// pages load, so the board grew its own panel hanging under the Sign in
+// pages load, so the board grew its own panel hanging under the Log in
 // button instead: the same four controls, a different shape, in a
 // different place. Two implementations of one screen, and they drifted.
 //
@@ -65,7 +65,7 @@ function openSignIn() {
       document.getElementById("signin-otp-form").hidden = false;
       document.getElementById("signin-otp-input").focus();
     } catch (e2) {
-      err.textContent = e2.message || "Could not send a code. Try again.";
+      err.textContent = SEND_CODE_FAILED;
       err.hidden = false;
     } finally {
       btn.disabled = false;
@@ -81,7 +81,7 @@ function openSignIn() {
       close();
       notifyAuthRender();  // the bar becomes My Account, on the page they were reading
     } catch (e2) {
-      err.textContent = e2.message === "CodeMismatchException" ? "Wrong code, try again." : e2.message || "Could not verify that code.";
+      err.textContent = verifyCodeError(e2);
       err.hidden = false;
     } finally {
       btn.disabled = false;

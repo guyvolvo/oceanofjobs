@@ -1,5 +1,5 @@
 // The account corner of the landing and contact pages. Signed out it is
-// one word, "Sign in", to the account page. Signed in it is "My Account"
+// two words, "Log in", opening the sign-in dialog. Signed in it is "My Account"
 // with the reader's initial, opening a short menu: the account page, the
 // saved listings, alerts, the contact page, and log out. The tokens are
 // the same localStorage entry the board and account page keep
@@ -63,13 +63,13 @@
       </button>
       <div class="hero-menu" id="hero-menu" role="menu" hidden>
         <div class="hero-menu-head">${avatar}<span class="hero-menu-email" title="${esc(who)}">${esc(who)}</span></div>
-        <a role="menuitem" href="/account">${icons.person}My Profile</a>
-        <a role="menuitem" href="/board?starred=1">${icons.bookmark}Saved Jobs</a>
+        <a role="menuitem" href="/account">${icons.person}Account</a>
+        <a role="menuitem" href="/board?starred=1">${icons.bookmark}Saved jobs</a>
         <a role="menuitem" href="/account#alerts">${icons.bell}Alerts</a>
         <a role="menuitem" href="/stats">${icons.chart}Statistics</a>
-        <a role="menuitem" href="/contact">${icons.chat}Contact Support</a>
+        <a role="menuitem" href="/contact">${icons.chat}Contact</a>
         <button type="button" role="menuitem" id="hero-menu-theme">${isDark() ? icons.sun : icons.moon}<span>${isDark() ? "Light mode" : "Dark mode"}</span></button>
-        <button type="button" role="menuitem" class="hero-menu-out" id="hero-logout">${icons.out}Log Out</button>
+        <button type="button" role="menuitem" class="hero-menu-out" id="hero-logout">${icons.out}Log out</button>
       </div>`;
     const btn = document.getElementById("hero-account-btn");
     const menu = document.getElementById("hero-menu");

@@ -210,7 +210,7 @@ function randomUrlSafe(len) {
 
 async function startGoogleSignIn() {
   if (!GOOGLE_CONFIGURED) {
-    authErrorSink("Google sign-in isn't wired up yet.");
+    authErrorSink("Google sign-in isn't available yet. Use email instead.");
     return;
   }
   const verifier = randomUrlSafe(64);
@@ -233,7 +233,7 @@ async function startGoogleSignIn() {
 
 function startGithubSignIn() {
   if (!GITHUB_OAUTH_CLIENT_ID) {
-    authErrorSink("GitHub sign-in isn't wired up yet.");
+    authErrorSink("GitHub sign-in isn't available yet. Use email instead.");
     return;
   }
   const url = `https://github.com/login/oauth/authorize?${authQs({
@@ -275,6 +275,16 @@ async function cognitoRequest(target, body) {
     throw err;
   }
   return data;
+}
+
+// What the two email forms (signin_dialog.js, account.js) show when a
+// step fails. Never the raw Cognito or HTTP text: "HTTP 500" tells a
+// reader nothing they can act on.
+const SEND_CODE_FAILED = "Couldn't send a code to that address. Check it and try again.";
+function verifyCodeError(err) {
+  if (err && err.code === "CodeMismatchException") return "That code isn't right. Check the email and try again.";
+  if (err && err.code === "ExpiredCodeException") return "That code has expired. Send a new one.";
+  return "Couldn't verify that code. Try again.";
 }
 
 let _pendingOtpEmail = null;
@@ -335,13 +345,13 @@ async function exchangeGoogleCode(code) {
 }
 
 // What each auth_error the callback can send back actually means, in
-// the reader's terms. Anything not listed falls back to the raw code,
-// which is still better than the silence this replaced.
+// the reader's terms. Anything not listed gets a plain "couldn't log
+// you in"; the raw code is in the console (handleAuthRedirect).
 const AUTH_ERRORS = {
   github_not_configured: "GitHub sign-in is not set up on this site yet. Google and email both work.",
-  github_token_exchange_failed: "GitHub would not confirm that sign-in. Please try again.",
-  no_verified_github_email: "Your GitHub account has no verified primary email, which is what the account here is keyed on.",
-  missing_code: "That sign-in link was incomplete. Please try again.",
+  github_token_exchange_failed: "GitHub didn't confirm that sign-in. Try again.",
+  no_verified_github_email: "Your GitHub account has no verified primary email. Verify one on GitHub, or log in with email.",
+  missing_code: "That sign-in link was incomplete. Try again.",
   access_denied: "Sign-in was cancelled.",
 };
 
@@ -377,7 +387,7 @@ async function handleAuthRedirect() {
     // where the error line and the other two ways in already are.
     setTimeout(() => {
       if (window.openSignIn) window.openSignIn();
-      authErrorSink(AUTH_ERRORS[code] || `Sign-in failed (${code}).`);
+      authErrorSink(AUTH_ERRORS[code] || "Couldn't log you in. Try again.");
     }, 0);
     return;
   }

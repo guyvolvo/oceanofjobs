@@ -11,19 +11,19 @@
   <script src="/count.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Account | Ocean of Jobs</title>
-  <meta name="description" content="Your saved alerts, the skills you want matched, and what we store about you." />
+  <meta name="description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
   <!-- Link preview, same card as the board: a pasted link to any page
        shows the site, not a blank. Absolute URLs, for crawlers. -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/account" />
   <meta property="og:title" content="Account | Ocean of Jobs" />
-  <meta property="og:description" content="Your saved alerts, the skills you want matched, and what we store about you." />
+  <meta property="og:description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
   <meta property="og:image" content="https://oceanofjobs.com/og.jpg?v=3" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Account | Ocean of Jobs" />
-  <meta name="twitter:description" content="Your saved alerts, the skills you want matched, and what we store about you." />
+  <meta name="twitter:description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
   <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
   <!-- No og: tags and noindex: this page is only meaningful signed in,
        and a shared link to it would show a stranger their own empty
@@ -132,11 +132,11 @@
               <span class="acct-id-email" id="account-email" hidden></span>
             </div>
             <div class="acct-hero-actions">
-              <a class="btn" href="#skills" data-cv-upload><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Upload CV</a>
+              <a class="btn" href="#skills" data-cv-upload><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Add skills from a CV</a>
               <button type="button" class="btn" data-alert-form><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>New alert</button>
-              <a class="btn primary" id="acct-open-matches" href="/board?view=matches">Open best matches<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+              <a class="btn primary" id="acct-open-matches" href="/board?view=matches">See best matches<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
               <span class="acct-provider" id="account-provider" hidden></span>
-              <button type="button" class="btn ghost acct-signout" id="acct-hero-signout">Sign out</button>
+              <button type="button" class="btn ghost acct-signout" id="acct-hero-signout">Log out</button>
             </div>
           </header>
           <!-- Hash targets, not paths: a hash is already shareable,
@@ -185,7 +185,7 @@
                 <h3 class="acct-getmatched-title">Get matched to jobs</h3>
                 <p class="acct-getmatched-text" id="acct-getmatched-text">Add your skills or widen your locations to see matches and salary estimates.</p>
                 <div class="acct-getmatched-actions">
-                  <a class="btn" href="#skills"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>Upload CV</a>
+                  <a class="btn" href="#skills"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>Add skills from a CV</a>
                   <a class="btn ghost" href="#preferences">Edit locations</a>
                 </div>
               </section>
@@ -245,7 +245,7 @@
               <div class="cv-drop" id="cv-drop">
                 <input type="file" id="cv-file" accept=".pdf,.txt,.md,application/pdf,text/plain" hidden />
                 <p class="cv-drop-lead">Drop a CV here</p>
-                <p class="cv-drop-sub">PDF or plain text</p>
+                <p class="cv-drop-sub">PDF or plain text. Read in your browser. Only the skills you save are stored.</p>
                 <button class="btn btn-small" id="cv-analyze" type="button">Choose a file</button>
                 <span class="cv-filename" id="cv-filename"></span>
               </div>
@@ -305,7 +305,7 @@
             <section class="account-block" id="autoapply">
               <div class="aa-status">
                 <div class="acct-row-text">
-                  <span class="acct-row-label" id="aa-plan">Free plan</span>
+                  <span class="acct-row-label" id="aa-plan">Plan</span>
                   <span class="acct-row-note" id="aa-usage">Loading…</span>
                 </div>
                 <div class="aa-connect">
@@ -362,29 +362,29 @@
                 <div class="pref-group" id="aa-settings">
                   <h3 class="pref-group-title">4. Application settings</h3>
                   <div class="aa-choice" role="radiogroup" aria-label="Mode">
-                    <label><input type="radio" name="aa-mode" value="queue" /> <span><b>Review before submitting</b><br>Choose the jobs you want to apply to. The extension fills in the forms and applies to those jobs only.</span></label>
-                    <label><input type="radio" name="aa-mode" value="auto" /> <span><b>Apply automatically</b><br>The extension applies to jobs that match your preferences, within your daily limit.</span></label>
+                    <label><input type="radio" name="aa-mode" value="queue" /> <span><b>Only jobs I queue</b><br>The extension applies only to jobs you add to your queue.</span></label>
+                    <label><input type="radio" name="aa-mode" value="auto" /> <span><b>Apply automatically</b><br>The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below.</span></label>
                   </div>
                   <p class="aa-sub">Where to find jobs</p>
                   <div class="aa-choice">
                     <label><input type="checkbox" name="aa-source" value="board" /> <span>Jobs I add to my queue on Ocean of Jobs</span></label>
                     <label><input type="checkbox" name="aa-source" value="matches" /> <span>Jobs matching my <a href="#preferences">preferences</a></span></label>
-                    <label><input type="checkbox" name="aa-source" value="ats_pages" /> <span>Jobs I view anywhere on the web</span></label>
+                    <label><input type="checkbox" name="aa-source" value="ats_pages" /> <span>Jobs I open on Greenhouse, Ashby or Workable</span></label>
                     <label><input type="checkbox" name="aa-source" value="mcp" /> <span>Jobs queued by my AI assistant through MCP</span></label>
                   </div>
                   <p class="aa-sub">If a form asks a question I haven't answered</p>
                   <div class="aa-choice" role="radiogroup" aria-label="Unanswered questions">
                     <label><input type="radio" name="aa-unknowns" value="skip" /> <span><b>Skip the job</b><br>Leave it for me to review.</span></label>
-                    <label><input type="radio" name="aa-unknowns" value="ai" /> <span><b>Draft an answer with AI</b><br>AI answers it from my details and saves the answer to my saved answers, where I can review it. Available on Basic and Pro, or with your own AI key on Free.</span></label>
+                    <label><input type="radio" name="aa-unknowns" value="ai" /> <span><b>Draft an answer with AI</b><br>AI drafts an answer from my details, uses it, and adds it to my saved answers so I can check it later. Included on Basic and Pro. On Free, add your own AI key in the extension's options.</span></label>
                   </div>
                 </div>
 
                 <div class="pref-group">
                   <h3 class="pref-group-title">5. Application limits</h3>
-                  <p class="acct-row-note">Set additional limits on top of your plan. Leave a field empty to use your plan's limit.</p>
+                  <p class="acct-row-note">Optional. These apply on top of your plan's limit. Leave a field empty for no extra limit.</p>
                   <div class="aa-grid">
                     <label class="aa-field"><span>Minimum skills match (%)</span><input class="aa-input" type="number" id="aa-min_match" placeholder="e.g. 60" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Maximum applications per day</span><input class="aa-input" type="number" id="aa-daily" placeholder="e.g. 10" autocomplete="off" /></label>
+                    <label class="aa-field"><span>Maximum applications per day (up to 50)</span><input class="aa-input" type="number" id="aa-daily" placeholder="e.g. 10" autocomplete="off" /></label>
                     <label class="aa-field"><span>Days between applications to the same company</span><input class="aa-input" type="number" id="aa-per_company" placeholder="e.g. 30" autocomplete="off" /></label>
                     <label class="aa-field aa-wide"><span>Never apply to</span><textarea class="aa-input" id="aa-blocked" rows="2" placeholder="Company domains, one per line, e.g. mycurrentemployer.com"></textarea></label>
                   </div>
@@ -523,9 +523,9 @@
                 </div>
                 <div class="acct-row">
                   <div class="acct-row-text">
-                    <span class="acct-row-label">Sign out</span>
+                    <span class="acct-row-label">Log out</span>
                   </div>
-                  <button class="btn ghost btn-small" id="account-signout" type="button">Sign out</button>
+                  <button class="btn ghost btn-small" id="account-signout" type="button">Log out</button>
                 </div>
                 <!-- Personal access tokens for MCP clients (api/tokens.py). A
                      token is shown once, when it is made; the list only
@@ -534,6 +534,7 @@
                   <div class="acct-row">
                     <div class="acct-row-text">
                       <span class="acct-row-label">Personal access tokens</span>
+                      <span class="acct-row-note">For AI clients that connect over MCP. A token can read and change your saved jobs and your auto apply queue. It can't change your alerts or profile.</span>
                     </div>
                     <button class="btn ghost btn-small" id="token-new" type="button" aria-expanded="false" aria-controls="token-form">New token</button>
                   </div>
@@ -571,11 +572,11 @@
               <div class="account-danger">
                 <div class="acct-row-text">
                   <span class="acct-danger-title">Delete account</span>
-                  <span class="acct-row-note">Removes your alerts, saved jobs and skill profile. This cannot be undone.</span>
+                  <span class="acct-row-note">Deletes your alerts, saved jobs, skill profile, auto apply details and history, and access tokens. It doesn't cancel a paid plan, so cancel that through Paddle first. This can't be undone.</span>
                 </div>
                 <div class="account-actions">
                   <button class="btn ghost btn-small btn-danger" id="account-delete" type="button">Delete account</button>
-                  <button class="btn btn-small btn-danger-solid" id="account-delete-confirm" type="button" hidden>Confirm</button>
+                  <button class="btn btn-small btn-danger-solid" id="account-delete-confirm" type="button" hidden>Delete my account</button>
                   <span class="account-status" id="account-status" aria-live="polite"></span>
                 </div>
               </div>

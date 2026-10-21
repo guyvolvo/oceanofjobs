@@ -922,9 +922,9 @@ function wireAutoApply() {
   async function load() {
     const [p, u, h] = await Promise.allSettled([authedFetch("/me/apply/profile"), authedFetch("/me/apply/usage"), authedFetch("/me/apply/history?limit=100")]);
     if (p.status === "fulfilled") fill(p.value.profile);
-    else setStatus("aa-status", "Could not load your auto apply settings.", true);
+    else setStatus("aa-status", "Couldn't load your auto apply settings.", true);
     if (u.status === "fulfilled") paintUsage(u.value);
-    else $("aa-usage").textContent = "";
+    else $("aa-usage").textContent = "Couldn't load your plan and usage.";
     if (h.status === "fulfilled") paintHistory(h.value.applied || []);
   }
 
@@ -940,14 +940,20 @@ function wireAutoApply() {
   $("aa-answers").addEventListener("click", (e) => { if (e.target.closest("[data-remove]")) e.target.closest(".aa-answer").remove(); });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    // The same ranges api/apply.py enforces, checked here so the message
+    // can name the field instead of passing on "51 is outside 1 to 50".
+    const bad = [["min_match", "Minimum skills match", 0, 100], ["daily", "Maximum applications per day", 1, 50],
+      ["per_company", "Days between applications to the same company", 1, 365]]
+      .find(([id, , lo, hi]) => { const n = num(id); return n !== null && !(Number.isInteger(n) && n >= lo && n <= hi); });
+    if (bad) return setStatus("aa-status", `Couldn't save. ${bad[1]} must be ${bad[2]} to ${bad[3]}.`, true);
     const btn = form.querySelector("[type=submit]");
     btn.classList.add("btn-busy");
     try {
       const { profile } = await authedFetch("/me/apply/profile", { method: "PUT", body: JSON.stringify({ profile: collect() }) });
       fill(profile);
       setStatus("aa-status", "Saved.");
-    } catch (err) {
-      setStatus("aa-status", err.message || "Could not save.", true);
+    } catch {
+      setStatus("aa-status", "Couldn't save. Try again.", true);
     } finally {
       btn.classList.remove("btn-busy");
     }
@@ -975,8 +981,8 @@ function wireAutoApply() {
         method: "POST", body: JSON.stringify({ name: "Chrome extension", expires_in_days: null, scope: "extension" }),
       });
       window.postMessage({ type: "ooj:connect", token: made.token }, location.origin);
-    } catch (err) {
-      $("aa-ext-state").textContent = err.message || "Could not connect. Try again.";
+    } catch {
+      $("aa-ext-state").textContent = "Couldn't connect the extension. Try again.";
     } finally {
       connect.classList.remove("btn-busy");
     }
@@ -1009,7 +1015,7 @@ function wireTokens() {
       newBtn.disabled = tokens.length >= 5;
       newBtn.title = newBtn.disabled ? "Five tokens at most. Revoke one first." : "";
     } catch (e) {
-      setStatus("token-status", e.message || "Could not load tokens.", true);
+      setStatus("token-status", "Couldn't load your tokens.", true);
     }
   }
 
@@ -1041,7 +1047,8 @@ function wireTokens() {
       close();
       await load();
     } catch (err) {
-      setStatus("token-status", err.message || "Could not create the token.", true);
+      setStatus("token-status", /at most/.test(err.message) ? "You can have five tokens. Revoke one first."
+        : "Couldn't create the token. Try again.", true);
     } finally {
       btn.classList.remove("btn-busy");
     }
@@ -1097,15 +1104,17 @@ function wireTokens() {
   });
   list.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-revoke]");
-    if (!b) return;
+    // The list holds the extension's token too, so one stray click could
+    // disconnect it.
+    if (!b || !confirmClick(b, "Revoke?")) return;
     b.classList.add("btn-busy");
     try {
       await authedFetch(`/me/tokens/${b.dataset.revoke}`, { method: "DELETE" });
-      setStatus("token-status", "Revoked. It stops working now.");
+      setStatus("token-status", "Revoked. Apps using it lose access now.");
       await load();
-    } catch (err) {
+    } catch {
       b.classList.remove("btn-busy");
-      setStatus("token-status", err.message || "Could not revoke.", true);
+      setStatus("token-status", "Couldn't revoke that token. Try again.", true);
     }
   });
   load();
@@ -1174,6 +1183,10 @@ function wireLeaving() {
       for (const a of alerts) {
         await authedFetch(`/me/alerts/${a.alert_id}`, { method: "DELETE" });
       }
+      const saved = (await authedFetch("/me/saved")).saved || [];
+      for (const r of saved) {
+        await authedFetch(`/me/saved/${encodeURIComponent(r.job_id)}`, { method: "DELETE" });
+      }
       // The auto apply profile, history and queue.
       await authedFetch("/me/apply", { method: "DELETE" });
       // Every token too: one left behind would keep
@@ -1191,7 +1204,7 @@ function wireLeaving() {
       setStatus("account-status", "Deleted. Signing out.");
       setTimeout(signOut, 1200);
     } catch (err) {
-      setStatus("account-status", err.message || "Could not delete.", true);
+      setStatus("account-status", "Couldn't finish deleting your account. Try again.", true);
       btn.classList.remove("btn-busy");
       disarm();
     }
@@ -1217,7 +1230,7 @@ async function loadSaved() {
     dashSavedRows = data.saved || [];
     ids = dashSavedRows.map((r) => r.job_id).filter(Boolean);
   } catch {
-    host.innerHTML = '<p class="alerts-empty">Could not load your saved listings.</p>';
+    host.innerHTML = `<p class="alerts-empty">Couldn't load your saved jobs.</p>`;
     return;
   }
   setCount("saved", ids.length);
@@ -1235,7 +1248,7 @@ async function loadSaved() {
     });
     jobs = (await getJSON(`/jobs?${q}`)).jobs || [];
   } catch {
-    host.innerHTML = '<p class="alerts-empty">Could not load your saved listings.</p>';
+    host.innerHTML = `<p class="alerts-empty">Couldn't load your saved jobs.</p>`;
     return;
   }
   // The account knows the order they were starred in; the board returns
@@ -1268,12 +1281,12 @@ function paintSaved(jobs) {
       btn.disabled = true;
       try {
         await authedFetch(`/me/saved/${encodeURIComponent(id)}`, { method: "DELETE" });
-      } catch (err) {
+      } catch {
         btn.disabled = false;
         // Next to the list, not in Settings, and it says what happened.
         // A bare "could not" on a button that looks idle is the same as
         // silence: the reader clicks it again.
-        setStatus("saved-status", `Could not remove that listing: ${err.message}`, true);
+        setStatus("saved-status", "Couldn't remove that job. Try again.", true);
         return;
       }
       // The board reads this same list out of localStorage, so removing
@@ -1318,7 +1331,7 @@ function wireAccountSignIn() {
       $("acct-otp-form").hidden = false;
       $("acct-otp-input").focus();
     } catch (e2) {
-      fail(e2.message || "Could not send a code. Try again.");
+      fail(SEND_CODE_FAILED);
     } finally {
       btn.disabled = false;
     }
@@ -1335,7 +1348,7 @@ function wireAccountSignIn() {
       // honest than teaching each one to appear.
       location.reload();
     } catch (e2) {
-      fail(e2.message === "CodeMismatchException" ? "Wrong code, try again." : e2.message || "Could not verify that code.");
+      fail(verifyCodeError(e2));
     } finally {
       btn.disabled = false;
     }
@@ -1368,7 +1381,7 @@ function sayStuck(host, why) {
   const el = $(host);
   if (!el || !/Loading/i.test(el.textContent)) return;
   console.error(`account: ${host} ${why}`);
-  el.innerHTML = `<p class="alerts-empty">This is taking longer than it should. Reloading the page usually fixes it.</p>`;
+  el.innerHTML = `<p class="alerts-empty">This is taking longer than it should. Reload the page to try again.</p>`;
 }
 
 function watchForStuck() {
@@ -1387,7 +1400,7 @@ async function block(name, host, fn) {
   } catch (err) {
     console.error(`account: ${name} failed`, err);
     const el = $(host);
-    if (el) el.innerHTML = `<p class="alerts-empty">This did not load. Reloading the page usually fixes it.</p>`;
+    if (el) el.innerHTML = `<p class="alerts-empty">Couldn't load this. Reload the page to try again.</p>`;
     return null;
   } finally {
     clearTimeout(stuckTimers.get(host));
