@@ -1015,7 +1015,7 @@ function wireTokens() {
       newBtn.disabled = tokens.length >= 5;
       newBtn.title = newBtn.disabled ? "Five tokens at most. Revoke one first." : "";
     } catch (e) {
-      setStatus("token-status", e.message || "Could not load tokens.", true);
+      setStatus("token-status", "Couldn't load your tokens.", true);
     }
   }
 
@@ -1047,7 +1047,8 @@ function wireTokens() {
       close();
       await load();
     } catch (err) {
-      setStatus("token-status", err.message || "Could not create the token.", true);
+      setStatus("token-status", /at most/.test(err.message) ? "You can have five tokens. Revoke one first."
+        : "Couldn't create the token. Try again.", true);
     } finally {
       btn.classList.remove("btn-busy");
     }
@@ -1103,15 +1104,17 @@ function wireTokens() {
   });
   list.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-revoke]");
-    if (!b) return;
+    // The list holds the extension's token too, so one stray click could
+    // disconnect it.
+    if (!b || !confirmClick(b, "Revoke?")) return;
     b.classList.add("btn-busy");
     try {
       await authedFetch(`/me/tokens/${b.dataset.revoke}`, { method: "DELETE" });
-      setStatus("token-status", "Revoked. It stops working now.");
+      setStatus("token-status", "Revoked. Apps using it lose access now.");
       await load();
-    } catch (err) {
+    } catch {
       b.classList.remove("btn-busy");
-      setStatus("token-status", err.message || "Could not revoke.", true);
+      setStatus("token-status", "Couldn't revoke that token. Try again.", true);
     }
   });
   load();
