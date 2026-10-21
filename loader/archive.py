@@ -36,7 +36,7 @@ MARKER_KEY = "archive/last-prune.json"
 
 # The 14-day window every consumer of a closed job row uses. Was 30;
 # the extra 16 days were 380,195 rows (2026-10-20) that every
-# board query walked past (box/SPLIT-TEXT.md).
+# board query walked past (box/COMPACT.md).
 RETAIN_DAYS = 14
 
 # closed_history's own horizon: aggregates.skills_history's 90 days.
