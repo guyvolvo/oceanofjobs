@@ -1,0 +1,13 @@
+[Unit]
+Description=Ocean of Jobs: fill in missing job descriptions (box/describe_backfill.py)
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/srv/otj/app
+EnvironmentFile=/etc/otj-api.env
+ExecStart=/srv/otj/venv/bin/python box/describe_backfill.py --limit 20000
+# Mostly waiting on other sites; capped so it never competes with the API.
+Nice=15
+CPUQuota=40%
+IOReadIOPSMax=/dev/nvme0n1 300
+TimeoutStartSec=3h

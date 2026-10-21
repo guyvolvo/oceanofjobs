@@ -1313,7 +1313,8 @@ def f_ashby(sess, token):
 
 
 def f_workable(sess, token):
-    d = get_json(sess, f"https://apply.workable.com/api/v1/widget/accounts/{token}")
+    # details=true is what puts each job's description in the response.
+    d = get_json(sess, f"https://apply.workable.com/api/v1/widget/accounts/{token}?details=true")
     if not isinstance(d, dict) or "jobs" not in d:
         return None
     return [Job("workable", token, _txt(j.get("shortcode")), _txt(j.get("title")),
@@ -1350,6 +1351,15 @@ def f_recruitee(sess, token):
 # The most a SmartRecruiters read will page through. One tracked company
 # has 16,921 open postings (a real count); 200 pages covers it.
 _SMARTRECRUITERS_MAX_JOBS = 20000
+
+
+def smartrecruiters_description(detail) -> str | None:
+    """One posting's text from the single-posting endpoint. Also used by
+    box/describe_backfill.py."""
+    sections = ((detail or {}).get("jobAd") or {}).get("sections") or {} if isinstance(detail, dict) else {}
+    parts = [_txt((sections.get(key) or {}).get("text")) for key in ("companyDescription", "jobDescription", "qualifications")]
+    raw = "\n\n".join(p for p in parts if p)
+    return _clean_text(raw) if raw else None
 
 
 def f_smartrecruiters(sess, token):
@@ -1440,16 +1450,10 @@ def f_smartrecruiters(sess, token):
     # impractical at any batch size.
     if FETCH_FULL_DESCRIPTIONS and out:
         def _fill_description(job: Job) -> None:
-            detail = get_json(sess, f"https://api.smartrecruiters.com/v1/companies/{token}/postings/{job.external_id}")
-            sections = ((detail or {}).get("jobAd") or {}).get("sections") or {} if isinstance(detail, dict) else {}
-            parts = [
-                _txt((sections.get(key) or {}).get("text"))
-                for key in ("companyDescription", "jobDescription", "qualifications")
-            ]
-            raw = "\n\n".join(p for p in parts if p)
-            if raw:
-                job.description = _clean_text(raw)
-                job.description_chars = len(job.description)
+            text = smartrecruiters_description(get_json(sess, f"https://api.smartrecruiters.com/v1/companies/{token}/postings/{job.external_id}"))
+            if text:
+                job.description = text
+                job.description_chars = len(text)
 
         with ThreadPoolExecutor(max_workers=4) as pool:
             list(pool.map(_fill_description, out))
