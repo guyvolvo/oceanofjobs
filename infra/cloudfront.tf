@@ -152,7 +152,7 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
       };
     }
 
-    var PAGES = { "/account": true, "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
+    var PAGES = { "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
 
     // The board used to live at /, so every link anyone shared or
     // bookmarked before the move reads /?country=IL or /?job=... A
@@ -247,6 +247,12 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
         request.uri = "/apply/index.html";
         return request;
       }
+      // The account page is the other page of that build (apply/account.html).
+      // Its section is the hash, so only the bare path needs a rule.
+      if (uri === "/account") {
+        request.uri = "/apply/account.html";
+        return request;
+      }
       // The company directory by first letter, written to the bucket
       // with the sitemap (loader/sitemap.py): /companies/a -> companies/a.html.
       if (uri.indexOf("/companies/") === 0 && last.indexOf(".") === -1) {
@@ -263,7 +269,7 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
         return request;
       }
 
-      // /account -> account.html on the way to S3, invisibly. Anything
+      // /stats -> stats.html on the way to S3, invisibly. Anything
       // with an extension is a real file (style.css, logo.png, the
       // vendored .mjs) and is already named correctly.
       //

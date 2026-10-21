@@ -2,10 +2,16 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Served from the site's bucket under apply/, so every asset URL starts
-// with /apply/. infra/cloudfront.tf sends /apply and any extensionless
-// /apply/... path to apply/index.html.
+// with /apply/. Two pages share the build: the auto apply dashboard
+// (index.html) and the account page (account.html). infra/cloudfront.tf
+// sends /apply and any extensionless /apply/... path to apply/index.html,
+// and /account to apply/account.html.
 export default defineConfig({
   base: "/apply/",
   plugins: [react()],
-  build: { outDir: "dist", emptyOutDir: true },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    rollupOptions: { input: { index: "index.html", account: "account.html" } },
+  },
 });

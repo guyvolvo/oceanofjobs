@@ -277,7 +277,7 @@ async function cognitoRequest(target, body) {
   return data;
 }
 
-// What the two email forms (signin_dialog.js, account.js) show when a
+// What the two email forms (signin_dialog.js, apply/src/account) show when a
 // step fails. Never the raw Cognito or HTTP text: "HTTP 500" tells a
 // reader nothing they can act on.
 const SEND_CODE_FAILED = "Couldn't send a code to that address. Check it and try again.";

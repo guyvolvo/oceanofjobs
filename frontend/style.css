@@ -3375,7 +3375,7 @@ body.explore-busy .explore-metric { color: var(--green-text); }
   text-align: center;
 }
 /* Which provider signed this reader in, when the token says so. Not a
-   claim the page makes on its own: see account.js. */
+   claim the page makes on its own: see apply/src/account. */
 .acct-provider {
   display: inline-flex;
   align-items: center;

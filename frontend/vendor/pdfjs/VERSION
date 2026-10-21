@@ -15,6 +15,6 @@ list of skills they choose to save. Loading the parser from a CDN would
 have told that CDN, on every analysis, that somebody was parsing a
 document on this domain.
 
-Unmodified. pdf.worker.min.mjs must sit next to pdf.min.mjs; account.js
+Unmodified. pdf.worker.min.mjs must sit next to pdf.min.mjs; apply/src/account/data.ts
 points workerSrc at it explicitly rather than relying on the default
 resolution, which assumes a bundler.

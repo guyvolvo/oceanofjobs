@@ -44,10 +44,11 @@ jobs:
         working-directory: docs
         run: npm ci && npm run build
 
-      # The auto apply dashboard at /apply: a Vite + React app (apply/),
-      # built here for the same reason as the docs, so a failed build
-      # stops the deploy before anything is uploaded.
-      - name: Build the auto apply dashboard
+      # The auto apply dashboard at /apply and the account page at
+      # /account: one Vite + React build (apply/), two pages, built here
+      # for the same reason as the docs, so a failed build stops the
+      # deploy before anything is uploaded.
+      - name: Build the auto apply dashboard and the account page
         working-directory: apply
         run: npm ci && npm run build
 
@@ -64,10 +65,10 @@ jobs:
           # at fresh copies. Only local scripts and stylesheets: anything
           # with a scheme (the support widget's CDN script) is left alone.
           v=${GITHUB_SHA::8}
-          # The dashboard's page loads /auth.js from frontend/, so it is
+          # The dashboard's pages load /auth.js from frontend/, so they are
           # stamped too; its own bundles are already content-hashed.
-          sed -i -E "s#(src|href)=\"([^\":]+\.(js|css))\"#\1=\"\2?v=$v\"#g" frontend/*.html apply/dist/index.html
-          grep -n '?v=' frontend/*.html apply/dist/index.html
+          sed -i -E "s#(src|href)=\"([^\":]+\.(js|css))\"#\1=\"\2?v=$v\"#g" frontend/*.html apply/dist/index.html apply/dist/account.html
+          grep -n '?v=' frontend/*.html apply/dist/index.html apply/dist/account.html
 
       - name: Sync frontend/ to S3
         run: |

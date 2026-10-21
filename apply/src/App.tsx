@@ -16,6 +16,7 @@ const History = lazy(() => import("./History").then((m) => ({ default: m.History
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
 const Agent = lazy(() => import("./Agent").then((m) => ({ default: m.Agent })));
 import { plural } from "./shared";
+import { useSiteTheme } from "./theme";
 
 const SECTIONS = ["overview", "queue", "needs", "history", "settings", "agent"] as const;
 type Section = (typeof SECTIONS)[number];
@@ -23,19 +24,6 @@ const fromHash = (): Section => {
   const h = location.hash.slice(1);
   return (SECTIONS as readonly string[]).includes(h) ? (h as Section) : "overview";
 };
-
-// The site header (outside React) switches the theme on <html data-theme>;
-// Kumo reads data-mode. One follows the other.
-function useSiteTheme() {
-  useEffect(() => {
-    const root = document.documentElement;
-    const sync = () => { root.dataset.mode = root.getAttribute("data-theme") === "dark" ? "dark" : "light"; };
-    sync();
-    const watch = new MutationObserver(sync);
-    watch.observe(root, { attributeFilter: ["data-theme"] });
-    return () => watch.disconnect();
-  }, []);
-}
 
 function SignedOut() {
   return (

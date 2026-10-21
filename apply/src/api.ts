@@ -83,5 +83,28 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
   return (res.status === 204 ? null : await res.json()) as T;
 }
 
+// A public route (no token), retried like the board's getJSON: a dropped
+// connection, a 5xx or a 429 gets three more tries, a 4xx is final.
+const RETRY_WAITS = [600, 1500, 3500];
+export async function pub<T = unknown>(path: string): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(`/api${path}`);
+    } catch (err) {
+      if (attempt >= RETRY_WAITS.length) throw err;
+      await new Promise((r) => setTimeout(r, RETRY_WAITS[attempt]));
+      continue;
+    }
+    if (res.ok) return res.json() as Promise<T>;
+    if ((res.status >= 500 || res.status === 429) && attempt < RETRY_WAITS.length) {
+      await new Promise((r) => setTimeout(r, RETRY_WAITS[attempt]));
+      continue;
+    }
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(body.error || `HTTP ${res.status}`, res.status);
+  }
+}
+
 export const apply = <T = unknown>(path: string, init?: RequestInit) => api<T>(`/me/apply/${path}`, init);
 export const send = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) });

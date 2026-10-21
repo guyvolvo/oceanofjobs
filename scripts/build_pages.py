@@ -25,8 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "api"))
 import site_header  # noqa: E402
 
 FRONT = Path(__file__).resolve().parent.parent / "frontend"
-MARKED = [FRONT / n for n in ("stats.html", "404.html", "account.html", "contact.html", "board.html", "companies.html")] \
-    + [FRONT.parent / "apply" / "index.html"]
+MARKED = [FRONT / n for n in ("stats.html", "404.html", "contact.html", "board.html", "companies.html")] \
+    + [FRONT.parent / "apply" / n for n in ("index.html", "account.html")]
 PAGES = Path(__file__).resolve().parent / "pages"
 LEGAL = {
     # name: (title, description, noindex)
