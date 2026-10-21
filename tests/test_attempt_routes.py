@@ -193,6 +193,52 @@ with mock_aws():
     s, b = call("frank", "POST", "attempts", {"attempt_id": "frank-0001", **job(20)})
     check("a job submitted the old way can't be reserved the new way", s == 409 and b["code"] == "job_taken", repr((s, b)))
 
+    # The shared summary, needs, Filled entries, one History and queue order.
+    ok_ = call("gina", "POST", "attempts", {"attempt_id": "gina-00001", **job(30)})[0]
+    call("gina", "POST", "attempts/gina-00001/submission-started")
+    call("gina", "POST", "attempts/gina-00001/settle", {"outcome": "submitted"})
+    call("gina", "POST", "attempts", {"attempt_id": "gina-00002", **job(31)})
+    call("gina", "POST", "attempts/gina-00002/submission-started")
+    call("gina", "POST", "attempts/gina-00002/settle", {"outcome": "unconfirmed", "reason": "no confirmation"})
+    call("gina", "POST", "attempts", {"attempt_id": "gina-00003", **job(32)})
+    call("gina", "POST", "attempts/gina-00003/settle", {"outcome": "needs_input", "reason": "Needs your answer: Why us?; Notice period?",
+                                                         "questions": ["Why us?", "Notice period?"]})
+    call("gina", "POST", "attempts", {"attempt_id": "gina-00004", **job(33)})  # still in progress
+    s1, b1 = call("gina", "POST", "filled", {"attempt_id": "gina-00005", **job(34)})
+    s2, b2 = call("gina", "POST", "filled", {"attempt_id": "gina-00005", **job(34)})
+    check("a Filled entry is recorded, and recording it again changes nothing", s1 == s2 == 200 and b1 == b2 and b1["attempt"]["state"] == "filled")
+    call("gina", "POST", "claim", {"job_id": job(35)["job_id"], "url": job(35)["url"]})
+    call("gina", "POST", "result", {"job_id": job(35)["job_id"], "status": "submitted"})  # one through the old path
+    s, summ = call("gina", "GET", "summary")
+    check("the summary counts submitted and unconfirmed as used, across both paths", s == 200 and summ["used"] == 3, repr(summ))
+    check("and the open attempt as in progress, with the rest left", summ["in_progress"] == 1 and summ["remaining"] == 26, repr(summ))
+    check("Filled costs nothing", summ["used"] + summ["in_progress"] + summ["remaining"] == 30)
+    check("unconfirmed, needs and disputes are counted", summ["unconfirmed"] == 1 and summ["needs_input"] == 1 and summ["disputes_left"] == 5, repr(summ))
+    s, use = call("gina", "GET", "usage")
+    check("the old usage route gives the same numbers", use == {"plan": "free", "period": "month", "limit": 30, "used": 4, "remaining": 26}, repr(use))
+    s, nd = call("gina", "GET", "needs")
+    check("needs list the job and its questions", s == 200 and nd["needs"][0]["questions"] == ["Why us?", "Notice period?"]
+          and nd["needs"][0]["job_id"] == job(32)["job_id"], repr(nd))
+    table.put_item(Item={"user_id": "gina", "alert_id": "#queue#" + job(32)["job_id"], "job_id": job(32)["job_id"], "added_at": "2026-10-21T00:00:00+00:00"})
+    check("once the job is queued again it no longer needs attention", call("gina", "GET", "needs")[1]["needs"] == [])
+    s, hist = call("gina", "GET", "history")
+    by = {r["job_id"]: r for r in hist["applied"]}
+    check("History keeps every status distinct", [by[job(n)["job_id"]]["status"] for n in (30, 31, 32, 33, 34, 35)]
+          == ["submitted", "unconfirmed", "needs_input", "in_progress", "filled", "submitted"], repr([r["status"] for r in hist["applied"]]))
+    check("only the unconfirmed one is disputable", [r["job_id"] for r in hist["applied"] if r.get("disputable")] == [job(31)["job_id"]])
+    for n in (40, 41, 42):
+        table.put_item(Item={"user_id": "gina", "alert_id": "#queue#" + job(n)["job_id"], "job_id": job(n)["job_id"],
+                             "added_at": f"2026-10-21T00:00:0{n - 40}+00:00"})
+    s, _ = call("gina", "POST", "queue-order", {"job_ids": [job(42)["job_id"], job(40)["job_id"], job(41)["job_id"], job(32)["job_id"], "ffffffffffffffff"]})
+    check("the queue keeps the order the user set, and ignores ids not in it", s == 204 and [r["job_id"] for r in handler.apply.queue(table, "gina")]
+          == [job(42)["job_id"], job(40)["job_id"], job(41)["job_id"], job(32)["job_id"]] and not rows("gina", "#queue#ffffffffffffffff"))
+
+    # Credits used through the old path count against the new one.
+    for n in range(30):
+        handler.apply.claim(table, "hank", {"job_id": f"{100 + n:016x}"})
+    s, b = call("hank", "POST", "attempts", {"attempt_id": "hank-00001", **job(60)})
+    check("thirty used the old way: a new reservation is refused", s == 402 and b["code"] == "limit_reached", repr((s, b)))
+
     # Account deletion removes the new rows too.
     s, _ = call("bob", "DELETE", "")
     check("deleting the account's auto apply data removes attempts, ledgers and locks",

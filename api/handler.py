@@ -763,7 +763,9 @@ def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict
             if action == "submission-started":
                 return ok(200, {"attempt": A.submission_started(user_id, attempt_id), "submit": True})
             if action == "settle":
-                return ok(200, {"attempt": A.settle(user_id, attempt_id, str(body.get("outcome") or ""), str(body.get("reason") or ""))})
+                questions = body.get("questions") if isinstance(body.get("questions"), list) else None
+                return ok(200, {"attempt": A.settle(user_id, attempt_id, str(body.get("outcome") or ""), str(body.get("reason") or ""),
+                                                    questions=questions)})
             if action == "dispute":
                 return ok(200, {"attempt": A.dispute(user_id, attempt_id, tz=body.get("tz"))})
         return ok(404, {"error": "no such route", "code": "not_found", "retryable": False})
@@ -810,7 +812,31 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         apply.add_answer(_alerts_table, user_id, body.get("question"), body.get("answer"))
         return ok(204)
     if sub == "usage" and method == "GET":
-        return ok(200, apply.usage(_alerts_table, user_id))
+        # The summary's numbers in the old shape, for clients that still ask here.
+        s = attempts.Attempts(_alerts_table).summary(user_id, tz=params.get("tz"))
+        return ok(200, {"plan": s["plan"], "period": s["period"], "limit": s["limit"],
+                        "used": s["used"] + s["in_progress"], "remaining": s["remaining"]})
+    if sub == "summary" and method == "GET":
+        q = apply.queue(_alerts_table, user_id)
+        return ok(200, attempts.Attempts(_alerts_table).summary(user_id, tz=params.get("tz"), queued=len(q),
+                                                                 queued_ids={r["job_id"] for r in q}))
+    if sub == "needs" and method == "GET":
+        q = {r["job_id"] for r in apply.queue(_alerts_table, user_id)}
+        needs = attempts.Attempts(_alerts_table).needs(user_id, q)
+        shown = {r["job_id"]: r for r in _history_view([dict(n, status="needs_input") for n in needs])}
+        return ok(200, {"needs": [{**n, "title": shown[n["job_id"]]["title"], "company": shown[n["job_id"]]["company"],
+                                   "link": shown[n["job_id"]]["link"]} for n in needs]})
+    if sub == "filled" and method == "POST":
+        try:
+            return ok(200, {"attempt": attempts.Attempts(_alerts_table).filled(user_id, str(body.get("attempt_id") or ""), body)})
+        except (ValueError, attempts.Conflict) as e:
+            return ok(409 if isinstance(e, attempts.Conflict) else 400, {"error": str(e)})
+    if sub == "queue-order" and method == "POST":
+        try:
+            apply.set_order(_alerts_table, user_id, body.get("job_ids") or [])
+        except ValueError as e:
+            return ok(400, {"error": str(e)})
+        return ok(204)
     if sub == "draft" and method == "POST":
         prefs = route_get_profile(user_id).get("profile") or {}
         try:
@@ -836,9 +862,27 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             limit = int(params.get("limit") or 50)
         except ValueError:
             limit = 50
-        return ok(200, {"applied": _history_view(apply.history(_alerts_table, user_id, limit))})
+        # One History across the old claim and result rows and the new attempts.
+        limit = max(1, min(limit, 500))
+        rows = apply.history(_alerts_table, user_id, limit) + attempts.Attempts(_alerts_table).history(user_id)
+        rows = sorted(rows, key=lambda r: r.get("at") or "", reverse=True)[:limit]
+        return ok(200, {"applied": _history_view(rows)})
     if sub == "queue" and method == "GET":
-        return ok(200, {"queue": apply.queue(_alerts_table, user_id)})
+        q = apply.queue(_alerts_table, user_id)
+        info = {}
+        if q:
+            try:
+                conn = get_connection()
+                ids = [r["job_id"] for r in q]
+                name = ("(SELECT company_name FROM companies WHERE domain = jobs.company_domain)"
+                        if _has_company_name(conn) else "NULL")
+                for jid, title, ats, domain, cname in conn.execute(
+                        f"SELECT id, title, ats, company_domain, {name} FROM jobs WHERE id IN ({','.join('?' * len(ids))})", ids):
+                    info[jid] = {"title": title, "ats": ats, "company": cname or domain, "link": f"/job/{jid}"}
+            except Exception as e:  # noqa: BLE001 -- the queue still shows, just without titles
+                print(f"queue titles failed: {e!r}")
+        return ok(200, {"queue": [{**r, **info.get(r["job_id"], {"title": "", "ats": "", "company": "", "link": f"/job/{r['job_id']}"})}
+                                  for r in q]})
     if sub.startswith("queue/"):
         job_id = sub[len("queue/"):]
         if method == "PUT":

@@ -248,7 +248,8 @@ with mock_aws():
         A.reserve("u", f"own-{i:06d}", job(i), NOW)
     check("the user's own daily maximum holds on the free plan too", raises(lambda: A.reserve("u", "own-x00004", job(4), NOW), at.LimitReached))
     s = A.summary("u", NOW)
-    check("the summary shows what's held and what's left", s["in_progress"] == 3 and s["remaining"] == 0 and s["charged_this_month"] == 0, repr(s))
+    check("the summary shows what's held and what's left", s["in_progress"] == 3 and s["remaining"] == 0 and s["used"] == 0
+          and s["daily_max"] == 3 and s["plan"] == "free" and s["period"] == "month", repr(s))
 
     # Applications submitted through the old path are respected.
     t, A = fresh_table()

@@ -32,6 +32,15 @@ class FakeTable:
     """The alerts table, keyed (user_id, alert_id), reading its key
     conditions the way DynamoDB does for the two shapes used here."""
 
+    # What api/attempts.py reads from a table: its name and client. The
+    # attempt routes themselves are tested on moto (test_attempt_routes.py).
+    name = "test-alerts"
+
+    class meta:  # noqa: N801
+        class client:  # noqa: N801
+            class exceptions:  # noqa: N801
+                ConditionalCheckFailedException = type("ConditionalCheckFailedException", (Exception,), {})
+
     def __init__(self):
         self.items = {}
         self.updates = 0
@@ -43,13 +52,13 @@ class FakeTable:
             return [t for c in expr["values"] for t in FakeTable._terms(c)]
         return [(expr["operator"], expr["values"][0].name, expr["values"][1])]
 
-    def query(self, KeyConditionExpression=None):
+    def query(self, KeyConditionExpression=None, **kw):
         rows = list(self.items.values())
         for op, name, value in self._terms(KeyConditionExpression):
             rows = [r for r in rows if (r[name] == value if op == "=" else str(r[name]).startswith(value))]
         return {"Items": rows}
 
-    def get_item(self, Key=None):
+    def get_item(self, Key=None, **kw):
         item = self.items.get((Key["user_id"], Key["alert_id"]))
         return {"Item": dict(item)} if item else {}
 

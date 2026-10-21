@@ -215,6 +215,11 @@ def usage(table, user_id: str, now: datetime | None = None) -> dict:
         start = start.replace(day=1)
     used = sum(1 for r in _applied(table, user_id)
                if _counts(r, now) and datetime.fromisoformat(r["at"]) >= start)
+    # Credits the new attempts path holds (api/attempts.py ledgers, keyed by
+    # the user's time zone; UTC here is close enough for an old client).
+    ledger = table.get_item(Key={"user_id": user_id, "alert_id": ("#ledger#month#" + now.strftime("%Y-%m")) if period == "month"
+                                 else ("#ledger#day#" + now.strftime("%Y-%m-%d"))}).get("Item") or {}
+    used += int(ledger.get("held", 0))
     return {"plan": plan, "period": period, "limit": limit, "used": used, "remaining": max(0, limit - used)}
 
 
@@ -361,9 +366,26 @@ def history(table, user_id: str, limit: int = 50) -> list[dict]:
 
 
 def queue(table, user_id: str) -> list[dict]:
+    """The queue in the user's order: jobs placed with set_order first, by
+    position, then the rest as they were added."""
     resp = table.query(KeyConditionExpression=Key("user_id").eq(user_id) & Key("alert_id").begins_with(QUEUE))
-    rows = sorted(resp.get("Items", []), key=lambda r: r.get("added_at") or "")
-    return [{"job_id": r["job_id"], "added_at": r.get("added_at")} for r in rows]
+    rows = sorted(resp.get("Items", []), key=lambda r: (r.get("position") is None, int(r.get("position") or 0), r.get("added_at") or ""))
+    return [{"job_id": r["job_id"], "added_at": r.get("added_at"), "position": i} for i, r in enumerate(rows)]
+
+
+def set_order(table, user_id: str, job_ids: list) -> None:
+    """Positions for queued jobs, in the given order. Ids not in the queue
+    are ignored, so a job removed meanwhile isn't brought back."""
+    for i, job_id in enumerate(job_ids or []):
+        job_id = str(job_id or "")
+        if not JOB_ID.match(job_id):
+            raise ValueError("not a job id")
+        try:
+            table.update_item(Key={"user_id": user_id, "alert_id": QUEUE + job_id}, UpdateExpression="SET #p = :p",
+                              ConditionExpression="attribute_exists(alert_id)", ExpressionAttributeNames={"#p": "position"},
+                              ExpressionAttributeValues={":p": i})
+        except table.meta.client.exceptions.ConditionalCheckFailedException:
+            pass
 
 
 def enqueue(table, user_id: str, job_id: str, now: datetime | None = None) -> None:

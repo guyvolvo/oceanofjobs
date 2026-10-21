@@ -46,6 +46,7 @@ PLAN_LIMITS = {"free": (30, None), "basic": (100, None), "pro": (None, 50)}
 RESERVED, STARTED = "reserved", "submission_started"
 SUBMITTED, UNCONFIRMED = "submitted", "unconfirmed"
 FAILED, SKIPPED, NEEDS_INPUT, ABANDONED, DISPUTED = "failed", "skipped", "needs_input", "abandoned", "not_sent_disputed"
+FILLED = "filled"
 OPEN = (RESERVED, STARTED)
 CHARGED = (SUBMITTED, UNCONFIRMED)
 
@@ -122,6 +123,20 @@ def log(event: str, user_id: str, attempt_id: str = "", detail: str = "") -> Non
     short hash, and never reasons, answers, CVs or tokens."""
     who = hashlib.sha256(user_id.encode()).hexdigest()[:10]
     print(f"attempts {event} user={who} attempt={attempt_id} {detail}".rstrip(), flush=True)
+
+
+def legacy_used(table, user_id: str, month: str, day: str, tz: str | None, now: datetime) -> tuple[int, int]:
+    """(this month, this day) of credits the old claim and result path
+    holds (apply.py's #applied# rows), in the user's time zone, so the old
+    and new paths share one allowance while both exist."""
+    m = d = 0
+    for r in apply._applied(table, user_id):
+        if not apply._counts(r, now):
+            continue
+        rm, rd = periods(datetime.fromisoformat(r["at"]), tz)
+        m += rm == month
+        d += rd == day
+    return m, d
 
 
 def limits(table, user_id: str) -> tuple[int | None, int | None]:
@@ -202,6 +217,11 @@ class Attempts:
         canon = apply.canonical_job(job.get("url")) or "id:" + job_id
         month, day = periods(now, tz)
         month_limit, day_limit = limits(self.table, user_id)
+        old_m, old_d = legacy_used(self.table, user_id, month, day, tz, now)
+        month_limit = None if month_limit is None else month_limit - old_m
+        day_limit = None if day_limit is None else day_limit - old_d
+        if (month_limit is not None and month_limit <= 0) or (day_limit is not None and day_limit <= 0):
+            raise LimitReached("no applications left in this period")
         attempt = {"user_id": user_id, "alert_id": ATTEMPT + attempt_id, "attempt_id": attempt_id, "job_id": job_id,
                    "canon": canon, "title": apply._text(job.get("title"), 300), "company": apply._text(job.get("company"), 200),
                    "url": apply._text(job.get("url"), 1000), "tz": str(_zone(tz)), "month": month, "day": day,
@@ -261,10 +281,12 @@ class Attempts:
         return self.view(a)
 
     # R4 to R7, R10
-    def settle(self, user_id: str, attempt_id: str, outcome: str, reason: str = "", now: datetime | None = None) -> dict:
-        return self._settle(user_id, attempt_id, outcome, reason, now)[0]
+    def settle(self, user_id: str, attempt_id: str, outcome: str, reason: str = "", now: datetime | None = None,
+               questions: list | None = None) -> dict:
+        return self._settle(user_id, attempt_id, outcome, reason, now, questions)[0]
 
-    def _settle(self, user_id: str, attempt_id: str, outcome: str, reason: str, now: datetime | None) -> tuple[dict, bool]:
+    def _settle(self, user_id: str, attempt_id: str, outcome: str, reason: str, now: datetime | None,
+                questions: list | None = None) -> tuple[dict, bool]:
         """(the attempt, whether this call changed it)."""
         now = _utc(now)
         a = self._get(user_id, ATTEMPT + attempt_id)
@@ -277,9 +299,10 @@ class Attempts:
             raise Conflict(f"an attempt that is {a['state']} can't become {outcome}")
         key = {"user_id": user_id, "alert_id": ATTEMPT + attempt_id}
         upd = {"TableName": self.name, "Key": self._key(**key),
-               "UpdateExpression": "SET #s = :to, reason = :r, settled_at = :t, audit = list_append(audit, :ev)",
+               "UpdateExpression": "SET #s = :to, reason = :r, settled_at = :t, questions = :q, audit = list_append(audit, :ev)",
                "ConditionExpression": "#s = :from", "ExpressionAttributeNames": {"#s": "state"},
                "ExpressionAttributeValues": ({":to": outcome, ":from": a["state"], ":r": apply._text(reason, 300),
+                                                   ":q": [apply._text(q, 300) for q in (questions or [])[:20] if str(q or "").strip()],
                                                    ":t": now.isoformat(), ":ev": [self._audit(outcome, now)]})}
         items = [{"Update": upd}]
         lock = self._key(user_id, JOBLOCK + a["canon"])
@@ -301,7 +324,7 @@ class Attempts:
             if again["state"] == a["state"]:
                 log("settle_failed", user_id, attempt_id, f"from={a['state']} to={outcome} reasons={reasons}")
                 raise RuntimeError(f"settlement failed: {reasons}")
-            return self._settle(user_id, attempt_id, outcome, reason, now)  # moved by a racing report: decide again
+            return self._settle(user_id, attempt_id, outcome, reason, now, questions)  # moved by a racing report: decide again
         a.update(state=outcome, reason=reason, settled_at=now.isoformat())
         return self.view(a), True
 
@@ -393,6 +416,65 @@ class Attempts:
             return self.dispute(user_id, attempt_id, now, tz)  # disputed meanwhile: answer as a repeat
         raise NotDisputable(f"you've used all {DISPUTES_PER_PERIOD} disputes this period")
 
+    # R8
+    def filled(self, user_id: str, attempt_id: str, job: dict, now: datetime | None = None) -> dict:
+        """A fill the user will check and send themselves: in History as
+        Filled, with no reservation, no charge and no job lock."""
+        now = _utc(now)
+        if not ATTEMPT_ID.match(attempt_id or ""):
+            raise ValueError("attempt_id is required")
+        job_id = str(job.get("job_id") or "")
+        if not apply.JOB_ID.match(job_id):
+            raise ValueError("job_id is not a job id")
+        row = {"user_id": user_id, "alert_id": ATTEMPT + attempt_id, "attempt_id": attempt_id, "job_id": job_id,
+               "canon": apply.canonical_job(job.get("url")) or "id:" + job_id, "title": apply._text(job.get("title"), 300),
+               "company": apply._text(job.get("company"), 200), "url": apply._text(job.get("url"), 1000),
+               "state": FILLED, "reserved_at": now.isoformat(), "settled_at": now.isoformat(), "audit": [self._audit("filled", now)]}
+        try:
+            self.table.put_item(Item=row, ConditionExpression="attribute_not_exists(alert_id)")
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+            existing = self._get(user_id, ATTEMPT + attempt_id)
+            if existing["job_id"] != job_id or existing["state"] != FILLED:
+                raise Conflict("this attempt id belongs to another attempt")
+            return self.view(existing)
+        return self.view(row)
+
+    def needs(self, user_id: str, queued=frozenset()) -> list[dict]:
+        """Jobs waiting on the user: the latest attempt per job is Needs
+        input and the job isn't back in the queue already."""
+        latest = {}
+        for a in self._attempts(user_id):
+            if a["state"] == FILLED:
+                continue
+            if a["job_id"] not in latest or a["reserved_at"] > latest[a["job_id"]]["reserved_at"]:
+                latest[a["job_id"]] = a
+        out = []
+        for a in latest.values():
+            if a["state"] != NEEDS_INPUT or a["job_id"] in queued:
+                continue
+            qs = list(a.get("questions") or [])
+            if not qs and str(a.get("reason") or "").lower().startswith("needs your answer: "):
+                qs = [q.strip() for q in a["reason"].split(":", 1)[1].split(";") if q.strip()]
+            out.append({"attempt_id": a["attempt_id"], "job_id": a["job_id"], "title": a.get("title") or "",
+                        "company": a.get("company") or "", "url": a.get("url") or "", "questions": qs, "at": a.get("settled_at")})
+        return sorted(out, key=lambda n: n["at"] or "", reverse=True)
+
+    def history(self, user_id: str, now: datetime | None = None) -> list[dict]:
+        """Every attempt as a History row, in the shape apply.history uses."""
+        now = _utc(now)
+        shown = {RESERVED: "in_progress", STARTED: "in_progress"}
+        rows = []
+        for a in self._attempts(user_id):
+            state = a["state"]
+            settled = a.get("settled_at")
+            rows.append({"job_id": a["job_id"], "attempt_id": a["attempt_id"], "company": a.get("company") or "",
+                         "title": a.get("title") or "", "url": a.get("url") or "", "status": shown.get(state, state),
+                         "reason": a.get("reason") or "", "at": settled or a["reserved_at"],
+                         "disputable": state == UNCONFIRMED and bool(settled) and now - datetime.fromisoformat(settled) <= DISPUTE_WINDOW})
+        return rows
+
     def _attempts(self, user_id: str) -> list[dict]:
         resp = self.table.query(KeyConditionExpression=Key("user_id").eq(user_id) & Key("alert_id").begins_with(ATTEMPT),
                                 ConsistentRead=True)
@@ -402,16 +484,40 @@ class Attempts:
         row = self._get(user_id, alert_id) or {}
         return {k: int(row.get(k, 0)) for k in ("held", "charged", "disputes")}
 
-    def summary(self, user_id: str, now: datetime | None = None, tz: str | None = None) -> dict:
+    def summary(self, user_id: str, now: datetime | None = None, tz: str | None = None, queued: int = 0,
+                queued_ids=frozenset()) -> dict:
+        """The one set of numbers every client shows: the popup, the badge,
+        the board, the account page and /apply. Old-path applications are
+        included while that path still exists."""
         now = _utc(now)
         self.expire(user_id, now)
         month, day = periods(now, tz)
         m, d = self.ledger(user_id, LEDGER_MONTH + month), self.ledger(user_id, LEDGER_DAY + day)
         month_limit, day_limit = limits(self.table, user_id)
-        left = [lim - led["held"] for lim, led in ((month_limit, m), (day_limit, d)) if lim is not None]
-        return {"charged_this_month": m["charged"], "charged_today": d["charged"],
-                "in_progress": m["held"] - m["charged"], "remaining": max(0, min(left)) if left else None,
-                "disputes_this_month": m["disputes"]}
+        plan = apply.plan_of(self.table, user_id)
+        plan_month, plan_day = PLAN_LIMITS[plan]
+        old_m, old_d = legacy_used(self.table, user_id, month, day, tz, now)
+        old_sub_m = old_sub_d = 0
+        for r in apply._applied(self.table, user_id):
+            if r.get("status") == "submitted":
+                rm, rd = periods(datetime.fromisoformat(r["at"]), tz)
+                old_sub_m += rm == month
+                old_sub_d += rd == day
+        left = [lim - led["held"] - old for lim, led, old in ((month_limit, m, old_m), (day_limit, d, old_d)) if lim is not None]
+        period_led, period_old = (d, old_sub_d) if plan_day else (m, old_sub_m)
+        attempts = self._attempts(user_id)
+        from ai_answers import CAPS, _month_row  # noqa: PLC0415 -- ai_answers imports apply as well; kept out of module load
+        ai_used = int((self._get(user_id, _month_row(now)) or {}).get("n", 0))
+        return {"plan": plan, "period": "day" if plan_day else "month", "limit": plan_day or plan_month,
+                "daily_max": day_limit if day_limit != plan_day else None,
+                "used": period_led["charged"] + period_old,
+                "in_progress": max(0, (m["held"] - m["charged"]) + (old_m - old_sub_m)),
+                "remaining": max(0, min(left)) if left else None,
+                "applied_today": d["charged"] + old_sub_d,
+                "unconfirmed": sum(1 for a in attempts if a["state"] == UNCONFIRMED),
+                "needs_input": len(self.needs(user_id, queued_ids)), "queued": queued,
+                "disputes_left": max(0, DISPUTES_PER_PERIOD - self.ledger(user_id, LEDGER_MONTH + billing_period(now, tz))["disputes"]),
+                "ai": {"used": ai_used, "limit": CAPS.get(plan)}, "tz": str(_zone(tz))}
 
     @staticmethod
     def view(a: dict) -> dict:
