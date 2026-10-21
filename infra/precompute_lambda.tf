@@ -43,14 +43,14 @@ resource "aws_iam_role_policy" "precompute_lambda" {
         Action   = ["s3:ListBucket"]
         Resource = aws_s3_bucket.data.arn
         Condition = {
-          StringLike = { "s3:prefix" = ["litestream/v6/jobs", "litestream/v6/jobs/*", "precomputed/*", "precomputed-shadow/*"] }
+          StringLike = { "s3:prefix" = ["litestream/v7/jobs", "litestream/v7/jobs/*", "precomputed/*", "precomputed-shadow/*"] }
         }
       },
       {
         Sid      = "ReadReplica"
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
-        Resource = "${aws_s3_bucket.data.arn}/litestream/v6/jobs/*"
+        Resource = "${aws_s3_bucket.data.arn}/litestream/v7/jobs/*"
       },
       {
         # The two artifacts in each mode's prefix, read back for the

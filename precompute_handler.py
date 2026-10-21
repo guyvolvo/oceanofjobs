@@ -49,7 +49,7 @@ sys.path.insert(0, str(HERE))
 
 DATA_BUCKET = os.environ.get("DATA_BUCKET", "")
 FRONTEND_BUCKET = os.environ.get("FRONTEND_BUCKET", "")
-REPLICA_PATH = os.environ.get("REPLICA_PATH", "litestream/v6/jobs")
+REPLICA_PATH = os.environ.get("REPLICA_PATH", "litestream/v7/jobs")
 REGION = os.environ.get("AWS_REGION", "il-central-1")
 LITESTREAM = HERE / "bin" / "litestream"
 WORK = Path(os.environ.get("WORK_DIR", "/tmp"))
