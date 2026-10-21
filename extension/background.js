@@ -591,7 +591,7 @@ async function startSubmit(msg, tabId) {
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
-  const ok = await gate(held.attemptId, { mode: 'card' });
+  const ok = await gate(held.attemptId, { mode: 'card', answers: await cardAnswers(tabId) });
   if (!ok.ok) return ok;
   const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
   pendingHere[tabId] = { attemptId: held.attemptId, jobId: job.board ? job.id : null };
@@ -623,6 +623,10 @@ async function planWithSuggestions(page, job, ctx) {
 
 async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
   const filled = await inTab(tabId, name, 'fill', [plan.fills, cv], frameId);
+  // What the AI suggested here, for the record when the user presses Submit
+  // on the card (cardAnswers).
+  await chrome.storage.session.set({ [`cardai:${tabId}`]: { frameId, items: suggested.map((f) => ({
+    question: f.label, name: f.name, answer: String((plan.fills.find((x) => x.name === f.name) || {}).value ?? '') })) } });
   // Amber: the AI suggested it, check it. Red: still needs the user.
   await chrome.scripting.executeScript({
     target: frameId ? { tabId, frameIds: [frameId] } : { tabId },
@@ -643,6 +647,43 @@ async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
     missing: plan.missing.map((f) => f.label),
     errors,
   };
+}
+
+// The AI's suggestions on this tab as they stand when the user presses
+// Submit: what's in each field now. Unchanged, it's the AI's answer;
+// changed, it's the user's. [] when nothing was suggested or nothing can be
+// read; the gate then records nothing, it doesn't refuse.
+async function cardAnswers(tabId) {
+  const key = `cardai:${tabId}`;
+  const { [key]: card } = await chrome.storage.session.get(key);
+  if (!card || !card.items.length) return [];
+  try {
+    const [r] = await chrome.scripting.executeScript({
+      target: card.frameId ? { tabId, frameIds: [card.frameId] } : { tabId },
+      args: [card.items.map((i) => i.name)],
+      func: (names) => names.map((n) => {
+        const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } }).filter(Boolean)];
+        const box = docs.map((d) => d.querySelector(`[data-ooj-box="${CSS.escape(n)}"]`)).find(Boolean)
+          || document.getElementById(n) || document.querySelector(`[name="${CSS.escape(n)}"]`);
+        if (!box) return null;
+        const single = box.querySelector && box.querySelector('[class*="single-value"]');
+        if (single) return single.textContent.trim();
+        const el = box.matches('input, textarea, select') ? box : box.querySelector('textarea, select, input:not([type=hidden])');
+        const checked = box.querySelector && box.querySelector('input:checked');
+        if (checked && (checked.type === 'radio' || checked.type === 'checkbox')) {
+          const label = checked.closest('label') || (checked.id && document.querySelector(`label[for="${CSS.escape(checked.id)}"]`));
+          return (label ? label.textContent : checked.value).trim();
+        }
+        if (el && el.tagName === 'SELECT') return ((el.selectedOptions || [])[0] || {}).text || '';
+        return el ? el.value : null;
+      }),
+    });
+    const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    return card.items.map((item, i) => ({ item, now: r.result[i] })).filter(({ now }) => now != null && String(now).trim())
+      .map(({ item, now }) => ({ question: item.question, answer: String(now).slice(0, 800), ...(same(now, item.answer) ? { source: 'ai' } : {}) }));
+  } catch {
+    return [];
+  }
 }
 
 // The frame of the tab that holds an application form, among the frames
@@ -840,7 +881,7 @@ async function submitHere(msg, sender) {
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
-  const ok = await gate(held.attemptId, { mode: 'card' });
+  const ok = await gate(held.attemptId, { mode: 'card', answers: await cardAnswers(tabId) });
   if (!ok.ok) return { error: ok.error };
   accountCache = null;
   // Past the gate: every way out settles, and an uncertain one is
@@ -929,7 +970,7 @@ async function settleHere(tabId, result) {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   settleHere(tabId, 'closed');
-  chrome.storage.session.remove(`tabjob:${tabId}`);
+  chrome.storage.session.remove([`tabjob:${tabId}`, `cardai:${tabId}`]);
 });
 
 // The popup's numbers, all from the server's summary and needs: nothing is

@@ -240,7 +240,38 @@ CITE = ("\nReply on one line: the answer, then \" | \", then the exact words fro
 
 
 def needs_support(question, options) -> bool:
-    return bool(options) or bool(YES_NO.search(apply.normalise_question(question)))
+    return bool(options) or bool(YES_NO.search(apply.normalise_question(question))) or bool(EVIDENCE.search(apply.normalise_question(question)))
+
+
+# Personal traits only the applicant can state: never asked of the model.
+# The live run answered "What is your biggest weakness?" with a
+# self-description the profile doesn't contain.
+TRAITS = re.compile(r"\b(greatest|biggest|main|key|top) (weakness|weaknesses|strength|strengths)\b|\bwhat (motivates|drives|inspires) you\b"
+                    r"|\bdescribe yourself\b|\bthree words\b|\bpersonality\b|\bhobbies\b|\bwhat do you do (in|for) (your )?(free|spare) time\b"
+                    r"|\bwhat are you passionate about\b|\bwork style\b"
+                    # Facts about who they are and where they work now. On real forms
+                    # the model answered "Full Legal Name" from the LinkedIn address,
+                    # "Current Job Title" with the job applied for, and "Current
+                    # Employer" with one the facts say they left in 2024.
+                    r"|\b(legal|full) name\b|\bpronouns?\b|\bcitizenship\b|\bnationality\b|\bdate of birth\b|\bbirth ?date\b"
+                    r"|\b(home|street|mailing) address\b|\bcurrent (job )?(title|employer|company|position|role|salary|compensation)\b"
+                    r"|\b(current|present) (or (most )?recent )?employer\b"
+                    # Follow-ups ("If yes, which visa type?", "If 'Other', please list.")
+                    # ask for details the facts rarely hold: the model answered "H1-B".
+                    # And open catch-alls, which it filled by repeating a fact.
+                    r"|^if\b|\badditional information\b|\banything else\b")
+# Examples and motivations: answered only from a stated fact, quoted
+# (needs_support). Unlike a yes/no answer, the quote needn't share words
+# with the question: "tell us about yourself" is about every fact.
+EVIDENCE = re.compile(r"\btell (us|me) about (yourself|a time|a project|your)\b|\bdescribe (a|an|your|the) (\w+ )?(time|situation|project|challenge|"
+                      r"accomplishment|achievement|experience|role)\b|\b(greatest|biggest|proudest) (achievement|accomplishment)\b"
+                      r"|\bgive (us |me )?an example\b|\bwhy (do|would) you (want|like|wish)\b|\bwhy are you (interested|applying|excited)\b"
+                      r"|\bwhy (this|our|us|join)\b|\bwhy should we hire\b|\bwhat makes you (a good|the right|a great|a strong)\b"
+                      r"|\bcover (letter|note)\b|\binterests? you (about|in)\b")
+
+
+def is_trait(question) -> bool:
+    return bool(TRAITS.search(apply.normalise_question(question)))
 
 
 def _words(text) -> set:
@@ -289,11 +320,12 @@ def check_answer(text: str, *, options: list, allowed: str, never_claim: list, l
         raise Refused("your profile doesn't answer this question")
     if support_from is not None:
         first = text.splitlines()[0]
-        answer, sep, support = first.partition("|")
+        answer, sep, support = first.partition("|") if "|" in first else text.rpartition("|")
         cited = _words(support)
         # The quoted fact has to exist and be about the question: the model
         # answered "Do you hold a PhD?" with "No | I led a team of five".
-        if not sep or not cited or not cited <= _words(support_from) or not _topic(support) & _topic(question):
+        on_topic = bool(_topic(support) & _topic(question)) or bool(EVIDENCE.search(apply.normalise_question(question)))
+        if not sep or not cited or not cited <= _words(support_from) or not on_topic:
             raise Refused("no fact in your profile supports this answer")
         text = answer.strip()
         plain = apply.normalise_question(text)
@@ -318,6 +350,11 @@ def check_answer(text: str, *, options: list, allowed: str, never_claim: list, l
         if pick is None:
             raise Refused("the answer wasn't one of the form's options")
         text = pick
+        # A real choice (not yes or no) has to be one the facts name: citing
+        # the sponsorship fact chose "H1-B", which no fact says.
+        if support_from is not None and not re.match(r"^(yes|no|true|false|i do|i don t|i am|i m not|i am not)\b", apply.normalise_question(pick)) \
+                and not set(re.sub(r"[^a-z0-9]+", " ", pick.lower()).split()) <= set(re.sub(r"[^a-z0-9]+", " ", support_from.lower()).split()):
+            raise Refused("no fact in your profile names this option")
         plain = apply.normalise_question(text)
     padded = f" {plain} "
     asked = f" {apply.normalise_question(question)} "

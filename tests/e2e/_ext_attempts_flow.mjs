@@ -23,19 +23,21 @@ const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.t
 // The careers site: a form whose submit POST is counted. How it answers is
 // set per scenario: a thank-you page, the site's own errors, or nothing.
 let siteMode = "thanks";
+let withQuestion = false;
 let sitePosts = 0;
-const FORM = `<!doctype html><html><head><title>Engineer at Example</title></head><body><h1>Engineer</h1>
+const form = () => `<!doctype html><html><head><title>Engineer at Example</title></head><body><h1>Engineer</h1>
 <form id="f" method="post" action="/apply/submit">
 <label for="first_name">First name</label><input id="first_name" name="first_name" required>
 <label for="last_name">Last name</label><input id="last_name" name="last_name" required>
 <label for="email">Email</label><input id="email" name="email" type="email" required>
 <label for="phone">Phone</label><input id="phone" name="phone" type="tel">
 <label for="resume">Resume/CV</label><input id="resume" name="resume" type="file">
+${withQuestion ? '<label for="why">Why do you want to work here?</label><textarea id="why" name="why" required></textarea>' : ''}
 <button type="submit">Submit application</button></form></body></html>`;
 
 // The API stand-in: attempts with the contract's states, and failure
 // switches per operation.
-const server = { attempts: {}, calls: [], fail: {}, filled: [] };
+const server = { attempts: {}, calls: [], fail: {}, filled: [], gates: [] };
 const respond = (r, status, body) => r.fulfill({ status, contentType: "application/json", body: body == null ? "" : JSON.stringify(body) });
 const profile = { contact: { first_name: "Test", last_name: "Person", email: "test@example.com", phone: "+972500000000" }, links: {}, work: {}, eeo: {}, answers: [],
   settings: { mode: "queue", sources: ["board", "ats_pages"], unknowns: "skip", guardrails: {} } };
@@ -47,7 +49,7 @@ await ctx.route("**/*", async (r) => {
     if (req.method() === "POST") {
       sitePosts++;
       if (siteMode === "hang") return; // never answers: no confirmation
-      if (siteMode === "errors") return r.fulfill({ contentType: "text/html", body: FORM.replace("<form", '<p class="error" role="alert">Email is required</p><form') });
+      if (siteMode === "errors") return r.fulfill({ contentType: "text/html", body: form().replace("<form", '<p class="error" role="alert">Email is required</p><form') });
       return r.fulfill({ contentType: "text/html", body: "<!doctype html><html><body><h1>Thank you for applying!</h1><p>We have received your application.</p></body></html>" });
     }
     // "errors": the page checks the form itself, as most do, and shows its
@@ -55,7 +57,7 @@ await ctx.route("**/*", async (r) => {
     const check = siteMode === "errors" ? `<script>document.getElementById("f").addEventListener("submit", (e) => { e.preventDefault();
       const em = document.getElementById("email"); em.setAttribute("aria-invalid", "true");
       const p = document.createElement("span"); p.className = "error"; p.textContent = "Email is required"; em.after(p); });</script>` : "";
-    return r.fulfill({ contentType: "text/html", body: FORM.replace("</body>", check + "</body>") });
+    return r.fulfill({ contentType: "text/html", body: form().replace("</body>", check + "</body>") });
   }
   if (u.hostname !== "oceanofjobs.com") return r.continue();
   const p = u.pathname.replace("/api/me/apply/", "");
@@ -74,6 +76,7 @@ await ctx.route("**/*", async (r) => {
     unconfirmed: 0, needs_input: 0, queued: 0, disputes_left: 5, ai: { used: 0, limit: 3000 }, tz: "UTC" });
   if (p === "history") return respond(r, 200, { applied: [] });
   if (p === "needs") return respond(r, 200, { needs: [] });
+  if (p === "draft") return respond(r, 200, { answer: "Your product is one I use every day.", source: "ai", suggested: true });
   if (p === "queue") return respond(r, 200, { queue: [] });
   const out = await apiAct(p, body);
   return respond(r, out[0], out[1]);
@@ -91,6 +94,7 @@ async function apiAct(p, body) {
   const a = server.attempts[id];
   if (!a) return [404, { code: "not_found", error: "no such attempt", retryable: false }];
   if (action === "submission-started") {
+    server.gates.push(body);
     if (server.expireNext) { server.expireNext = false; a.state = "abandoned"; return [410, { code: "expired", error: "the reservation expired; don't submit", retryable: false }]; }
     if (a.state === "submission_started") return [200, { attempt: a, submit: true }];
     if (a.state !== "reserved") return [409, { code: "not_eligible", error: "not eligible", retryable: false }];
@@ -196,6 +200,24 @@ await sw.evaluate((id) => fillTab(id), await tabId());
 await sleep(300);
 check("a popup fill records Filled, reserves nothing and sends nothing", server.filled.length === 1 && only().length === 0 && sitePosts === 0,
   JSON.stringify({ filled: server.filled, a: only(), sitePosts }));
+
+// 10. The card's Submit records the AI's answers that were in the form:
+// the AI's when unchanged, the user's when they edited it first.
+siteMode = "thanks"; withQuestion = true; await reset(); server.gates = []; await fresh(); await fill();
+const why = async () => page.evaluate(() => document.getElementById("why").value);
+check("the card filled the question with the AI's suggestion", (await why()) === "Your product is one I use every day.", await why());
+r = await submitHere();
+const sentAi = (server.gates[0] && server.gates[0].answers || []).filter((x) => x.source === "ai");
+check("the card's Submit sends the AI's answer to the gate, marked as the AI's", server.gates[0] && server.gates[0].mode === "card"
+  && sentAi.length === 1 && sentAi[0].question === "Why do you want to work here?" && sentAi[0].answer === "Your product is one I use every day.",
+  JSON.stringify(server.gates[0]));
+await reset(); server.gates = []; await fresh(); await fill();
+await page.fill("#why", "I've used it for years and want to work on it.");
+r = await submitHere();
+const edited = (server.gates[0] && server.gates[0].answers || []).find((x) => x.question === "Why do you want to work here?");
+check("edited before Submit, it's sent as the user's answer, not the AI's", edited && edited.answer === "I've used it for years and want to work on it."
+  && !edited.source, JSON.stringify(server.gates[0]));
+withQuestion = false;
 
 // 9. The old routes aren't used for new attempts.
 const old = server.calls.filter((c) => /claim|result|usage/.test(c));

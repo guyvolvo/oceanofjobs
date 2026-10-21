@@ -14,9 +14,10 @@ const Queue = lazy(() => import("./Queue").then((m) => ({ default: m.Queue })));
 const Attention = lazy(() => import("./Attention").then((m) => ({ default: m.Attention })));
 const History = lazy(() => import("./History").then((m) => ({ default: m.History })));
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
+const Agent = lazy(() => import("./Agent").then((m) => ({ default: m.Agent })));
 import { plural } from "./shared";
 
-const SECTIONS = ["overview", "queue", "needs", "history", "settings"] as const;
+const SECTIONS = ["overview", "queue", "needs", "history", "settings", "agent"] as const;
 type Section = (typeof SECTIONS)[number];
 const fromHash = (): Section => {
   const h = location.hash.slice(1);
@@ -102,6 +103,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
     { value: "needs", label: attention ? `Needs attention (${attention})` : "Needs attention" },
     { value: "history", label: "History" },
     { value: "settings", label: "Settings" },
+    { value: "agent", label: "AI agent" },
   ];
   const waiting = <div className="oj-row oj-note"><Loader /> Loading</div>;
 
@@ -130,6 +132,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
         {section === "needs" && (data.needs && data.history ? <Attention needs={data.needs} history={data.history} disputesLeft={s?.disputes_left ?? 0} reload={load} /> : waiting)}
         {section === "history" && (data.history ? <History rows={data.history} /> : waiting)}
         {section === "settings" && <Settings />}
+        {section === "agent" && <Agent />}
       </div></Suspense>
     </>
   );

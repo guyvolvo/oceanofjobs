@@ -200,7 +200,7 @@ export function Settings() {
           </Checkbox.Group>
           <Radio.Group legend="If a form asks a question I haven't answered" appearance="card" value={form.unknowns} onValueChange={(v) => set("unknowns", v as Form["unknowns"])}>
             <Radio.Item value="skip" label="Skip the job" description="Leave it for me to review." />
-            <Radio.Item value="ai" label="Draft an answer with AI" description="AI drafts an answer from my details, uses it, and adds it to my saved answers so I can check it later. Included on Basic and Pro. On Free, add your own AI key in the extension's options." />
+            <Radio.Item value="ai" label="Draft an answer with AI" description={<>AI drafts an answer from my details and saves it. A new AI answer waits in Needs attention for me to check, unless I change that in <a className="oj-link" href="#agent">AI agent</a>. Included on Basic and Pro. On Free, add your own AI key in the extension's options.</>} />
           </Radio.Group>
         </Card>
       </section>

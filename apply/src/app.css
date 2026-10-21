@@ -152,3 +152,9 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
   .oj-hide-sm { display: none; }
   .oj-show-sm { display: flex; margin-top: 6px; }
 }
+
+/* The AI agent tab (Agent.tsx). A fieldset only to disable it all on Free. */
+.oj-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.oj-grow { flex: 1; min-width: 0; }
+.oj-try-answer { margin: 0; white-space: pre-wrap; color: var(--text-color-kumo-strong); }
+.oj-grow > *, .oj-grow input { width: 100%; }

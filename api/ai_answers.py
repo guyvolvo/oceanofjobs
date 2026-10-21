@@ -235,7 +235,9 @@ def _report(total: float) -> None:
 
 
 def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_report,
-          now: datetime | None = None) -> dict:
+          now: datetime | None = None, save: bool = True) -> dict:
+    """An answer to one form question. save=False is /apply's "Try it"
+    (agent/preview): the same pipeline and the same count, nothing saved."""
     now = now or datetime.now(timezone.utc)
     plan = apply.plan_of(table, user_id)
     if plan not in CAPS:
@@ -281,6 +283,8 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
         return {"answer": agent.pick_option(saved["answer"], options) if options else saved["answer"], "remaining": remaining,
                 "suggested": suggest, "source": "saved", "approval": saved["approval"]}
 
+    if agent.is_trait(question):
+        raise CantAnswer("only you can answer this one about yourself")
     if used >= CAPS[plan]:
         raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.")
     known = facts(profile, prefs)
@@ -333,7 +337,7 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
             raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.") from None
         raise
     answer = text[:apply.MAX_LONG]
-    if not suggest:
+    if not suggest and save:
         # A job-specific answer is kept for its job only (apply.add_answer).
         apply.add_answer(table, user_id, question, answer, job.get("id"), source="ai", agent_version=ag["version"] or None)
     return {"answer": answer, "remaining": max(0, CAPS[plan] - int(used)), "suggested": suggest, "source": "ai",

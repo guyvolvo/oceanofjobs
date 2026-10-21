@@ -136,6 +136,32 @@ with mock_aws():
                                                "Yes | needs_visa_sponsorship_outside_those_countries: true", options=["Yes", "No"])["answer"] == "Yes")
     check("a question that isn't yes/no needs no citation", draft("Which city are you in?", "Haifa")["answer"] == "Haifa")
 
+    # "Try it" on /apply: the same pipeline, nothing saved, an AI answer still counted.
+    before_n, before_month = len(apply.get_profile(table, "u")["answers"]), month()
+    out = ai_answers.draft(table, "u", {"question": "Which streaming tool do you use most?"}, {"skills": ["Python"]}, run=model("Kafka"),
+                           report=lambda total: None, now=NOW, save=False)
+    check("a preview answers like a draft", out["answer"] == "Kafka" and out["source"] == "ai")
+    check("saves nothing", len(apply.get_profile(table, "u")["answers"]) == before_n)
+    check("and an AI answer counts, as it costs the same", month() == before_month + 1)
+    resp = handler.route_apply("u", "POST", "agent/preview", {"body": json.dumps({"question": "How did you hear about this job?"})}, {})
+    check("the route answers a fixed topic for free", resp["statusCode"] == 200 and json.loads(resp["body"])["source"] == "fixed" and month() == before_month + 1)
+
+    # Open-ended questions about the applicant (from 60 real Greenhouse and Ashby questions).
+    calls = len(sent)
+    for q in ("What is your biggest weakness?", "Full Legal Name", "Current Job Title", "Current Employer", "What pronouns do you use?",
+              "If you require visa sponsorship, which type do you need?", "Additional Information"):
+        check(f"only the user answers: {q}", refused(q, "anything") == "only you can answer this one about yourself")
+    check("and none of them reached the model", len(sent) == calls)
+    check("an example must come from a stated fact, quoted",
+          draft("Tell us about something you built.", "I led a team of five engineers at Acme. | I led a team of five engineers at Acme")["source"] == "ai")
+    check("an example with no fact behind it is refused", refused("Describe a challenging project you worked on.", "I rebuilt the billing system.")
+          == "no fact in your profile supports this answer")
+    check("a motivation with no fact behind it is refused", refused("Why do you want to work here?", "I love your mission.", job={"id": "c3c3c3c3c3c3c3c3"})
+          == "no fact in your profile supports this answer")
+    check("a real choice must be one the facts name, not just cite something related",
+          refused("Which visa type do you need?", "TN | needs_visa_sponsorship_outside_those_countries: true", options=["H1-B", "TN", "L-1"])
+          == "no fact in your profile names this option")
+
     # Work authorization for one named country comes from the profile, never the model.
     calls, counted = len(sent), month()
     out = draft("Are you legally authorized to work in Israel?", "No | anything", options=["Yes", "No"])
@@ -168,9 +194,9 @@ with mock_aws():
     out = draft("When did you lead the team at Acme?", "anything")
     check("asking again (a lost reply) returns the saved answer, free", out["source"] == "saved" and out["answer"] == "From 2021 to 2024."
           and len(sent) == calls and month() == counted)
-    draft("Why do you want to work here?", "Acme builds the tools I use every day.", job={"id": JOB, "company": "Acme"})
+    draft("Why do you want to work here?", "I led a team of five engineers at Acme. | I led a team of five engineers at Acme", job={"id": JOB, "company": "Acme"})
     check("a job-specific answer comes back free for its own job", draft("Why do you want to work here?", "x", job={"id": JOB})["source"] == "saved")
-    check("and goes to the model for another", draft("Why do you want to work here?", "Initech's products are ones I use.",
+    check("and goes to the model for another", draft("Why do you want to work here?", "I led a team of five engineers. | I led a team of five engineers",
                                                     job={"id": "b2b2b2b2b2b2b2b2", "company": "Initech"})["source"] == "ai")
 
     # The gate: an automatic run with an AI answer that's still pending.

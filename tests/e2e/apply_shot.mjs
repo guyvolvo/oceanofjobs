@@ -21,7 +21,15 @@ const API = {
     { job_id: "c3d4e5f6", added_at: ago(2), position: 3, title: "Staff Site Reliability Engineer", company: "Snyk", link: "https://apply.workable.com/snyk/j/123", ats: "workable" },
   ] },
   needs: { needs: [{ attempt_id: "t9", job_id: "d4e5f6a7", title: "Data Engineer", company: "Riskified", link: "/job/d4e5f6a7",
-    questions: ["Why do you want to work at Riskified?", "Are you willing to work from the Tel Aviv office three days a week?"] }] },
+    questions: ["Why do you want to work at Riskified?", "Are you willing to work from the Tel Aviv office three days a week?"],
+    drafts: { "Are you willing to work from the Tel Aviv office three days a week?": "Yes" } }] },
+  agent: { agent: { version: 3, editable: true, review: "pause",
+    style: { tone: "plain", length: "medium", language: "question", notes: "No exclamation marks." },
+    facts: [{ id: "0", text: "I led a team of five data engineers at Acme from 2021 to 2024." },
+            { id: "1", text: "I built Acme's Kafka and Spark streaming pipeline, which processed 2 billion events a day." }],
+    topics: { referral_source: { action: "answer", value: "LinkedIn" }, start_date: { action: "ai", value: "" }, relocation: { action: "ask", value: "" },
+              onsite_days: { action: "ai", value: "" }, why_company: { action: "ask", value: "" }, why_role: { action: "ai", value: "" } },
+    never_claim: ["security clearance", "a degree"] } },
   history: { applied: [
     ["submitted", "Backend Engineer", "Lemonade", "", false],
     ["unconfirmed", "Full Stack Developer", "Fiverr", "The confirmation page didn't load", true],
@@ -73,14 +81,14 @@ for (const mode of ["dark", "light"]) {
     const page = await ctx.newPage();
     page.on("pageerror", (e) => errors.push(`${mode} ${tag}: ${e.message}`));
     page.on("console", (m) => { if (m.type() === "error") errors.push(`${mode} ${tag} console: ${m.text().slice(0, 160)}`); });
-    for (const section of ["overview", "queue", "needs", "history", "settings"]) {
+    for (const section of ["overview", "queue", "needs", "history", "settings", "agent"]) {
       await page.goto(`https://oceanofjobs.com/apply#${section}`, { waitUntil: "networkidle" });
       await page.waitForTimeout(400);
       const sw = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       if (sw > 0) overflow.push(`${mode} ${tag} ${section}: ${sw}px`);
       await page.screenshot({ path: join(out, `apply-${section}-${tag}-${mode}.png`), fullPage: true });
       if (section === "needs") {
-        await page.getByRole("button", { name: "Dispute" }).first().click();
+        await page.getByRole("button", { name: "Refund credit" }).first().click();
         await page.waitForTimeout(400);
         await page.screenshot({ path: join(out, `apply-dispute-${tag}-${mode}.png`) });
         await page.keyboard.press("Escape");

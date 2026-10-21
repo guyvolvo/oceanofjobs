@@ -882,10 +882,10 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         except ValueError as e:
             return ok(400, {"error": str(e)})
         return ok(204)
-    if sub == "draft" and method == "POST":
+    if sub in ("draft", "agent/preview") and method == "POST":
         prefs = route_get_profile(user_id).get("profile") or {}
         try:
-            return ok(200, ai_answers.draft(_alerts_table, user_id, body, prefs))
+            return ok(200, ai_answers.draft(_alerts_table, user_id, body, prefs, save=sub == "draft"))
         except (ai_answers.NotIncluded, ai_answers.CapReached) as e:
             return ok(402, {"error": str(e)})
         except ai_answers.CantAnswer as e:
