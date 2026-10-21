@@ -1,0 +1,177 @@
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { Tabs } from "@cloudflare/kumo/components/tabs";
+import { Banner } from "@cloudflare/kumo/components/banner";
+import { Empty } from "@cloudflare/kumo/components/empty";
+import { LayerCard } from "@cloudflare/kumo/components/layer-card";
+import { Loader } from "@cloudflare/kumo/components/loader";
+import { Button, LinkButton } from "@cloudflare/kumo/components/button";
+import { Moon, Sun, UserCircle, WarningCircle } from "@phosphor-icons/react";
+import { apply, signedIn, ApiError, type HistoryRow, type Need, type QueueItem, type Summary } from "./api";
+import { useExtension } from "./ext";
+import { Overview, PLAN } from "./Overview";
+// Everything past the overview loads when its tab is opened.
+const Queue = lazy(() => import("./Queue").then((m) => ({ default: m.Queue })));
+const Attention = lazy(() => import("./Attention").then((m) => ({ default: m.Attention })));
+const History = lazy(() => import("./History").then((m) => ({ default: m.History })));
+const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
+import { plural } from "./shared";
+
+const SECTIONS = ["overview", "queue", "needs", "history", "settings"] as const;
+type Section = (typeof SECTIONS)[number];
+const fromHash = (): Section => {
+  const h = location.hash.slice(1);
+  return (SECTIONS as readonly string[]).includes(h) ? (h as Section) : "overview";
+};
+
+function setTheme(light: boolean) {
+  document.documentElement.dataset.mode = light ? "light" : "dark";
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (meta) meta.content = light ? "#f2f0ef" : "#17181c";
+}
+const readLight = () => { try { return localStorage.getItem("iljobs_theme") === "light"; } catch { return false; } };
+
+function Bar() {
+  const [light, setLight] = useState(readLight);
+  useEffect(() => setTheme(light), [light]);
+  useEffect(() => {
+    // Toggled on another page of the site while this one is open.
+    const on = (e: StorageEvent) => { if (e.key === "iljobs_theme") setLight(readLight()); };
+    addEventListener("storage", on);
+    return () => removeEventListener("storage", on);
+  }, []);
+  const toggle = () => {
+    try { localStorage.setItem("iljobs_theme", light ? "dark" : "light"); } catch { /* still switches for this visit */ }
+    setLight(!light);
+  };
+  return (
+    <header className="oj-bar">
+      <div className="oj-bar-in">
+        <a className="oj-mark" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a>
+        <nav className="oj-nav" aria-label="Site">
+          <a href="/board">Jobs</a>
+          <a href="/companies">Companies</a>
+          <a href="/docs">Docs</a>
+          <a href="/account">Account</a>
+        </nav>
+        <span className="oj-bar-gap" />
+        <Button variant="ghost" shape="square" icon={light ? <Moon /> : <Sun />} aria-label={light ? "Dark mode" : "Light mode"} onClick={toggle} />
+      </div>
+    </header>
+  );
+}
+
+function SignedOut() {
+  return (
+    <LayerCard>
+      <Empty icon={<UserCircle size={40} />} title="Log in to use auto apply"
+        description="Your queue, application history and settings are saved to your account."
+        contents={<LinkButton href="/account" variant="primary">Log in</LinkButton>} />
+    </LayerCard>
+  );
+}
+
+type Data = { summary?: Summary; queue?: QueueItem[]; needs?: Need[]; history?: HistoryRow[] };
+
+function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
+  const [section, setSection] = useState<Section>(fromHash);
+  const [data, setData] = useState<Data>({});
+  const [failed, setFailed] = useState(false);
+  const ext = useExtension();
+
+  useEffect(() => {
+    const on = () => setSection(fromHash());
+    addEventListener("hashchange", on);
+    return () => removeEventListener("hashchange", on);
+  }, []);
+  const go = (s: string) => {
+    // replaceState, so switching sections doesn't fill Back with tabs.
+    history.replaceState(null, "", s === "overview" ? location.pathname : `#${s}`);
+    setSection(s as Section);
+    scrollTo(0, 0);
+  };
+
+  const load = useCallback(async () => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const got = await Promise.allSettled([
+      apply<Summary>(`summary?tz=${encodeURIComponent(tz)}`),
+      apply<{ queue: QueueItem[] }>("queue"),
+      apply<{ needs: Need[] }>("needs"),
+      apply<{ applied: HistoryRow[] }>("history?limit=100"),
+    ]);
+    if (got.some((g) => g.status === "rejected" && g.reason instanceof ApiError && g.reason.status === 401)) return onSignedOut();
+    const v = <T,>(g: PromiseSettledResult<T>) => (g.status === "fulfilled" ? g.value : undefined);
+    const [s, q, n, h] = got;
+    setData((d) => ({
+      summary: v(s as PromiseSettledResult<Summary>) ?? d.summary,
+      queue: v(q as PromiseSettledResult<{ queue: QueueItem[] }>)?.queue ?? d.queue,
+      needs: v(n as PromiseSettledResult<{ needs: Need[] }>)?.needs ?? d.needs,
+      history: v(h as PromiseSettledResult<{ applied: HistoryRow[] }>)?.applied ?? d.history,
+    }));
+    setFailed(got.some((g) => g.status === "rejected"));
+  }, [onSignedOut]);
+
+  useEffect(() => {
+    load();
+    // Back from the tab the extension opened: the queue and history moved.
+    const on = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", on);
+    return () => document.removeEventListener("visibilitychange", on);
+  }, [load]);
+
+  const s = data.summary;
+  const attention = s ? s.needs_input + s.unconfirmed : 0;
+  const tabs = [
+    { value: "overview", label: "Overview" },
+    { value: "queue", label: s?.queued ? `Queue (${s.queued})` : "Queue" },
+    { value: "needs", label: attention ? `Needs attention (${attention})` : "Needs attention" },
+    { value: "history", label: "History" },
+    { value: "settings", label: "Settings" },
+  ];
+  const waiting = <div className="oj-row oj-note"><Loader /> Loading</div>;
+
+  return (
+    <>
+      <div className="oj-head">
+        <div>
+          <h1>Auto apply</h1>
+          <p>{s ? `${PLAN[s.plan] || "Free plan"} · ${plural(s.remaining, "application")} left ${s.period === "day" ? "today" : "this month"}` : " "}</p>
+        </div>
+      </div>
+      {failed ? (
+        <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load everything"
+          description="Some of what's shown here may be out of date." action={<Button size="sm" onClick={load}>Try again</Button>} />
+      ) : null}
+      {s && s.remaining === 0 ? (
+        <Banner variant="alert" icon={<WarningCircle weight="fill" />} title={`No applications left ${s.period === "day" ? "today" : "this month"}`}
+          description="Jobs stay in your queue until your plan's limit resets." />
+      ) : null}
+      <div className="oj-tabs">
+        <Tabs variant="underline" tabs={tabs} value={section} onValueChange={go} />
+      </div>
+      <Suspense fallback={waiting}><div role="tabpanel">
+        {section === "overview" && (s ? <Overview s={s} ext={ext} queue={data.queue} reload={load} /> : waiting)}
+        {section === "queue" && (data.queue ? <Queue items={data.queue} ext={ext} reload={load} /> : waiting)}
+        {section === "needs" && (data.needs && data.history ? <Attention needs={data.needs} history={data.history} disputesLeft={s?.disputes_left ?? 0} reload={load} /> : waiting)}
+        {section === "history" && (data.history ? <History rows={data.history} /> : waiting)}
+        {section === "settings" && <Settings />}
+      </div></Suspense>
+    </>
+  );
+}
+
+export function App() {
+  const [authed, setAuthed] = useState(signedIn);
+  useEffect(() => {
+    // Signed in or out in another tab.
+    const on = (e: StorageEvent) => { if (e.key === "iljobs_auth_tokens") setAuthed(signedIn()); };
+    addEventListener("storage", on);
+    return () => removeEventListener("storage", on);
+  }, []);
+  const out = useCallback(() => setAuthed(false), []);
+  return (
+    <>
+      <Bar />
+      <main className="oj-main" id="main">{authed ? <Dashboard onSignedOut={out} /> : <SignedOut />}</main>
+    </>
+  );
+}

@@ -6298,6 +6298,7 @@ function renderAuthState() {
       <div class="hero-menu-head">${avatar}<span class="hero-menu-email" title="${escapeHtml(email)}">${escapeHtml(email)}</span></div>
       <a role="menuitem" href="/account">${MENU_ICONS.person}Account</a>
       <a role="menuitem" href="/board?starred=1">${MENU_ICONS.bookmark}Saved jobs</a>
+      <a role="menuitem" href="/apply">${MENU_ICONS.send}Auto apply</a>
       <button role="menuitem" type="button" id="topbar-alert-btn">${MENU_ICONS.bell}Alerts</button>
       <a role="menuitem" href="/stats">${MENU_ICONS.chart}Statistics</a>
       <a role="menuitem" href="/docs/api">${MENU_ICONS.code}API reference</a>
@@ -6335,6 +6336,7 @@ function renderAuthState() {
 const MENU_ICONS = {
   person: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 14c.6-3 2.7-4.5 5.5-4.5s4.9 1.5 5.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
   bookmark: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M4 2h8v12l-4-3-4 3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+  send: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M14 2 7 9M14 2l-4.5 12L7 9 2 6.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
   chart: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M2 13.5h12M4 13V8M7.3 13V4.5M10.6 13V9.5M13.9 13V6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
   bell: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 14a1.5 1.5 0 0 0 3 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
   code: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',

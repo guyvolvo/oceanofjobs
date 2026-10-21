@@ -299,113 +299,16 @@
               <span class="account-status" id="saved-status" aria-live="polite"></span>
             </section>
 
-            <!-- Automatic applications (api/apply.py). The browser extension
-                 applies with this profile; every choice here is the user's,
-                 nothing is decided for them. -->
+            <!-- Auto apply moved to its own page, /apply (apply/, a React
+                 app). The section stays so /account#autoapply and
+                 #aa-settings, which older extension builds and the MCP
+                 server's refusal message link to, still land on the way
+                 there. -->
             <section class="account-block" id="autoapply">
-              <div class="aa-status">
-                <div class="acct-row-text">
-                  <span class="acct-row-label" id="aa-plan">Plan</span>
-                  <span class="acct-row-note" id="aa-usage">Loading…</span>
-                </div>
-                <div class="aa-connect">
-                  <span class="acct-row-note" id="aa-ext-state">Automatic applications are coming soon with the Ocean of Jobs Chrome extension.</span>
-                  <button class="btn btn-small" type="button" id="aa-connect" hidden>Connect the extension</button>
-                </div>
-              </div>
-
-              <form id="aa-form" novalidate>
-                <div class="pref-group">
-                  <h3 class="pref-group-title">1. Personal details</h3>
-                  <p class="acct-row-note">Used to fill in application forms. Your details are saved to your account so you can use them on any computer.</p>
-                  <div class="aa-grid">
-                    <label class="aa-field"><span>First name</span><input class="aa-input" type="text" id="aa-first_name" placeholder="" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Last name</span><input class="aa-input" type="text" id="aa-last_name" placeholder="" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Email</span><input class="aa-input" type="email" id="aa-email" placeholder="you@example.com" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Phone</span><input class="aa-input" type="tel" id="aa-phone" placeholder="+972 50 000 0000" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Location</span><input class="aa-input" type="text" id="aa-location" placeholder="Tel Aviv, Israel" autocomplete="off" /></label>
-                    <label class="aa-field"><span>LinkedIn</span><input class="aa-input" type="url" id="aa-linkedin" placeholder="https://linkedin.com/in/…" autocomplete="off" /></label>
-                    <label class="aa-field"><span>GitHub</span><input class="aa-input" type="url" id="aa-github" placeholder="https://github.com/…" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Website</span><input class="aa-input" type="url" id="aa-website" placeholder="https://…" autocomplete="off" /></label>
-                  </div>
-                </div>
-
-                <div class="pref-group">
-                  <h3 class="pref-group-title">2. Work details</h3>
-                  <div class="aa-grid">
-                    <label class="aa-field"><span>Authorized to work in</span><input class="aa-input" type="text" id="aa-countries" placeholder="Country codes, e.g. IL, US" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Need visa sponsorship</span>
-                      <select class="aa-input" id="aa-sponsorship"><option value="yes">Yes</option><option value="no">No</option><option value="">Don't fill in</option></select></label>
-                    <label class="aa-field"><span>Notice period</span><input class="aa-input" type="text" id="aa-notice" placeholder="e.g. 30 days" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Salary expectation</span><input class="aa-input" type="text" id="aa-salary" placeholder="e.g. 35,000 ILS a month" autocomplete="off" /></label>
-                  </div>
-                </div>
-
-                <div class="pref-group">
-                  <h3 class="pref-group-title">3. Optional demographic questions</h3>
-                  <div class="aa-grid">
-                    <div class="aa-field aa-eeo" data-eeo="gender"><span>Gender</span>
-                      <select class="aa-input" aria-label="Gender"><option value="">Don't fill in</option><option value="decline">Prefer not to answer</option><option value="answer">Your answer</option></select>
-                      <input class="aa-input" type="text" placeholder="Your answer" aria-label="Gender answer" hidden /></div>
-                    <div class="aa-field aa-eeo" data-eeo="race"><span>Race or ethnicity</span>
-                      <select class="aa-input" aria-label="Race or ethnicity"><option value="">Don't fill in</option><option value="decline">Prefer not to answer</option><option value="answer">Your answer</option></select>
-                      <input class="aa-input" type="text" placeholder="Your answer" aria-label="Race or ethnicity answer" hidden /></div>
-                    <div class="aa-field aa-eeo" data-eeo="veteran"><span>Veteran status</span>
-                      <select class="aa-input" aria-label="Veteran status"><option value="">Don't fill in</option><option value="decline">Prefer not to answer</option><option value="answer">Your answer</option></select>
-                      <input class="aa-input" type="text" placeholder="Your answer" aria-label="Veteran status answer" hidden /></div>
-                    <div class="aa-field aa-eeo" data-eeo="disability"><span>Disability</span>
-                      <select class="aa-input" aria-label="Disability"><option value="">Don't fill in</option><option value="decline">Prefer not to answer</option><option value="answer">Your answer</option></select>
-                      <input class="aa-input" type="text" placeholder="Your answer" aria-label="Disability answer" hidden /></div>
-                  </div>
-                </div>
-
-                <div class="pref-group" id="aa-settings">
-                  <h3 class="pref-group-title">4. Application settings</h3>
-                  <div class="aa-choice" role="radiogroup" aria-label="Mode">
-                    <label><input type="radio" name="aa-mode" value="queue" /> <span><b>Only jobs I queue</b><br>The extension applies only to jobs you add to your queue.</span></label>
-                    <label><input type="radio" name="aa-mode" value="auto" /> <span><b>Apply automatically</b><br>The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below.</span></label>
-                  </div>
-                  <p class="aa-sub">Where to find jobs</p>
-                  <div class="aa-choice">
-                    <label><input type="checkbox" name="aa-source" value="board" /> <span>Jobs I add to my queue on Ocean of Jobs</span></label>
-                    <label><input type="checkbox" name="aa-source" value="matches" /> <span>Jobs matching my <a href="#preferences">preferences</a></span></label>
-                    <label><input type="checkbox" name="aa-source" value="ats_pages" /> <span>Jobs I open on Greenhouse, Ashby or Workable</span></label>
-                    <label><input type="checkbox" name="aa-source" value="mcp" /> <span>Jobs queued by my AI assistant through MCP</span></label>
-                  </div>
-                  <p class="aa-sub">If a form asks a question I haven't answered</p>
-                  <div class="aa-choice" role="radiogroup" aria-label="Unanswered questions">
-                    <label><input type="radio" name="aa-unknowns" value="skip" /> <span><b>Skip the job</b><br>Leave it for me to review.</span></label>
-                    <label><input type="radio" name="aa-unknowns" value="ai" /> <span><b>Draft an answer with AI</b><br>AI drafts an answer from my details, uses it, and adds it to my saved answers so I can check it later. Included on Basic and Pro. On Free, add your own AI key in the extension's options.</span></label>
-                  </div>
-                </div>
-
-                <div class="pref-group">
-                  <h3 class="pref-group-title">5. Application limits</h3>
-                  <p class="acct-row-note">Optional. These apply on top of your plan's limit. Leave a field empty for no extra limit.</p>
-                  <div class="aa-grid">
-                    <label class="aa-field"><span>Minimum skills match (%)</span><input class="aa-input" type="number" id="aa-min_match" placeholder="e.g. 60" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Maximum applications per day (up to 50)</span><input class="aa-input" type="number" id="aa-daily" placeholder="e.g. 10" autocomplete="off" /></label>
-                    <label class="aa-field"><span>Days between applications to the same company</span><input class="aa-input" type="number" id="aa-per_company" placeholder="e.g. 30" autocomplete="off" /></label>
-                    <label class="aa-field aa-wide"><span>Never apply to</span><textarea class="aa-input" id="aa-blocked" rows="2" placeholder="Company domains, one per line, e.g. mycurrentemployer.com"></textarea></label>
-                  </div>
-                </div>
-
-                <div class="pref-group">
-                  <h3 class="pref-group-title">6. Saved answers</h3>
-                  <p class="acct-row-note">Save answers to common application questions. The extension reuses them when a question matches and lets you add new answers as you go.</p>
-                  <div id="aa-answers"></div>
-                  <button class="btn ghost btn-small" type="button" id="aa-add-answer">Add an answer</button>
-                </div>
-
-                <div class="aa-save">
-                  <button class="btn" type="submit">Save</button>
-                  <span class="account-status" id="aa-status" aria-live="polite"></span>
-                </div>
-              </form>
-
-              <div class="pref-group aa-history-group">
-                <h3 class="pref-group-title">Application history</h3>
-                <div id="aa-history"><p class="acct-row-note">No applications yet.</p></div>
+              <div class="pref-group" id="aa-settings">
+                <h3 class="pref-group-title">Auto apply has its own page</h3>
+                <p class="acct-row-note">Your queue, application history and auto apply settings are on the Auto apply page now.</p>
+                <a class="btn" href="/apply">Open Auto apply</a>
               </div>
             </section>
 

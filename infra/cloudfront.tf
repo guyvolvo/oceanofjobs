@@ -239,6 +239,14 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
         request.uri = uri + ".html";
         return request;
       }
+      // The auto apply dashboard (apply/, a React app synced to apply/ in
+      // the bucket by deploy-frontend.yml) routes on the client, so /apply
+      // and every extensionless path under it get its one page. Files
+      // with an extension (its hashed scripts and styles) pass through.
+      if (uri === "/apply" || (uri.indexOf("/apply/") === 0 && last.indexOf(".") === -1)) {
+        request.uri = "/apply/index.html";
+        return request;
+      }
       // The company directory by first letter, written to the bucket
       // with the sitemap (loader/sitemap.py): /companies/a -> companies/a.html.
       if (uri.indexOf("/companies/") === 0 && last.indexOf(".") === -1) {
