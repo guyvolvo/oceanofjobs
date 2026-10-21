@@ -651,6 +651,37 @@ def _and(words) -> str:
     return ", ".join(words[:-1]) + " and " + words[-1] if len(words) > 1 else "".join(words)
 
 
+def _history_view(rows: list[dict]) -> list[dict]:
+    """History rows matched to board listings by id: the board's title and
+    company name and a link to its page, old reason codes in today's words,
+    and "unconfirmed" where the extension never saw a confirmation (it may
+    well have been sent). Rows from pages not on the board keep what the
+    extension recorded and link to that page."""
+    ids = [r["job_id"] for r in rows if r.get("job_id")]
+    board = {}
+    if ids:
+        try:
+            q = ("SELECT id, title, COALESCE((SELECT company_name FROM companies WHERE domain = jobs.company_domain), company_domain) "
+                 f"FROM jobs WHERE id IN ({','.join('?' * len(ids))})")
+            board = {i: (title, company) for i, title, company in get_connection().execute(q, ids)}
+        except Exception as e:  # noqa: BLE001 -- the history still shows, just unmatched
+            print(f"history match failed: {e!r}")
+    out = []
+    for r in rows:
+        r = dict(r)
+        hit = board.get(r.get("job_id"))
+        if hit:
+            r["title"], r["company"] = hit[0] or r.get("title"), hit[1] or r.get("company")
+            r["link"] = f"/job/{r['job_id']}"
+        else:
+            r["link"] = r.get("url") or None
+        if r.get("status") == "failed" and (r.get("reason") or "").strip().lower() in apply.UNCONFIRMED:
+            r["status"] = "unconfirmed"
+        r["reason"] = apply.reason_text(r.get("reason") or "")
+        out.append(r)
+    return out
+
+
 def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) -> dict:
     """/api/me/apply/*: automatic applications (apply.py). Used by the
     account page with the user's session, by the browser extension
@@ -708,7 +739,7 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             limit = int(params.get("limit") or 50)
         except ValueError:
             limit = 50
-        return ok(200, {"applied": apply.history(_alerts_table, user_id, limit)})
+        return ok(200, {"applied": _history_view(apply.history(_alerts_table, user_id, limit))})
     if sub == "queue" and method == "GET":
         return ok(200, {"queue": apply.queue(_alerts_table, user_id)})
     if sub.startswith("queue/"):

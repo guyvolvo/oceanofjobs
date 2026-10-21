@@ -227,6 +227,49 @@ def result(table, user_id: str, body: dict, now: datetime | None = None) -> None
                                                  ":t": (now or datetime.now(timezone.utc)).isoformat()})
 
 
+# The extension's internal reason codes as the owner's copy words them
+# (extension/lib/match.js reasonText); older history rows still hold codes.
+_REASONS = {
+    "no confirmation after submitting": "We couldn't confirm that the application was submitted. Check the page.",
+    "no confirmation": "We couldn't confirm that the application was submitted. Check the page.",
+    "not submitted": "The tab was closed before the application was sent.",
+    "captcha": "Complete the CAPTCHA before submitting.",
+    "unsupported site": "This site isn't supported for applications yet.",
+    "job closed": "This job is no longer accepting applications.",
+    "job not found": "Couldn't find this job listing.",
+    "application form not found": "Couldn't find the application form.",
+    "page did not load": "The application page didn't load.",
+    "submit button not found": "Couldn't find the Submit button. Submit the application using the form.",
+    "no options to pick from": "No matching option was available.",
+    "no dropdown on the page": "Couldn't find the dropdown for this question.",
+    "no input to type into": "Couldn't find the field for this answer.",
+    "no phone box on the page": "Couldn't find the phone number field.",
+    "the phone country did not stick": "Couldn't set the phone country. Please check it manually.",
+    "no file input": "Couldn't find the file upload field.",
+    "needs a date": "Enter the required date manually.",
+    "no cv saved in the extension": "Add your CV in extension settings, then try again.",
+}
+UNCONFIRMED = {"no confirmation after submitting", "no confirmation"}
+
+
+def reason_text(reason: str) -> str:
+    """A stored reason in the words the extension now shows."""
+    r = (reason or "").strip()
+    low = r.lower()
+    if low in _REASONS:
+        return _REASONS[low]
+    for prefix, lead in (("form errors: ", "The form needs your attention: "), ("needs answer: ", "Answer this question before continuing: "),
+                         ("ashby will not take this application: ", "Ashby couldn't submit this application: ")):
+        if low.startswith(prefix):
+            return lead + r[len(prefix):]
+    if low.startswith("could not fill "):
+        return "Couldn't fill in " + "; ".join(reason_text(part) for part in r[len("could not fill "):].split("; "))
+    field, sep, rest = r.partition(": ")
+    if sep and rest.lower() in _REASONS:
+        return f"{field}: {_REASONS[rest.lower()]}"
+    return r
+
+
 def history(table, user_id: str, limit: int = 50) -> list[dict]:
     rows = sorted(_applied(table, user_id), key=lambda r: r.get("at") or "", reverse=True)[:max(1, min(limit, 500))]
     return [{k: r.get(k) for k in ("job_id", "company", "title", "url", "status", "reason", "at")} for r in rows]

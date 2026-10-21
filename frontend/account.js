@@ -908,9 +908,11 @@ function wireAutoApply() {
   }
 
   function paintHistory(rows) {
-    const STATUS = { submitted: "Applied", claimed: "In progress", skipped: "Skipped", failed: "Failed" };
+    const STATUS = { submitted: "Applied", claimed: "In progress", skipped: "Skipped", failed: "Failed", unconfirmed: "Unconfirmed" };
+    const title = (r) => (r.link ? `<a class="aa-job" href="${esc(r.link)}"${r.link.startsWith("/") ? "" : ' target="_blank" rel="noopener"'}>${esc(r.title || "A job")}</a>`
+      : `<span class="aa-job">${esc(r.title || "A job")}</span>`);
     $("aa-history").innerHTML = rows.length
-      ? `<ul class="aa-history">${rows.map((r) => `<li><div class="acct-row-text"><a class="aa-job" href="/job/${esc(r.job_id)}">${esc(r.title || "A job")}</a>`
+      ? `<ul class="aa-history">${rows.map((r) => `<li><div class="acct-row-text">${title(r)}`
         + `<span class="acct-row-note">${esc(r.company || "")}${r.reason ? " · " + esc(r.reason) : ""}</span></div>`
         + `<span class="aa-pill aa-${esc(r.status)}">${STATUS[r.status] || esc(r.status)}</span>`
         + `<span class="acct-row-note">${new Date(r.at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span></li>`).join("")}</ul>`
