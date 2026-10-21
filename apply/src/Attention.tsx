@@ -67,23 +67,23 @@ function DisputeButton({ row, left, reload }: { row: HistoryRow; left: number; r
       toasts.add({ variant: "success", title: "Credit refunded", description: `You can queue ${row.title} again.` });
       reload();
     } catch (e) {
-      toasts.add({ variant: "error", title: "Couldn't dispute this application", description: e instanceof ApiError && e.code === "not_disputable" ? e.message : "Try again." });
+      toasts.add({ variant: "error", title: "Couldn't refund the credit", description: e instanceof ApiError && e.code === "not_disputable" ? e.message : "Try again." });
     } finally {
       setBusy(false);
     }
   };
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger render={(p) => <Button {...p} size="sm" variant="secondary" disabled={!left}>Dispute</Button>} />
+      <Dialog.Trigger render={(p) => <Button {...p} size="sm" variant="secondary" disabled={!left}>Refund credit</Button>} />
       <Dialog className="oj-dialog">
-        <Dialog.Title className="oj-card-title">Mark this application as not sent?</Dialog.Title>
+        <Dialog.Title className="oj-card-title">Refund the credit for this application?</Dialog.Title>
         <Dialog.Description className="oj-note">
           Use this if {row.title} at {row.company || "this company"} never received your application.
-          The credit goes back to your plan and you can queue the job again. {plural(left, "dispute")} left.
+          The credit goes back to your plan and you can queue the job again. {plural(left, "refund")} left this month.
         </Dialog.Description>
         <div className="oj-row oj-dialog-actions">
           <Dialog.Close render={(p) => <Button {...p} variant="secondary">Cancel</Button>} />
-          <Button variant="primary" loading={busy} onClick={dispute}>Mark as not sent</Button>
+          <Button variant="primary" loading={busy} onClick={dispute}>Refund credit</Button>
         </div>
       </Dialog>
     </Dialog.Root>
@@ -112,10 +112,9 @@ export function Attention({ needs, history, disputesLeft, reload }: { needs: Nee
         </section>
       ) : null}
       {unconfirmed.length ? (
-        <section className="oj-stack" aria-labelledby="unconfirmed-title">
-          <h2 className="oj-card-title" id="unconfirmed-title">Submission unconfirmed</h2>
-          <Banner variant="alert" icon={<Info weight="fill" />} title="These count as applications for now"
-            description="The extension pressed Submit, but the site never confirmed it got the application. Each one uses one application from your plan. If one didn't go through, dispute it within 14 days and you get that application back." />
+        <section className="oj-stack" aria-label="Unconfirmed applications">
+          <Banner variant="alert" icon={<Info weight="fill" />} title="Unconfirmed applications"
+            description="The auto apply extension filled out the application for these jobs but couldn't confirm whether it went through. If an application didn't go through, click Refund credit within 14 days of applying." />
           <LayerCard className="oj-table">
             <Table>
               <Table.Header>
@@ -132,7 +131,7 @@ export function Attention({ needs, history, disputesLeft, reload }: { needs: Nee
                     <Table.Cell className="oj-num">{fmtDate(r.at)}</Table.Cell>
                     <Table.Cell>
                       <div className="oj-actions">
-                        {r.disputable && r.attempt_id ? <DisputeButton row={r} left={disputesLeft} reload={reload} /> : <span className="oj-note">Can't be disputed</span>}
+                        {r.disputable && r.attempt_id ? <DisputeButton row={r} left={disputesLeft} reload={reload} /> : <span className="oj-note">Can't be refunded</span>}
                       </div>
                     </Table.Cell>
                   </Table.Row>

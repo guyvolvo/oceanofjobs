@@ -17,7 +17,7 @@ export const STATUS: Record<Status, { label: string; variant: "success" | "warni
   failed: { label: "Failed", variant: "error" },
   skipped: { label: "Skipped", variant: "secondary" },
   abandoned: { label: "Abandoned", variant: "outline" },
-  not_sent_disputed: { label: "Not sent (disputed)", variant: "teal-subtle" },
+  not_sent_disputed: { label: "Not sent (refunded)", variant: "teal-subtle" },
 };
 
 export function StatusBadge({ status }: { status: Status }) {

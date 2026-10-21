@@ -385,9 +385,9 @@ class Attempts:
         if a["state"] == DISPUTED:
             return self.view(a)  # refunded once already; a repeat refunds nothing
         if a["state"] != UNCONFIRMED:
-            raise NotDisputable("only a submission that wasn't confirmed can be disputed")
+            raise NotDisputable("Only an unconfirmed application can be refunded.")
         if now - datetime.fromisoformat(a["settled_at"]) > DISPUTE_WINDOW:
-            raise NotDisputable("the 14 days to dispute this have passed")
+            raise NotDisputable("The 14 days to refund this credit have passed.")
         billing = billing_period(now, tz or a.get("tz"))
         items = [
             {"Update": {"TableName": self.name, "Key": self._key(user_id, ATTEMPT + attempt_id),
@@ -414,7 +414,7 @@ class Attempts:
             return self.view(a)
         if reasons[0] == "ConditionalCheckFailed":
             return self.dispute(user_id, attempt_id, now, tz)  # disputed meanwhile: answer as a repeat
-        raise NotDisputable(f"you've used all {DISPUTES_PER_PERIOD} disputes this period")
+        raise NotDisputable(f"You've used all {DISPUTES_PER_PERIOD} refunds this month.")
 
     # R8
     def filled(self, user_id: str, attempt_id: str, job: dict, now: datetime | None = None) -> dict:
