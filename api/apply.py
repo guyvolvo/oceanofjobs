@@ -95,6 +95,26 @@ def job_specific(question) -> bool:
     return bool(JOB_SPECIFIC.search(normalise_question(question)))
 
 
+# Who wrote a saved answer and whether the user approved that exact text
+# (api/AI_AGENT_DESIGN.md). Set by the server only: add_answer and approve
+# set it, and put_profile works it out from what changed.
+AUTHORS, APPROVALS = ("user", "ai"), ("pending", "approved", "rejected")
+USER_ANSWER = {"source": "user", "approval": "approved"}
+
+
+def _provenance(a: dict) -> dict:
+    source = a.get("source") if a.get("source") in AUTHORS else "user"
+    approval = a.get("approval") if a.get("approval") in APPROVALS else ("approved" if source == "user" else "pending")
+    out = {"source": source, "approval": approval}
+    if source == "ai" and str(a.get("agent_version", "")).isdigit():
+        out["agent_version"] = int(a["agent_version"])
+    return out
+
+
+def answer_key(a: dict) -> tuple:
+    return normalise_question(a.get("question")), a.get("job_id", "")
+
+
 def clean_profile(body: dict) -> dict:
     """The profile as stored: every field bounded, every choice from a
     closed list. Unknown keys are dropped."""
@@ -122,7 +142,7 @@ def clean_profile(body: dict) -> dict:
         key = (normalise_question(q), job)
         if key[0] and ans and key not in seen:
             seen.add(key)
-            answers.append({"question": q, "answer": ans, **({"job_id": job} if job else {})})
+            answers.append({"question": q, "answer": ans, **({"job_id": job} if job else {}), **_provenance(a)})
     out["answers"] = answers
     s = body.get("settings") or {}
     st = out["settings"]
@@ -148,14 +168,27 @@ def get_profile(table, user_id: str) -> dict:
     return clean_profile(item.get("profile") or {})
 
 
-def put_profile(table, user_id: str, body: dict, now: datetime | None = None) -> dict:
-    cleaned = clean_profile(body)
+def _save(table, user_id: str, cleaned: dict, now: datetime | None = None) -> dict:
     table.put_item(Item={"user_id": user_id, "alert_id": PROFILE_ROW, "profile": cleaned,
                          "updated_at": (now or datetime.now(timezone.utc)).isoformat()})
     return cleaned
 
 
-def add_answer(table, user_id: str, question, answer, job_id=None) -> None:
+def put_profile(table, user_id: str, body: dict, now: datetime | None = None) -> dict:
+    """The profile as the user saved it. An answer whose text is unchanged
+    keeps who wrote it and its approval; a changed or new one is the user's
+    own, approved. What the client says about either is ignored."""
+    stored = {answer_key(a): a for a in get_profile(table, user_id)["answers"]}
+    cleaned = clean_profile(body)
+    for a in cleaned["answers"]:
+        old = stored.get(answer_key(a))
+        for k in ("source", "approval", "agent_version"):
+            a.pop(k, None)
+        a.update(_provenance(old) if old and old["answer"] == a["answer"] else USER_ANSWER)
+    return _save(table, user_id, cleaned, now)
+
+
+def add_answer(table, user_id: str, question, answer, job_id=None, source="user", agent_version=None) -> None:
     """One saved answer, from the extension or /apply. Replaces an answer to
     the same question rather than adding a second. A job-specific question
     keeps the job it was answered for; without one it isn't saved at all,
@@ -169,16 +202,39 @@ def add_answer(table, user_id: str, question, answer, job_id=None) -> None:
         job = str(job_id or "")
         if not JOB_ID.match(job):
             return
-    profile["answers"] = [a for a in profile["answers"] if (normalise_question(a["question"]), a.get("job_id", "")) != (key, job)]
-    profile["answers"].insert(0, {"question": _text(question), "answer": _text(answer, MAX_LONG), **({"job_id": job} if job else {})})
-    put_profile(table, user_id, profile)
+    profile["answers"] = [a for a in profile["answers"] if answer_key(a) != (key, job)]
+    # The user's own answer is approved; an AI one waits for review.
+    origin = USER_ANSWER if source == "user" else {"source": "ai", "approval": "pending",
+                                                   **({"agent_version": agent_version} if agent_version is not None else {})}
+    profile["answers"].insert(0, {"question": _text(question), "answer": _text(answer, MAX_LONG), **({"job_id": job} if job else {}), **origin})
+    _save(table, user_id, clean_profile(profile))
+
+
+def approve(table, user_id: str, question, job_id, answer, decision: str) -> dict:
+    """The user's verdict on a saved answer. Approval is for that exact text:
+    approving an edited answer makes it the user's own."""
+    if decision not in ("approved", "rejected"):
+        raise ValueError("decision must be approved or rejected")
+    profile = get_profile(table, user_id)
+    key = (normalise_question(question), str(job_id or ""))
+    hit = next((a for a in profile["answers"] if answer_key(a) == key), None)
+    if not hit:
+        raise LookupError("no saved answer to that question")
+    text = _text(answer, MAX_LONG) or hit["answer"]
+    if decision == "approved" and text != hit["answer"]:
+        hit.update(answer=text, **USER_ANSWER)
+        hit.pop("agent_version", None)
+    else:
+        hit["approval"] = decision
+    _save(table, user_id, clean_profile(profile))
+    return hit
 
 
 def reusable_answers(answers: list[dict]) -> list[dict]:
     """Saved answers an application may use: a job-specific one only with
     the job it belongs to. Answers saved before 1.9.3 have no job, so a
     job-specific one among them is dropped rather than reused."""
-    return [a for a in answers if not job_specific(a["question"]) or a.get("job_id")]
+    return [a for a in answers if (not job_specific(a["question"]) or a.get("job_id")) and a.get("approval") != "rejected"]
 
 
 def plan_of(table, user_id: str) -> str:

@@ -75,7 +75,7 @@ with mock_aws():
           [a["question"] for a in profile_as("id")] == ["Why do you want to work here?", "Notice period?"])
     s, _ = call("zoe", "POST", "answers", {"question": "Why do you want to work here?", "answer": "Monday's product.", "job_id": f"{7:016x}"})
     check("answering it for one job keeps it for that job", s == 204 and {"question": "Why do you want to work here?",
-          "answer": "Monday's product.", "job_id": f"{7:016x}"} in profile_as("ooj"), repr(profile_as("ooj")))
+          "answer": "Monday's product.", "job_id": f"{7:016x}", "source": "user", "approval": "approved"} in profile_as("ooj"), repr(profile_as("ooj")))
     handler.route_get_profile = route_get_profile
 
     # 1. Ownership: another user's attempt reads as not found, for every operation.

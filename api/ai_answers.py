@@ -285,5 +285,5 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     answer = text[:apply.MAX_LONG]
     if not suggest:
         # A job-specific answer is kept for its job only (apply.add_answer).
-        apply.add_answer(table, user_id, question, answer, job.get("id"))
+        apply.add_answer(table, user_id, question, answer, job.get("id"), source="ai")
     return {"answer": answer, "remaining": max(0, CAPS[plan] - int(used)), "suggested": suggest}

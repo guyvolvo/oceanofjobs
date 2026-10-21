@@ -47,6 +47,7 @@ import job_page
 import page_chrome
 import ai_answers
 import apply
+import agent
 import attempts
 import paddle
 import tokens
@@ -814,6 +815,30 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
                             "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
         if method == "PUT":
             return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, body.get("profile") or {})})
+    if sub == "agent":
+        token_use = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("token_use")
+        if method == "GET":
+            return ok(200, {"agent": agent.get(_alerts_table, user_id)})
+        if method == "PUT":
+            # Changed only from /apply with a signed-in session, never by a token.
+            if token_use == "ooj":
+                return ok(403, {"error": "The agent is changed on your Auto apply page", "code": "forbidden"})
+            try:
+                return ok(200, {"agent": agent.put(_alerts_table, user_id, body)})
+            except agent.NotIncluded as e:
+                return ok(402, {"error": str(e), "code": "not_included"})
+            except agent.Conflict as e:
+                return ok(409, {"error": str(e), "code": "conflict"})
+            except ValueError as e:
+                return ok(400, {"error": str(e), "code": "invalid"})
+    if sub == "answers/approve" and method == "POST":
+        try:
+            return ok(200, {"answer": apply.approve(_alerts_table, user_id, body.get("question"), body.get("job_id"),
+                                                    body.get("answer"), body.get("decision"))})
+        except LookupError as e:
+            return ok(404, {"error": str(e), "code": "not_found"})
+        except ValueError as e:
+            return ok(400, {"error": str(e), "code": "invalid"})
     if sub == "answers" and method == "POST":
         apply.add_answer(_alerts_table, user_id, body.get("question"), body.get("answer"), body.get("job_id"))
         return ok(204)

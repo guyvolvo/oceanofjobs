@@ -88,7 +88,8 @@ check("and nothing was sent to the model", sent == [])
 t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
 out = ai_answers.draft(t, "u", body, {"skills": ["Python"]}, run=run("30 days"), report=reported.append, now=NOW)
 check("a Basic user gets an answer and how many remain this month", out == {"answer": "30 days", "remaining": 299, "suggested": False}, repr(out))
-check("the answer becomes a saved answer", apply.get_profile(t, "u")["answers"][0] == {"question": "What is your notice period?", "answer": "30 days"})
+check("the answer becomes a saved answer, marked as the AI's and waiting for review",
+      apply.get_profile(t, "u")["answers"][0] == {"question": "What is your notice period?", "answer": "30 days", "source": "ai", "approval": "pending"})
 prompt = sent[-1][1]["content"]
 check("the model sees the profile and the job", "30 days" in prompt and "Haifa" in prompt and "Engineer at Acme" in prompt, prompt[:300])
 check("but never the demographic answers", "woman" not in prompt and "gender" not in prompt, prompt)
@@ -152,10 +153,10 @@ why = {"question": "Why do you want to work here?", "job": {"id": RISKIFIED, "ti
 ai_answers.draft(t, "u", why, {}, run=run("Riskified's fraud work is what I want to build."), report=reported.append, now=NOW)
 saved = apply.get_profile(t, "u")["answers"]
 check("an AI answer to 'why work here' is kept for the job it was written for",
-      saved == [{"question": "Why do you want to work here?", "answer": "Riskified's fraud work is what I want to build.", "job_id": RISKIFIED}], repr(saved))
+      saved == [{"question": "Why do you want to work here?", "answer": "Riskified's fraud work is what I want to build.", "job_id": RISKIFIED, "source": "ai", "approval": "pending"}], repr(saved))
 ai_answers.draft(t, "u", {"question": "How did you hear about us?", "job": {"id": RISKIFIED}}, {}, run=run("LinkedIn"), report=reported.append, now=NOW)
 check("a general answer is still saved for every job",
-      {"question": "How did you hear about us?", "answer": "LinkedIn"} in apply.get_profile(t, "u")["answers"])
+      {"question": "How did you hear about us?", "answer": "LinkedIn", "source": "ai", "approval": "pending"} in apply.get_profile(t, "u")["answers"])
 ai_answers.draft(t, "u", {"question": "Why do you want to work here?", "job": {"id": MONDAY, "company": "monday.com"}}, {},
                  run=run("monday.com's product is one I use daily."), report=reported.append, now=NOW)
 check("the same question at another company gets its own answer from the model", "Riskified" not in sent[-1][1]["content"]
@@ -181,8 +182,9 @@ profile = apply.clean_profile({"answers": [{"question": "Why us?", "answer": "A"
                                           {"question": "Why us?", "answer": "B", "job_id": MONDAY},
                                           {"question": "Notice period?", "answer": "30 days", "job_id": MONDAY}]})
 check("saving the settings keeps each job-specific answer's job, and drops a job from a general one",
-      profile["answers"] == [{"question": "Why us?", "answer": "A", "job_id": RISKIFIED}, {"question": "Why us?", "answer": "B", "job_id": MONDAY},
-                             {"question": "Notice period?", "answer": "30 days"}], repr(profile["answers"]))
+      profile["answers"] == [{"question": "Why us?", "answer": "A", "job_id": RISKIFIED, "source": "user", "approval": "approved"},
+                             {"question": "Why us?", "answer": "B", "job_id": MONDAY, "source": "user", "approval": "approved"},
+                             {"question": "Notice period?", "answer": "30 days", "source": "user", "approval": "approved"}], repr(profile["answers"]))
 
 # The monthly cap holds when two answers race for the last one: both read
 # 299 before either counts, and only one may be counted.
