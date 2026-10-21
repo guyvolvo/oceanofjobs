@@ -1230,7 +1230,7 @@ async function loadSaved() {
     dashSavedRows = data.saved || [];
     ids = dashSavedRows.map((r) => r.job_id).filter(Boolean);
   } catch {
-    host.innerHTML = '<p class="alerts-empty">Could not load your saved listings.</p>';
+    host.innerHTML = `<p class="alerts-empty">Couldn't load your saved jobs.</p>`;
     return;
   }
   setCount("saved", ids.length);
@@ -1248,7 +1248,7 @@ async function loadSaved() {
     });
     jobs = (await getJSON(`/jobs?${q}`)).jobs || [];
   } catch {
-    host.innerHTML = '<p class="alerts-empty">Could not load your saved listings.</p>';
+    host.innerHTML = `<p class="alerts-empty">Couldn't load your saved jobs.</p>`;
     return;
   }
   // The account knows the order they were starred in; the board returns
@@ -1281,12 +1281,12 @@ function paintSaved(jobs) {
       btn.disabled = true;
       try {
         await authedFetch(`/me/saved/${encodeURIComponent(id)}`, { method: "DELETE" });
-      } catch (err) {
+      } catch {
         btn.disabled = false;
         // Next to the list, not in Settings, and it says what happened.
         // A bare "could not" on a button that looks idle is the same as
         // silence: the reader clicks it again.
-        setStatus("saved-status", `Could not remove that listing: ${err.message}`, true);
+        setStatus("saved-status", "Couldn't remove that job. Try again.", true);
         return;
       }
       // The board reads this same list out of localStorage, so removing
@@ -1381,7 +1381,7 @@ function sayStuck(host, why) {
   const el = $(host);
   if (!el || !/Loading/i.test(el.textContent)) return;
   console.error(`account: ${host} ${why}`);
-  el.innerHTML = `<p class="alerts-empty">This is taking longer than it should. Reloading the page usually fixes it.</p>`;
+  el.innerHTML = `<p class="alerts-empty">This is taking longer than it should. Reload the page to try again.</p>`;
 }
 
 function watchForStuck() {
@@ -1400,7 +1400,7 @@ async function block(name, host, fn) {
   } catch (err) {
     console.error(`account: ${name} failed`, err);
     const el = $(host);
-    if (el) el.innerHTML = `<p class="alerts-empty">This did not load. Reloading the page usually fixes it.</p>`;
+    if (el) el.innerHTML = `<p class="alerts-empty">Couldn't load this. Reload the page to try again.</p>`;
     return null;
   } finally {
     clearTimeout(stuckTimers.get(host));
