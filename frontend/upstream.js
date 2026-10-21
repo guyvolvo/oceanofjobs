@@ -14,7 +14,7 @@
       box.className = "upstream";
       box.setAttribute("role", "status");
       items.forEach(function (i) {
-        var text = (i.level === "outage" ? "Service outage: " : "Service degraded: ") + i.service + " - " + i.effect;
+        var text = "Service outage: " + i.service + " - " + i.effect;
         var badge = document.createElement("button");
         badge.type = "button";
         badge.className = "upstream-badge";
