@@ -8,7 +8,7 @@ import { ask, connectExtension, type Ext } from "./ext";
 
 // Each state looks different from the rest. Filled in particular is never
 // green: the form was filled, nobody pressed submit.
-export const STATUS: Record<Status, { label: string; variant: "success" | "warning" | "info" | "neutral" | "orange" | "error" | "secondary" | "outline" | "purple" }> = {
+export const STATUS: Record<Status, { label: string; variant: "success" | "warning" | "info" | "neutral" | "orange" | "error" | "secondary" | "outline" | "teal-subtle" }> = {
   submitted: { label: "Submitted", variant: "success" },
   unconfirmed: { label: "Submission unconfirmed", variant: "warning" },
   filled: { label: "Filled", variant: "info" },
@@ -17,7 +17,7 @@ export const STATUS: Record<Status, { label: string; variant: "success" | "warni
   failed: { label: "Failed", variant: "error" },
   skipped: { label: "Skipped", variant: "secondary" },
   abandoned: { label: "Abandoned", variant: "outline" },
-  not_sent_disputed: { label: "Not sent (disputed)", variant: "purple" },
+  not_sent_disputed: { label: "Not sent (disputed)", variant: "teal-subtle" },
 };
 
 export function StatusBadge({ status }: { status: Status }) {

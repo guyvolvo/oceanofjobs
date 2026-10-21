@@ -33,16 +33,20 @@ export function History({ rows }: { rows: HistoryRow[] }) {
           <Table.Header>
             <Table.Row>
               <Table.Head>Job</Table.Head>
-              <Table.Head>Status</Table.Head>
-              <Table.Head>Date</Table.Head>
+              <Table.Head className="oj-hide-sm">Status</Table.Head>
+              <Table.Head className="oj-hide-sm">Date</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {shown.map((r) => (
               <Table.Row key={(r.attempt_id || r.job_id) + r.at}>
-                <Table.Cell><JobCell title={r.title} link={r.link} sub={[r.company, r.reason].filter(Boolean).join(" · ")} /></Table.Cell>
-                <Table.Cell><StatusBadge status={r.status} /></Table.Cell>
-                <Table.Cell className="oj-num">{fmtDate(r.at)}</Table.Cell>
+                <Table.Cell>
+                  <JobCell title={r.title} link={r.link} sub={[r.company, r.reason].filter(Boolean).join(" · ")} />
+                  {/* On a phone the status and date sit under the job instead of in columns of their own. */}
+                  <span className="oj-show-sm oj-row"><StatusBadge status={r.status} /><span className="oj-note oj-num">{fmtDate(r.at)}</span></span>
+                </Table.Cell>
+                <Table.Cell className="oj-hide-sm"><StatusBadge status={r.status} /></Table.Cell>
+                <Table.Cell className="oj-hide-sm oj-num">{fmtDate(r.at)}</Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>

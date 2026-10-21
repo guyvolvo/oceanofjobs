@@ -70,7 +70,7 @@
   --color-kumo-fill: #2b2e35;
   --color-kumo-fill-hover: #34373f;
   --color-kumo-interact: #4a4c52;
-  --color-kumo-line: #34363c;
+  --color-kumo-line: #44464d;
   --color-kumo-hairline: #2b2c31;
   --color-kumo-contrast: #ededec;
   --color-kumo-focus: #2fae60;
@@ -108,6 +108,9 @@
 html, body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-kumo-default); }
 body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 a { color: inherit; }
+/* The app in its own stacking context, so Kumo's dialogs and toasts (portals
+   after #root in body) always paint above the sticky bar. */
+#root { isolation: isolate; }
 
 /* The bar: the account page's (style.css .topbar-account), rebuilt
    here because style.css as a whole would restyle every Kumo control. */
@@ -126,15 +129,17 @@ a { color: inherit; }
 .oj-tabs { overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
 
 .oj-stack { display: flex; flex-direction: column; gap: 16px; }
-.oj-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.oj-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
 .oj-card-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .oj-card-title { margin: 0; font-size: 15px; font-weight: 500; color: var(--text-color-kumo-strong); }
 .oj-note { margin: 0; color: var(--text-color-kumo-subtle); }
 .oj-figure { font: 500 28px/1.1 var(--font-mono); color: var(--text-color-kumo-strong); font-variant-numeric: tabular-nums; }
 .oj-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .oj-row-between { justify-content: space-between; }
-.oj-link { color: var(--text-color-kumo-link); text-decoration: none; }
-.oj-link:hover { text-decoration: underline; }
+.oj-link { color: var(--text-color-kumo-link); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.oj-link:hover { text-decoration-thickness: 2px; }
+.oj-select { width: 100%; }
+.oj-show-sm { display: none; }
 .oj-job { font-weight: 500; color: var(--text-color-kumo-strong); text-decoration: none; overflow-wrap: anywhere; }
 .oj-job:hover { text-decoration: underline; }
 .oj-sub { display: block; color: var(--text-color-kumo-subtle); font-size: 13px; overflow-wrap: anywhere; }
@@ -155,6 +160,7 @@ a { color: inherit; }
 
 @media (max-width: 640px) {
   .oj-hide-sm { display: none; }
+  .oj-show-sm { display: flex; margin-top: 6px; }
   .oj-bar-in { gap: 14px; }
   .oj-nav { gap: 14px; }
 }

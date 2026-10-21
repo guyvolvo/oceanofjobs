@@ -162,7 +162,7 @@ export function Settings() {
       <Card title="Work details">
         <div className="oj-form">
           {text("countries", "Authorized to work in", "Country codes, e.g. IL, US")}
-          <Select label="Need visa sponsorship" value={form.sponsorship} onValueChange={(v) => set("sponsorship", (v as Form["sponsorship"]) || "skip")}
+          <Select className="oj-select" label="Need visa sponsorship" value={form.sponsorship} onValueChange={(v) => set("sponsorship", (v as Form["sponsorship"]) || "skip")}
             items={{ yes: "Yes", no: "No", skip: "Don't fill in" }} />
           {text("notice", "Notice period", "e.g. 30 days")}
           {text("salary", "Salary expectation", "e.g. 35,000 ILS a month")}
@@ -173,7 +173,7 @@ export function Settings() {
         <div className="oj-form">
           {EEO.map(([k, label]) => (
             <div key={k} className="oj-stack oj-tight">
-              <Select label={label} value={form.eeo[k].pick} onValueChange={(v) => setEeo(k, { pick: (v as Form["eeo"][EeoKey]["pick"]) || "skip" })}
+              <Select className="oj-select" label={label} value={form.eeo[k].pick} onValueChange={(v) => setEeo(k, { pick: (v as Form["eeo"][EeoKey]["pick"]) || "skip" })}
                 items={{ skip: "Don't fill in", decline: "Prefer not to answer", answer: "Your answer" }} />
               {form.eeo[k].pick === "answer" ? (
                 <Input aria-label={`${label} answer`} placeholder="Your answer" autoComplete="off" value={form.eeo[k].text}

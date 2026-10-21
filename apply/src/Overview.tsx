@@ -3,7 +3,7 @@ import { Meter } from "@cloudflare/kumo/components/meter";
 import { Badge } from "@cloudflare/kumo/components/badge";
 import type { QueueItem, Summary } from "./api";
 import type { Ext } from "./ext";
-import { ExtensionAction, plural } from "./shared";
+import { ExtensionAction } from "./shared";
 
 export const PLAN = { free: "Free plan", basic: "Basic plan", pro: "Pro plan" };
 
@@ -53,8 +53,8 @@ export function Overview({ s, ext, queue, reload }: { s: Summary; ext: Ext; queu
         <Tile label="Submission unconfirmed" value={s.unconfirmed}>
           {s.unconfirmed ? <a className="oj-link" href="#needs">Review</a> : <span className="oj-note">All confirmed</span>}
         </Tile>
-        <Tile label="AI answers" value={s.ai.limit === null ? s.ai.used : `${s.ai.used} of ${s.ai.limit}`}>
-          <span className="oj-note">{s.ai.limit === null ? `${plural(s.ai.used, "answer")} drafted ${period}` : `Drafted ${period}`}</span>
+        <Tile label="AI answers" value={s.ai.used}>
+          <span className="oj-note">{s.ai.limit === null ? `Drafted ${period}` : `Of ${s.ai.limit} ${period}`}</span>
         </Tile>
       </div>
 

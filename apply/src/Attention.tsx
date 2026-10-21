@@ -112,7 +112,7 @@ export function Attention({ needs, history, disputesLeft, reload }: { needs: Nee
       {unconfirmed.length ? (
         <section className="oj-stack" aria-labelledby="unconfirmed-title">
           <h2 className="oj-card-title" id="unconfirmed-title">Submission unconfirmed</h2>
-          <Banner icon={<Info weight="fill" />} title="The credit is charged for now"
+          <Banner variant="alert" icon={<Info weight="fill" />} title="The credit is charged for now"
             description="The extension pressed submit but couldn't confirm the site received it. If an application didn't go through, dispute it within 14 days to get the credit back." />
           <LayerCard className="oj-table">
             <Table>
