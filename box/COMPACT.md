@@ -164,16 +164,23 @@ for t in otj-apply otj-publish otj-snapshot otj-names; do
   systemctl stop $t.timer
 done
 for i in $(seq 1 60); do
-  busy=$(for s in otj-apply otj-publish otj-snapshot otj-names; do systemctl is-active --quiet $s.service && echo $s; done)
+  busy=$(for s in otj-apply otj-publish otj-snapshot otj-names; do st=$(systemctl show -p ActiveState --value $s.service); case $st in active|activating|deactivating|reloading) echo "$s=$st";; esac; done)
   [ -z "$busy" ] && break
   echo "waiting for: $busy"; sleep 10
 done
 echo "still running: ${busy:-none}"
+systemctl stop litestream
 sqlite3 -readonly /var/lib/otj/jobs.db "SELECT COUNT(*) || \",\" || MAX(rowid) FROM jobs"
 '
 ```
 
-"still running: none" must show. If a publish pass is still going after
+"still running: none" must show. Two lessons from the first run
+(2026-10-21): a oneshot service mid-run reports "activating", which
+`is-active --quiet` treats as stopped, so the loop reads ActiveState; and
+Litestream 0.5 writes its own tables (_litestream_seq, _litestream_lock)
+inside jobs.db, which moves PRAGMA data_version and fails the build's
+"source changed" check, so it is stopped here. swap_compact.sh starts it
+again on the new file. If a publish pass is still going after
 ten minutes, `systemctl stop otj-publish.service` is safe (its writes are
 one transaction) and run the loop again. Keep the last line, the rows
 and the largest rowid, as `EXPECT`.
