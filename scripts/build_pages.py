@@ -44,7 +44,7 @@ FAQ = """
           </div>
           <div class="home-feature">
             <h3>Can I cancel or get a refund?</h3>
-            <p>You can cancel at any time. Your subscription remains active until the end of the period you've paid for. You're also eligible for a full refund within 14 days of any payment, subject to our <a href="/refunds">refund policy</a>.</p>
+            <p>You can cancel at any time from the link in your Paddle receipt or at paddle.net. Your subscription remains active until the end of the period you've paid for. You're also eligible for a full refund within 14 days of any payment, subject to our <a href="/refunds">refund policy</a>.</p>
           </div>
         </div>
         <p class="price3-note"><a href="/refunds">Refund policy</a> · <a href="/terms">Terms of service</a></p>

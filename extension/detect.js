@@ -1,7 +1,7 @@
 // The fill button, top right on a page with an application form. On a
 // form a dedicated filler knows (Greenhouse, Ashby, Workable) the card
 // fills it, then submits it from the card; the credit counts only once
-// sent, and only when the account has "Jobs I view anywhere on the web"
+// sent, and only when the account has "Jobs I open on Greenhouse, Ashby or Workable"
 // turned on. On any other form the card fills, and submits too when the
 // form has one clear submit button; that credit counts only when the site
 // confirms. On those sites a job posting whose Apply button opens the

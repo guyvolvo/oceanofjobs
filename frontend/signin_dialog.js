@@ -79,7 +79,7 @@ function openSignIn() {
     try {
       await verifyEmailOtp(document.getElementById("signin-otp-input").value.trim());
       close();
-      notifyAuthRender();  // the bar becomes My Account, on the page they were reading
+      notifyAuthRender();  // the bar becomes My account, on the page they were reading
     } catch (e2) {
       err.textContent = verifyCodeError(e2);
       err.hidden = false;

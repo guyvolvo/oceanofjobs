@@ -140,7 +140,7 @@
     host.innerHTML = [
       stat({ trend: noSkills ? "" : pill(change(week, before)), label: "New matches this week",
         value: noSkills ? "–" : fmt(week), aside: noSkills ? '<a href="#skills">Add your skills</a>' : before == null ? "" : `Prev: ${fmt(before)}` }),
-      stat({ trend: pill(change(open, monthAgo)), label: "Open roles that fit you",
+      stat({ trend: pill(change(open, monthAgo)), label: "Open jobs that fit you",
         value: open == null ? "–" : fmt(open), aside: monthAgo == null ? "" : `Prev: ${fmt(monthAgo)} / mo` }),
       stat({ extra: p ? payBins(p) : "", label: "Median salary / mo",
         value: p ? k(p.med) : "–", aside: p ? `Mid: ${k(p.lo)}–${k(p.hi).slice(1)}` : noSkills ? "" : "Too few estimates yet",
@@ -176,7 +176,7 @@
     const pillEl = document.getElementById("acct-trend-pill");
     document.querySelectorAll("[data-series]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.series === series)));
     const isM = series === "matches";
-    title.textContent = isM ? "New matches per week" : "Open roles that fit you, weekly";
+    title.textContent = isM ? "New matches per week" : "Open jobs that fit you, weekly";
     if (weeks.length < 2) {
       valueEl.textContent = "";
       pillEl.innerHTML = "";
@@ -195,7 +195,7 @@
     const y = (val) => H - (val / max) * H;
     const line = v.map((val, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(val).toFixed(1)}`).join(" ");
     const dots = v.map((val, i) => `<span class="acct-dot${i === last ? " on" : ""}" style="left:${(x(i) / W) * 100}%;top:${(y(val) / H) * 100}%"></span>`).join("");
-    const label = isM ? "New matches" : "Open roles";
+    const label = isM ? "New matches" : "Open jobs";
     host.innerHTML = `
       <div class="acct-yaxis" aria-hidden="true">${[4, 3, 2, 1, 0].map((i) => `<span>${short(step * i)}</span>`).join("")}</div>
       <div class="acct-plot">
@@ -257,7 +257,7 @@
     if (gaps.length) {
       const shares = gaps.map((g) => `${g.share}%`).join(" and ");
       html += `<div class="acct-th">Gaps · in ${shares} of your matches</div>`;
-      html += gaps.map((g) => `<div class="acct-demand-row gap" title="${esc(g.sk)} is named by ${g.share}% of your matches; ${fmt(g.n)} open roles ask for it">
+      html += gaps.map((g) => `<div class="acct-demand-row gap" title="${esc(g.sk)} is named by ${g.share}% of your matches; ${fmt(g.n)} open jobs ask for it">
         <span class="acct-demand-name">${esc(g.sk)}</span>
         <span class="acct-demand-track"><span class="acct-demand-fill" style="width:${w(g.n)}"></span></span>
         <span class="acct-demand-n">${fmt(g.n)}</span>
@@ -429,7 +429,7 @@
     const bone = (w, h) => `<span class="skeleton sk-line" style="width:${w}px;height:${h}px;display:inline-block"></span>`;
     const stats = document.getElementById("acct-stats");
     if (stats && !stats.children.length) {
-      stats.innerHTML = ["New matches this week", "Open roles that fit you", "Median salary / mo", "Saved jobs"]
+      stats.innerHTML = ["New matches this week", "Open jobs that fit you", "Median salary / mo", "Saved jobs"]
         .map((label) => stat({ label, value: bone(64, 26), aside: bone(60, 11) })).join("");
     }
     const chart = document.getElementById("acct-chart");

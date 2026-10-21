@@ -1,5 +1,5 @@
 // The account corner of the landing and contact pages. Signed out it is
-// two words, "Log in", opening the sign-in dialog. Signed in it is "My Account"
+// two words, "Log in", opening the sign-in dialog. Signed in it is "My account"
 // with the reader's initial, opening a short menu: the account page, the
 // saved listings, alerts, the contact page, and log out. The tokens are
 // the same localStorage entry the board and account page keep
@@ -59,7 +59,7 @@
     const avatar = avatarHtml(who, t.id_token);
     host.innerHTML = `
       <button type="button" class="hero-account-btn" id="hero-account-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="hero-menu">
-        ${avatar}My Account
+        ${avatar}My account
       </button>
       <div class="hero-menu" id="hero-menu" role="menu" hidden>
         <div class="hero-menu-head">${avatar}<span class="hero-menu-email" title="${esc(who)}">${esc(who)}</span></div>
