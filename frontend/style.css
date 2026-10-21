@@ -8449,6 +8449,13 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .pg-svg-ink { fill: var(--black); }
 .pg-svg-grey { fill: var(--grey); }
 .pg-about { margin: 0; font: 400 13px/1.5 var(--font-ui); }
+/* Role pages (api/role_pages.py): sibling links in the sidebar, and the /jobs hub's role cards. */
+.pg-links { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font: 400 13px/1.4 var(--font-ui); }
+.pg-links a { color: var(--black); text-decoration: none; }
+.pg-links a:hover { color: var(--green-text); }
+.pg-role-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 20px; }
+.pg-role-hub .pg-card-title a { color: var(--black); text-decoration: none; }
+.pg-role-hub .pg-card-title a:hover { color: var(--green-text); }
 .pg-foot { display: flex; justify-content: space-between; gap: 16px; width: 1120px; max-width: calc(100% - 64px); margin: 56px auto 0; padding: 18px 0 28px; border-top: 1px solid var(--grey-line); color: var(--grey); font: 400 12px var(--font-ui); }
 .pg-foot a { color: var(--grey); }
 .pg-foot a:hover { color: var(--black); }

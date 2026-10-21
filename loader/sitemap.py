@@ -66,7 +66,7 @@ MAX_AGE_S = 6 * 3600
 
 # (path, lastmod follows the snapshot?)
 PAGES = [("/", False), ("/board", True), ("/stats", True), ("/companies", True),
-         ("/docs", False), ("/docs/mcp", False), ("/docs/api", False), ("/contact", False), ("/privacy", False),
+         ("/docs", False), ("/docs/mcp", False), ("/docs/extension", False), ("/docs/api", False), ("/contact", False), ("/privacy", False),
          ("/pricing", False), ("/terms", False), ("/refunds", False)]
 
 # The directory's pages: a to z, and one for names that start with a
@@ -130,10 +130,10 @@ def _url(loc: str, lastmod: str | None) -> str:
     return f"  <url><loc>{html.escape(loc, quote=True)}</loc>{tail}</url>\n"
 
 
-def pages_sitemap(now: datetime) -> str:
+def pages_sitemap(now: datetime, role_paths: list[str] = ()) -> str:
     stamp = now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     body = "".join(_url(SITE + path, stamp if follows else None)
-                   for path, follows in PAGES + [(f"/companies/{k}", True) for k in LETTERS])
+                   for path, follows in PAGES + [(f"/companies/{k}", True) for k in LETTERS] + [(p, True) for p in role_paths])
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n")
 
@@ -274,12 +274,22 @@ def build(db_path: Path, now: datetime | None = None) -> dict[str, tuple[bytes, 
         rows = company_rows(conn)
         companies = company_shards(rows)
         rss = feed(conn, now)
+        # shortcut: the maintenance Lambda (schedule disabled since the box
+        # took over) packages this file without api/role_pages.py and its
+        # imports, so it publishes without role pages. Add them to
+        # deploy-scrape-lambda.yml's cp lines if that Lambda comes back.
+        try:
+            import role_pages
+        except ImportError:
+            roles, role_paths = {}, []
+        else:
+            roles, role_paths = role_pages.build(conn, open_clause(conn), now)
     finally:
         conn.close()
     xml = "application/xml; charset=utf-8"
     out = {
         "sitemap.xml": (index(len(shards), now, len(companies)).encode("utf-8"), xml),
-        "sitemap-pages.xml": (pages_sitemap(now).encode("utf-8"), xml),
+        "sitemap-pages.xml": (pages_sitemap(now, role_paths).encode("utf-8"), xml),
         "feed.xml": (rss.encode("utf-8"), "application/rss+xml; charset=utf-8"),
     }
     for i, doc in enumerate(shards, 1):
@@ -288,6 +298,8 @@ def build(db_path: Path, now: datetime | None = None) -> dict[str, tuple[bytes, 
         out[f"sitemap-companies-{i}.xml"] = (doc.encode("utf-8"), xml)
     for key, page in directory_pages(rows).items():
         out[f"companies/{key}.html"] = (page.encode("utf-8"), "text/html; charset=utf-8")
+    for key, page in roles.items():
+        out[key] = (page.encode("utf-8"), "text/html; charset=utf-8")
     return out
 
 

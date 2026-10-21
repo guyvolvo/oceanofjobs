@@ -53,6 +53,9 @@ conn.close()
 
 docs = sitemap.build(db, NOW)
 pages_az = {k: docs.pop(f"companies/{k}.html") for k in sitemap.LETTERS}
+# Role pages (api/role_pages.py, tested in test_role_pages.py) ride along as HTML.
+roles = {k: docs.pop(k) for k in [k for k in docs if k == "jobs.html" or k.startswith("jobs/")]}
+check("every role and place gets an HTML file", len(roles) >= 80 and all(v[1].startswith("text/html") for v in roles.values()), str(len(roles)))
 check("an index, a pages sitemap, the feed, two job shards and a company shard",
       sorted(docs) == ["feed.xml", "sitemap-companies-1.xml", "sitemap-jobs-1.xml", "sitemap-jobs-2.xml", "sitemap-pages.xml", "sitemap.xml"], repr(sorted(docs)))
 w = pages_az["w"][0].decode("utf-8")
@@ -96,7 +99,7 @@ entries = {e.find("s:loc", ns).text: (e.find("s:lastmod", ns).text if e.find("s:
 check("the site pages, with the board and Explore dated to the snapshot and the rest undated",
       entries == {"https://oceanofjobs.com/": None, "https://oceanofjobs.com/board": "2026-09-18T12:00:00Z",
                   "https://oceanofjobs.com/stats": "2026-09-18T12:00:00Z", "https://oceanofjobs.com/companies": "2026-09-18T12:00:00Z",
-                  "https://oceanofjobs.com/docs": None, "https://oceanofjobs.com/docs/mcp": None,
+                  "https://oceanofjobs.com/docs": None, "https://oceanofjobs.com/docs/mcp": None, "https://oceanofjobs.com/docs/extension": None,
                   "https://oceanofjobs.com/docs/api": None,
                   "https://oceanofjobs.com/contact": None, "https://oceanofjobs.com/privacy": None,
                   "https://oceanofjobs.com/pricing": None, "https://oceanofjobs.com/terms": None, "https://oceanofjobs.com/refunds": None,
