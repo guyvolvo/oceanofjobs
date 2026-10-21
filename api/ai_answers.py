@@ -42,6 +42,16 @@ NEURONS_PER_M_OUT = 0.384 / 0.011 * 1000
 # what an honest month needs (two new questions per application).
 CAPS = {"basic": 300, "pro": 3000}
 SYSTEM_USER = "#system"
+# Per user: model calls a minute, counted on one row that restarts each
+# minute (the table has no TTL, so per-minute rows would pile up).
+PER_MINUTE = 20
+RATE_ROW = "#ai_rate"
+# The whole service: neurons a day. Each call reserves its most expensive
+# case before it runs, in the same conditional write that checks the total,
+# and settles to what it really used after. The 80% alarm only emails;
+# this refuses. About $0.45 a day past the free 10,000.
+DAILY_NEURONS = 50_000
+MAX_OUT = 200  # max_tokens sent to the Worker (workers_ai)
 MAX_QUESTION = 500
 # Each saved answer as background for the model. Saved answers may be 4,000
 # characters, and 30 of them made one call about 15 times its usual size.
@@ -87,6 +97,26 @@ class CantAnswer(Exception):
 
 class NotConfigured(Exception):
     pass
+
+
+class RateLimited(Exception):
+    """Too many calls this minute: try again shortly."""
+
+    def __init__(self, msg, retry_after):
+        super().__init__(msg)
+        self.retry_after = retry_after
+
+
+class BudgetExhausted(Exception):
+    """The service's AI budget for today is spent: try again tomorrow (UTC)."""
+
+    def __init__(self, msg, retry_after):
+        super().__init__(msg)
+        self.retry_after = retry_after
+
+
+def _conditional_failed(e: Exception) -> bool:
+    return getattr(e, "response", {}).get("Error", {}).get("Code") == "ConditionalCheckFailedException"
 
 
 def neurons(prompt_tokens: int, completion_tokens: int) -> float:
@@ -146,11 +176,41 @@ def _count(table, user_id: str, row: str, n: float, cap: int | None = None) -> f
     values = {":n": Decimal(str(n))}
     kw = {}
     if cap is not None:
-        values[":cap"] = Decimal(cap)
+        values[":cap"] = Decimal(str(cap))
         kw["ConditionExpression"] = "attribute_not_exists(n) OR n < :cap"
     resp = table.update_item(Key={"user_id": user_id, "alert_id": row}, UpdateExpression="ADD n :n",
                              ExpressionAttributeValues=values, ReturnValues="UPDATED_NEW", **kw)
     return float(resp["Attributes"]["n"])
+
+
+def _rate(table, user_id: str, now: datetime) -> None:
+    """One more call this minute, or RateLimited. Two conditional writes on
+    one row: count on within this minute while under the limit, or start a
+    new minute. Losing both means the limit was reached this minute."""
+    minute = now.strftime("%Y-%m-%dT%H:%M")
+    key = {"user_id": user_id, "alert_id": RATE_ROW}
+    for _ in range(2):
+        try:
+            table.update_item(Key=key, UpdateExpression="SET n = n + :one", ConditionExpression="#min = :m AND n < :lim",
+                              ExpressionAttributeNames={"#min": "minute"},  # MINUTE is a DynamoDB reserved word
+                              ExpressionAttributeValues={":one": 1, ":m": minute, ":lim": PER_MINUTE})
+            return
+        except Exception as e:  # noqa: BLE001
+            if not _conditional_failed(e):
+                raise
+        try:
+            table.update_item(Key=key, UpdateExpression="SET #min = :m, n = :one",
+                              ConditionExpression="attribute_not_exists(#min) OR #min <> :m",
+                              ExpressionAttributeNames={"#min": "minute"}, ExpressionAttributeValues={":one": 1, ":m": minute})
+            return
+        except Exception as e:  # noqa: BLE001 -- another call started this minute first; count on it
+            if not _conditional_failed(e):
+                raise
+    raise RateLimited(f"That's {PER_MINUTE} AI answers this minute. Try again in a minute.", 60 - now.second)
+
+
+def _until_tomorrow(now: datetime) -> int:
+    return 86400 - (now.hour * 3600 + now.minute * 60 + now.second)
 
 
 def _report(total: float) -> None:
@@ -188,8 +248,30 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
         {"role": "user", "content": f"Facts: {json.dumps(facts(profile, prefs), ensure_ascii=False)}\n"
                                     f"Job: {job_line or 'not given'}{f' ({where})' if where else ''}\nQuestion: {question}{choose}"},
     ]
-    text, p, c = run(messages)
-    report(_count(table, SYSTEM_USER, "#ai_neurons#" + now.strftime("%Y-%m-%d"), round(neurons(p, c), 2)))
+    # Both limits fail closed: an error writing either refuses the call
+    # (NotConfigured, 503) rather than letting it through uncounted.
+    try:
+        _rate(table, user_id, now)
+    except RateLimited:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise NotConfigured(f"AI answers are unavailable right now ({e.__class__.__name__})") from None
+    day = "#ai_neurons#" + now.strftime("%Y-%m-%d")
+    # The most this call can cost: every input character a token, and the full output.
+    held = round(neurons(sum(len(m["content"]) for m in messages), MAX_OUT), 2)
+    try:
+        _count(table, SYSTEM_USER, day, held, cap=DAILY_NEURONS - held)
+    except Exception as e:  # noqa: BLE001
+        if _conditional_failed(e):
+            raise BudgetExhausted("AI answers have reached today's limit for the whole service. They start again at midnight UTC.",
+                                  _until_tomorrow(now)) from None
+        raise NotConfigured(f"AI answers are unavailable right now ({e.__class__.__name__})") from None
+    try:
+        text, p, c = run(messages)
+    except Exception:
+        _count(table, SYSTEM_USER, day, -held)  # nothing ran, or nothing we can measure: give the hold back
+        raise
+    report(_count(table, SYSTEM_USER, day, round(neurons(p, c) - held, 2)))
     if not text or text.upper().startswith("UNKNOWN"):
         raise CantAnswer("your profile doesn't answer this question")
     # A user's AI answers count only when one is produced; the service's own
@@ -197,7 +279,7 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     try:
         used = _count(table, user_id, _month_row(now), 1, cap=CAPS[plan])
     except Exception as e:  # noqa: BLE001 -- another answer took the last one first
-        if getattr(e, "response", {}).get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+        if _conditional_failed(e):
             raise CapReached(f"You've used this month's {CAPS[plan]} AI answers.") from None
         raise
     answer = text[:apply.MAX_LONG]

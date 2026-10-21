@@ -851,8 +851,17 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             return ok(402, {"error": str(e)})
         except ai_answers.CantAnswer as e:
             return ok(422, {"error": str(e)})
+        except ai_answers.RateLimited as e:
+            # This user, for a minute. Not the same as the service's day below.
+            resp = ok(429, {"error": str(e), "code": "rate_limited", "retryable": True, "retry_after": e.retry_after})
+            resp["headers"]["Retry-After"] = str(e.retry_after)
+            return resp
+        except ai_answers.BudgetExhausted as e:
+            resp = ok(503, {"error": str(e), "code": "daily_budget", "retryable": True, "retry_after": e.retry_after})
+            resp["headers"]["Retry-After"] = str(e.retry_after)
+            return resp
         except ai_answers.NotConfigured as e:
-            return ok(503, {"error": str(e)})
+            return ok(503, {"error": str(e), "code": "unavailable", "retryable": True})
     if sub == "claim" and method == "POST":
         try:
             return ok(200, apply.claim(_alerts_table, user_id, body))

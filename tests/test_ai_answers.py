@@ -36,7 +36,18 @@ class FakeTable:
     def put_item(self, Item=None, **kw):
         self.items[(Item["user_id"], Item["alert_id"])] = dict(Item)
 
-    def update_item(self, Key=None, ExpressionAttributeValues=None, **kw):
+    def update_item(self, Key=None, ExpressionAttributeValues=None, UpdateExpression="", **kw):
+        v = ExpressionAttributeValues
+        if UpdateExpression.startswith("SET"):  # the per-minute counter (ai_answers._rate); its own tests are on moto
+            row = self.items.setdefault((Key["user_id"], Key["alert_id"]), dict(Key))
+            same = row.get("minute") == v[":m"]
+            if UpdateExpression.startswith("SET n = n + :one") and not (same and row["n"] < v[":lim"]) \
+                    or UpdateExpression.startswith("SET #min") and same:
+                err = Exception("ConditionalCheckFailedException")
+                err.response = {"Error": {"Code": "ConditionalCheckFailedException"}}
+                raise err
+            row.update(n=row["n"] + 1 if same else 1, minute=v[":m"])
+            return {}
         n = ExpressionAttributeValues[":n"]
         assert isinstance(n, Decimal), "DynamoDB takes Decimal, not float"
         cap = ExpressionAttributeValues.get(":cap")
@@ -50,6 +61,9 @@ class FakeTable:
 
 
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
+# These tests make many calls in one minute; the limits have their own
+# tests on moto (tests/test_ai_limits.py).
+ai_answers.PER_MINUTE = 10**6
 t = FakeTable()
 apply.put_profile(t, "u", {"contact": {"first_name": "Ada", "location": "Haifa"}, "work": {"notice_period": "30 days"},
                            "eeo": {"gender": "woman", "race": "decline"}})
