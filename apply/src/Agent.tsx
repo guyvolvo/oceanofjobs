@@ -13,6 +13,7 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Info, Plus, WarningCircle } from "@phosphor-icons/react";
 import { apply, send, ApiError } from "./api";
+import { ConfirmDanger } from "./shared";
 
 type Topic = "referral_source" | "start_date" | "relocation" | "onsite_days" | "why_company" | "why_role";
 type Action = "answer" | "ai" | "ask";
@@ -143,6 +144,7 @@ export function Agent() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   const load = useCallback(() => {
     setLoadFailed(false);
@@ -194,13 +196,20 @@ export function Agent() {
       <fieldset className="oj-fieldset" disabled={!editable}>
         <div className="oj-stack">
           <Card title="AI answers">
-            <Radio.Group appearance="card" value={form.review} onValueChange={(v) => set("review", v as Form["review"])}>
+            <Radio.Group appearance="card" value={form.review}
+              onValueChange={(v) => (v === "use" ? setAsking(true) : set("review", v as Form["review"]))}>
               <Radio.Legend className="sr-only">When the AI writes a new answer</Radio.Legend>
               <Radio.Item value="pause" label="Review before sending (recommended)"
                 description="The job waits in Needs attention until you review the answer. You can approve it as written or make changes. Nothing is sent before you approve it." />
-              <Radio.Item value="use" label="Send without review"
+              <Radio.Item value="use" label="Send without review" variant={form.review === "use" ? "error" : "default"} className="oj-danger"
                 description="New AI answers are sent to employers without your approval. The checks catch many mistakes, but they can't catch everything. An incorrect answer could still be sent in your name. You can see which answers the AI wrote in History." />
             </Radio.Group>
+            <ConfirmDanger open={asking} title="Send AI answers without review?" confirm="Send without review"
+              onConfirm={() => { set("review", "use"); setAsking(false); }} onCancel={() => setAsking(false)}>
+              New AI answers will go to employers without you seeing them first. The checks catch many mistakes, but not all of
+              them, so an incorrect answer could be sent in your name. Answers about why you want a job still wait for you. This
+              takes effect when you save.
+            </ConfirmDanger>
           </Card>
 
           <Card title="About you" note={["Add facts the AI can use when answering questions. Only include things that are true. For example: \"I led a team of five engineers at Acme from 2021 to 2024.\"",

@@ -165,3 +165,14 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 @media (max-width: 640px) { .oj-card-body { padding: 16px; } }
 /* The segmented tabs hug their labels, as one compact control (Kumo stretches the track). */
 .oj-tabs > * { width: max-content; max-width: none; box-shadow: inset 0 0 0 1px var(--color-kumo-hairline); border-radius: 10px; }
+
+/* Danger options (Send without review, Apply automatically): a red check
+   when chosen, on top of Kumo's red border for the "error" variant. */
+.oj-danger [data-checked] { background-color: var(--color-kumo-danger) !important; border-color: var(--color-kumo-danger) !important; }
+/* The confirm button of a danger option: a deep red in both themes, white text (5.6:1), as on Cloudflare.
+   Kumo's dark danger colour is a light red that white text can't be read on. */
+.oj-destructive { --kumo-button-emphasis-bg: #b8362c; --kumo-button-emphasis-ring: #8f2a22; background: #b8362c !important; color: #fff !important; }
+.oj-destructive:hover { background: #a02e25 !important; }
+/* Kumo paints the filled look with a gradient on an inner span. */
+.oj-destructive span { background-image: linear-gradient(#c8463a 0%, #b8362c 100%) !important; }
+.oj-destructive:hover span { background-image: linear-gradient(#b23c31 0%, #a02e25 100%) !important; }

@@ -13,6 +13,7 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus, WarningCircle } from "@phosphor-icons/react";
 import { apply, send, type Profile } from "./api";
+import { ConfirmDanger } from "./shared";
 
 const EEO = [["gender", "Gender"], ["race", "Race or ethnicity"], ["veteran", "Veteran status"], ["disability", "Disability"]] as const;
 type EeoKey = (typeof EEO)[number][0];
@@ -97,6 +98,7 @@ export function Settings() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   const load = useCallback(() => {
     setLoadFailed(false);
@@ -187,10 +189,17 @@ export function Settings() {
 
       <section id="aa-settings">
         <Card title="Application settings">
-          <Radio.Group legend="Mode" appearance="card" value={form.mode} onValueChange={(v) => set("mode", v as Form["mode"])}>
+          <Radio.Group legend="Mode" appearance="card" value={form.mode}
+            onValueChange={(v) => (v === "auto" ? setAsking(true) : set("mode", v as Form["mode"]))}>
             <Radio.Item value="queue" label="Only jobs I queue" description="The extension applies only to jobs you add to your queue." />
-            <Radio.Item value="auto" label="Apply automatically" description="The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below." />
+            <Radio.Item value="auto" label="Apply automatically" variant={form.mode === "auto" ? "error" : "default"} className="oj-danger"
+              description="The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below." />
           </Radio.Group>
+          <ConfirmDanger open={asking} title="Apply automatically?" confirm="Apply automatically"
+            onConfirm={() => { set("mode", "auto"); setAsking(false); }} onCancel={() => setAsking(false)}>
+            The extension will apply to jobs that match your preferences without asking you about each one, up to your plan's
+            limit and the limits you set below. Every application shows in History. This takes effect when you save.
+          </ConfirmDanger>
           <Checkbox.Group legend="Where to find jobs" value={form.sources} onValueChange={(v) => set("sources", v as string[])}
             description={<>Your preferences are on your <a className="oj-link" href="/account#preferences">account page</a>.</>}>
             <Checkbox.Item value="board" label="Jobs I add to my queue on Ocean of Jobs" />
