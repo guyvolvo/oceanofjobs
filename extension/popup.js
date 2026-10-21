@@ -119,8 +119,8 @@ function render(s) {
   list.hidden = $('needs-head').hidden = $('needs-help').hidden = !s.needs.length;
   $('pause').textContent = paused ? 'Resume' : 'Pause';
   $('state').textContent = paused
-    ? 'Auto-apply is paused. Nothing will be sent until you resume.'
-    : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString()}. Checks every 15 minutes.` : 'Checks every 15 minutes.';
+    ? "Auto apply is paused. The extension won't apply on its own until you resume."
+    : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString()}. Looks for jobs to apply to every 15 minutes.` : 'Looks for jobs to apply to every 15 minutes.';
 }
 
 // The queue: the count on open, the jobs once expanded.
@@ -157,7 +157,7 @@ async function renderQueue() {
     return li;
   }));
   note.hidden = q.total > 0 && q.total <= q.items.length;
-  note.textContent = q.total ? `Showing the first ${q.items.length} ${plural(q.items.length, 'job')}.` : 'No jobs in your queue. Add jobs from the extension or your AI assistant.';
+  note.textContent = q.total ? `Showing the first ${q.items.length} ${plural(q.items.length, 'job')}.` : 'No jobs in your queue. Add jobs on Ocean of Jobs or through your AI assistant.';
 }
 
 chrome.runtime.sendMessage({ type: 'status' }).then((s) => {

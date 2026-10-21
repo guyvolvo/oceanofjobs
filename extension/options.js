@@ -39,7 +39,7 @@ $('save-ai').addEventListener('click', async () => {
   if (!provider) {
     await chrome.storage.local.remove('ai');
     $('key').value = $('model').value = '';
-    $('ai-msg').textContent = 'AI answers are turned off.';
+    $('ai-msg').textContent = 'Your AI key was removed.';
     return;
   }
   if (!key) { $('ai-msg').textContent = 'Enter your API key first.'; return; }
@@ -47,7 +47,7 @@ $('save-ai').addEventListener('click', async () => {
   if (!model) { $('ai-msg').textContent = 'Enter a model name.'; return; }
   // Asked here, on a click, because Chrome only grants host access from a user gesture.
   const granted = await chrome.permissions.request({ origins: [PROVIDERS[provider].origin] });
-  if (!granted) { $('ai-msg').textContent = "Couldn't connect to the provider. Nothing was saved."; return; }
+  if (!granted) { $('ai-msg').textContent = "Chrome access to the provider was declined, so nothing was saved. Click Save and allow it."; return; }
   await chrome.storage.local.set({ ai: { provider, key, model } });
   $('ai-msg').textContent = 'Saved.';
 });
@@ -60,7 +60,7 @@ $('all-sites').addEventListener('change', async () => {
   const ok = on ? await chrome.permissions.request(ALL_SITES) : await chrome.permissions.remove(ALL_SITES);
   $('all-sites').checked = await chrome.permissions.contains(ALL_SITES);
   $('all-sites-msg').textContent = !ok ? "Chrome couldn't update site access."
-    : on ? 'Enabled. Reload a careers page to show the button.' : 'Disabled. The button will only appear on job listings supported by Ocean of Jobs.';
+    : on ? 'Enabled. Reload a careers page to show the button.' : 'Disabled. The button will only appear on the hiring sites the extension supports, like Greenhouse, Lever and Workday.';
 });
 chrome.permissions.contains(ALL_SITES).then((on) => { $('all-sites').checked = on; });
 

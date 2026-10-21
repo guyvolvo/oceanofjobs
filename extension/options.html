@@ -39,7 +39,7 @@
   <section class="card">
     <h2>Your own AI key</h2>
     <p class="note">AI-generated answers are included with Basic and Pro. On the Free plan, you can add your own API key to generate answers to application questions.</p>
-    <p class="note" style="margin-top:8px">When a required question has no saved answer and your account is set to use AI, the extension can draft an answer and save it to your profile. Basic and Pro users can also use their own key after their monthly AI allowance runs out.</p>
+    <p class="note" style="margin-top:8px">In automatic runs, if you chose to have AI draft answers, the extension drafts answers to required questions and adds them to your saved answers. When you fill a page yourself, it suggests answers, outlined in amber, and doesn't save them. Basic and Pro users can also use their own key after their monthly AI allowance runs out.</p>
     <p class="note" style="margin-top:8px">Without an available AI answer or a saved answer, the application will be marked as needing your input.</p>
     <label class="field" for="provider">Provider
       <select class="input" id="provider">
@@ -61,9 +61,9 @@
   </section>
 
   <section class="card">
-    <h2>Show the fill button on every careers page</h2>
-    <p class="note">By default, the fill button appears on job listings supported by Ocean of Jobs. Enable access to all sites to use it on company career pages and forms embedded from other websites.</p>
-    <p class="note" style="margin-top:8px">Pages are checked locally in your browser for application forms. Page content isn't sent to Ocean of Jobs.</p>
+    <h2>Fill button</h2>
+    <p class="note">By default, the fill button appears on the hiring sites the extension supports, like Greenhouse, Lever and Workday. Enable access to all sites to use it on company career pages and forms embedded from other websites.</p>
+    <p class="note" style="margin-top:8px">Pages are checked for forms in your browser. When you click Fill or Submit, the page address and job title are sent to Ocean of Jobs. On Basic and Pro, questions without a saved answer are sent too, so AI can draft them.</p>
     <label class="toggle" for="all-sites"><input type="checkbox" id="all-sites"> Show the fill button on every careers page</label>
     <p id="all-sites-msg" class="note" role="status" style="margin-top:10px"></p>
   </section>
