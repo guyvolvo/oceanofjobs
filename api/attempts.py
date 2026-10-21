@@ -88,6 +88,18 @@ class Expired(Exception):
     """The reservation ran out before submission start: don't submit."""
 
 
+class NeedsReview(Exception):
+    """An AI answer the user hasn't approved is in the form, and their agent
+    says new AI answers wait for review: no submit."""
+
+    def __init__(self, questions):
+        super().__init__("new AI answers wait for your review before this application is sent")
+        self.questions = questions
+
+
+MAX_SNAPSHOT = 20
+
+
 class NotDisputable(Exception):
     pass
 
@@ -250,13 +262,51 @@ class Attempts:
         raise RuntimeError(f"reservation failed: {reasons}")
 
     # R3, R10
-    def submission_started(self, user_id: str, attempt_id: str, now: datetime | None = None) -> dict:
+    def snapshot(self, user_id: str, answers: list, mode: str | None) -> list[dict]:
+        """The AI answers in a form about to be submitted, as they are now,
+        each with what allowed it: the user approved that text ("approved"),
+        the user pressed Submit on the card themselves ("user_submit"), or
+        their agent uses AI answers automatically ("automatic"). NeedsReview
+        when none applies. Which answers are the AI's comes from the saved
+        answers where they match; the client's word only for one that isn't
+        saved (a suggestion on the card)."""
+        import agent  # noqa: PLC0415 -- agent imports ai_answers, which imports apply; kept out of module load
+        profile = apply.get_profile(self.table, user_id)
+        saved = {apply.answer_key(a): a for a in profile["answers"]}
+        review = agent.load(self.table, user_id)["review"]
+        out, waiting = [], []
+        for given in (answers or [])[:50]:
+            if not isinstance(given, dict):
+                continue
+            question, text = apply._text(given.get("question"), apply.MAX_TEXT), apply._text(given.get("answer"), 800)
+            job = str(given.get("job_id") or "") if apply.job_specific(question) else ""
+            row = saved.get((apply.normalise_question(question), job))
+            mine = row if row and row["answer"].strip() == text else None
+            if not (mine and mine["source"] == "ai") and not (mine is None and given.get("source") == "ai"):
+                continue
+            approval = mine["approval"] if mine else "pending"
+            allowed = ("approved" if approval == "approved" else "user_submit" if mode == "card"
+                       else "automatic" if review == "use" and approval != "rejected" else None)
+            if allowed is None:
+                waiting.append(question)
+            out.append({"question": question, "answer": text, "source": "ai", "approval": approval, "allowed_by": allowed,
+                        **({"agent_version": mine["agent_version"]} if mine and mine.get("agent_version") else {})})
+        if waiting:
+            raise NeedsReview(waiting)
+        return out[:MAX_SNAPSHOT]
+
+    def submission_started(self, user_id: str, attempt_id: str, now: datetime | None = None, answers: list | None = None,
+                           mode: str | None = None) -> dict:
+        """The gate. With `answers` (extension 1.9.5 on), the AI answers among
+        them must be allowed (snapshot), and the copy is kept on the attempt
+        as what was submitted."""
         now = _utc(now)
         a = self._get(user_id, ATTEMPT + attempt_id)
         if not a:
             raise NotFound("no such attempt")
         if a["state"] == STARTED:
             return self.view(a)
+        snap = self.snapshot(user_id, answers, mode) if answers is not None else None
         if a["state"] != RESERVED:
             raise NotEligible(f"an attempt that is {a['state']} can't start a submission")
         if a["expires_at"] <= now.isoformat():
@@ -265,11 +315,12 @@ class Attempts:
         try:
             self.table.update_item(
                 Key={"user_id": user_id, "alert_id": ATTEMPT + attempt_id},
-                UpdateExpression="SET #s = :started, started_at = :t, audit = list_append(audit, :ev)",
+                UpdateExpression="SET #s = :started, started_at = :t, audit = list_append(audit, :ev)"
+                                 + (", ai_answers = :snap" if snap else ""),
                 ConditionExpression="#s = :reserved AND expires_at > :t",
                 ExpressionAttributeNames={"#s": "state"},
                 ExpressionAttributeValues={":started": STARTED, ":reserved": RESERVED, ":t": now.isoformat(),
-                                           ":ev": [self._audit("submission_started", now)]})
+                                           ":ev": [self._audit("submission_started", now)], **({":snap": snap} if snap else {})})
         except ClientError as e:
             if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
                 raise
@@ -278,6 +329,8 @@ class Attempts:
                 return self.view(again)  # started by a racing report
             raise Expired("the reservation expired; don't submit")
         a["state"], a["started_at"] = STARTED, now.isoformat()
+        if snap:
+            a["ai_answers"] = snap
         return self.view(a)
 
     # R4 to R7, R10
@@ -472,7 +525,10 @@ class Attempts:
             rows.append({"job_id": a["job_id"], "attempt_id": a["attempt_id"], "company": a.get("company") or "",
                          "title": a.get("title") or "", "url": a.get("url") or "", "status": shown.get(state, state),
                          "reason": a.get("reason") or "", "at": settled or a["reserved_at"],
-                         "disputable": state == UNCONFIRMED and bool(settled) and now - datetime.fromisoformat(settled) <= DISPUTE_WINDOW})
+                         "disputable": state == UNCONFIRMED and bool(settled) and now - datetime.fromisoformat(settled) <= DISPUTE_WINDOW,
+                         # The AI answers as they were sent, not as saved answers read now.
+                         **({"ai_answers": [{k: (int(v) if isinstance(v, Decimal) else v) for k, v in x.items()} for x in a["ai_answers"]]}
+                            if a.get("ai_answers") else {})})
         return rows
 
     def _attempts(self, user_id: str) -> list[dict]:
@@ -525,4 +581,5 @@ class Attempts:
     @staticmethod
     def view(a: dict) -> dict:
         return {k: (int(v) if isinstance(v, Decimal) else v) for k, v in a.items()
-                if k in ("attempt_id", "job_id", "state", "reserved_at", "expires_at", "started_at", "settled_at", "month", "day", "reason")}
+                if k in ("attempt_id", "job_id", "state", "reserved_at", "expires_at", "started_at", "settled_at", "month", "day", "reason",
+                         "ai_answers")}

@@ -739,7 +739,8 @@ def _history_view(rows: list[dict]) -> list[dict]:
 _ATTEMPT_REFUSALS = [
     (attempts.NotFound, 404, "not_found"), (attempts.Expired, 410, "expired"), (attempts.NotEligible, 409, "not_eligible"),
     (attempts.LimitReached, 402, "limit_reached"), (attempts.JobTaken, 409, "job_taken"),
-    (attempts.NotDisputable, 409, "not_disputable"), (attempts.Conflict, 409, "conflict"), (ValueError, 400, "invalid"),
+    (attempts.NotDisputable, 409, "not_disputable"), (attempts.Conflict, 409, "conflict"), (attempts.NeedsReview, 409, "needs_review"),
+    (ValueError, 400, "invalid"),
 ]
 
 
@@ -762,7 +763,9 @@ def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict
             return ok(200, {"attempt": A.view(row)})
         if len(parts) == 3 and method == "POST":
             if action == "submission-started":
-                return ok(200, {"attempt": A.submission_started(user_id, attempt_id), "submit": True})
+                answers = body.get("answers") if isinstance(body.get("answers"), list) else None
+                mode = body.get("mode") if body.get("mode") in ("auto", "card") else None
+                return ok(200, {"attempt": A.submission_started(user_id, attempt_id, answers=answers, mode=mode), "submit": True})
             if action == "settle":
                 questions = body.get("questions") if isinstance(body.get("questions"), list) else None
                 return ok(200, {"attempt": A.settle(user_id, attempt_id, str(body.get("outcome") or ""), str(body.get("reason") or ""),
@@ -773,7 +776,8 @@ def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict
     except tuple(e for e, _, _ in _ATTEMPT_REFUSALS) as e:
         status, code = next((s, c) for cls, s, c in _ATTEMPT_REFUSALS if isinstance(e, cls))
         attempts.log("refused", user_id, attempt_id, f"op={op} code={code}")
-        return ok(status, {"error": str(e), "code": code, "retryable": False})
+        return ok(status, {"error": str(e), "code": code, "retryable": False,
+                           **({"questions": e.questions} if isinstance(e, attempts.NeedsReview) else {})})
     except Exception as e:  # noqa: BLE001
         attempts.log("error", user_id, attempt_id, f"op={op} {type(e).__name__}")
         return ok(503, {"error": "Couldn't record that. Try the same request again.", "code": "unavailable", "retryable": True})

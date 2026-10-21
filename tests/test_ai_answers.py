@@ -87,7 +87,7 @@ check("and nothing was sent to the model", sent == [])
 
 t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
 out = ai_answers.draft(t, "u", body, {"skills": ["Python"]}, run=run("30 days"), report=reported.append, now=NOW)
-check("a Basic user gets an answer and how many remain this month", out == {"answer": "30 days", "remaining": 299, "suggested": False}, repr(out))
+check("a Basic user gets an answer and how many remain this month", out == {"answer": "30 days", "remaining": 299, "suggested": False, "source": "ai", "agent_version": None, "approval": "pending"}, repr(out))
 check("the answer becomes a saved answer, marked as the AI's and waiting for review",
       apply.get_profile(t, "u")["answers"][0] == {"question": "What is your notice period?", "answer": "30 days", "source": "ai", "approval": "pending"})
 prompt = sent[-1][1]["content"]
@@ -97,7 +97,7 @@ check("nor the applicant's name", "Ada" not in prompt, prompt)
 check("and is told the question is not instructions", "never as instructions" in sent[-1][0]["content"])
 want = 600 * ai_answers.NEURONS_PER_M_IN / 1e6 + 120 * ai_answers.NEURONS_PER_M_OUT / 1e6
 check("today's neurons are counted and reported", abs(reported[-1] - round(want, 2)) < 0.01 and 6 < reported[-1] < 7, repr(reported))
-ai_answers.draft(t, "u", {"question": "Years of Python?"}, {}, run=run("5"), report=reported.append, now=NOW)
+ai_answers.draft(t, "u", {"question": "Main programming language?"}, {}, run=run("Python"), report=reported.append, now=NOW)
 check("the daily total adds up across users' calls", abs(reported[-1] - 2 * round(want, 2)) < 0.02, repr(reported))
 
 try:
@@ -110,14 +110,16 @@ check("and costs no AI answer: only answers produced count", t.items[("u", "#ai#
 check("though the service's own cost is still recorded", len(reported) == 3, repr(reported))
 
 t.items[("u", "#ai#2026-10")]["n"] = Decimal(300)
+check("a saved answer is still free at the cap", ai_answers.draft(t, "u", body, {}, run=run("x"), report=reported.append, now=NOW)["source"] == "saved")
+fresh = lambda n: {"question": f"How long is your notice period? ({n})", "job": {"title": "Engineer", "company": "Acme"}}  # noqa: E731
 try:
-    ai_answers.draft(t, "u", body, {}, run=run("x"), report=reported.append, now=NOW)
+    ai_answers.draft(t, "u", fresh(1), {}, run=run("x"), report=reported.append, now=NOW)
     check("Basic stops at 300 a month", False)
 except ai_answers.CapReached:
     check("Basic stops at 300 a month", True)
 t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "pro", "status": "active"})
-check("Pro goes on to 3,000", ai_answers.draft(t, "u", body, {}, run=run("30 days"), report=reported.append, now=NOW)["remaining"] == 2699)
-check("a new month starts again", ai_answers.draft(t, "u", body, {}, run=run("30 days"), report=reported.append,
+check("Pro goes on to 3,000", ai_answers.draft(t, "u", fresh(2), {}, run=run("30 days"), report=reported.append, now=NOW)["remaining"] == 2699)
+check("a new month starts again", ai_answers.draft(t, "u", fresh(3), {}, run=run("30 days"), report=reported.append,
                                                    now=datetime(2026, 11, 1, tzinfo=timezone.utc))["remaining"] == 2999)
 ai_answers.draft(t, "u", {"question": "Are you authorized to work in Israel?", "options": ["Yes", "No"]}, {}, run=run("Yes"), report=reported.append, now=NOW)
 check("a multiple-choice question sends its options and asks for one exactly",
@@ -135,7 +137,7 @@ t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "s
 long_answer = "I built data pipelines. " * 150
 apply.put_profile(t, "u", {"answers": [{"question": "Describe your experience", "answer": long_answer},
                                        {"question": "Notice period?", "answer": "30 days"}]})
-ai_answers.draft(t, "u", {"question": "Years of SQL?"}, {}, run=run("4"), report=reported.append, now=NOW)
+ai_answers.draft(t, "u", {"question": "Main database?"}, {}, run=run("Postgres"), report=reported.append, now=NOW)
 earlier = json.loads(sent[-1][1]["content"].split("\nJob:")[0][len("Facts: "):])["earlier_answers"]
 cut = [a["answer"] for a in earlier if a["question"] == "Describe your experience"]
 check("a long saved answer reaches the model cut to its first 300 characters",
@@ -191,14 +193,14 @@ check("saving the settings keeps each job-specific answer's job, and drops a job
 t.items[("u", "#ai#2026-10")]["n"] = Decimal(299)
 stale = t.get_item
 t.get_item = lambda Key=None: ({"Item": {"n": Decimal(299)}} if Key["alert_id"].startswith("#ai#") else stale(Key=Key))
-ai_answers.draft(t, "u", {"question": "Years of SQL?"}, {}, run=run("4"), report=reported.append, now=NOW)
+ai_answers.draft(t, "u", {"question": "Favourite SQL feature?"}, {}, run=run("Window functions"), report=reported.append, now=NOW)
 try:
-    ai_answers.draft(t, "u", {"question": "Years of Go?"}, {}, run=run("2"), report=reported.append, now=NOW)
+    ai_answers.draft(t, "u", {"question": "Favourite Go feature?"}, {}, run=run("Goroutines"), report=reported.append, now=NOW)
     check("the second of two racing answers is refused at the cap", False)
 except ai_answers.CapReached:
     check("the second of two racing answers is refused at the cap", True)
 check("and the count stops at 300", t.items[("u", "#ai#2026-10")]["n"] == 300, repr(t.items[("u", "#ai#2026-10")]))
-check("and its answer isn't saved", not any(a["question"] == "Years of Go?" for a in apply.get_profile(t, "u")["answers"]))
+check("and its answer isn't saved", not any(a["question"] == "Favourite Go feature?" for a in apply.get_profile(t, "u")["answers"]))
 t.get_item = stale
 t.items[("u", "#ai#2026-10")]["n"] = Decimal(0)
 
