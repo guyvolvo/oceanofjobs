@@ -225,8 +225,12 @@ def json_ld(job, now=None) -> dict:
     domain = job.get("company_domain") or ""
     if "." in domain and not domain.endswith(".invalid"):
         org["sameAs"] = f"https://{domain}"
-    if job.get("logo_url"):
-        org["logo"] = job["logo_url"]
+    # Google takes a logo only as an image it can index (png, jpg, gif,
+    # webp, svg); a favicon .ico or Google's own favicon service is left
+    # out rather than offered as a logo it rejects.
+    logo = job.get("logo_url") or ""
+    if logo and "s2/favicons" not in logo and re.search(r"\.(png|jpe?g|gif|webp|svg)(\?|$)", logo, re.I):
+        org["logo"] = logo
     data = {
         "@context": "https://schema.org",
         "@type": "JobPosting",
@@ -235,6 +239,8 @@ def json_ld(job, now=None) -> dict:
         "datePosted": posted.date().isoformat() if posted else None,
         "hiringOrganization": org,
         "url": canonical_url(job["id"]),
+        # Applying happens on the employer's own page, which Google wants said.
+        "directApply": False,
     }
     closes = deadline(job, now)
     if closes:

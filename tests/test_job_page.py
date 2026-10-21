@@ -160,6 +160,11 @@ r3 = job_page.json_ld(job(location="Tel Aviv-Yafo, Tel Aviv District, Israel", c
 check("a spelled-out state or a non-US listing gets none",
       "addressRegion" not in r2["jobLocation"]["address"] and "addressRegion" not in r3["jobLocation"]["address"])
 check("validThrough is not invented when the text names no date", "validThrough" not in job_page.json_ld(job()))
+check("a png logo goes into the markup", job_page.json_ld(job())["hiringOrganization"].get("logo") == "https://wix.com/favicon.png")
+check("a favicon .ico is left out of the markup", "logo" not in job_page.json_ld(job(logo_url="https://amazon.com/favicon.ico"))["hiringOrganization"])
+check("Google's favicon service is left out of the markup",
+      "logo" not in job_page.json_ld(job(logo_url="https://www.google.com/s2/favicons?domain=x.com&sz=128"))["hiringOrganization"])
+check("directApply says the application happens elsewhere", job_page.json_ld(job())["directApply"] is False)
 old = job_page.render(job(salary_text="₪30K", salary_source=None, salary_is_estimate=1), NOW)
 check("the old boolean still reads as an estimate", ">Estimated salary<" in old)
 
