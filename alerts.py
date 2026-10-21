@@ -791,7 +791,7 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
     plural = "s" if n != 1 else ""
     count = count_text(n)
     title = f'{count} new job{plural} for "{name}"'
-    headline = (f'<span style="color:{_ACCENT};">{count}</span> new job{plural} for &ldquo;{esc(name)}&rdquo;')
+    headline = (f'<span style="color:{_ACCENT};">{count}</span> new job{plural} for &quot;{esc(name)}&quot;')
     # The inbox list shows this after the subject; nothing else does.
     preheader = f'{count} new job{plural} matching "{esc(name)}" since {since}'
     see_all = _button(board_url(alert), "See all matching jobs", pad="14px 24px", radius=12, width=220, height=46, font_px=15)
@@ -881,7 +881,7 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
 
           <tr>
             <td style="padding:24px 40px 0 40px; font-family:{_FONT}; font-size:13px; line-height:1.6; color:{_MUTED};">
-              You&rsquo;re getting this because you created an alert for &ldquo;{esc(name)}&rdquo; on oceanofjobs.com.<br />
+              You&#39;re getting this because you created an alert for &quot;{esc(name)}&quot; on oceanofjobs.com.<br />
               <span style="display:inline-block; padding-top:6px;"><a href="{account}" style="{link}">Manage alerts</a> &middot; {f'<a href="{esc(unsubscribe)}" style="{link}">Unsubscribe</a> &middot; ' if unsubscribe else ""}<a href="{SITE_ORIGIN}/" style="{link}">oceanofjobs.com</a></span>
             </td>
           </tr>

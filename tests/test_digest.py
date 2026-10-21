@@ -89,7 +89,7 @@ check("page, card and header colours", "background:#0a0a0b" in h
 # The header
 check("the lighthouse and the site name", f'<img src="{alerts.LOGO_PNG}" width="28" height="28"' in h and ">oceanofjobs.com</a></td>" in h)
 check("the count is green inside a 40px headline, 30px on a phone",
-      '<span style="color:#2fb36a;">4</span> new jobs for &ldquo;Israel&rdquo;' in h
+      '<span style="color:#2fb36a;">4</span> new jobs for &quot;Israel&quot;' in h
       and "font-size:40px; line-height:1.05; font-weight:500; letter-spacing:-0.03em" in h
       and ".otj-head { font-size: 30px !important;" in h)
 check("the since line carries the date", ">New since Sep 19</div>" in h)
@@ -129,7 +129,7 @@ check("the board link carries the alert's own filters, empty ones dropped",
 check("See all matching jobs, then Edit this alert",
       ">See all matching jobs</a>" in h and h.count(f'href="{_html.escape(board)}"') == 2 and ">Edit this alert</a>" in h)
 check("why you got this, and the links; no Unsubscribe without a one-click link to give",
-      "because you created an alert for &ldquo;Israel&rdquo; on oceanofjobs.com" in h
+      "because you created an alert for &quot;Israel&quot; on oceanofjobs.com" in h
       and ">Manage alerts</a>" in h and ">Unsubscribe</a>" not in h and h.count(f'href="{alerts.SITE_ORIGIN}/account"') == 2
       and f'href="{alerts.SITE_ORIGIN}/"' in h)
 alerts._unsub.SECRET = "s3cret"
@@ -170,7 +170,7 @@ check("text part: cleaned titles, no salary", "Data Engineer, Streaming & Batch"
 
 # Singular, and an alert with no filter at all
 one = alerts._digest_html(1, matches[:1], {"filter": {}}, NOW)
-check("singular reads right", '1</span> new job for &ldquo;your alert&rdquo;' in one and '1 new job matching "your alert"' in one
+check("singular reads right", '1</span> new job for &quot;your alert&quot;' in one and '1 new job matching "your alert"' in one
       and ">See all matching jobs</a>" in one)
 check("no filter means a bare board link", 'href="https://oceanofjobs.com/board"' in one)
 check("israel_only still reads as Israel", alerts._filter_summary({"filter": {"israel_only": True}}) == ["Israel"]
