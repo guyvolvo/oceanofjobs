@@ -60,7 +60,10 @@ with mock_aws():
                       {"id": "f2", "text": "I worked on Visa's payments team."}],
             "topics": {"referral_source": {"action": "answer", "value": "LinkedIn"}, "relocation": {"action": "ask"}},
             "never_claim": ["security clearance", "  ", "a PhD"], "review": "use"}
+    check("Send without review can't be turned on without a resume", refused(lambda: agent.put(table, "u", body), says="resume"))
+    agent.put_resume(table, "u", {"name": "cv.md", "text": "A resume long enough to keep, about a data engineer.", "consent": True})
     saved = agent.put(table, "u", body)
+    agent.delete_resume(table, "u")
     check("a save is stored as sent, cleaned, at version 1", saved["version"] == 1 and saved["style"]["tone"] == "warm"
           and saved["topics"]["referral_source"] == {"action": "answer", "value": "LinkedIn"}
           and saved["topics"]["relocation"] == {"action": "ask", "value": ""} and saved["never_claim"] == ["security clearance", "a PhD"]
@@ -159,6 +162,29 @@ with mock_aws():
     check("a language that isn't offered is refused", refused(lambda: agent.put(table, "u", {**agent.get(table, "u"), "style": {"language": "klingon"}}),
                                                            says="style.language"))
 
+    # A resume on any plan: it fills the search preferences and unlocks the
+    # hands-off settings, though only Basic and Pro let the AI use it.
+    s, b = call("PUT", "agent/resume", {"name": "cv.md", "text": "Free user, platform engineer. Python and Kubernetes, some Terraform.", "consent": True}, user="free")
+    check("Free can add a resume", s == 200 and agent.get_resume(table, "free"), repr(b))
+    check("its skills go into the search preferences", s == 200 and {"Python", "Kubernetes", "Terraform"} <= set(b["skills_added"])
+          and {"Python", "Kubernetes", "Terraform"} <= set(handler.route_get_profile("free")["profile"]["skills"]), repr(b))
+    handler.route_put_profile("free", {**handler.route_get_profile("free")["profile"], "skills": ["Go"]})
+    s, b = call("PUT", "agent/resume", {"name": "cv.md", "text": "Free user, platform engineer for six years. Python and Go.", "consent": True}, user="free")
+    check("added to the skills already there, never replacing them", b["skills_added"] == ["Python"]
+          and handler.route_get_profile("free")["profile"]["skills"] == ["Go", "Python"], repr(b))
+    s, b = call("PUT", "agent/resume", {"name": "cv.md", "text": "Free user, platform engineer for six years. Python and Go.", "consent": True}, user="free")
+    check("a skill already there isn't added twice", b["skills_added"] == [], repr(b))
+    agent.delete_resume(table, "free")
+    s, b = call("PUT", "profile", {"profile": {"settings": {"mode": "auto"}}}, user="free")
+    check("Apply automatically can't be turned on without a resume", s == 400 and b["code"] == "needs_resume", repr(b))
+    check("and the setting isn't saved", apply.get_profile(table, "free")["settings"]["mode"] != "auto")
+    call("PUT", "agent/resume", {"name": "cv.md", "text": "Free user, platform engineer for six years. Python and Go.", "consent": True}, user="free")
+    s, b = call("PUT", "profile", {"profile": {"settings": {"mode": "auto"}}}, user="free")
+    check("with one it can", s == 200 and b["profile"]["settings"]["mode"] == "auto", repr(b))
+    agent.delete_resume(table, "free")
+    s, b = call("PUT", "profile", {"profile": {"settings": {"mode": "auto"}, "contact": {"first_name": "Ada"}}}, user="free")
+    check("and once on, the profile still saves after the resume is removed", s == 200 and b["profile"]["settings"]["mode"] == "auto", repr(b))
+
     # The resume: its text, kept only with consent; never the file, never shown back.
     import ai_answers  # noqa: E402
     text = "Dana Example\nData engineer. Led a team of five at Acme 2021-2024. Built a Kafka pipeline for 2 billion events a day."
@@ -188,6 +214,10 @@ with mock_aws():
     check("the AI gets the resume as facts and can cite it", out["answer"] == "Yes" and "Built a Kafka pipeline" in seen[-1][1]["content"])
     s, _ = call("DELETE", "agent/resume")
     check("removing it deletes the text", s == 204 and agent.get_resume(table, "u") is None and agent.get(table, "u")["resume"] is None)
+    call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True})
+    agent.put(table, "u", {**agent.get(table, "u"), "review": "use"})
+    agent.delete_resume(table, "u")
+    check("Send without review, once on, stays on when the resume goes", agent.put(table, "u", {**agent.get(table, "u")})["review"] == "use")
     call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True})
     handler.route_apply("u", "DELETE", "", {"body": ""}, {})
     left = [i["alert_id"] for i in table.scan()["Items"] if i["user_id"] == "u" and i["alert_id"].startswith(("#agent", "#ai_rate"))]

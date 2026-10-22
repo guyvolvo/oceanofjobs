@@ -13,7 +13,7 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { apply, send, type Profile } from "./api";
-import { ConfirmDanger } from "./shared";
+import { ConfirmDanger, NeedsResume } from "./shared";
 
 const EEO = [["gender", "Gender"], ["race", "Race or ethnicity"], ["veteran", "Veteran status"], ["disability", "Disability"]] as const;
 type EeoKey = (typeof EEO)[number][0];
@@ -99,6 +99,11 @@ export function Settings() {
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
+  // Apply automatically needs a resume first (null while it's being checked).
+  const [hasResume, setHasResume] = useState<boolean | null>(null);
+  useEffect(() => {
+    apply<{ agent: { resume: unknown } }>("agent").then((r) => setHasResume(!!r.agent.resume)).catch(() => setHasResume(null));
+  }, []);
 
   const load = useCallback(() => {
     setLoadFailed(false);
@@ -193,8 +198,10 @@ export function Settings() {
             onValueChange={(v) => (v === "auto" ? setAsking(true) : set("mode", v as Form["mode"]))}>
             <Radio.Item value="queue" label="Only jobs I queue" description="The extension applies only to jobs you add to your queue." />
             <Radio.Item value="auto" label="Apply automatically" variant={form.mode === "auto" ? "error" : "default"} className="oj-danger"
+              disabled={hasResume === false && form.mode !== "auto"}
               description="The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below." />
           </Radio.Group>
+          {hasResume === false && form.mode !== "auto" ? <NeedsResume /> : null}
           <ConfirmDanger open={asking} title="Apply automatically?" confirm="Apply automatically"
             onConfirm={() => { set("mode", "auto"); setAsking(false); }} onCancel={() => setAsking(false)}>
             The auto apply extension will start applying to jobs automatically based on your preferences, up to your account limits.

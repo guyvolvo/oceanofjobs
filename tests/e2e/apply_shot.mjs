@@ -87,6 +87,22 @@ for (const mode of ["dark", "light"]) {
       const sw = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       if (sw > 0) overflow.push(`${mode} ${tag} ${section}: ${sw}px`);
       await page.screenshot({ path: join(out, `apply-${section}-${tag}-${mode}.png`), fullPage: true });
+      // No resume: the hands-off settings are locked, and the warning leads to the resume field.
+      if (section === "settings" && mode === "dark" && tag === "desktop") {
+        const flow = (ok, what) => { if (!ok) errors.push(`resume lock: ${what}`); };
+        flow(await page.getByRole("radio", { name: /Apply automatically/ }).isDisabled(), "Apply automatically should be disabled without a resume");
+        await page.getByRole("button", { name: "To use this setting, add your resume." }).click();
+        await page.waitForTimeout(1500);
+        flow(page.url().endsWith("#agent"), "the warning should open the AI agent tab");
+        flow(await page.locator(".oj-attention").isVisible(), "the resume field should be highlighted");
+        flow(await page.getByRole("radio", { name: "Send without review" }).isDisabled(), "Send without review should be disabled without a resume");
+        await page.screenshot({ path: join(out, `apply-resume-attention-${tag}-${mode}.png`) });
+        await page.locator(".oj-attention").click({ position: { x: 4, y: 4 } });
+        flow(!(await page.locator(".oj-attention").count()), "the highlight should clear once the field is touched");
+        await page.getByRole("button", { name: "To use this setting, add your resume." }).click();
+        await page.waitForTimeout(800);
+        flow(await page.locator(".oj-attention").isVisible(), "the warning on the AI agent tab should highlight the field again");
+      }
       if (section === "needs") {
         await page.getByRole("button", { name: "Refund credit" }).first().click();
         await page.waitForTimeout(400);

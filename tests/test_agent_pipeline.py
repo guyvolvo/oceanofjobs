@@ -237,7 +237,10 @@ with mock_aws():
 
     s, b = gate(reserve(3), [{"question": "Why are you a great fit?", "answer": "I like shipping things.", "source": "ai"}])
     check("an AI answer that was never saved counts as pending", s == 409 and b["code"] == "needs_review")
+    # Turning it on needs a resume; out again at once, so the prompts stay as they were.
+    agent.put_resume(table, "u", {"name": "cv.md", "text": "A resume long enough to keep, about a data engineer.", "consent": True}, now=NOW)
     agent.put(table, "u", {**agent.get(table, "u"), "review": "use"}, now=NOW)
+    agent.delete_resume(table, "u")
     s, b = gate(reserve(4), [{"question": "Why are you a great fit?", "answer": "I like shipping things.", "source": "ai"}])
     check("with automatic use on, it passes, marked automatic", s == 200 and b["attempt"]["ai_answers"][0]["allowed_by"] == "automatic")
     draft("Do you have experience with Python?", "Yes | skills: Python")
@@ -310,7 +313,10 @@ with mock_aws():
         check("with no posting, nothing is drafted", False)
     except ai_answers.CantAnswer as e:
         check("with no posting, nothing is drafted, and the model isn't asked", "no job posting" in str(e) and len(sent) == calls)
+    # Turning it on needs a resume; out again at once, so the prompts stay as they were.
+    agent.put_resume(table, "u", {"name": "cv.md", "text": "A resume long enough to keep, about a data engineer.", "consent": True}, now=NOW)
     agent.put(table, "u", {**agent.get(table, "u"), "review": "use"}, now=NOW)
+    agent.delete_resume(table, "u")
     motive_q = "What do you like about this company?"
     ai_answers.draft(table, "u", {"question": motive_q, "job": {"id": "f6f6f6f6f6f6f6f6"}}, {}, run=model(
         "I like that Cyera is building a security operating model for the age of AI and an AI-assisted SOC from the ground up."),

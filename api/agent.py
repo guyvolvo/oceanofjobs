@@ -118,6 +118,12 @@ def get(table, user_id: str, agent_id: str = DEFAULT_ID) -> dict:
     return {**agent, "editable": apply.plan_of(table, user_id) in ai_answers.CAPS, "resume": resume_view(get_resume(table, user_id, agent_id))}
 
 
+# Turning on a setting that acts without the user checking first needs a
+# resume: answers and matches are then drawn from it, not from a few facts.
+# A setting already on stays on.
+NEEDS_RESUME = "Add your resume on the AI agent tab to use this setting"
+
+
 def put(table, user_id: str, body: dict, now: datetime | None = None, agent_id: str = DEFAULT_ID) -> dict:
     """Saves the agent if it's still at body["version"]; Conflict if it was
     saved meanwhile. The version goes up by one."""
@@ -129,6 +135,8 @@ def put(table, user_id: str, body: dict, now: datetime | None = None, agent_id: 
     except (TypeError, ValueError):
         raise ValueError("version is required: the one the agent was loaded at") from None
     item = {**clean(body), "version": expected + 1, "updated_at": now.isoformat(), "user_id": user_id, "alert_id": AGENT + agent_id}
+    if item["review"] == "use" and load(table, user_id, agent_id)["review"] != "use" and not get_resume(table, user_id, agent_id):
+        raise ValueError(NEEDS_RESUME)
     cond = ({"ConditionExpression": "attribute_not_exists(alert_id)"} if expected == 0 else
             {"ConditionExpression": "version = :v", "ExpressionAttributeValues": {":v": expected}})
     try:
@@ -455,8 +463,6 @@ def resume_view(row: dict | None) -> dict | None:
 def put_resume(table, user_id: str, body: dict, now: datetime | None = None, agent_id: str = DEFAULT_ID) -> dict:
     now = now or datetime.now(timezone.utc)
     body = body if isinstance(body, dict) else {}
-    if apply.plan_of(table, user_id) not in ai_answers.CAPS:
-        raise NotIncluded("Your own AI agent is part of Basic and Pro")
     if body.get("consent") is not True:
         raise ValueError("Agree to the privacy policy to add your resume")
     name = str(body.get("name") or "").strip()[:200]

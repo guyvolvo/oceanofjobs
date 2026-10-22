@@ -168,6 +168,19 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 /* The AI agent tab (Agent.tsx). A fieldset only to disable it all on Free. */
 .oj-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .oj-grow { flex: 1; min-width: 0; }
+/* A setting that needs a resume: a yellow-outlined link to the resume field,
+   which then stays highlighted until it's touched. */
+.oj-needs-resume { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
+  padding: 8px 12px; border: 1px solid var(--color-kumo-warning); border-radius: 8px; cursor: pointer;
+  color: var(--text-color-kumo-strong); font-size: 14px; line-height: 1.4; }
+.oj-needs-resume svg { flex: none; width: 18px; height: 18px; color: var(--text-color-kumo-warning); }
+.oj-needs-resume:hover { background: var(--color-kumo-warning-tint); }
+.oj-needs-resume:focus-visible { outline: 2px solid var(--color-kumo-focus); outline-offset: 2px; }
+.oj-attention { border-color: var(--color-kumo-warning); animation: oj-attention 1.6s ease-in-out infinite; }
+@keyframes oj-attention {
+  0%, 100% { box-shadow: 0 0 0 2px var(--color-kumo-warning-tint); }
+  50% { box-shadow: 0 0 0 6px var(--color-kumo-warning-tint); }
+}
 /* Disabled only until the consent box is ticked, so it stays legible. */
 .oj-waiting:disabled { opacity: 0.75; }
 .oj-try-answer { margin: 0; white-space: pre-wrap; color: var(--text-color-kumo-strong); }

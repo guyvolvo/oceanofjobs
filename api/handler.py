@@ -55,7 +55,7 @@ from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKP
                      empty_profile)
 import dashboard
 from saved import is_saved_id, job_id_of, saved_id
-from skills import spec as skill_spec
+from skills import extract_labels as extract_skill_labels, spec as skill_spec
 from job_filters import (FRESH_CLAUSE, IL_KEYWORDS, MAX_SEARCH_TERMS, bool_param, category_sql,
                          count_index_hint,
                          build_jobs_where, has_fts_index, has_places, has_role_class,
@@ -826,7 +826,11 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             return ok(200, {"profile": profile,
                             "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
         if method == "PUT":
-            return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, body.get("profile") or {})})
+            new = body.get("profile") or {}
+            if ((new.get("settings") or {}).get("mode") == "auto" and apply.get_profile(_alerts_table, user_id)["settings"]["mode"] != "auto"
+                    and not agent.get_resume(_alerts_table, user_id)):
+                return ok(400, {"error": agent.NEEDS_RESUME, "code": "needs_resume"})
+            return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, new)})
     if sub == "agent/resume" and method in ("PUT", "DELETE"):
         # Added or removed only from /apply with a signed-in session.
         if event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("token_use") == "ooj":
@@ -835,11 +839,10 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             agent.delete_resume(_alerts_table, user_id)
             return ok(204)
         try:
-            return ok(200, {"resume": agent.put_resume(_alerts_table, user_id, body)})
-        except agent.NotIncluded as e:
-            return ok(402, {"error": str(e), "code": "not_included"})
+            saved = agent.put_resume(_alerts_table, user_id, body)
         except ValueError as e:
             return ok(400, {"error": str(e), "code": "invalid"})
+        return ok(200, {"resume": saved, "skills_added": _skills_from_resume(user_id, str(body.get("text") or "")[:agent.MAX_RESUME])})
     if sub == "agent":
         token_use = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("token_use")
         if method == "GET":
@@ -2438,6 +2441,19 @@ def _dashboard_in_background(user_id: str, profile: dict, key: str) -> None:
                 _dashboard_running.discard(user_id)
 
     threading.Thread(target=run, name="dashboard", daemon=True).start()
+
+
+def _skills_from_resume(user_id: str, text: str) -> list[str]:
+    """The resume's skills, added to the search preferences that automatic
+    applying matches against. Added, not replaced: skills the user picked
+    themselves stay."""
+    current = route_get_profile(user_id)["profile"]
+    have = set(current.get("skills") or [])
+    new = [s for s in extract_skill_labels(text) if s not in have]
+    if not new:
+        return []
+    saved = route_put_profile(user_id, {**current, "skills": [*(current.get("skills") or []), *new]})["profile"]["skills"]
+    return [s for s in saved if s not in have]
 
 
 def route_put_profile(user_id: str, body: dict) -> dict:

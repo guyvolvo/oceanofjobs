@@ -14,7 +14,7 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { FileArrowUp, Info, Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { apply, send, ApiError } from "./api";
-import { ConfirmDanger } from "./shared";
+import { ConfirmDanger, NeedsResume, RESUME_FOCUS } from "./shared";
 
 type Topic = "referral_source" | "start_date" | "relocation" | "onsite_days" | "why_company" | "why_role";
 type Action = "answer" | "ai" | "ask";
@@ -126,19 +126,34 @@ async function readResume(file: File): Promise<string> {
   throw new Error(ext === "doc" ? "Save it as a .docx file first, then add it." : "Add a PDF, DOCX or Markdown file.");
 }
 
-function ResumeField({ resume, editable, onChange }: { resume: Resume; editable: boolean; onChange: (r: Resume) => void }) {
+// On every plan: the resume fills the search preferences and unlocks the
+// hands-off settings; on Basic and Pro the AI also answers from it.
+function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r: Resume) => void }) {
   const toasts = useKumoToastManager();
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [attention, setAttention] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const show = () => { setAttention(true); box.current?.scrollIntoView({ behavior: "smooth", block: "center" }); };
+    try {
+      if (sessionStorage.getItem(RESUME_FOCUS)) { sessionStorage.removeItem(RESUME_FOCUS); show(); }
+    } catch { /* storage blocked: the warning on this tab still works */ }
+    addEventListener(RESUME_FOCUS, show);
+    return () => removeEventListener(RESUME_FOCUS, show);
+  }, []);
   const add = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
     try {
       const text = await readResume(file);
-      const r = await apply<{ resume: Resume }>("agent/resume", send("PUT", { name: file.name, text, consent: true }));
+      const r = await apply<{ resume: Resume; skills_added?: string[] }>("agent/resume", send("PUT", { name: file.name, text, consent: true }));
       onChange(r.resume);
-      toasts.add({ variant: "success", title: "Resume added", description: "The AI can now answer from it." });
+      const added = r.skills_added || [];
+      toasts.add({ variant: "success", title: "Resume added", description: added.length
+        ? `Added ${added.length} skill${added.length === 1 ? "" : "s"} to your search preferences: ${added.slice(0, 6).join(", ")}${added.length > 6 ? ", and more" : ""}.`
+        : "Your search preferences already have its skills." });
     } catch (e) {
       toasts.add({ variant: "error", title: "Couldn't add your resume", description: e instanceof Error && e.message ? e.message : "Try again." });
     } finally {
@@ -168,16 +183,16 @@ function ResumeField({ resume, editable, onChange }: { resume: Resume; editable:
             {resume.chars.toLocaleString()} characters{resume.truncated ? ", the first 8,000 kept" : ""} · added {new Date(resume.uploaded_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
           </span>
         </div>
-        <Button size="sm" variant="secondary" loading={busy} disabled={!editable} onClick={remove}>Remove</Button>
+        <Button size="sm" variant="secondary" loading={busy} onClick={remove}>Remove</Button>
       </div>
     );
   }
   return (
-    <div className="oj-answer">
-      <Checkbox checked={agree} disabled={!editable} onCheckedChange={(c) => setAgree(c === true)}
-        label={<>I agree to the <a className="oj-link" href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>. My resume's text is saved to my account so the AI can answer from it.</>} />
+    <div ref={box} className={attention ? "oj-answer oj-attention" : "oj-answer"} onPointerDown={() => setAttention(false)} onFocus={() => setAttention(false)}>
+      <Checkbox checked={agree} onCheckedChange={(c) => setAgree(c === true)}
+        label={<span>I agree to the <a className="oj-link" href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>. My resume's text is saved to my account, its skills are added to my search preferences, and on Basic and Pro the AI answers from it.</span>} />
       <div className="oj-row">
-        <Button variant="secondary" className="oj-waiting" icon={<FileArrowUp />} loading={busy} disabled={!editable || !agree} onClick={() => input.current?.click()}>Add resume</Button>
+        <Button variant="secondary" className="oj-waiting" icon={<FileArrowUp />} loading={busy} disabled={!agree} onClick={() => input.current?.click()}>Add resume</Button>
         <span className="oj-note">PDF, DOCX or Markdown</span>
       </div>
       <input ref={input} type="file" accept=".pdf,.docx,.md" hidden onChange={(e) => add(e.target.files?.[0])} />
@@ -299,18 +314,27 @@ export function Agent() {
               onValueChange={(v) => (v === "use" ? setAsking(true) : set("review", v as Form["review"]))}>
               <Radio.Legend className="sr-only">When the AI writes a new answer</Radio.Legend>
               <Radio.Item value="pause" label="Review before sending" />
-              <Radio.Item value="use" label="Send without review" variant={form.review === "use" ? "error" : "default"} className="oj-danger" />
+              <Radio.Item value="use" label="Send without review" variant={form.review === "use" ? "error" : "default"} className="oj-danger"
+                disabled={!resume && form.review !== "use"} />
             </Radio.Group>
+            {!resume && form.review !== "use" ? <NeedsResume /> : null}
             <ConfirmDanger open={asking} title="Send AI answers without review?" confirm="Send without review"
               onConfirm={() => { set("review", "use"); setAsking(false); }} onCancel={() => setAsking(false)} />
           </Card>
+        </div>
+      </fieldset>
 
           <Card title="About you" note={["Add facts the AI can use when answering questions. Only include things that are true. For example: \"I led a team of five engineers at Acme from 2021 to 2024.\"",
             <>Salary, notice period, work authorization, and location are managed in <a className="oj-link" href="#settings">Settings</a>.</>]}>
-            <ResumeField resume={resume} editable={editable} onChange={setResume} />
-            <List items={form.facts} onChange={(r) => set("facts", r)} max={LIMITS.facts} limit={LIMITS.fact} label="Fact" area
-              placeholder="A fact about your experience" />
+            <ResumeField resume={resume} onChange={setResume} />
+            <fieldset className="oj-fieldset" disabled={!editable}>
+              <List items={form.facts} onChange={(r) => set("facts", r)} max={LIMITS.facts} limit={LIMITS.fact} label="Fact" area
+                placeholder="A fact about your experience" />
+            </fieldset>
           </Card>
+
+      <fieldset className="oj-fieldset" disabled={!editable}>
+        <div className="oj-stack">
 
           <Card title="Common questions" note="Set answers to questions you're often asked. The AI uses your saved answers and facts, and leaves a question unanswered when it doesn't have enough information.">
             <div className="oj-stack">

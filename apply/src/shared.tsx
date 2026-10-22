@@ -4,8 +4,27 @@ import { Button } from "@cloudflare/kumo/components/button";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { WarningCircle } from "@phosphor-icons/react";
 import type { QueueItem, Status } from "./api";
 import { ask, connectExtension, type Ext } from "./ext";
+
+// A setting that needs a resume first. The warning takes the user to the
+// resume field on the AI agent tab, which stays highlighted until they
+// touch it (Agent.tsx ResumeField listens for RESUME_FOCUS).
+export const RESUME_FOCUS = "ooj-resume-focus";
+export function NeedsResume() {
+  const go = () => {
+    if (location.hash === "#agent") return dispatchEvent(new Event(RESUME_FOCUS));
+    try { sessionStorage.setItem(RESUME_FOCUS, "1"); } catch { /* the tab still opens */ }
+    location.hash = "agent";
+  };
+  return (
+    <button type="button" className="oj-needs-resume" onClick={go}>
+      <WarningCircle weight="bold" aria-hidden="true" />
+      To use this setting, add your resume.
+    </button>
+  );
+}
 
 // Each state looks different from the rest. Filled in particular is never
 // green: the form was filled, nobody pressed submit.

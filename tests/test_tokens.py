@@ -265,6 +265,9 @@ check("an extension token carries no MCP permissions", "permissions" not in toke
 
 # The extension's whole round trip through serve.py and handler.route_apply.
 status, body = call("/api/me/apply/profile", "PUT", ext, {"profile": {"contact": {"first_name": "Ada"}, "settings": {"mode": "auto"}}})
+check("the extension can't turn on Apply automatically without a resume", status.startswith("400") and b"needs_resume" in body, status)
+table.items[("u-ext", "#agent_resume#default")] = {"user_id": "u-ext", "alert_id": "#agent_resume#default", "text": "A resume."}
+status, body = call("/api/me/apply/profile", "PUT", ext, {"profile": {"contact": {"first_name": "Ada"}, "settings": {"mode": "auto"}}})
 check("the extension token saves the application profile", status.startswith("200") and json.loads(body)["profile"]["settings"]["mode"] == "auto", status)
 status, body = call("/api/me/apply/profile", auth=ext)
 got = json.loads(body)
