@@ -254,8 +254,16 @@ const last = (pred) => [...requests].reverse().find(pred);
   await page.getByRole("button", { name: "New token" }).click();
   await page.getByLabel("Token name").fill("Cursor desktop");
   check("a token's permissions are listed", await page.getByText("Read and write: saved jobs, alerts · Read: search preferences").isVisible());
-  await page.getByRole("button", { name: "Read and write everything" }).click();
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "New token" });
+  check("New token opens a dialog that starts at read everything",
+    await dialog.isVisible() && await dialog.getByRole("checkbox", { name: "Read all" }).isChecked()
+      && !(await dialog.getByRole("checkbox", { name: "Write alerts" }).isChecked()));
+  await dialog.getByRole("checkbox", { name: "Read all" }).click();
+  check("clearing Read all leaves nothing, and Create token waits", await dialog.getByRole("button", { name: "Create token" }).isDisabled());
+  await dialog.getByRole("checkbox", { name: "Write alerts" }).click();
+  check("ticking Write ticks Read on the same row", await dialog.getByRole("checkbox", { name: "Read alerts" }).isChecked());
+  await dialog.getByRole("checkbox", { name: "Write all" }).click();
+  await dialog.getByRole("button", { name: "Create token" }).click();
   await page.waitForTimeout(300);
   check("create token posts name, 90 days and the permissions picked",
     last((r) => r.method === "POST" && r.path === "/api/me/tokens")?.body
@@ -305,7 +313,12 @@ for (const mode of ["dark", "light"]) {
       await page.reload({ waitUntil: "networkidle" });
       await page.waitForTimeout(section === "overview" ? 1200 : 400);
       if (section === "preferences") await page.getByRole("button", { name: /Alert intervals/ }).click();
-      if (section === "settings") await page.getByRole("button", { name: "New token" }).click();
+      if (section === "settings") {
+        await page.getByRole("button", { name: "New token" }).click();
+        await page.getByRole("dialog", { name: "New token" }).waitFor();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(out, `account-token-dialog-${tag}-${mode}.png`) });
+      }
       if (section === "skills") await page.getByRole("button", { name: "Save to profile" }).waitFor();
       await shot(section);
     }

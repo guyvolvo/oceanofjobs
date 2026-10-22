@@ -7,6 +7,8 @@ import { Select } from "@cloudflare/kumo/components/select";
 import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Table } from "@cloudflare/kumo/components/table";
 import { Loader } from "@cloudflare/kumo/components/loader";
+import { Dialog } from "@cloudflare/kumo/components/dialog";
+import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus } from "@phosphor-icons/react";
 import { api, send } from "../api";
@@ -35,6 +37,41 @@ const mask = (tok: string) => tok.slice(0, 12) + "…";
 const AREAS: [string, string][] = [["saved", "Saved jobs"], ["queue", "Auto apply queue"], ["alerts", "Alerts"], ["preferences", "Search preferences"]];
 const ACCESS: Record<Access, string> = { none: "No access", read: "Read", write: "Read and write" };
 const every = (a: Access) => Object.fromEntries(AREAS.map(([k]) => [k, a])) as Record<string, Access>;
+type Perms = Record<string, Access>;
+// Writing needs reading: Write ticks Read too, and clearing Read clears Write.
+const withRead = (p: Perms, k: string, on: boolean): Perms => ({ ...p, [k]: on ? (p[k] === "write" ? "write" : "read") : "none" });
+const withWrite = (p: Perms, k: string, on: boolean): Perms => ({ ...p, [k]: on ? "write" : p[k] === "none" ? "none" : "read" });
+
+// The new token's permissions: a row per area, a column each for read and
+// write, and a box at the top of each column for all of them.
+function PermissionGrid({ perms, setPerms }: { perms: Perms; setPerms: (p: Perms) => void }) {
+  const reads = AREAS.filter(([k]) => perms[k] !== "none").length;
+  const writes = AREAS.filter(([k]) => perms[k] === "write").length;
+  const all = (fn: typeof withRead, on: boolean) => setPerms(AREAS.reduce((p, [k]) => fn(p, k, on), perms));
+  return (
+    <table className="oj-perm-table">
+      <caption className="oj-pref-label">Permissions</caption>
+      <thead>
+        <tr>
+          <th scope="col">Permission</th>
+          <th scope="col"><Checkbox label="Read all" checked={reads === AREAS.length} indeterminate={reads > 0 && reads < AREAS.length}
+            onCheckedChange={(c) => all(withRead, c === true)} /></th>
+          <th scope="col"><Checkbox label="Write all" checked={writes === AREAS.length} indeterminate={writes > 0 && writes < AREAS.length}
+            onCheckedChange={(c) => all(withWrite, c === true)} /></th>
+        </tr>
+      </thead>
+      <tbody>
+        {AREAS.map(([k, label]) => (
+          <tr key={k}>
+            <th scope="row">{label}</th>
+            <td><Checkbox aria-label={`Read ${label.toLowerCase()}`} checked={perms[k] !== "none"} onCheckedChange={(c) => setPerms(withRead(perms, k, c === true))} /></td>
+            <td><Checkbox aria-label={`Write ${label.toLowerCase()}`} checked={perms[k] === "write"} onCheckedChange={(c) => setPerms(withWrite(perms, k, c === true))} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 function canDo(p: Record<string, Access>) {
   const of = (a: Access) => AREAS.filter(([k]) => p[k] === a).map(([, label]) => label.toLowerCase());
@@ -120,31 +157,24 @@ function Tokens() {
   return (
     <Card title="Personal access tokens"
       action={<Button variant="primary" icon={<Plus />} disabled={full} title={full ? "Five tokens at most. Revoke one first." : undefined}
-        aria-expanded={formOpen} aria-controls="token-form" onClick={() => setFormOpen(!formOpen)}>New token</Button>}>
-      {formOpen ? (
-        <form id="token-form" className="oj-form" onSubmit={(e) => { e.preventDefault(); create(); }}>
-          <Input label="Token name" maxLength={60} placeholder="Name, e.g. Claude Code laptop" autoComplete="off" autoFocus
-            value={name} onChange={(e) => setName(e.target.value)} />
-          <Select className="oj-select" label="Expires" value={expiry} onValueChange={(v) => setExpiry(String(v ?? ""))}
-            items={{ "30": "Expires in 30 days", "90": "Expires in 90 days", "": "Never expires" }} />
-          <fieldset className="oj-perms oj-wide">
-            <legend className="oj-pref-label">Permissions</legend>
-            <div className="oj-row">
-              <Button size="sm" variant="secondary" onClick={() => setPerms(every("read"))}>Read everything</Button>
-              <Button size="sm" variant="secondary" onClick={() => setPerms(every("write"))}>Read and write everything</Button>
+        onClick={() => setFormOpen(true)}>New token</Button>}>
+      <Dialog.Root open={formOpen} onOpenChange={(o) => { if (!o) setFormOpen(false); }}>
+        <Dialog className="oj-dialog oj-token-dialog">
+          <Dialog.Title className="oj-card-title">New token</Dialog.Title>
+          <form className="oj-stack" onSubmit={(e) => { e.preventDefault(); create(); }}>
+            <Input label="Token name" maxLength={60} placeholder="Name, e.g. Claude Code laptop" autoComplete="off" autoFocus
+              value={name} onChange={(e) => setName(e.target.value)} />
+            <Select className="oj-select" label="Expires" value={expiry} onValueChange={(v) => setExpiry(String(v ?? ""))}
+              items={{ "30": "Expires in 30 days", "90": "Expires in 90 days", "": "Never expires" }} />
+            <PermissionGrid perms={perms} setPerms={setPerms} />
+            {nothing ? <p className="oj-error" role="alert">Give the token at least one permission.</p> : null}
+            <div className="oj-row oj-dialog-actions">
+              <Button variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button>
+              <Button type="submit" variant="primary" loading={busy} disabled={nothing}>Create token</Button>
             </div>
-            {AREAS.map(([k, label]) => (
-              <Select key={k} className="oj-select" label={label} value={perms[k]} onValueChange={(v) => setPerms((p) => ({ ...p, [k]: v as Access }))}
-                items={ACCESS} />
-            ))}
-            {nothing ? <p className="oj-error" role="alert">Give the token access to at least one thing.</p> : null}
-          </fieldset>
-          <div className="oj-row oj-wide">
-            <Button type="submit" size="sm" variant="primary" loading={busy} disabled={nothing}>Create</Button>
-            <Button size="sm" variant="ghost" onClick={() => setFormOpen(false)}>Cancel</Button>
-          </div>
-        </form>
-      ) : null}
+          </form>
+        </Dialog>
+      </Dialog.Root>
       {made ? (
         <div className="oj-stack oj-made">
           <p className="oj-note">Copy this token now. It will not be shown again.</p>

@@ -74,10 +74,16 @@
 .oj-pref.is-open .oj-pref-chev { transform: rotate(90deg); }
 .oj-pref-edit { padding: 0 0 16px; }
 
-/* A new token's permissions: the shortcuts, then one picker per area. */
-.oj-perms { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); margin: 0; padding: 0; border: 0; min-width: 0; }
-.oj-perms > legend { padding: 0; margin-bottom: 8px; }
-.oj-perms > .oj-row, .oj-perms > .oj-error { grid-column: 1 / -1; }
+/* The new-token dialog and its permissions: Permission | Read | Write. */
+/* Centred both ways; Kumo's dialog sits near the top. */
+.oj-token-dialog { width: 520px; top: 50%; translate: -50% -50%; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.oj-perm-table { width: 100%; border-collapse: collapse; }
+.oj-perm-table caption { text-align: left; padding-bottom: 6px; }
+.oj-perm-table th, .oj-perm-table td { padding: 10px 8px; border-top: 1px solid var(--color-kumo-hairline); text-align: left; font-weight: 400; }
+.oj-perm-table thead th { border-top: 0; color: var(--text-color-kumo-subtle); font-size: 13px; white-space: nowrap; }
+.oj-perm-table tbody th { color: var(--text-color-kumo-strong); }
+.oj-perm-table th:first-child { padding-left: 0; }
+.oj-perm-table th:not(:first-child), .oj-perm-table td { width: 1%; white-space: nowrap; }
 
 /* A token or a command, masked, with its Copy button. */
 .oj-secret { display: flex; align-items: center; gap: 8px; min-width: 0; }
