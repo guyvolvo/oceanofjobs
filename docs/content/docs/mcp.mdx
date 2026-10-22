@@ -8,7 +8,7 @@ import { ClientIcon } from '@/components/client-icon';
 
 **Server URL:** https://oceanofjobs.com/mcp
 
-The server uses Streamable HTTP and requires no API key. The three search tools are read-only and need no account. The saved jobs and auto apply tools change your account and need a token.
+The server uses Streamable HTTP and requires no API key. The three search tools are read-only and need no account. The saved jobs, auto apply, alert and preference tools work on your account and need a token.
 
 ## Connect a client
 
@@ -136,7 +136,7 @@ If your client only supports locally running MCP servers, you can connect throug
 
 ## Available tools
 
-The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs) and three for your [auto apply queue](#auto-apply-queue) need a personal access token.
+The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs), three for your [auto apply queue](#auto-apply-queue), four for your [alerts](#alerts) and two for your [search preferences](#search-preferences) need a personal access token.
 
 ### `search_jobs`
 
@@ -202,13 +202,35 @@ Three tools hand jobs to the Ocean of Jobs Chrome extension, which applies to th
 
 Queueing only works after you turn on **Jobs queued by my AI assistant through MCP** in your [auto apply settings](https://oceanofjobs.com/account#aa-settings). Until then `queue_for_auto_apply` answers with an error that says so. These tools need the same personal access token as the saved-jobs tools.
 
+## Alerts
+
+An alert is a saved search: Ocean of Jobs emails you new jobs that match it. "Email me new senior DevOps jobs in Tel Aviv" becomes one `create_alert` call. You can have up to five.
+
+| Tool | What it does |
+|---|---|
+| `list_alerts` | Lists your alerts, each with its filter and whether it's on. |
+| `create_alert` | Creates an alert from a filter: `search`, `department`, `seniority`, `workplace`, `company`, `country`, `city`, `skills` or `salary_min`. |
+| `update_alert` | Pauses or resumes an alert, or replaces its filter. A new filter only emails jobs posted from then on. |
+| `delete_alert` | Deletes an alert. |
+
+The email goes to the address your account had when you made the token. A token made before 22 October 2026 can list, change and delete alerts but can't create one; make a new token for that.
+
+## Search preferences
+
+Your preferences are your skills, the seniority, workplace and places you want, and when alert emails go out. Best matches on the board and your account overview use them.
+
+| Tool | What it does |
+|---|---|
+| `get_preferences` | Reads your preferences. |
+| `update_preferences` | Changes only the fields it's given. A list replaces the old one, so an assistant reads your preferences first to add a skill. Skills Ocean of Jobs doesn't know are dropped, and the answer shows what was kept. |
+
 ### Create a token
 
 1. Sign in at [oceanofjobs.com/account](https://oceanofjobs.com/account) and open **Settings**.
 2. Under **Personal access tokens**, choose **New token**, give it a name and an expiry, and select **Create**.
 3. Copy the token. It starts with `ooj_` and is shown only once.
 
-A token can only read and change your saved jobs and your auto apply queue. It can't see your profile, alerts or email address, and it can't create other tokens. You can have up to five, and revoking one on the same page stops it working straight away.
+A token can read and change your saved jobs, auto apply queue, alerts and search preferences. It can't see or change your auto apply profile, AI agent or resume, and it can't create other tokens. You can have up to five, and revoking one on the same page stops it working straight away.
 
 ### Add the token to your client
 
@@ -232,7 +254,7 @@ In a client with a JSON configuration, such as Cursor or VS Code:
 }
 ```
 
-If your client has no way to set a header, the saved-jobs and queue tools aren't available in it. At the time of writing that includes the Claude and ChatGPT connector settings, which only offer OAuth sign-in.
+If your client has no way to set a header, the account tools aren't available in it. At the time of writing that includes the Claude and ChatGPT connector settings, which only offer OAuth sign-in.
 
 Treat a token like a password. Don't paste it into a chat or commit it to a repository.
 

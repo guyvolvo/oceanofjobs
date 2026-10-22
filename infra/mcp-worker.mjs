@@ -47,7 +47,7 @@ const SITE = "https://oceanofjobs.com";
 // change in what we store retire every old entry at once.
 const CACHE_PREFIX = SITE + "/__mcp_cache/v1";
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
-const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.0.1", websiteUrl: SITE };
+const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.1.0", websiteUrl: SITE };
 const MAX_LIMIT = 25;
 const MAX_OFFSET = 200;
 const MAX_TTL = 300;
@@ -81,9 +81,9 @@ const INSTRUCTIONS =
   "Ocean of Jobs page) and apply_url (the employer's page) on their own lines, never inside a " +
   "table cell. Results are capped at 25 per call and offset 200; for " +
   "bulk data use the public REST API documented at " + SITE + "/api/help. " +
-  "save_job, list_saved_jobs, remove_saved_job and the three auto apply queue tools work on the " +
-  "user's own Ocean of Jobs account and need a personal access token sent as Authorization: " +
-  "Bearer ooj_...; save or queue a job only when the user asks for it.";
+  "The saved job, auto apply queue, alert and preference tools work on the user's own Ocean of " +
+  "Jobs account and need a personal access token sent as Authorization: Bearer ooj_...; save or " +
+  "queue a job, or create, change or delete an alert or a preference, only when the user asks for it.";
 
 const JOB_PROPS = {
   id: { type: "string" },
@@ -123,6 +123,52 @@ const LISTED_JOB = {
   required: [...JOB_REQUIRED, "other_locations", "salary"],
 };
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+
+// An alert's filter is the board's own search, as /api/jobs query params;
+// the box refuses any other key. Several values are comma-separated.
+const ALERT_FILTER = {
+  type: "object",
+  description: "What the alert watches for. Every field is a string; give at least one.",
+  properties: {
+    search: { type: "string", description: "Words to search for, as on the board, e.g. \"devops\"." },
+    department: { type: "string", description: "Categories, e.g. \"Software Engineering,Security\"." },
+    seniority: { type: "string", description: "Comma-separated: intern, junior, mid, senior, staff, principal, lead, manager, director, exec." },
+    workplace: { type: "string", description: "Comma-separated: remote, hybrid, onsite." },
+    company: { type: "string", description: "Company domains, e.g. \"wix.com,monday.com\"." },
+    country: { type: "string", description: "ISO country codes, e.g. \"IL\"." },
+    city: { type: "string", description: "City names, e.g. \"Tel Aviv\"." },
+    skills: { type: "string", description: "Skills, e.g. \"Python,Kubernetes\"." },
+    salary_min: { type: "string", description: "Lowest monthly salary in shekels, e.g. \"30000\"." },
+  },
+  additionalProperties: false,
+};
+const ALERT = {
+  type: "object",
+  properties: {
+    id: { type: "string" },
+    active: { type: "boolean" },
+    filter: { type: "object", additionalProperties: { type: "string" } },
+    created_at: { type: ["string", "null"] },
+  },
+  required: ["id", "active", "filter", "created_at"],
+};
+const PREFERENCE_PROPS = {
+  skills: { type: "array", items: { type: "string" }, description: "Skills, e.g. [\"Python\", \"Kubernetes\"]. Up to 40." },
+  seniority: { type: ["string", "null"], enum: ["intern", "junior", "mid", "senior", "staff", "principal", "lead", "manager", "director", "exec", null] },
+  workplace: { type: "array", items: { type: "string", enum: ["remote", "hybrid", "onsite"] } },
+  country: { type: "array", items: { type: "string" }, description: "ISO country codes, e.g. [\"IL\"]." },
+  city: { type: "array", items: { type: "string" }, description: "City names, e.g. [\"Tel Aviv\"]." },
+  israel_only: { type: "boolean", description: "Only jobs in Israel." },
+  cadence: { type: "string", enum: ["instant", "daily", "weekly"], description: "How often alert emails are sent." },
+  digest_time: { type: "string", description: "For daily and weekly emails: the time, HH:MM." },
+  digest_tz: { type: "string", description: "The time's zone, e.g. \"Asia/Jerusalem\"." },
+  digest_day: { type: "integer", minimum: 0, maximum: 6, description: "For weekly emails: 0 is Monday, 6 Sunday." },
+};
+const PREFERENCES = {
+  type: "object",
+  properties: PREFERENCE_PROPS,
+  required: Object.keys(PREFERENCE_PROPS),
+};
 
 const TOOLS = [
   {
@@ -354,6 +400,96 @@ const TOOLS = [
     },
     annotations: { title: "Remove from the auto apply queue", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   },
+  {
+    name: "list_alerts",
+    title: "List job alerts",
+    description:
+      "The user's job alerts: each one a saved search whose new matches are emailed to them, with " +
+      "its filter and whether it is on. Needs the user's personal access token.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    outputSchema: {
+      type: "object",
+      properties: { alerts: { type: "array", items: ALERT } },
+      required: ["alerts"],
+    },
+    annotations: { title: "List job alerts", ...READ_ONLY },
+  },
+  {
+    name: "create_alert",
+    title: "Create a job alert",
+    description:
+      "Create a job alert: Ocean of Jobs emails the user new jobs that match the filter, at the " +
+      "times set in their preferences. Up to 5 alerts per account. The email goes to the address " +
+      "the account had when the token was made. Create one only when the user asks for it. Needs " +
+      "the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: { filter: ALERT_FILTER },
+      required: ["filter"],
+      additionalProperties: false,
+    },
+    outputSchema: ALERT,
+    annotations: { title: "Create a job alert", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: "update_alert",
+    title: "Change a job alert",
+    description:
+      "Pause or resume a job alert, or replace its filter. A new filter starts from now: jobs " +
+      "already open are not emailed. Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The alert's id, from list_alerts." },
+        active: { type: "boolean", description: "false pauses the alert's emails, true resumes them." },
+        filter: { ...ALERT_FILTER, description: "The whole new filter. It replaces the old one." },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    outputSchema: ALERT,
+    annotations: { title: "Change a job alert", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "delete_alert",
+    title: "Delete a job alert",
+    description: "Delete a job alert. Its emails stop. Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", description: "The alert's id, from list_alerts." } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    outputSchema: { type: "object", properties: { id: { type: "string" }, deleted: { type: "boolean" } }, required: ["id", "deleted"] },
+    annotations: { title: "Delete a job alert", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_preferences",
+    title: "Get search preferences",
+    description:
+      "The user's search preferences: their skills, the seniority, workplace and places they want, " +
+      "and when alert emails are sent. The board's best matches and the account overview use them. " +
+      "Needs the user's personal access token.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    outputSchema: PREFERENCES,
+    annotations: { title: "Get search preferences", ...READ_ONLY },
+  },
+  {
+    name: "update_preferences",
+    title: "Change search preferences",
+    description:
+      "Change some of the user's search preferences. Only the fields given change; a list given " +
+      "replaces the old list, so read get_preferences first to add to one. Skills outside Ocean of " +
+      "Jobs' own list are dropped, and the answer shows what was kept. Change them only when the " +
+      "user asks. Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: PREFERENCE_PROPS,
+      additionalProperties: false,
+    },
+    outputSchema: PREFERENCES,
+    annotations: { title: "Change search preferences", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
 ];
 
 // Thrown inside a tool for anything the model should read and act on:
@@ -457,13 +593,15 @@ const NEEDS_TOKEN =
 // One call on the user's own account, with their personal access token.
 // Never cached, never counted as a cache miss: the answer is one
 // person's, and the Cloudflare cache above is shared by everyone.
-async function me(method, path, token, env) {
+async function me(method, path, token, env, body = undefined) {
   if (!token) throw new ToolError(NEEDS_TOKEN);
   let res;
   try {
     res = await fetch(BOX + path, {
       method,
-      headers: { "x-otj-origin-key": env.ORIGIN_KEY || "", authorization: "Bearer " + token, "user-agent": "oceanofjobs-mcp/" + SERVER.version, accept: "application/json" },
+      headers: { "x-otj-origin-key": env.ORIGIN_KEY || "", authorization: "Bearer " + token, "user-agent": "oceanofjobs-mcp/" + SERVER.version,
+        accept: "application/json", ...(body === undefined ? {} : { "content-type": "application/json" }) },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   } catch {
     throw new ToolError("Ocean of Jobs could not be reached. Try again shortly.");
@@ -744,11 +882,76 @@ async function listAutoApplyQueue(args, env, ctx, trace, now, token) {
   return withListings(queue, limit, "added_at", env, ctx, trace, now);
 }
 
+function alertId(args) {
+  const id = str(args, "id", 64);
+  if (!id || !/^[0-9a-f-]{36}$/.test(id)) throw new ToolError("id must be an alert id from list_alerts.");
+  return id;
+}
+
+function alertFilter(args) {
+  const f = args.filter;
+  if (!f || typeof f !== "object" || Array.isArray(f)) throw new ToolError("filter must be an object, e.g. {\"search\": \"devops\"}.");
+  const out = {};
+  for (const k of Object.keys(f)) {
+    if (!(k in ALERT_FILTER.properties)) throw new ToolError(`Unknown filter field: ${k}.`);
+    const v = str(f, k, 500);
+    if (v) out[k] = v;
+  }
+  if (!Object.keys(out).length) throw new ToolError("filter needs at least one field.");
+  return out;
+}
+
+const shapeAlert = (a) => ({ id: a.alert_id, active: a.active !== false, filter: a.filter || {}, created_at: a.created_at ?? null });
+
+async function listAlerts(args, env, ctx, trace, now, token) {
+  const alerts = ((await me("GET", "/api/me/alerts", token, env)) || {}).alerts || [];
+  return { alerts: alerts.map(shapeAlert) };
+}
+
+async function createAlert(args, env, ctx, trace, now, token) {
+  return shapeAlert(await me("POST", "/api/me/alerts", token, env, { filter: alertFilter(args) }));
+}
+
+async function updateAlert(args, env, ctx, trace, now, token) {
+  const id = alertId(args);
+  const body = {};
+  if (args.active !== undefined) {
+    if (typeof args.active !== "boolean") throw new ToolError("active must be true or false.");
+    body.active = args.active;
+  }
+  if (args.filter !== undefined) body.filter = alertFilter(args);
+  if (!Object.keys(body).length) throw new ToolError("Give active, filter or both.");
+  return shapeAlert(await me("PATCH", `/api/me/alerts/${id}`, token, env, body));
+}
+
+async function deleteAlert(args, env, ctx, trace, now, token) {
+  const id = alertId(args);
+  await me("DELETE", `/api/me/alerts/${id}`, token, env);
+  return { id, deleted: true };
+}
+
+const shapePreferences = (p) => Object.fromEntries(Object.keys(PREFERENCE_PROPS).map((k) => [k, p[k] ?? null]));
+
+async function getPreferences(args, env, ctx, trace, now, token) {
+  return shapePreferences(((await me("GET", "/api/me/profile", token, env)) || {}).profile || {});
+}
+
+// The box replaces the whole profile on a save, so the fields not given
+// are read first and sent back as they were.
+async function updatePreferences(args, env, ctx, trace, now, token) {
+  if (!Object.keys(args).length) throw new ToolError("Give at least one preference to change.");
+  const current = ((await me("GET", "/api/me/profile", token, env)) || {}).profile || {};
+  const saved = ((await me("PUT", "/api/me/profile", token, env, { ...current, ...args })) || {}).profile || {};
+  return shapePreferences(saved);
+}
+
 const HANDLERS = {
   search_jobs: searchJobs, get_job: getJob, get_company: getCompany,
   save_job: saveJob, list_saved_jobs: listSavedJobs, remove_saved_job: removeSavedJob,
   queue_for_auto_apply: queueForAutoApply, list_auto_apply_queue: listAutoApplyQueue,
   remove_from_auto_apply_queue: removeFromAutoApplyQueue,
+  list_alerts: listAlerts, create_alert: createAlert, update_alert: updateAlert, delete_alert: deleteAlert,
+  get_preferences: getPreferences, update_preferences: updatePreferences,
 };
 
 // The personal access token, if the client sent one. Anything else in

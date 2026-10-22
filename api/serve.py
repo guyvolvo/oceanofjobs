@@ -36,7 +36,7 @@ COGNITO_AUDIENCE = os.environ.get("COGNITO_AUDIENCE", "")
 MAX_BODY = 64 * 1024
 # What a personal access token may reach, by scope (path prefixes).
 TOKEN_PATHS = {
-    "mcp": ("/api/me/saved", "/api/me/apply/queue"),
+    "mcp": ("/api/me/saved", "/api/me/apply/queue", "/api/me/alerts", "/api/me/profile"),
     "extension": ("/api/me/saved", "/api/me/apply/"),
 }
 
@@ -56,7 +56,12 @@ def _claims(environ: dict) -> dict | None:
         except Exception as e:  # noqa: BLE001 -- a table error is "not signed in", not a 500
             print(f"token check failed: {e.__class__.__name__}")
             return None
-        return {"sub": found["user_id"], "token_use": "ooj", "scope": found["scope"]} if found else None
+        if not found:
+            return None
+        # The address the account had, verified, when the token was made:
+        # where an alert the token creates is sent.
+        mail = {"email": found["email"], "email_verified": True} if found.get("email") else {}
+        return {"sub": found["user_id"], "token_use": "ooj", "scope": found["scope"], **mail}
     if not (COGNITO_ISSUER and COGNITO_AUDIENCE):
         return None
     try:

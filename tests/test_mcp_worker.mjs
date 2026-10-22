@@ -109,17 +109,21 @@ test("notifications get 202 with no body", async () => {
   assert.equal(await res.text(), "");
 });
 
-test("tools/list has the three public read-only tools, the saved-job tools and the queue tools", async () => {
+test("tools/list has the three public read-only tools, then the account's saved-job, queue, alert and preference tools", async () => {
   const body = await (await post({ jsonrpc: "2.0", id: 2, method: "tools/list" })).json();
   assert.deepEqual(body.result.tools.map((t) => t.name),
     ["search_jobs", "get_job", "get_company", "save_job", "list_saved_jobs", "remove_saved_job",
-      "queue_for_auto_apply", "list_auto_apply_queue", "remove_from_auto_apply_queue"]);
+      "queue_for_auto_apply", "list_auto_apply_queue", "remove_from_auto_apply_queue",
+      "list_alerts", "create_alert", "update_alert", "delete_alert", "get_preferences", "update_preferences"]);
   const hints = Object.fromEntries(body.result.tools.map((t) => [t.name, t.annotations]));
   for (const n of ["search_jobs", "get_job", "get_company", "list_saved_jobs", "list_auto_apply_queue"]) assert.equal(hints[n].readOnlyHint, true, n);
   assert.equal(hints.queue_for_auto_apply.readOnlyHint, false);
   assert.equal(hints.remove_from_auto_apply_queue.destructiveHint, true);
   assert.equal(hints.save_job.readOnlyHint, false);
   assert.equal(hints.remove_saved_job.destructiveHint, true);
+  for (const n of ["list_alerts", "get_preferences"]) assert.equal(hints[n].readOnlyHint, true, n);
+  for (const n of ["create_alert", "update_alert", "update_preferences"]) assert.equal(hints[n].readOnlyHint, false, n);
+  assert.equal(hints.delete_alert.destructiveHint, true);
   for (const t of body.result.tools) {
     assert.equal(t.inputSchema.type, "object");
     assert.equal(t.outputSchema.type, "object");
@@ -127,10 +131,12 @@ test("tools/list has the three public read-only tools, the saved-job tools and t
 });
 
 const TOKEN = "ooj_dTE.0a1b2c3d.abcdefghijklmnopqrstuvwxyz012345";
+const BOX_URL = "https://box.oceanofjobs.com";
 
 test("saved-job tools need a token and say how to get one", async () => {
   for (const [name, args] of [["save_job", { id: "67ff4ef965d91ef7" }], ["list_saved_jobs", {}], ["remove_saved_job", { id: "67ff4ef965d91ef7" }],
-    ["queue_for_auto_apply", { id: "67ff4ef965d91ef7" }], ["list_auto_apply_queue", {}], ["remove_from_auto_apply_queue", { id: "67ff4ef965d91ef7" }]]) {
+    ["queue_for_auto_apply", { id: "67ff4ef965d91ef7" }], ["list_auto_apply_queue", {}], ["remove_from_auto_apply_queue", { id: "67ff4ef965d91ef7" }],
+    ["list_alerts", {}], ["create_alert", { filter: { search: "devops" } }], ["get_preferences", {}], ["update_preferences", { cadence: "daily" }]]) {
     const { result } = await call(name, args);
     assert.equal(result.isError, true, name);
     assert.match(result.content[0].text, /personal access token/);
@@ -184,6 +190,53 @@ test("queue, list and remove send the token to the box, and a refusal reads as t
   const unfillable = await tool(74, "queue_for_auto_apply", { id: "97602f3e8d77ca9a" });
   assert.equal(unfillable.isError, true);
   assert.equal(unfillable.content[0].text, "Ocean of Jobs refused that: The extension can't apply on this job's site (workday) yet. It fills Greenhouse forms for now.");
+});
+
+test("alert and preference tools: the token goes to the box, bodies are JSON, preferences merge", async () => {
+  const ALERT_ID = "0b6c3f2e-1d2a-4c5b-8e9f-0a1b2c3d4e5f";
+  const alert = { alert_id: ALERT_ID, user_id: "u1", email: "dana@example.com", active: true, filter: { search: "devops" }, created_at: "2026-10-22T09:00:00+00:00" };
+  route("/api/me/alerts/", 200, { ...alert, active: false }, { "content-type": "application/json" });
+  route("/api/me/alerts", 200, { alerts: [alert] }, { "content-type": "application/json" });
+  route("/api/me/profile", 200, { profile: { skills: ["Python"], seniority: null, workplace: ["remote"], country: ["IL"], city: [], israel_only: true,
+    cadence: "instant", digest_time: "09:00", digest_tz: "Asia/Jerusalem", digest_day: 0 } }, { "content-type": "application/json" });
+  const auth = { authorization: "Bearer " + TOKEN };
+  const sent = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { sent.push({ url: String(url), method: init.method, body: init.body && JSON.parse(init.body), headers: init.headers }); return realFetch(url, init); };
+  try {
+    const tool = async (name, args) => (await (await post({ jsonrpc: "2.0", id: nextId++, method: "tools/call", params: { name, arguments: args } }, auth)).json()).result;
+    const list = await tool("list_alerts", {});
+    assert.deepEqual(list.structuredContent, { alerts: [{ id: ALERT_ID, active: true, filter: { search: "devops" }, created_at: "2026-10-22T09:00:00+00:00" }] });
+    assert.ok(!JSON.stringify(list).includes("dana@example.com"), "the address isn't passed on to the model");
+    await tool("create_alert", { filter: { search: " devops ", country: "IL" } });
+    assert.deepEqual([sent.at(-1).method, sent.at(-1).url.replace(BOX_URL, ""), sent.at(-1).body], ["POST", "/api/me/alerts", { filter: { search: "devops", country: "IL" } }]);
+    assert.equal(sent.at(-1).headers["content-type"], "application/json");
+    assert.equal(sent.at(-1).headers.authorization, "Bearer " + TOKEN);
+    const paused = await tool("update_alert", { id: ALERT_ID, active: false });
+    assert.equal(paused.structuredContent.active, false);
+    assert.deepEqual([sent.at(-1).method, sent.at(-1).url.replace(BOX_URL, ""), sent.at(-1).body], ["PATCH", `/api/me/alerts/${ALERT_ID}`, { active: false }]);
+    const gone = await tool("delete_alert", { id: ALERT_ID });
+    assert.deepEqual(gone.structuredContent, { id: ALERT_ID, deleted: true });
+    assert.equal(sent.at(-1).method, "DELETE");
+    for (const [name, args, why] of [["update_alert", { id: "%23apply_profile" }, /alert id/], ["delete_alert", { id: "#token#abcd1234" }, /alert id/],
+      ["update_alert", { id: ALERT_ID }, /active, filter or both/], ["create_alert", { filter: { q: "x" } }, /Unknown filter field: q/],
+      ["create_alert", { filter: {} }, /at least one field/]]) {
+      const before = sent.length;
+      const r = await tool(name, args);
+      assert.equal(r.isError, true, name);
+      assert.match(r.content[0].text, why);
+      assert.equal(sent.length, before, "a bad argument never reaches the box");
+    }
+    const prefs = await tool("update_preferences", { cadence: "daily", skills: ["Python", "Go"] });
+    const put = sent.at(-1);
+    assert.equal(put.method, "PUT");
+    assert.deepEqual(put.body, { skills: ["Python", "Go"], seniority: null, workplace: ["remote"], country: ["IL"], city: [], israel_only: true,
+      cadence: "daily", digest_time: "09:00", digest_tz: "Asia/Jerusalem", digest_day: 0 }, "the fields not given go back unchanged");
+    assert.equal(prefs.structuredContent.israel_only, true);
+    assert.ok(![...store.keys()].some((k) => k.includes("/api/me/")), "nothing personal is in the shared cache");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test("a revoked token is a readable tool error, and other Authorization headers are ignored", async () => {

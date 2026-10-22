@@ -74,8 +74,10 @@ def list_tokens(table, user_id: str) -> list[dict]:
     return [_public(i) for i in rows]
 
 
-def create(table, user_id: str, name, days, now: datetime | None = None, scope: str = "mcp") -> dict:
-    """A new token. The only time the token itself is ever returned."""
+def create(table, user_id: str, name, days, now: datetime | None = None, scope: str = "mcp", email: str | None = None) -> dict:
+    """A new token. The only time the token itself is ever returned.
+    email is the account's verified address, kept so an alert made with
+    the token has somewhere to go."""
     now = now or datetime.now(timezone.utc)
     name = str(name or "").strip()[:NAME_MAX] or "Token"
     if days not in EXPIRY_DAYS:
@@ -98,6 +100,8 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
             "hint": token[-4:], "created_at": now.isoformat(), "scope": scope}
     if days:
         item["expires_at"] = (now + timedelta(days=days)).isoformat()
+    if email:
+        item["email"] = email
     table.put_item(Item=item, ConditionExpression="attribute_not_exists(alert_id)")
     return {**_public(item), "token": token}
 
@@ -109,7 +113,7 @@ def revoke(table, user_id: str, token_id: str) -> None:
 
 
 def verify(table, token: str, now: datetime | None = None) -> dict | None:
-    """{"user_id", "scope"} for a live token, else None."""
+    """{"user_id", "scope"} and the email if it has one, for a live token, else None."""
     parsed = parse(token)
     if not parsed:
         return None
@@ -128,4 +132,4 @@ def verify(table, token: str, now: datetime | None = None) -> dict | None:
                               ConditionExpression="attribute_exists(alert_id)")
         except Exception as e:  # noqa: BLE001 -- a missed timestamp must not refuse a good token
             print(f"token last_used not updated: {e.__class__.__name__}")
-    return {"user_id": user_id, "scope": item.get("scope") or "mcp"}
+    return {"user_id": user_id, "scope": item.get("scope") or "mcp", **({"email": item["email"]} if item.get("email") else {})}

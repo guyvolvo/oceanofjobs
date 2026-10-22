@@ -104,7 +104,7 @@ function Tokens() {
 
   return (
     <Card title="Personal access tokens"
-      note="For AI clients that connect over MCP. A token can read and change your saved jobs and your auto apply queue. It can't change your alerts or profile."
+      note="For AI clients that connect over MCP. A token can read and change your saved jobs, auto apply queue, alerts and search preferences. It can't change your auto apply profile or make other tokens."
       action={<Button size="sm" variant="secondary" disabled={full} title={full ? "Five tokens at most. Revoke one first." : undefined}
         aria-expanded={formOpen} aria-controls="token-form" onClick={() => setFormOpen(!formOpen)}>New token</Button>}>
       {formOpen ? (

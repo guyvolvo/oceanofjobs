@@ -71,6 +71,9 @@ class FakeTable:
         if ":s" in v:  # apply.result
             row.update(status=v[":s"], reason=v[":r"], done_at=v[":t"])
             return
+        if ":a" in v or ":f" in v:  # an alert's PATCH
+            row.update({k: v[p] for k, p in (("active", ":a"), ("filter", ":f")) if p in v})
+            return {"Attributes": dict(row)}
         self.updates += 1
         row["last_used_at"] = v[":t"]
 
@@ -165,10 +168,37 @@ check("a token reads its own saved list", status.startswith("200") and b'"saved"
 status, _ = call("/api/me/saved/0123456789abcdef", "PUT", auth=live)
 check("a token can save a job", status.startswith("204"), status)
 check("and the row lands under its own user", ("u-serve", "#saved#0123456789abcdef") in table.items)
-for path, method in (("/api/me/profile", "GET"), ("/api/me/alerts", "GET"), ("/api/me/tokens", "GET"),
-                     ("/api/me/tokens", "POST"), ("/api/me/dashboard", "GET"), ("/api/me/savedx", "GET")):
+for path, method in (("/api/me/tokens", "GET"), ("/api/me/tokens", "POST"), ("/api/me/dashboard", "GET"),
+                     ("/api/me/savedx", "GET"), ("/api/me/alertsx", "GET"), ("/api/me/profilex", "GET")):
     status, _ = call(path, method, auth=live)
     check(f"a token is refused at {method} {path}", status.startswith("403"), status)
+
+# Alerts and search preferences, for an AI agent working on the user's behalf.
+status, body = call("/api/me/profile", "PUT", live, {"skills": ["Python", "Go"], "workplace": ["remote"], "cadence": "daily"})
+check("a token saves the search preferences", status.startswith("200") and json.loads(body)["profile"]["skills"] == ["Python", "Go"], status)
+status, body = call("/api/me/profile", auth=live)
+check("and reads them back", status.startswith("200") and json.loads(body)["profile"]["cadence"] == "daily", status)
+status, body = call("/api/me/alerts", "POST", live, {"filter": {"search": "devops"}})
+check("a token made before tokens kept an email can't create an alert, and says to make a new one",
+      status.startswith("400") and b"Make a new one" in body, status + body.decode()[:200])
+mailer = tokens.create(table, "u-serve", "agent", 30, email="dana@example.com")["token"]
+check("a token keeps the address it was made with, never shown in the list",
+      tokens.verify(table, mailer)["email"] == "dana@example.com" and all("email" not in t for t in tokens.list_tokens(table, "u-serve")))
+status, body = call("/api/me/alerts", "POST", mailer, {"filter": {"search": "devops"}})
+made_alert = json.loads(body) if status.startswith("201") else {}
+check("a token with an address creates an alert sent there", status.startswith("201") and made_alert.get("email") == "dana@example.com",
+      status + body.decode()[:200])
+status, body = call("/api/me/alerts", auth=mailer)
+check("lists it", status.startswith("200") and [a["alert_id"] for a in json.loads(body)["alerts"]] == [made_alert.get("alert_id")], body.decode()[:200])
+status, body = call(f"/api/me/alerts/{made_alert.get('alert_id')}", "PATCH", mailer, {"active": False})
+check("pauses it", status.startswith("200") and json.loads(body)["active"] is False, status)
+status, _ = call(f"/api/me/alerts/{made_alert.get('alert_id')}", "DELETE", mailer)
+check("and deletes it", status.startswith("204") and ("u-serve", made_alert.get("alert_id")) not in table.items, status)
+for row in ("#profile", "#apply_profile", "#token#abcd1234", "#saved#0123456789abcdef", "#agent#default"):
+    table.items[("u-serve", row)] = {"user_id": "u-serve", "alert_id": row}
+    for method, body in (("DELETE", None), ("PATCH", {"active": False})):
+        status, _ = call("/api/me/alerts/" + row, method, mailer, body)
+        check(f"the alert route can't {method} the row {row}", status.startswith("404") and table.items[("u-serve", row)].get("active") is None, status)
 status, _ = call("/api/me/saved", auth=live[:-2] + "zz")
 check("a wrong token is 401", status.startswith("401"), status)
 status, _ = call("/api/me/apply/usage", auth=live)

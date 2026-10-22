@@ -633,6 +633,10 @@ def lambda_handler(event, context):
         if path.startswith("/me/alerts/") and len(path) > len("/me/alerts/"):
             user_id = _authenticated_claims(event)["sub"]
             alert_id = path[len("/me/alerts/"):]
+            # The path arrives decoded, so %23 is "#": only an alert's own row,
+            # never the profile, a token, the agent or a saved job beside it.
+            if alert_id.startswith("#") or is_saved_id(alert_id):
+                return _response(404, json.dumps({"error": "This alert doesn't exist anymore."}))
             if method == "PATCH":
                 body = json.loads(event.get("body") or "{}")
                 updated = route_update_alert(user_id, alert_id, body)
@@ -656,14 +660,16 @@ def lambda_handler(event, context):
                                event, params)
         if path == "/me/tokens":
             # Personal access tokens (tokens.py). Only a signed-in session
-            # gets here: serve.py keeps a token itself to the saved routes.
-            user_id = _authenticated_claims(event)["sub"]
+            # gets here: serve.py keeps a token to the routes its scope lists.
+            claims = _authenticated_claims(event)
+            user_id = claims["sub"]
             if method == "GET":
                 return _response(200, json.dumps({"tokens": tokens.list_tokens(_alerts_table, user_id)}))
             if method == "POST":
                 body = json.loads(event.get("body") or "{}")
                 made = tokens.create(_alerts_table, user_id, body.get("name"), body.get("expires_in_days"),
-                                     scope=body.get("scope") or "mcp")
+                                     scope=body.get("scope") or "mcp",
+                                     email=claims.get("email") if email_is_verified(claims) else None)
                 resp = _response(201, json.dumps(made))
                 resp["headers"]["Cache-Control"] = "no-store"  # the one answer that carries the token
                 return resp
@@ -2485,6 +2491,9 @@ def route_create_alert(claims: dict, body: dict) -> dict:
     if unknown:
         raise ValueError(f"unknown filter key(s): {', '.join(sorted(unknown))}")
     email = claims.get("email")
+    if not email and claims.get("token_use") == "ooj":
+        raise ValueError("This token was made before tokens could create alerts. Make a new one at "
+                         "https://oceanofjobs.com/account#settings.")
     if not email:
         raise ValueError("Your account has no email address, so there's nowhere to send alerts.")
     if not email_is_verified(claims):
