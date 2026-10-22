@@ -108,6 +108,16 @@ test('no card on sites that are never a job application', () => {
     assert.equal(m.notJobSite(host), false, host);
 });
 
+test('a page is about a job by its words, not by a name that contains one', () => {
+  assert.equal(m.notJobSite('dash.cloudflare.com'), true);
+  for (const text of ['https://acme.com/careers/123', 'https://acme.com/jobs/5', 'https://x.com/embed/job_app?for=acme', 'Apply for Backend Engineer',
+    'Senior Engineer | Acme Careers', 'https://acme.com/en/position/77', 'דרושים מפתחים', 'Upload your CV'])
+    assert.equal(m.jobish(text), true, text);
+  for (const text of ['https://dash.cloudflare.com/abc/oceanofjobs.com/analytics Workers | Cloudflare', 'https://x.com/iljobs-api/logs Logs',
+    'https://example.com/settings Account settings'])
+    assert.equal(m.jobish(text), false, text);
+});
+
 test('work authorization follows the job country', () => {
   assert.equal(m.profileValue('work_auth', profile, { country: 'IL' }), 'Yes');
   assert.equal(m.profileValue('work_auth', profile, { country: 'US' }), 'No');

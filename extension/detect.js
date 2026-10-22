@@ -52,14 +52,13 @@
   // A form that asks for a CV, or any form on a page that says it is about
   // a job. On a site no dedicated filler knows, also a job posting whose
   // Apply button opens the form.
-  const JOBISH = /job|career|apply|application|position|vacanc|opening|recruit|resume|\bcv\b|hiring|talent|bewerb|stelle|emploi|empleo|משר|דרוש/i;
   // Some forms keep a hidden "Application submitted" heading ready.
   const heading = () => ([...document.querySelectorAll('h1')].find((h) => h.checkVisibility()) || {}).textContent || '';
   function look() {
     if (shown || !all.generic) return shown;
     if (globalThis.oojMatch.notJobSite(location.hostname)) return false;
     const p = all.generic.formHere();
-    const jobish = () => JOBISH.test(location.href + ' ' + document.title + ' ' + heading());
+    const jobish = () => globalThis.oojMatch.jobish(location.href + ' ' + document.title + ' ' + heading());
     const form = p.score > 0 && (p.file || dedicated || jobish());
     if (!form && !(isTop && !site && all.generic.postingHere() && jobish())) return false;
     found();
