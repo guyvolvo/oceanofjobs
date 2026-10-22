@@ -95,9 +95,20 @@
 
 /* Signed out. */
 .oj-signin { max-width: 420px; width: 100%; margin: 24px auto 0; }
-.oj-signin .oj-card-body { gap: 10px; }
-.oj-provider { width: 100%; justify-content: center; }
-.oj-divider { display: flex; align-items: center; gap: 10px; color: var(--text-color-kumo-subtle); font-size: 13px; }
+.oj-signin .oj-card-body { gap: 16px; padding: 32px 28px 24px; }
+/* The same card as the site's login popup (frontend/signin_dialog.js). */
+.oj-signin-mark { align-self: center; border-radius: 50%; }
+.oj-signin-head { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.oj-signin-head h1 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -.01em; line-height: 1.25; color: var(--text-color-kumo-strong); }
+.oj-signin-head p { margin: 0; font-size: 14px; color: var(--text-color-kumo-subtle); overflow-wrap: anywhere; }
+.oj-signin-head strong { font-weight: 500; color: var(--text-color-kumo-default); }
+.oj-signin-form { display: flex; flex-direction: column; gap: 12px; }
+.oj-signin-wide { width: 100%; justify-content: center; }
+.oj-signin-providers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.oj-signin-providers > * { width: 100%; justify-content: center; }
+.oj-signin-foot { margin: 4px 0 0; text-align: center; font-size: 13px; color: var(--text-color-kumo-subtle); }
+.oj-signin-back { align-self: center; }
+.oj-divider { display: flex; align-items: center; gap: 10px; color: var(--text-color-kumo-subtle); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
 .oj-divider::before, .oj-divider::after { content: ""; flex: 1; height: 1px; background: var(--color-kumo-hairline); }
 
 @media (max-width: 640px) {

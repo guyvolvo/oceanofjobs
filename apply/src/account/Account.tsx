@@ -7,7 +7,7 @@ import { Button, LinkButton } from "@cloudflare/kumo/components/button";
 import { Input } from "@cloudflare/kumo/components/input";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { ArrowRight, Bell, GithubLogo, UploadSimple } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, Bell, GithubLogo, UploadSimple } from "@phosphor-icons/react";
 import { api, pub, send, signedIn, ApiError } from "../api";
 import { useSiteTheme } from "../theme";
 import { boardLink, DAY_NAMES, EMPTY_PROFILE, placeSummary, plural, provider, readCv, setStar, skillsIn, WORKPLACE_LABELS,
@@ -77,24 +77,38 @@ function SignIn() {
   return (
     <div className="oj-signin">
       <Card>
-        <h1 className="oj-card-title" id="signin-title">Log in</h1>
-        <Button variant="secondary" className="oj-provider" icon={GOOGLE} onClick={() => { setError(""); startGoogleSignIn(); }}>Continue with Google</Button>
-        <Button variant="secondary" className="oj-provider" icon={<GithubLogo weight="fill" />} onClick={() => { setError(""); startGithubSignIn(); }}>Continue with GitHub</Button>
-        <div className="oj-divider"><span>or</span></div>
+        <img className="oj-signin-mark" src="/favicon.svg?v=3" width="44" height="44" alt="" />
+        <div className="oj-signin-head">
+          <h1 id="signin-title">{step === "email" ? "Log in to Ocean of Jobs" : "Check your email"}</h1>
+          <p>{step === "email" ? "We'll email you a code. No password needed." : <>We sent a code to <strong>{email.trim()}</strong>.</>}</p>
+        </div>
         {step === "email" ? (
-          <form className="oj-row oj-nowrap-sm" onSubmit={(e) => { e.preventDefault(); sendCode(); }}>
-            <div className="oj-grow"><Input aria-label="Email address" type="email" name="email" placeholder="you@example.com" required autoComplete="email"
-              spellCheck={false} autoCapitalize="off" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-            <Button type="submit" variant="primary" loading={busy}>Send code</Button>
-          </form>
+          <>
+            <form className="oj-signin-form" onSubmit={(e) => { e.preventDefault(); sendCode(); }}>
+              <Input label="Email" type="email" name="email" placeholder="you@example.com" required autoComplete="email"
+                spellCheck={false} autoCapitalize="off" value={email} onChange={(e) => setEmail(e.target.value)} error={error || undefined} />
+              <Button type="submit" variant="primary" className="oj-signin-wide" loading={busy}>Send code</Button>
+            </form>
+            <div className="oj-divider"><span>or</span></div>
+            <div className="oj-signin-providers">
+              <Button variant="secondary" icon={GOOGLE} aria-label="Continue with Google" onClick={() => { setError(""); startGoogleSignIn(); }}>Google</Button>
+              <Button variant="secondary" icon={<GithubLogo weight="fill" />} aria-label="Continue with GitHub" onClick={() => { setError(""); startGithubSignIn(); }}>GitHub</Button>
+            </div>
+            <p className="oj-signin-foot">New here? Logging in creates your account.</p>
+          </>
         ) : (
-          <form className="oj-row oj-nowrap-sm" onSubmit={(e) => { e.preventDefault(); verify(); }}>
-            <div className="oj-grow"><Input aria-label="Verification code" name="code" placeholder="Verification code" inputMode="numeric" pattern="[0-9]{4,10}" required
-              autoComplete="one-time-code" spellCheck={false} autoCapitalize="off" autoFocus value={code} onChange={(e) => setCode(e.target.value)} /></div>
-            <Button type="submit" variant="primary" loading={busy}>Verify</Button>
-          </form>
+          <>
+            <form className="oj-signin-form" onSubmit={(e) => { e.preventDefault(); verify(); }}>
+              <Input label="Code" name="code" placeholder="Code from the email" inputMode="numeric" pattern="[0-9]{4,10}" required
+                autoComplete="one-time-code" spellCheck={false} autoCapitalize="off" autoFocus value={code} onChange={(e) => setCode(e.target.value)}
+                error={error || undefined} />
+              <Button type="submit" variant="primary" className="oj-signin-wide" loading={busy}>Log in</Button>
+            </form>
+            <Button variant="ghost" size="sm" icon={<ArrowLeft />} className="oj-signin-back" onClick={() => { setError(""); setCode(""); setStep("email"); }}>
+              Use a different email
+            </Button>
+          </>
         )}
-        {error ? <p className="oj-error" role="alert">{error}</p> : null}
       </Card>
     </div>
   );

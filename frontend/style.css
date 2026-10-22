@@ -3465,82 +3465,85 @@ body.explore-busy .explore-metric { color: var(--green-text); }
   background: var(--scrim);
 }
 .signin-scrim[hidden] { display: none; }
+/* The same card the /account page shows signed out (Kumo's dialog): a
+   raised panel, the mark, a centred title, the email form first, then
+   Google and GitHub side by side. Geist like the Kumo pages, so the two
+   sign-ins read as one screen. */
 .signin-dialog {
+  --signin-card: #fbfaf9;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   width: 100%;
-  max-width: 420px;
-  padding: 28px;
-  border: var(--rule) solid var(--black);
-  /* Card / Preview, the same 24px the showcase card on the landing
-     page is rounded to. This is that card's shape, not a new one. */
-  border-radius: 24px;
-  background: var(--white);
-  /* The display face, not the dense UI one. This is the only dialog on
-     the site a reader meets before they have seen anything else, so it
-     speaks in the landing page's voice rather than the board's. */
-  font-family: var(--font-display);
-}
-/* The fields and buttons inside name --font-ui themselves, so each one
-   has to be told again here. */
-.signin-dialog .auth-provider-btn,
-.signin-dialog .auth-email-form input,
-.signin-dialog .auth-divider,
-.signin-dialog .btn {
-  font-family: var(--font-display);
-}
-.signin-dialog .auth-provider-btn,
-.signin-dialog .auth-email-form input {
-  height: 46px;
-  font-size: 14px;
-}
-.signin-dialog .auth-provider-btn { margin-bottom: 10px; }
-.signin-dialog .auth-email-form .btn { height: 46px; font-size: 13px; padding: 0 18px; }
-/* The controls inside the dialog, all four shaped alike.
-   
-   They used to be the system's 2px ink rule on a 4px corner, on the
-   argument that a soft outer card holding hard-cornered controls is the
-   contrast that makes the card read. That was the showcase card's
-   reasoning borrowed wholesale, and it does not survive here: this card
-   floats over the page rather than sitting in it, and four hard boxes
-   inside a floating card read as a form pasted into a dialog.
-   
-   So the same corner the card and the landing button use, and an edge
-   made of shadow rather than ink. The hairline stays for the same
-   reason the account menu keeps one: on a dark ground a shadow is
-   invisible and the control still needs a boundary. */
-.signin-dialog .auth-provider-btn,
-.signin-dialog .auth-email-form input,
-.signin-dialog .auth-email-form .btn {
-  border-radius: 10px;
+  max-width: 400px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 32px 28px 24px;
   border: 1px solid var(--grey-line);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.07);
+  border-radius: 12px;
+  background: var(--signin-card);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.35);
+  font-family: "Geist", var(--font-ui);
+  color: var(--black);
 }
-/* The one filled control here, so its edge comes from its own fill. */
-.signin-dialog .auth-email-form .btn { border-color: transparent; }
-.signin-dialog .auth-provider-btn:hover { border-color: var(--black); }
-.signin-dialog .auth-email-form input:focus { outline-offset: -1px; }
-.signin-dialog .auth-divider { font-size: 13px; margin: 14px 0; }
-.signin-dialog .account-block-title {
-  margin: 0;
-  /* Display / Section Title at its 24px step, the one the Statistics
-     column uses for exactly this reason: a display title sitting beside
-     13px controls, where the full 34px would be the loudest thing on
-     screen. */
-  font-size: 24px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+:root[data-theme="dark"] .signin-dialog { --signin-card: #1e1f24; border-color: var(--panel-line); }
+.signin-mark { align-self: center; border-radius: 50%; }
+.signin-head { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.signin-head h2 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.25; }
+.signin-head p { margin: 0; font-size: 14px; color: var(--grey); overflow-wrap: anywhere; }
+.signin-head strong { font-weight: 500; color: var(--black); }
+.signin-form { display: flex; flex-direction: column; gap: 8px; }
+.signin-form label { font-size: 14px; font-weight: 500; }
+.signin-form input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--black);
+  font: 15px "Geist", var(--font-ui);
 }
-.signin-dialog-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.signin-form input::placeholder { color: var(--grey); opacity: 0.7; }
+.signin-form input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+.signin-form:has(.auth-error:not([hidden])) input { border-color: var(--red); box-shadow: none; }
+.signin-form .auth-error { margin: 0; font-size: 13px; }
+#signin-otp-input { letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+#signin-otp-input::placeholder { letter-spacing: normal; }
+.signin-primary,
+.signin-provider,
+.signin-back,
 .signin-close {
-  border: 0;
-  background: none;
-  color: var(--grey);
-  font-size: 24px;
-  line-height: 1;
-  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  font: 500 15px "Geist", var(--font-ui);
   cursor: pointer;
 }
+.signin-primary { height: 40px; margin-top: 4px; border: 0; background: var(--green-text); color: #fff; }
+.signin-primary:hover { filter: brightness(1.08); }
+.signin-primary:disabled { opacity: 0.6; cursor: progress; }
+.signin-or { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; color: var(--grey); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.signin-or::before, .signin-or::after { content: ""; flex: 1; height: 1px; background: var(--grey-line); }
+.signin-providers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.signin-provider { height: 40px; border: 1px solid var(--panel-line); background: transparent; color: var(--black); }
+.signin-provider:hover, .signin-back:hover, .signin-close:hover { background: var(--hover-bg); }
+.signin-foot { margin: 20px 0 0; text-align: center; font-size: 13px; color: var(--grey); }
+.signin-back { align-self: center; padding: 6px 10px; border: 0; background: none; color: var(--black); font-size: 14px; }
+.signin-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border: 0; background: none; color: var(--grey); }
 .signin-close:hover { color: var(--black); }
-.signin-close:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.signin-primary:focus-visible, .signin-provider:focus-visible, .signin-back:focus-visible, .signin-close:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+/* Each of these sets display, which beats the UA [hidden] rule without this. */
+.signin-form[hidden], #signin-other[hidden], .signin-back[hidden] { display: none; }
+@media (max-width: 640px) {
+  .signin-scrim { padding: 16px; }
+  .signin-dialog { padding: 28px 20px 20px; }
+}
 body.signin-open .account-page > .section-title { display: none; }
 body.signin-open .workspace > .section { border-bottom: 0; }
 .account-note { color: var(--grey); font-size: 11.5px; margin: 10px 0 0; max-width: 60ch; line-height: 1.5; }

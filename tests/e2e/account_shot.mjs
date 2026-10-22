@@ -150,11 +150,12 @@ const last = (pred) => [...requests].reverse().find(pred);
   watch(page, "signin");
   await page.goto("https://oceanofjobs.com/account", { waitUntil: "networkidle" });
   check("signed out shows the sign-in", await page.getByRole("heading", { name: "Log in" }).isVisible());
-  await page.getByLabel("Email address").fill("dana@example.com");
+  await page.getByLabel("Email", { exact: true }).fill("dana@example.com");
   await page.getByRole("button", { name: "Send code" }).click();
-  await page.getByLabel("Verification code").fill("123456");
+  await page.getByLabel("Code", { exact: true }).fill("123456");
+  check("the code step names the address", (await page.locator(".oj-signin-head").textContent()).includes("We sent a code to dana@example.com."));
   check("email start posts the address", JSON.parse(last((r) => r.path === "/api/auth/email/start")?.body || "{}").email === "dana@example.com");
-  await Promise.all([page.waitForNavigation(), page.getByRole("button", { name: "Verify" }).click()]);
+  await Promise.all([page.waitForNavigation(), page.locator(".oj-signin form").getByRole("button", { name: "Log in" }).click()]);
   await page.waitForLoadState("networkidle");
   check("a verified code signs in and the page reloads signed in", await page.getByRole("tablist").first().isVisible() && /Good (morning|afternoon|evening)/.test(await page.locator("h1").first().textContent()));
 
