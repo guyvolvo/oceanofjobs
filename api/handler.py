@@ -656,8 +656,15 @@ def lambda_handler(event, context):
                                         event.get("requestContext", {}).get("http", {}).get("sourceIp", ""))
             return _response(status, json.dumps(out))
         if path.startswith("/me/apply/") or path == "/me/apply":
-            return route_apply(_authenticated_claims(event)["sub"], method, path[len("/me/apply"):].strip("/"),
-                               event, params)
+            try:
+                return route_apply(_authenticated_claims(event)["sub"], method, path[len("/me/apply"):].strip("/"),
+                                   event, params)
+            except (TypeError, AttributeError):
+                if method not in ("POST", "PUT"):
+                    raise
+                # A field of the wrong type ({"facts": ["x"]}); logged in case it's ours.
+                traceback.print_exc()
+                return _response(400, json.dumps({"error": "a field in the request has the wrong type", "code": "invalid"}))
         if path == "/me/tokens":
             # Personal access tokens (tokens.py). Only a signed-in session
             # gets here: serve.py keeps a token to the routes its scope lists.
@@ -754,7 +761,8 @@ _ATTEMPT_REFUSALS = [
 def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict:
     """/api/me/apply/attempts: api/AUTO_APPLY_CONTRACT.md as routes. Every
     operation is under the caller's own user id, so another user's attempt
-    is simply not found. No client uses these yet."""
+    is simply not found. Extension 1.9 and later use these; older ones
+    use /claim and /result."""
     A = attempts.Attempts(_alerts_table)
     parts = sub.split("/")
     attempt_id = parts[1] if len(parts) > 1 else ""
@@ -796,6 +804,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
     with an "extension" token, and by the MCP server with an "mcp" token
     on the queue only (serve.py)."""
     body = json.loads(event.get("body") or "{}") if method in ("POST", "PUT") else {}
+    if not isinstance(body, dict):
+        raise ValueError("the request body must be a JSON object")
     no_store = {"Cache-Control": "no-store"}
 
     def ok(status, data=None):
@@ -805,11 +815,10 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
 
     if sub == "" and method == "DELETE":
         # Account deletion: the profile, the applied history and the queue.
-        rows = _alerts_table.query(KeyConditionExpression=Key("user_id").eq(user_id)).get("Items", [])
-        for r in rows:
+        for r in apply.query_all(_alerts_table, user_id):
             if r["alert_id"] == apply.PROFILE_ROW or r["alert_id"].startswith(
                     (apply.APPLIED, apply.QUEUE, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY,
-                     agent.AGENT, agent.RESUME, ai_answers.RATE_ROW)):
+                     agent.AGENT, agent.RESUME, ai_answers.RATE_ROW, ai_answers.MONTH_ROW)):
                 _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
         return ok(204)
     if sub == "attempts" or sub.startswith("attempts/"):
@@ -868,7 +877,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         except ValueError as e:
             return ok(400, {"error": str(e), "code": "invalid"})
     if sub == "answers" and method == "POST":
-        apply.add_answer(_alerts_table, user_id, body.get("question"), body.get("answer"), body.get("job_id"))
+        apply.add_answer(_alerts_table, user_id, body.get("question"), body.get("answer"), body.get("job_id"),
+                         source="ai" if body.get("source") == "ai" else "user")
         return ok(204)
     if sub == "usage" and method == "GET":
         # The summary's numbers in the old shape, for clients that still ask here.
@@ -2300,13 +2310,13 @@ def unsubscribed_page(status: int, body: dict) -> str:
 
 
 def route_list_alerts(user_id: str) -> dict:
-    resp = _alerts_table.query(KeyConditionExpression=Key("user_id").eq(user_id))
+    rows = apply.query_all(_alerts_table, user_id)
     # The profile and every saved job share this partition under
     # sentinel sort keys (see profile.py and saved.py), so they come back
     # from the same Query. The profile would render as an alert with no
     # filter; a saved job would put one row in the reader's alert list
     # per star, which for anyone who uses the Saved view is most of it.
-    items = [i for i in resp.get("Items", [])
+    items = [i for i in rows
              if not str(i.get("alert_id") or "").startswith("#")  # the profile, the overview, its run marker
              and not is_saved_id(i.get("alert_id"))]
     return {"alerts": items}
@@ -2614,8 +2624,7 @@ def route_list_saved(user_id: str) -> dict:
     reader. A missing saved_at sorts last instead of blowing up the
     comparison.
     """
-    resp = _alerts_table.query(KeyConditionExpression=Key("user_id").eq(user_id))
-    rows = [i for i in resp.get("Items", []) if is_saved_id(i.get("alert_id"))]
+    rows = [i for i in apply.query_all(_alerts_table, user_id) if is_saved_id(i.get("alert_id"))]
     rows.sort(key=lambda i: i.get("saved_at") or "", reverse=True)
     return {"saved": [{"job_id": job_id_of(i), "saved_at": i.get("saved_at")} for i in rows]}
 

@@ -138,12 +138,17 @@ t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "s
 long_answer = "I built data pipelines. " * 150
 apply.put_profile(t, "u", {"answers": [{"question": "Describe your experience", "answer": long_answer},
                                        {"question": "Notice period?", "answer": "30 days"}]})
+apply.add_answer(t, "u", "Do you hold a PhD?", "Yes", source="ai")
+apply.approve(t, "u", "Do you hold a PhD?", None, "Yes", "rejected")
+apply.add_answer(t, "u", "Years of Rust?", "Five", source="ai")
 ai_answers.draft(t, "u", {"question": "Main database?"}, {}, run=run("Postgres"), report=reported.append, now=NOW)
 earlier = json.loads(sent[-1][1]["content"].split("\nJob:")[0][len("Facts: "):])["earlier_answers"]
 cut = [a["answer"] for a in earlier if a["question"] == "Describe your experience"]
 check("a long saved answer reaches the model cut to its first 300 characters",
       len(cut) == 1 and len(cut[0]) == 300 and long_answer.startswith(cut[0]), repr([(a["question"], len(a["answer"])) for a in earlier]))
 check("a short one reaches it unchanged", {"question": "Notice period?", "answer": "30 days"} in earlier, repr(earlier))
+check("a rejected or unreviewed AI answer is never background for a new one",
+      not {"Do you hold a PhD?", "Years of Rust?"} & {a["question"] for a in earlier}, repr(earlier))
 check("and the saved answer itself stays whole",
       any(a["answer"] == long_answer.strip() for a in apply.get_profile(t, "u")["answers"]))
 

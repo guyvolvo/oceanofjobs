@@ -446,7 +446,7 @@ def check_motivation(text: str, posting: str, company: str = "") -> str:
 RESUME = "#agent_resume#"
 MAX_RESUME, RESUME_PROMPT = 8000, 6000
 RESUME_TYPES = (".pdf", ".docx", ".md")
-PRIVACY_VERSION = "2026-10-21"  # the privacy page that describes this
+PRIVACY_VERSION = "2026-10-22"  # the privacy page that describes this; bump with its resume paragraph
 
 
 def get_resume(table, user_id: str, agent_id: str = DEFAULT_ID) -> dict | None:

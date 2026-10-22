@@ -12,7 +12,7 @@ import { Banner } from "@cloudflare/kumo/components/banner";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus, WarningCircle, X } from "@phosphor-icons/react";
-import { apply, send, type Profile } from "./api";
+import { ApiError, apply, send, type Profile } from "./api";
 import { ConfirmDanger, NeedsResume } from "./shared";
 
 const EEO = [["gender", "Gender"], ["race", "Race or ethnicity"], ["veteran", "Veteran status"], ["disability", "Disability"]] as const;
@@ -145,8 +145,8 @@ export function Settings() {
       const { profile } = await apply<{ profile: Profile }>("profile", send("PUT", { profile: fromForm(form) }));
       setForm(toForm(profile));
       toasts.add({ variant: "success", title: "Saved" });
-    } catch {
-      toasts.add({ variant: "error", title: "Couldn't save", description: "Try again." });
+    } catch (e) {
+      toasts.add({ variant: "error", title: "Couldn't save", description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
     } finally {
       setBusy(false);
     }

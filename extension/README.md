@@ -17,7 +17,7 @@ Plain JavaScript, Manifest V3, no build step and no dependencies.
 
 ## What a run does
 
-An alarm fires every 15 minutes unless you paused it in the popup. A run reads `/me/apply/profile`, `/me/apply/usage` and `/me/apply/history`, then works out how many it may send: at most 20 per run, one at a time, never more than the plan has left, and never past your own daily limit.
+An alarm fires every 15 minutes unless you paused it in the popup. A run reads `/me/apply/profile`, `/me/apply/summary` and `/me/apply/history`, then works out how many it may send: at most 20 per run, one at a time, never more than the plan has left, and never past your own daily limit.
 
 - Queue mode takes jobs from `/me/apply/queue`. Jobs that are closed, gone, on another ATS or ruled out by your guardrails are reported as skipped and removed from the queue.
 - Auto mode asks the public `/jobs` for Greenhouse, Ashby and Workable jobs from the last 14 days that match your search preferences (`skills`, `seniority`, `workplace`, `country`, `city`), newest first, then drops blocked companies, companies you applied to within `one_per_company_days`, jobs already in your history and jobs below `min_match`.
@@ -27,8 +27,10 @@ For each job, one at a time:
 1. Open the job in a background tab and read the form. Greenhouse ships the questions, with every select's options, as JSON in `window.__remixContext`. That is read from the page's own world, since a content script can't see page globals. Ashby's tab opens on the posting's `/application` route, and the form comes from the same read-only GraphQL query (`ApiJobPosting`) the page itself makes. Workable's form page renders from a JSON spec it fetches (`/api/v1/jobs/<shortcode>/form`); the filler waits for the form to render and fetches the same spec.
 2. Plan the answers (`lib/match.js`). Known fields come from the profile. Other questions are matched against your saved answers by normalised text. EEO questions are only answered when you set a value, and "decline" picks the "I don't wish to answer" option.
 3. A required question with no answer, when your settings say to use AI, is drafted by `/me/apply/draft` on Basic and Pro, or with your own Anthropic or OpenAI key on Free (or once the plan's AI answers run out). If nothing answers it, the job is reported `skipped` with "Answer this question before continuing: <question>" and the question shows up in the popup.
-4. Claim the job with `/me/apply/claim`. A 402 ends the run and a 409 moves on. Nothing is sent without a claim.
-5. Fill, attach the CV, press submit, then wait up to 45 seconds for the confirmation (Greenhouse's `.../confirmation` page, Ashby's success message, Workable's thank-you panel). The result goes to `/me/apply/result`: `submitted`, or `failed` with a short reason (form errors, CAPTCHA, an emailed security code, Workable's "Something went wrong", no confirmation). A CAPTCHA ends the run.
+4. Before the form opens, reserve a credit with `POST /me/apply/attempts` (api/AUTO_APPLY_CONTRACT.md). No credits left ends the run, a job that already has an application moves on. Nothing is sent without a reservation.
+5. Fill and attach the CV. Before pressing submit, `POST /me/apply/attempts/<id>/submission-started` sends the AI answers in the form; the server refuses while one still needs your review. Then wait up to 45 seconds for the confirmation (Greenhouse's `.../confirmation` page, Ashby's success message, Workable's thank-you panel) and settle the attempt: submitted, or failed with a short reason (form errors, CAPTCHA, an emailed security code, Workable's "Something went wrong", no confirmation). A CAPTCHA ends the run. `/me/apply/result` is only used to record a skip.
+
+Extensions before 1.9 claim with `/me/apply/claim` and report to `/me/apply/result` instead; the server still counts those rows.
 
 Inside the extension a reason is a fixed code (`captcha`, `needs answer: <question>`, `form errors: <fields>`), and the code is what the run compares. `oojMatch.reasonText` turns it into the sentence the popup, the card and the application history show, so `/me/apply/result` gets "Complete the CAPTCHA before submitting." rather than `captcha`.
 

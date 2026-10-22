@@ -1,9 +1,10 @@
 """Application attempts: reservation, submission start, settlement, expiry
 and disputes, as api/AUTO_APPLY_CONTRACT.md defines them.
 
-Not used by any client yet. The extension still calls apply.claim and
-apply.result; it switches to these once the contract's regression tests
-pass (tests/test_attempts.py).
+Extension 1.9 and later reserve, gate and settle through these, and call
+apply.result only to record a skip. 1.8 and earlier (1.7.0 is still the
+store's public version on 2026-10-22) use apply.claim and apply.result, so
+every reserve and summary counts those rows too.
 
 Rows, all in the alerts table under the user's id:
 - #attempt#<id>: one attempt. Its job, the period and time zone fixed at
@@ -137,12 +138,12 @@ def log(event: str, user_id: str, attempt_id: str = "", detail: str = "") -> Non
     print(f"attempts {event} user={who} attempt={attempt_id} {detail}".rstrip(), flush=True)
 
 
-def legacy_used(table, user_id: str, month: str, day: str, tz: str | None, now: datetime) -> tuple[int, int]:
+def legacy_used(table, user_id: str, month: str, day: str, tz: str | None, now: datetime, applied=None) -> tuple[int, int]:
     """(this month, this day) of credits the old claim and result path
     holds (apply.py's #applied# rows), in the user's time zone, so the old
     and new paths share one allowance while both exist."""
     m = d = 0
-    for r in apply._applied(table, user_id):
+    for r in apply._applied(table, user_id) if applied is None else applied:
         if not apply._counts(r, now):
             continue
         rm, rd = periods(datetime.fromisoformat(r["at"]), tz)
@@ -151,10 +152,10 @@ def legacy_used(table, user_id: str, month: str, day: str, tz: str | None, now: 
     return m, d
 
 
-def limits(table, user_id: str) -> tuple[int | None, int | None]:
+def limits(table, user_id: str, plan: str | None = None) -> tuple[int | None, int | None]:
     """(monthly, daily) limits in force: the plan's, with the user's own
     daily maximum on top on every plan. R14."""
-    month, day = PLAN_LIMITS[apply.plan_of(table, user_id)]
+    month, day = PLAN_LIMITS[plan or apply.plan_of(table, user_id)]
     own = (apply.get_profile(table, user_id)["settings"]["guardrails"] or {}).get("daily_limit")
     if own:
         day = min(day, int(own)) if day else int(own)
@@ -384,12 +385,12 @@ class Attempts:
         return self.view(a), True
 
     # R9
-    def expire(self, user_id: str, now: datetime | None = None) -> int:
+    def expire(self, user_id: str, now: datetime | None = None, rows: list | None = None) -> int:
         """Settles this user's open attempts past their expiry: Abandoned
         before submission start, Submission unconfirmed after."""
         now = _utc(now)
         n = 0
-        for a in self._attempts(user_id):
+        for a in self._attempts(user_id) if rows is None else rows:
             if a["state"] in OPEN and a["expires_at"] <= now.isoformat():
                 to = ABANDONED if a["state"] == RESERVED else UNCONFIRMED
                 try:
@@ -496,11 +497,11 @@ class Attempts:
             return self.view(existing)
         return self.view(row)
 
-    def needs(self, user_id: str, queued=frozenset()) -> list[dict]:
+    def needs(self, user_id: str, queued=frozenset(), rows: list | None = None) -> list[dict]:
         """Jobs waiting on the user: the latest attempt per job is Needs
         input and the job isn't back in the queue already."""
         latest = {}
-        for a in self._attempts(user_id):
+        for a in self._attempts(user_id) if rows is None else rows:
             if a["state"] == FILLED:
                 continue
             if a["job_id"] not in latest or a["reserved_at"] > latest[a["job_id"]]["reserved_at"]:
@@ -534,9 +535,7 @@ class Attempts:
         return rows
 
     def _attempts(self, user_id: str) -> list[dict]:
-        resp = self.table.query(KeyConditionExpression=Key("user_id").eq(user_id) & Key("alert_id").begins_with(ATTEMPT),
-                                ConsistentRead=True)
-        return resp.get("Items", [])
+        return apply.query_all(self.table, user_id, ATTEMPT, ConsistentRead=True)
 
     def ledger(self, user_id: str, alert_id: str) -> dict:
         row = self._get(user_id, alert_id) or {}
@@ -548,22 +547,25 @@ class Attempts:
         the board, the account page and /apply. Old-path applications are
         included while that path still exists."""
         now = _utc(now)
-        self.expire(user_id, now)
+        # Each read once: the extension asks for this every 15 minutes and on every popup.
+        attempts = self._attempts(user_id)
+        if self.expire(user_id, now, attempts):
+            attempts = self._attempts(user_id)
         month, day = periods(now, tz)
         m, d = self.ledger(user_id, LEDGER_MONTH + month), self.ledger(user_id, LEDGER_DAY + day)
-        month_limit, day_limit = limits(self.table, user_id)
         plan = apply.plan_of(self.table, user_id)
+        month_limit, day_limit = limits(self.table, user_id, plan)
         plan_month, plan_day = PLAN_LIMITS[plan]
-        old_m, old_d = legacy_used(self.table, user_id, month, day, tz, now)
+        applied = apply._applied(self.table, user_id)
+        old_m, old_d = legacy_used(self.table, user_id, month, day, tz, now, applied)
         old_sub_m = old_sub_d = 0
-        for r in apply._applied(self.table, user_id):
+        for r in applied:
             if r.get("status") == "submitted":
                 rm, rd = periods(datetime.fromisoformat(r["at"]), tz)
                 old_sub_m += rm == month
                 old_sub_d += rd == day
         left = [lim - led["held"] - old for lim, led, old in ((month_limit, m, old_m), (day_limit, d, old_d)) if lim is not None]
         period_led, period_old = (d, old_sub_d) if plan_day else (m, old_sub_m)
-        attempts = self._attempts(user_id)
         from ai_answers import CAPS, _month_row  # noqa: PLC0415 -- ai_answers imports apply as well; kept out of module load
         ai_used = int((self._get(user_id, _month_row(now)) or {}).get("n", 0))
         return {"plan": plan, "period": "day" if plan_day else "month", "limit": plan_day or plan_month,
@@ -576,7 +578,7 @@ class Attempts:
                 "filled_today": old_sub_d + len({a["job_id"] for a in attempts if a["state"] in (FILLED, SUBMITTED, UNCONFIRMED)
                                                  and periods(datetime.fromisoformat(a["reserved_at"]), tz)[1] == day}),
                 "unconfirmed": sum(1 for a in attempts if a["state"] == UNCONFIRMED),
-                "needs_input": len(self.needs(user_id, queued_ids)), "queued": queued,
+                "needs_input": len(self.needs(user_id, queued_ids, attempts)), "queued": queued,
                 "disputes_left": max(0, DISPUTES_PER_PERIOD - self.ledger(user_id, LEDGER_MONTH + billing_period(now, tz))["disputes"]),
                 "ai": {"used": ai_used, "limit": CAPS.get(plan)}, "tz": str(_zone(tz))}
 

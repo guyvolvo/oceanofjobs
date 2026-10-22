@@ -258,10 +258,35 @@ with mock_aws():
     s, b = call("hank", "POST", "attempts", {"attempt_id": "hank-00001", **job(60)})
     check("thirty used the old way: a new reservation is refused", s == 402 and b["code"] == "limit_reached", repr((s, b)))
 
+    # An answer the extension drafted with the user's own AI key waits for review.
+    s, _ = call("ivy", "POST", "answers", {"question": "Years of Go?", "answer": "Four", "source": "ai"})
+    got = apply.get_profile(table, "ivy")["answers"][0]
+    check("an own-key AI answer is saved as the AI's, pending", s == 204 and (got["source"], got["approval"]) == ("ai", "pending"), repr(got))
+
+    # A body of the wrong shape is a 400, not an internal error.
+    def api(method, path, body):
+        event = {"rawPath": "/api" + path, "body": body, "requestContext": {"http": {"method": method},
+                 "authorizer": {"jwt": {"claims": {"sub": "ivy", "token_use": "id"}}}}}
+        with contextlib.redirect_stderr(io.StringIO()):
+            r = handler.lambda_handler(event, None)
+        return r["statusCode"], json.loads(r["body"] or "null")
+    table.put_item(Item={"user_id": "ivy", "alert_id": apply.PLAN_ROW, "plan": "pro", "status": "active"})
+    for body in ('["x"]', '{"facts": ["x"]}', '{"facts": [], "topics": "x"}'):
+        s, b = api("PUT", "/me/apply/agent", body)
+        check(f"PUT agent {body} is a 400", s == 400, repr((s, b)))
+
+    # Every query reads past DynamoDB's 1 MB page.
+    for n in range(40):
+        table.put_item(Item={"user_id": "jay", "alert_id": f"#attempt#jay-{n:05d}", "attempt_id": f"jay-{n:05d}", "pad": "x" * 40000})
+    check("a partition over 1 MB is read in full", len(A._attempts("jay")) == 40, str(len(A._attempts("jay"))))
+
     # Account deletion removes the new rows too.
+    table.put_item(Item={"user_id": "bob", "alert_id": "#ai#2026-10", "n": 3})
     s, _ = call("bob", "DELETE", "")
-    check("deleting the account's auto apply data removes attempts, ledgers and locks",
-          s == 204 and not rows("bob", "#attempt#") and not rows("bob", "#ledger#") and not rows("bob", "#joblock#"))
+    check("deleting the account's auto apply data removes attempts, ledgers, locks and AI counts",
+          s == 204 and not rows("bob", "#attempt#") and not rows("bob", "#ledger#") and not rows("bob", "#joblock#") and not rows("bob", "#ai#"))
+    s, _ = call("jay", "DELETE", "")
+    check("account deletion past 1 MB removes every row", s == 204 and not rows("jay", "#attempt#"))
 
 print()
 if failures:

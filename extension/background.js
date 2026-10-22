@@ -229,6 +229,23 @@ async function draftAnswer(field, profile, preferences, job, ai) {
 const fits = (field, answer) =>
   answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0);
 
+// /me/apply/draft, waiting out one rate limit (20 a minute) rather than
+// giving up on the server's AI for the rest of the run.
+async function draft(body) {
+  try {
+    return await api('/me/apply/draft', { method: 'POST', body });
+  } catch (e) {
+    const wait = e.status === 429 && e.body && e.body.retry_after;
+    if (!wait || wait > 90) throw e;
+    // In 10-second steps, each with an extension call: an idle worker is stopped after 30.
+    for (let left = wait; left > 0; left -= 10) {
+      await new Promise((res) => setTimeout(res, Math.min(left, 10) * 1000));
+      await chrome.runtime.getPlatformInfo();
+    }
+    return api('/me/apply/draft', { method: 'POST', body });
+  }
+}
+
 // A required question with no saved answer. Basic and Pro get it drafted
 // (and saved) by our server; Free, or a plan out of AI answers, falls back
 // to the user's own key. undefined means skip the job. ctx.wroteIt says
@@ -237,9 +254,8 @@ async function answerUnknown(field, job, ctx) {
   ctx.wroteIt = false;
   if (ctx.serverAi) {
     try {
-      const { answer, source } = await api('/me/apply/draft', {
-        method: 'POST', body: { question: field.label, options: field.options || [], job: { id: job.id, title: job.title, company: job.company_name || job.company_domain } },
-      });
+      const { answer, source } = await draft(
+        { question: field.label, options: field.options || [], job: { id: job.id, title: job.title, company: job.company_name || job.company_domain } });
       ctx.wroteIt = source === 'ai';
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
@@ -253,7 +269,7 @@ async function answerUnknown(field, job, ctx) {
   const answer = await draftAnswer(field, ctx.profile, ctx.preferences, job, ctx.ai).catch(() => undefined);
   if (!fits(field, answer)) return undefined;
   ctx.wroteIt = true;
-  await api('/me/apply/answers', { method: 'POST', body: { question: field.label, answer, job_id: job.id } }).catch(() => {});
+  await api('/me/apply/answers', { method: 'POST', body: { question: field.label, answer, job_id: job.id, source: 'ai' } }).catch(() => {});
   return answer;
 }
 
@@ -307,7 +323,10 @@ async function applyTo(job, ctx) {
   // settles the attempt; before the gate that always releases the credit.
   const held = await reserve(job);
   if (held.limit) return 'limit';
-  if (held.taken) return 'skipped';
+  if (held.taken) {
+    await report(job.id, 'skipped', 'already applied');
+    return 'skipped';
+  }
   if (!held.attemptId) return 'failed';
   const id = held.attemptId;
   let clicked = false;
@@ -922,11 +941,8 @@ async function watchHere(tabId, frameId, before) {
 async function suggestAnswer(field, job, ctx) {
   if (ctx.serverAi) {
     try {
-      const { answer } = await api('/me/apply/draft', {
-        method: 'POST',
-        body: { question: field.label, options: field.options || [], mode: 'suggest',
-          job: { id: job.id, title: job.title, company: job.company_name, location: job.location } },
-      });
+      const { answer } = await draft({ question: field.label, options: field.options || [], mode: 'suggest',
+        job: { id: job.id, title: job.title, company: job.company_name, location: job.location } });
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
       if (e.status === 422) return undefined;

@@ -9,9 +9,11 @@ rows the alert evaluator never sees (no `active` attribute):
     #applied#<job id>       one row per job the extension claimed
     #queue#<job id>         a job the user approved for queue mode
 
-Credits are counted from the applied rows rather than kept as a running
+Credits are kept by attempts.py. The applied rows are the old claim and
+result path, still used by extensions before 1.9 and for skip records:
+their credits are counted from the rows rather than kept as a running
 number, so a crash between claim and result can never leak or double a
-credit: a claim with no result counts for CLAIM_HOLD_S, then frees itself.
+credit (a claim with no result counts for CLAIM_HOLD_S, then frees itself).
 
 Nothing here decides what a user's settings should be. Every field has a
 neutral default and the user changes it in onboarding.
@@ -250,9 +252,23 @@ def plan_of(table, user_id: str) -> str:
     return "free"
 
 
+def query_all(table, user_id: str, prefix: str = "", **kw) -> list[dict]:
+    """Every row in the user's partition (under prefix). DynamoDB answers a
+    query 1 MB at a time, and attempts with their AI answers pass that."""
+    cond = Key("user_id").eq(user_id)
+    if prefix:
+        cond = cond & Key("alert_id").begins_with(prefix)
+    items = []
+    while True:
+        page = table.query(KeyConditionExpression=cond, **kw)
+        items += page.get("Items", [])
+        if "LastEvaluatedKey" not in page:
+            return items
+        kw["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+
 def _applied(table, user_id: str) -> list[dict]:
-    resp = table.query(KeyConditionExpression=Key("user_id").eq(user_id) & Key("alert_id").begins_with(APPLIED))
-    return resp.get("Items", [])
+    return query_all(table, user_id, APPLIED)
 
 
 # One job, whichever address it was reached by: the board's listing URL and
@@ -459,8 +475,7 @@ def history(table, user_id: str, limit: int = 50) -> list[dict]:
 def queue(table, user_id: str) -> list[dict]:
     """The queue in the user's order: jobs placed with set_order first, by
     position, then the rest as they were added."""
-    resp = table.query(KeyConditionExpression=Key("user_id").eq(user_id) & Key("alert_id").begins_with(QUEUE))
-    rows = sorted(resp.get("Items", []), key=lambda r: (r.get("position") is None, int(r.get("position") or 0), r.get("added_at") or ""))
+    rows = sorted(query_all(table, user_id, QUEUE), key=lambda r: (r.get("position") is None, int(r.get("position") or 0), r.get("added_at") or ""))
     return [{"job_id": r["job_id"], "added_at": r.get("added_at"), "position": i} for i, r in enumerate(rows)]
 
 

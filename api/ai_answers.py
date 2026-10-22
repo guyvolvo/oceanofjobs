@@ -145,9 +145,10 @@ def facts(profile: dict, prefs: dict) -> dict:
         "salary_expectation": profile["work"]["salary"],
         "skills": prefs.get("skills") or [],
         "seniority": prefs.get("seniority"),
-        # Never another job's "why us": it names that company.
+        # Never another job's "why us": it names that company. Never an
+        # unreviewed or rejected draft: one guess would feed the next.
         "earlier_answers": [{"question": a["question"], "answer": a["answer"][:MAX_EARLIER]}
-                            for a in profile["answers"] if not apply.job_specific(a["question"])][:30],
+                            for a in profile["answers"] if not apply.job_specific(a["question"]) and a["approval"] == "approved"][:30],
     }
     return {k: v for k, v in known.items() if v not in (None, "", [], {})}
 
@@ -176,8 +177,11 @@ def workers_ai(messages: list[dict]) -> tuple[str, int, int]:
     return text, p, c
 
 
+MONTH_ROW = "#ai#"
+
+
 def _month_row(now: datetime) -> str:
-    return "#ai#" + now.strftime("%Y-%m")
+    return MONTH_ROW + now.strftime("%Y-%m")
 
 
 def _count(table, user_id: str, row: str, n: float, cap: int | None = None) -> float:
