@@ -218,7 +218,9 @@ function TryIt({ editable }: { editable: boolean }) {
         disabled={!editable} onChange={(e) => setJob(e.target.value)}
         description="Questions about why you want a job, like &quot;What do you like about this company?&quot;, are drafted from that job's posting." />
       {result ? (
-        result.refused ? (
+        result.refused && !job.trim() && /no job posting/.test(result.refused) ? (
+          <p className="oj-note" role="status">This question is answered from the job's posting, not your facts or resume. Paste a job link above to try it.</p>
+        ) : result.refused ? (
           <p className="oj-note" role="status">No answer: {result.refused}. In a real application, this question would wait for you in Needs attention.</p>
         ) : (
           <div className="oj-stack oj-tight" role="status">
