@@ -40,7 +40,8 @@ const STATE = () => ({
     { alert_id: "al3", active: true, email: "dana@example.com", filter: { search: "devops", department: "Infrastructure", country: "IL" }, created_at: ago(20), last_notified_at: ago(20) },
   ],
   saved: [0, 1, 2, 3].map((i) => ({ job_id: job(i).id, saved_at: ago(i * 10) })),
-  tokens: [{ id: "tk1", name: "Claude Code laptop", hint: "x9Qa", created_at: ago(400), last_used_at: ago(5), expires_at: ago(-1700), scope: "mcp" },
+  tokens: [{ id: "tk1", name: "Claude Code laptop", hint: "x9Qa", created_at: ago(400), last_used_at: ago(5), expires_at: ago(-1700), scope: "mcp",
+    permissions: { saved: "write", queue: "none", alerts: "write", preferences: "read" } },
     { id: "tk2", name: "Ocean of Jobs extension", hint: "77ab", created_at: ago(900), last_used_at: null, expires_at: null, scope: "extension" }],
 });
 const FACETS = { verified: { locations: [
@@ -252,9 +253,14 @@ const last = (pred) => [...requests].reverse().find(pred);
   await page.getByRole("tab", { name: /Settings/ }).click();
   await page.getByRole("button", { name: "New token" }).click();
   await page.getByLabel("Token name").fill("Cursor desktop");
+  check("a token's permissions are listed", await page.getByText("Read and write: saved jobs, alerts · Read: search preferences").isVisible());
+  await page.getByRole("button", { name: "Read and write everything" }).click();
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.waitForTimeout(300);
-  check("create token posts name and 90 days", last((r) => r.method === "POST" && r.path === "/api/me/tokens")?.body === '{"name":"Cursor desktop","expires_in_days":90}');
+  check("create token posts name, 90 days and the permissions picked",
+    last((r) => r.method === "POST" && r.path === "/api/me/tokens")?.body
+      === '{"name":"Cursor desktop","expires_in_days":90,"permissions":{"saved":"write","queue":"write","alerts":"write","preferences":"write"}}',
+    last((r) => r.method === "POST" && r.path === "/api/me/tokens")?.body);
   const madeText = await page.locator(".oj-made").textContent().catch(() => "");
   check("the new token shows masked", madeText.includes("ooj_ZmEwMzAy…") && !madeText.includes("NWQ4"), madeText.slice(0, 200));
   await page.getByRole("button", { name: "Revoke" }).first().click();
@@ -299,6 +305,7 @@ for (const mode of ["dark", "light"]) {
       await page.reload({ waitUntil: "networkidle" });
       await page.waitForTimeout(section === "overview" ? 1200 : 400);
       if (section === "preferences") await page.getByRole("button", { name: /Alert intervals/ }).click();
+      if (section === "settings") await page.getByRole("button", { name: "New token" }).click();
       if (section === "skills") await page.getByRole("button", { name: "Save to profile" }).waitFor();
       await shot(section);
     }

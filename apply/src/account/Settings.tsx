@@ -8,10 +8,11 @@ import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Table } from "@cloudflare/kumo/components/table";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { Plus } from "@phosphor-icons/react";
 import { api, send } from "../api";
 import { useDark } from "../theme";
 import { ConfirmDanger } from "../shared";
-import { EMPTY_PROFILE, type Alert, type SavedRow, type Token } from "./data";
+import { EMPTY_PROFILE, type Access, type Alert, type SavedRow, type Token } from "./data";
 import { Card, ConfirmButton } from "./ui";
 
 const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
@@ -29,6 +30,17 @@ const AGENTS: Record<string, { name: string; cmd: (tok: string) => string; where
   kimi: { name: "Kimi", cmd: json, where: "In Kimi Code, run /mcp-config and paste it, or add it to its mcp.json." },
 };
 const mask = (tok: string) => tok.slice(0, 12) + "…";
+
+// What a token may do, per area (api/tokens.py AREAS).
+const AREAS: [string, string][] = [["saved", "Saved jobs"], ["queue", "Auto apply queue"], ["alerts", "Alerts"], ["preferences", "Search preferences"]];
+const ACCESS: Record<Access, string> = { none: "No access", read: "Read", write: "Read and write" };
+const every = (a: Access) => Object.fromEntries(AREAS.map(([k]) => [k, a])) as Record<string, Access>;
+
+function canDo(p: Record<string, Access>) {
+  const of = (a: Access) => AREAS.filter(([k]) => p[k] === a).map(([, label]) => label.toLowerCase());
+  return (["write", "read"] as Access[]).map((a) => [a, of(a)] as const).filter(([, l]) => l.length)
+    .map(([a, l]) => `${ACCESS[a]}: ${l.length === AREAS.length ? "everything" : l.join(", ")}`).join(" · ");
+}
 
 // Shown masked, so it stays out of screenshots and screen shares. Copy,
 // or selecting it and pressing Ctrl+C, gives the whole value: a pasted
@@ -58,6 +70,7 @@ function Tokens() {
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
   const [expiry, setExpiry] = useState("90");
+  const [perms, setPerms] = useState(every("read"));
   const [busy, setBusy] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [made, setMade] = useState("");
@@ -76,9 +89,10 @@ function Tokens() {
   const create = async () => {
     setBusy(true);
     try {
-      const res = await api<{ token: string }>("/me/tokens", send("POST", { name, expires_in_days: expiry ? Number(expiry) : null }));
+      const res = await api<{ token: string }>("/me/tokens", send("POST", { name, expires_in_days: expiry ? Number(expiry) : null, permissions: perms }));
       setMade(res.token);
       setName("");
+      setPerms(every("read"));
       setFormOpen(false);
       await load();
     } catch (err) {
@@ -101,11 +115,11 @@ function Tokens() {
   };
   const full = (tokens?.length || 0) >= 5;
   const a = AGENTS[agent];
+  const nothing = AREAS.every(([k]) => perms[k] === "none");
 
   return (
     <Card title="Personal access tokens"
-      note="For AI clients that connect over MCP. A token can read and change your saved jobs, auto apply queue, alerts and search preferences. It can't change your auto apply profile or make other tokens."
-      action={<Button size="sm" variant="secondary" disabled={full} title={full ? "Five tokens at most. Revoke one first." : undefined}
+      action={<Button variant="primary" icon={<Plus />} disabled={full} title={full ? "Five tokens at most. Revoke one first." : undefined}
         aria-expanded={formOpen} aria-controls="token-form" onClick={() => setFormOpen(!formOpen)}>New token</Button>}>
       {formOpen ? (
         <form id="token-form" className="oj-form" onSubmit={(e) => { e.preventDefault(); create(); }}>
@@ -113,8 +127,20 @@ function Tokens() {
             value={name} onChange={(e) => setName(e.target.value)} />
           <Select className="oj-select" label="Expires" value={expiry} onValueChange={(v) => setExpiry(String(v ?? ""))}
             items={{ "30": "Expires in 30 days", "90": "Expires in 90 days", "": "Never expires" }} />
+          <fieldset className="oj-perms oj-wide">
+            <legend className="oj-pref-label">Permissions</legend>
+            <div className="oj-row">
+              <Button size="sm" variant="secondary" onClick={() => setPerms(every("read"))}>Read everything</Button>
+              <Button size="sm" variant="secondary" onClick={() => setPerms(every("write"))}>Read and write everything</Button>
+            </div>
+            {AREAS.map(([k, label]) => (
+              <Select key={k} className="oj-select" label={label} value={perms[k]} onValueChange={(v) => setPerms((p) => ({ ...p, [k]: v as Access }))}
+                items={ACCESS} />
+            ))}
+            {nothing ? <p className="oj-error" role="alert">Give the token access to at least one thing.</p> : null}
+          </fieldset>
           <div className="oj-row oj-wide">
-            <Button type="submit" size="sm" variant="primary" loading={busy}>Create</Button>
+            <Button type="submit" size="sm" variant="primary" loading={busy} disabled={nothing}>Create</Button>
             <Button size="sm" variant="ghost" onClick={() => setFormOpen(false)}>Cancel</Button>
           </div>
         </form>
@@ -130,7 +156,7 @@ function Tokens() {
           </div>
           <Secret full={a.cmd(made)} shown={a.cmd(mask(made))} label="the command" />
           {a.where ? <p className="oj-note">{a.where}</p> : null}
-          <p className="oj-note">Claude and ChatGPT connectors can't send a token yet, so saved jobs and the auto apply queue don't work there.</p>
+          <p className="oj-note">Claude and ChatGPT connectors can't send a token yet, so the token doesn't work there.</p>
         </div>
       ) : null}
       {!tokens ? <div className="oj-row oj-note"><Loader /> Loading</div> : tokens.length ? (
@@ -142,6 +168,7 @@ function Tokens() {
                 <Table.Row key={t.id}>
                   <Table.Cell>
                     <span className="oj-job">{t.name}</span>
+                    {t.permissions ? <span className="oj-sub">{canDo(t.permissions)}</span> : null}
                     <span className="oj-sub">{[`ends in ${t.hint}`, `made ${day(t.created_at)}`,
                       t.last_used_at ? `last used ${day(t.last_used_at)}` : "never used",
                       t.expires_at ? `expires ${day(t.expires_at)}` : "never expires"].join(" · ")}</span>

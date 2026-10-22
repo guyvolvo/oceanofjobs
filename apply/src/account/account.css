@@ -74,6 +74,11 @@
 .oj-pref.is-open .oj-pref-chev { transform: rotate(90deg); }
 .oj-pref-edit { padding: 0 0 16px; }
 
+/* A new token's permissions: the shortcuts, then one picker per area. */
+.oj-perms { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); margin: 0; padding: 0; border: 0; min-width: 0; }
+.oj-perms > legend { padding: 0; margin-bottom: 8px; }
+.oj-perms > .oj-row, .oj-perms > .oj-error { grid-column: 1 / -1; }
+
 /* A token or a command, masked, with its Copy button. */
 .oj-secret { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .oj-secret code { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; background: var(--color-kumo-recessed); font: 13px/1.4 var(--font-mono);

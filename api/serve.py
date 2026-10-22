@@ -24,6 +24,7 @@ Two things API Gateway did that a plain WSGI server does not:
 """
 
 import base64
+import json
 import os
 from http import HTTPStatus
 
@@ -39,6 +40,9 @@ TOKEN_PATHS = {
     "mcp": ("/api/me/saved", "/api/me/apply/queue", "/api/me/alerts", "/api/me/profile"),
     "extension": ("/api/me/saved", "/api/me/apply/"),
 }
+# Which of an mcp token's permissions each of its paths needs.
+TOKEN_AREAS = {"/api/me/saved": ("saved", "saved jobs"), "/api/me/apply/queue": ("queue", "auto apply queue"),
+               "/api/me/alerts": ("alerts", "alerts"), "/api/me/profile": ("preferences", "search preferences")}
 
 _jwks = None
 
@@ -61,7 +65,8 @@ def _claims(environ: dict) -> dict | None:
         # The address the account had, verified, when the token was made:
         # where an alert the token creates is sent.
         mail = {"email": found["email"], "email_verified": True} if found.get("email") else {}
-        return {"sub": found["user_id"], "token_use": "ooj", "scope": found["scope"], **mail}
+        perms = {"permissions": found["permissions"]} if "permissions" in found else {}
+        return {"sub": found["user_id"], "token_use": "ooj", "scope": found["scope"], **mail, **perms}
     if not (COGNITO_ISSUER and COGNITO_AUDIENCE):
         return None
     try:
@@ -114,6 +119,21 @@ def _event(environ: dict) -> dict:
     return event
 
 
+def _permission_refusal(path: str, method: str, claims: dict) -> str | None:
+    """Why an mcp token's permissions don't cover this request, or None."""
+    if claims.get("token_use") != "ooj" or claims.get("scope") != "mcp":
+        return None
+    for prefix, (area, label) in TOKEN_AREAS.items():
+        if path == prefix or path.startswith(prefix + "/"):
+            has = (claims.get("permissions") or {}).get(area, "none")
+            need = "read" if method in ("GET", "HEAD") else "write"
+            if has == "write" or has == need:
+                return None
+            return (f"This token can't {'see' if need == 'read' else 'change'} your {label}. Make a token with that "
+                    "permission at https://oceanofjobs.com/account#settings")
+    return None
+
+
 def app(environ, start_response):
     # Every real body is a small JSON form; _event reads the whole thing
     # into memory, and nothing upstream caps it below Cloudflare's 100MB.
@@ -134,6 +154,10 @@ def app(environ, start_response):
             and not any(path == p or path.startswith(p.rstrip("/") + "/") for p in TOKEN_PATHS.get(claims.get("scope"), ()))):
         start_response("403 Forbidden", [("Content-Type", "application/json")])
         return [b'{"error": "this personal access token cannot use this route"}']
+    refused = _permission_refusal(path, event["requestContext"]["http"]["method"], claims)
+    if refused:
+        start_response("403 Forbidden", [("Content-Type", "application/json")])
+        return [json.dumps({"error": refused}).encode()]
 
     result = lambda_handler(event, None) or {}
     status = int(result.get("statusCode", 500))

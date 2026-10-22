@@ -104,7 +104,9 @@ check("the list shows name, last four and expiry, and no secret",
       len(listed) == 1 and listed[0]["name"] == "Claude Code laptop" and listed[0]["hint"] == tok[-4:]
       and "token" not in listed[0] and "hash" not in listed[0] and listed[0]["expires_at"].startswith("2027-01-18"), repr(listed))
 
-check("a good token is its user, scoped to MCP by default", tokens.verify(table, tok, NOW) == {"user_id": USER, "scope": "mcp"})
+ALL = {a: "write" for a in tokens.AREAS}
+check("a good token is its user, scoped to MCP by default, writing every area unless told otherwise",
+      tokens.verify(table, tok, NOW) == {"user_id": USER, "scope": "mcp", "permissions": ALL}, repr(tokens.verify(table, tok, NOW)))
 check("the first use stamps last_used, a second within the hour does not",
       table.updates == 1 and tokens.verify(table, tok, NOW + timedelta(minutes=5))["user_id"] == USER and table.updates == 1, str(table.updates))
 check("a token with one character of its secret changed is refused", tokens.verify(table, tok[:-1] + ("A" if tok[-1] != "A" else "B"), NOW) is None)
@@ -199,6 +201,36 @@ for row in ("#profile", "#apply_profile", "#token#abcd1234", "#saved#0123456789a
     for method, body in (("DELETE", None), ("PATCH", {"active": False})):
         status, _ = call("/api/me/alerts/" + row, method, mailer, body)
         check(f"the alert route can't {method} the row {row}", status.startswith("404") and table.items[("u-serve", row)].get("active") is None, status)
+
+# Permissions, chosen per area when the token is made.
+reader = tokens.create(table, "u-serve", "reader", 30, email="dana@example.com", permissions={"alerts": "read", "preferences": "write"})
+check("the list shows each token's permissions, with none for an area left out",
+      next(t for t in tokens.list_tokens(table, "u-serve") if t["id"] == reader["id"])["permissions"]
+      == {"saved": "none", "queue": "none", "alerts": "read", "preferences": "write"})
+status, _ = call("/api/me/alerts", auth=reader["token"])
+check("a read permission lets a token list alerts", status.startswith("200"), status)
+status, body = call("/api/me/alerts", "POST", reader["token"], {"filter": {"search": "devops"}})
+check("but not create one, and it says which permission is missing",
+      status.startswith("403") and b"can't change your alerts" in body and b"#settings" in body, status + body.decode()[:200])
+status, _ = call("/api/me/alerts/0b6c3f2e-1d2a-4c5b-8e9f-0a1b2c3d4e5f", "DELETE", reader["token"])
+check("or delete one", status.startswith("403"), status)
+status, body = call("/api/me/saved", auth=reader["token"])
+check("no access to saved jobs means it can't even list them", status.startswith("403") and b"can't see your saved jobs" in body, status)
+status, _ = call("/api/me/apply/queue", auth=reader["token"])
+check("or the queue", status.startswith("403"), status)
+status, _ = call("/api/me/profile", "PUT", reader["token"], {"skills": ["Go"]})
+check("a write permission lets it change preferences", status.startswith("200"), status)
+table.items[("u-serve", "#token#" + "0" * 8)] = {"user_id": "u-serve", "alert_id": "#token#" + "0" * 8, "scope": "mcp"}
+check("a token made before permissions keeps writing every area",
+      any(t["id"] == "0" * 8 and t["permissions"] == ALL for t in tokens.list_tokens(table, "u-serve")))
+del table.items[("u-serve", "#token#" + "0" * 8)]
+for bad, why in (({"alerts": "admin"}, "a level that isn't one"), ({"tokens": "write"}, "an area that isn't one"),
+                 ({a: "none" for a in tokens.AREAS}, "no access at all"), ("write", "not an object")):
+    try:
+        tokens.create(table, "u-perm", "x", 30, permissions=bad)
+        check(f"permissions with {why} are refused", False)
+    except ValueError:
+        check(f"permissions with {why} are refused", True)
 status, _ = call("/api/me/saved", auth=live[:-2] + "zz")
 check("a wrong token is 401", status.startswith("401"), status)
 status, _ = call("/api/me/apply/usage", auth=live)
@@ -229,6 +261,7 @@ check("and saved jobs", status.startswith("200"), status)
 for path in ("/api/me/profile", "/api/me/tokens", "/api/me/alerts"):
     status, _ = call(path, auth=ext)
     check(f"but not {path}", status.startswith("403"), status)
+check("an extension token carries no MCP permissions", "permissions" not in tokens.verify(table, ext))
 
 # The extension's whole round trip through serve.py and handler.route_apply.
 status, body = call("/api/me/apply/profile", "PUT", ext, {"profile": {"contact": {"first_name": "Ada"}, "settings": {"mode": "auto"}}})

@@ -669,7 +669,8 @@ def lambda_handler(event, context):
                 body = json.loads(event.get("body") or "{}")
                 made = tokens.create(_alerts_table, user_id, body.get("name"), body.get("expires_in_days"),
                                      scope=body.get("scope") or "mcp",
-                                     email=claims.get("email") if email_is_verified(claims) else None)
+                                     email=claims.get("email") if email_is_verified(claims) else None,
+                                     permissions=body.get("permissions"))
                 resp = _response(201, json.dumps(made))
                 resp["headers"]["Cache-Control"] = "no-store"  # the one answer that carries the token
                 return resp

@@ -8,10 +8,12 @@ token is stored: a copy of the table cannot be used to sign in, and the
 secret carries 192 random bits, so a fast hash is enough.
 
 A token is not a session, and each has a scope. An "mcp" token reaches
-the saved-jobs routes and the auto apply queue only; an "extension" token (made by the website
-for the browser extension) also reaches /api/me/apply/*. serve.py holds
-the map. Neither can read the search profile, change alerts, or mint or
-revoke tokens.
+the four AREAS below, each as its owner chose when making it: no access,
+read, or write (which includes read). A token made before permissions
+existed writes all four, as it always could. An "extension" token (made
+by the website for the browser extension) reaches saved jobs and
+/api/me/apply/*. serve.py holds the map. Neither can mint or revoke
+tokens.
 """
 
 import base64
@@ -27,6 +29,8 @@ ROW = "#token#"
 MAX_PER_USER = 5
 EXPIRY_DAYS = (30, 90, None)  # None: never
 SCOPES = ("mcp", "extension")
+AREAS = ("saved", "queue", "alerts", "preferences")
+ACCESS = ("none", "read", "write")
 NAME_MAX = 60
 # last_used moves at most this often, so a busy client does not cost a
 # write on every call.
@@ -62,10 +66,31 @@ def parse(token: str) -> tuple[str, str] | None:
     return user_id, token_id
 
 
+def permissions_of(item: dict) -> dict:
+    """What the token may do in each area. A row without permissions
+    predates them and keeps the full access it was made with."""
+    got = item.get("permissions") or {}
+    return {a: got.get(a, "none") if got else "write" for a in AREAS}
+
+
+def clean_permissions(body) -> dict:
+    if not isinstance(body, dict) or set(body) - set(AREAS):
+        raise ValueError(f"permissions must give each of {', '.join(AREAS)} as none, read or write")
+    out = {a: body.get(a, "none") for a in AREAS}
+    if any(v not in ACCESS for v in out.values()):
+        raise ValueError("each permission is none, read or write")
+    if all(v == "none" for v in out.values()):
+        raise ValueError("a token needs access to something")
+    return out
+
+
 def _public(item: dict) -> dict:
-    return {"id": item["alert_id"][len(ROW):], "name": item.get("name"), "hint": item.get("hint"),
-            "created_at": item.get("created_at"), "last_used_at": item.get("last_used_at"),
-            "expires_at": item.get("expires_at"), "scope": item.get("scope") or "mcp"}
+    out = {"id": item["alert_id"][len(ROW):], "name": item.get("name"), "hint": item.get("hint"),
+           "created_at": item.get("created_at"), "last_used_at": item.get("last_used_at"),
+           "expires_at": item.get("expires_at"), "scope": item.get("scope") or "mcp"}
+    if out["scope"] == "mcp":
+        out["permissions"] = permissions_of(item)
+    return out
 
 
 def list_tokens(table, user_id: str) -> list[dict]:
@@ -74,7 +99,8 @@ def list_tokens(table, user_id: str) -> list[dict]:
     return [_public(i) for i in rows]
 
 
-def create(table, user_id: str, name, days, now: datetime | None = None, scope: str = "mcp", email: str | None = None) -> dict:
+def create(table, user_id: str, name, days, now: datetime | None = None, scope: str = "mcp", email: str | None = None,
+           permissions: dict | None = None) -> dict:
     """A new token. The only time the token itself is ever returned.
     email is the account's verified address, kept so an alert made with
     the token has somewhere to go."""
@@ -84,6 +110,8 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
         raise ValueError("expires_in_days must be 30, 90 or null")
     if scope not in SCOPES:
         raise ValueError("scope must be mcp or extension")
+    if scope == "mcp":
+        permissions = clean_permissions({a: "write" for a in AREAS} if permissions is None else permissions)
     existing = list_tokens(table, user_id)
     if scope == "extension":
         # One extension per account: connecting again replaces the old token
@@ -102,6 +130,8 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
         item["expires_at"] = (now + timedelta(days=days)).isoformat()
     if email:
         item["email"] = email
+    if scope == "mcp":
+        item["permissions"] = permissions
     table.put_item(Item=item, ConditionExpression="attribute_not_exists(alert_id)")
     return {**_public(item), "token": token}
 
@@ -113,7 +143,7 @@ def revoke(table, user_id: str, token_id: str) -> None:
 
 
 def verify(table, token: str, now: datetime | None = None) -> dict | None:
-    """{"user_id", "scope"} and the email if it has one, for a live token, else None."""
+    """{"user_id", "scope", "permissions"} and the email if it has one, for a live token, else None."""
     parsed = parse(token)
     if not parsed:
         return None
@@ -132,4 +162,6 @@ def verify(table, token: str, now: datetime | None = None) -> dict | None:
                               ConditionExpression="attribute_exists(alert_id)")
         except Exception as e:  # noqa: BLE001 -- a missed timestamp must not refuse a good token
             print(f"token last_used not updated: {e.__class__.__name__}")
-    return {"user_id": user_id, "scope": item.get("scope") or "mcp", **({"email": item["email"]} if item.get("email") else {})}
+    scope = item.get("scope") or "mcp"
+    return {"user_id": user_id, "scope": scope, **({"permissions": permissions_of(item)} if scope == "mcp" else {}),
+            **({"email": item["email"]} if item.get("email") else {})}
