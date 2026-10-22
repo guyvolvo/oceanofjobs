@@ -3884,7 +3884,14 @@ body.signin-open .workspace > .section { border-bottom: 0; }
 
 @media (max-width: 640px) {
   .hero-nav-toggle { display: inline-flex; }
-  .hero-nav-panel { display: flex; }
+  /* The menu now carries every section, more than a phone screen holds:
+     it scrolls on its own, leaving room under its last row for the
+     bottom tab bar (tabbar.js) that sits over it. */
+  .hero-nav-panel { display: flex; max-height: calc(100dvh - 60px); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+    font-size: 19px; }
+  .hero-nav-list { padding-bottom: 88px; }
+  .hero-nav-item { padding: 11px 0; }
+  .hero-nav-item svg { width: 18px; height: 18px; }
   /* Everything the menu now carries, taken out of the bar itself. */
   .hero-bar-head .hero-bar-stack,
   .hero-bar-head .hero-bar-right,

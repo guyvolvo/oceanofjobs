@@ -8,7 +8,7 @@ import { Button } from "@cloudflare/kumo/components/button";
 import { Switch } from "@cloudflare/kumo/components/switch";
 import { Table } from "@cloudflare/kumo/components/table";
 import { Loader } from "@cloudflare/kumo/components/loader";
-import { X } from "@phosphor-icons/react";
+import { PencilSimple, X } from "@phosphor-icons/react";
 import { api, send, ApiError } from "../api";
 import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, SENIORITY_LABELS, WORKPLACE_LABELS,
   type Alert, type Option, type Profile } from "./data";
@@ -210,8 +210,13 @@ export function Alerts({ alerts, error, form, reload }: {
                             aria-label={a.active ? "Alert on. Pause it" : "Alert paused. Resume it"} onClick={() => act.toggle(a)} />
                         </Table.Cell>
                         <Table.Cell className="oj-actions-cell">
-                          <ConfirmButton size="sm" variant="ghost" shape="square" aria-label={`Delete alert ${name}`} title="Delete alert"
-                            disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>
+                          <span className="oj-row oj-tight oj-nowrap">
+                            {/* The form sits below the list: take the reader to it, which on a phone is off screen. */}
+                            <Button size="sm" variant="secondary" icon={<PencilSimple />} aria-label={`Edit alert ${name}`}
+                              onClick={() => { form.edit(a); requestAnimationFrame(() => document.getElementById("alert-form-title")?.scrollIntoView({ block: "start", behavior: "smooth" })); }}>Edit</Button>
+                            <ConfirmButton size="sm" variant="ghost" shape="square" aria-label={`Delete alert ${name}`} title="Delete alert"
+                              disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>
+                          </span>
                         </Table.Cell>
                       </Table.Row>
                     );

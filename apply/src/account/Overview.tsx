@@ -9,7 +9,7 @@ import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Table } from "@cloudflare/kumo/components/table";
 import { Meter } from "@cloudflare/kumo/components/meter";
 import { SkeletonLine } from "@cloudflare/kumo/components/loader";
-import { ArrowDownRight, ArrowUpRight, BookmarkSimple, Check, Pause, UploadSimple, X } from "@phosphor-icons/react";
+import { ArrowDownRight, ArrowUpRight, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, X } from "@phosphor-icons/react";
 import { pub } from "../api";
 import { describeAlertFilter, fmt, MAX_SKILLS, starred, type Alert, type Dashboard, type Day, type Job } from "./data";
 import { AlertFormView, useAlertActions, type AlertForm } from "./Alerts";
@@ -308,7 +308,7 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
         </Card>
 
         <Card title={<>Alerts {sent ? <span className="oj-note">· sent {ago(sent)}</span> : null}</>}
-          action={<Button size="sm" variant="secondary" aria-expanded={formOpen} onClick={() => setFormOpen(!formOpen)}>{formOpen ? "Cancel" : "New alert"}</Button>}>
+          action={<Button size="sm" variant="secondary" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
           {formOpen ? <AlertFormView form={form} autoFocus onDone={() => setFormOpen(false)} />
             : !alerts ? <div className="oj-stack">{bone(220)}{bone(180)}</div>
             : !alerts.length ? <p className="oj-note">No alerts yet. Create one and new listings that match it are emailed to you.</p>
@@ -331,6 +331,8 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
                           <Table.Cell className="oj-actions-cell">
                             <span className="oj-row oj-tight oj-nowrap">
                               <Button size="sm" variant="secondary" disabled={act.busy === a.alert_id} onClick={() => act.toggle(a)}>{a.active ? "Pause" : "Resume"}</Button>
+                              <Button size="sm" variant="ghost" shape="square" aria-label={`Edit alert ${name}`} title="Edit alert"
+                                onClick={() => { form.edit(a); setFormOpen(true); }}><PencilSimple /></Button>
                               <ConfirmButton size="sm" variant="ghost" shape="square" title="Delete alert" aria-label={`Delete alert ${name}`}
                                 disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>
                             </span>
