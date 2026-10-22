@@ -19,9 +19,6 @@ export function Saved({ jobs, error, removing, remove }: {
         : (
           <div className="oj-table">
             <Table>
-              <Table.Header>
-                <Table.Row><Table.Head>Job</Table.Head><Table.Head><span className="sr-only">Remove</span></Table.Head></Table.Row>
-              </Table.Header>
               <Table.Body>
                 {jobs.map((j) => {
                   const where = [j.company_name || (j.company_domain || "").replace(/\.invalid$/, ""), j.location].filter(Boolean).join(" · ");
@@ -29,7 +26,7 @@ export function Saved({ jobs, error, removing, remove }: {
                     <Table.Row key={j.id}>
                       <Table.Cell>
                         <a className="oj-job" href={safeHref(j.url)} target="_blank" rel="noopener">{j.title}</a>
-                        {j.closed_at ? <> <span title="This listing is no longer open"><Badge variant="neutral">Closed</Badge></span></> : null}
+                        {j.closed_at ? <> <span title="This listing is no longer open"><Badge variant="secondary">Closed</Badge></span></> : null}
                         <span className="oj-sub">{where}</span>
                       </Table.Cell>
                       <Table.Cell className="oj-actions-cell">

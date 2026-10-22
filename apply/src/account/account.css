@@ -33,7 +33,7 @@
   background: var(--color-kumo-tint); color: var(--text-color-kumo-subtle); }
 .oj-pill-up { background: var(--color-kumo-success-tint); color: var(--text-color-kumo-success); }
 .oj-pill-down { background: var(--color-kumo-danger-tint); color: var(--text-color-kumo-danger); }
-.oj-chart-bones { height: 180px; }
+.oj-chart-bones { height: 300px; }
 
 .oj-matches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .oj-match { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-top: 1px solid var(--color-kumo-hairline); }
@@ -75,8 +75,7 @@
 .oj-pref-edit { padding: 0 0 16px; }
 
 /* The new-token dialog and its permissions: Permission | Read | Write. */
-/* Centred both ways; Kumo's dialog sits near the top. */
-.oj-token-dialog { width: 520px; top: 50%; translate: -50% -50%; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.oj-token-dialog { width: 520px; }
 .oj-perm-table { width: 100%; border-collapse: collapse; }
 .oj-perm-table caption { text-align: left; padding-bottom: 6px; }
 .oj-perm-table th, .oj-perm-table td { padding: 10px 8px; border-top: 1px solid var(--color-kumo-hairline); text-align: left; font-weight: 400; }

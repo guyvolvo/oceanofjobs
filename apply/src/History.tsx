@@ -5,7 +5,7 @@ import { Select } from "@cloudflare/kumo/components/select";
 import { Empty } from "@cloudflare/kumo/components/empty";
 import { ClockCounterClockwise } from "@phosphor-icons/react";
 import type { HistoryRow, Status } from "./api";
-import { JobCell, STATUS, StatusBadge, fmtDate } from "./shared";
+import { JobCell, STATUS, StatusBadge, fmtDate, plural } from "./shared";
 
 export function History({ rows }: { rows: HistoryRow[] }) {
   const [filter, setFilter] = useState("all");
@@ -25,8 +25,9 @@ export function History({ rows }: { rows: HistoryRow[] }) {
   }
   return (
     <div className="oj-stack">
-      <div className="oj-filter">
-        <Select label="Show" value={filter} onValueChange={(v) => setFilter((v as string) || "all")} items={items} />
+      <div className="oj-row oj-row-between">
+        <span className="oj-note">{plural(shown.length, "application")}</span>
+        <Select aria-label="Show" value={filter} onValueChange={(v) => setFilter((v as string) || "all")} items={items} />
       </div>
       <LayerCard className="oj-table">
         <Table>

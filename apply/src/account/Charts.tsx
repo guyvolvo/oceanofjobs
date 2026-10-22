@@ -63,7 +63,7 @@ export function TrendChart({ labels, values, name }: { labels: string[]; values:
         data: [{ name: "latest", coord: [labels.length - 1, values[values.length - 1]] }] },
     }],
   };
-  return <Chart echarts={echarts} options={options} height={220} />;
+  return <Chart echarts={echarts} options={options} height={300} />;
 }
 
 // Pay across the matches' estimates: 13 bins of 5K from 20K, the middle

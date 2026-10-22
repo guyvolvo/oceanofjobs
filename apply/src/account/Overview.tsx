@@ -230,13 +230,13 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
               <Tabs variant="segmented" size="sm" value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}
                 tabs={[{ value: "matches", label: "New matches" }, { value: "roles", label: "Open jobs" }]} />
             </div>
-            {!ready ? <div className="oj-chart-bones"><SkeletonLine blockHeight={180} /></div>
+            {!ready ? <div className="oj-chart-bones"><SkeletonLine blockHeight={300} /></div>
               : weeks.length < 2 ? (
                 <p className="oj-note">{skills.length ? "Not enough history yet. The weeks fill in as the board watches your matches."
                   : <>Add <a className="oj-link" href="#skills">your skills</a> to see your matches week by week.</>}</p>
               ) : (
                 <>
-                  <Suspense fallback={<div className="oj-chart-bones"><SkeletonLine blockHeight={180} /></div>}>
+                  <Suspense fallback={<div className="oj-chart-bones"><SkeletonLine blockHeight={300} /></div>}>
                     <TrendChart labels={weeks.map((w) => dayLabel(w.day))} values={trendValues} name={isM ? "New matches" : "Open jobs"} />
                   </Suspense>
                   <table className="sr-only">

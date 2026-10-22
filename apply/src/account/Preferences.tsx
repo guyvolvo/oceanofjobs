@@ -46,9 +46,9 @@ export function Preferences({ profile, save, onEditing }: {
   };
   const actions = (clear?: () => void) => (
     <div className="oj-row">
-      <Button size="sm" variant="primary" loading={busy} onClick={submit}>Save</Button>
-      <Button size="sm" variant="ghost" onClick={cancel}>Cancel</Button>
-      {clear ? <Button size="sm" variant="ghost" onClick={clear}>Clear</Button> : null}
+      <Button variant="primary" loading={busy} onClick={submit}>Save</Button>
+      <Button variant="secondary" onClick={cancel}>Cancel</Button>
+      {clear ? <Button variant="ghost" onClick={clear}>Clear</Button> : null}
       {error ? <span className="oj-error" role="status">{error}</span> : null}
     </div>
   );

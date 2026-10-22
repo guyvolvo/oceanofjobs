@@ -192,7 +192,6 @@ function Tokens() {
       {!tokens ? <div className="oj-row oj-note"><Loader /> Loading</div> : tokens.length ? (
         <div className="oj-table">
           <Table>
-            <Table.Header><Table.Row><Table.Head>Token</Table.Head><Table.Head><span className="sr-only">Revoke</span></Table.Head></Table.Row></Table.Header>
             <Table.Body>
               {tokens.map((t) => (
                 <Table.Row key={t.id}>
@@ -254,12 +253,12 @@ export function Settings({ email, logOut }: { email: string; logOut: () => void 
         <div className="oj-row oj-row-between">
           <span className="oj-pref-label">Theme</span>
           {/* Clicks the header's own theme button, which owns the switch and the storage key. */}
-          <Button size="sm" variant="secondary" aria-label={`Switch to the ${dark ? "light" : "dark"} theme`}
+          <Button variant="secondary" aria-label={`Switch to the ${dark ? "light" : "dark"} theme`}
             onClick={() => document.getElementById("hero-theme")?.click()}>{dark ? "Light" : "Dark"}</Button>
         </div>
         <div className="oj-row oj-row-between">
           <span className="oj-pref-label">Log out</span>
-          <Button size="sm" variant="ghost" onClick={logOut}>Log out</Button>
+          <Button variant="secondary" onClick={logOut}>Log out</Button>
         </div>
       </Card>
       <Tokens />

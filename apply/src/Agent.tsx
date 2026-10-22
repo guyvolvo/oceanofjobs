@@ -12,7 +12,7 @@ import { Button } from "@cloudflare/kumo/components/button";
 import { Banner } from "@cloudflare/kumo/components/banner";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { FileArrowUp, Info, Plus, WarningCircle } from "@phosphor-icons/react";
+import { FileArrowUp, Info, Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { apply, send, ApiError } from "./api";
 import { ConfirmDanger } from "./shared";
 
@@ -79,13 +79,16 @@ function List({ items, onChange, max, limit, label, placeholder, area }: {
   return (
     <div className="oj-stack">
       {items.map((r, i) => (
-        <div key={r.key} className="oj-answer">
-          {area ? (
-            <InputArea aria-label={`${label} ${i + 1}`} placeholder={placeholder} autoResize minRows={2} maxLength={limit} value={r.text} onValueChange={(v) => set(r.key, v)} />
-          ) : (
-            <Input aria-label={`${label} ${i + 1}`} placeholder={placeholder} maxLength={limit} value={r.text} onChange={(e) => set(r.key, e.target.value)} />
-          )}
-          <div><Button size="sm" variant="ghost" onClick={() => onChange(items.filter((x) => x.key !== r.key))}>Remove</Button></div>
+        <div key={r.key} className="oj-item">
+          <div className="oj-grow">
+            {area ? (
+              <InputArea aria-label={`${label} ${i + 1}`} placeholder={placeholder} autoResize minRows={2} maxLength={limit} value={r.text} onValueChange={(v) => set(r.key, v)} />
+            ) : (
+              <Input aria-label={`${label} ${i + 1}`} placeholder={placeholder} maxLength={limit} value={r.text} onChange={(e) => set(r.key, e.target.value)} />
+            )}
+          </div>
+          <Button variant="ghost" shape="square" aria-label={`Remove ${label.toLowerCase()} ${i + 1}`} title="Remove"
+            onClick={() => onChange(items.filter((x) => x.key !== r.key))}><X /></Button>
         </div>
       ))}
       <div>
@@ -174,7 +177,7 @@ function ResumeField({ resume, editable, onChange }: { resume: Resume; editable:
       <Checkbox checked={agree} disabled={!editable} onCheckedChange={(c) => setAgree(c === true)}
         label={<>I agree to the <a className="oj-link" href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>. My resume's text is saved to my account so the AI can answer from it.</>} />
       <div className="oj-row">
-        <Button variant="secondary" icon={<FileArrowUp />} loading={busy} disabled={!editable || !agree} onClick={() => input.current?.click()}>Add resume</Button>
+        <Button variant="secondary" className="oj-waiting" icon={<FileArrowUp />} loading={busy} disabled={!editable || !agree} onClick={() => input.current?.click()}>Add resume</Button>
         <span className="oj-note">PDF, DOCX or Markdown</span>
       </div>
       <input ref={input} type="file" accept=".pdf,.docx,.md" hidden onChange={(e) => add(e.target.files?.[0])} />
@@ -315,7 +318,7 @@ export function Agent() {
                   ? { ai: "Let the AI answer from my facts", ask: "Ask me every time" }
                   : { ai: "Let the AI answer from my facts", answer: "Use my answer", ask: "Ask me every time" };
                 return (
-                  <div key={t} className="oj-form">
+                  <div key={t} className="oj-form oj-topic">
                     <Select className="oj-select" label={label} value={form.topics[t].action} items={items}
                       onValueChange={(v) => setTopic(t, { action: (v as Action) || "ai" })} />
                     {form.topics[t].action === "answer" ? (

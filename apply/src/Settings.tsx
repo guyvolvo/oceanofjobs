@@ -11,7 +11,7 @@ import { Button } from "@cloudflare/kumo/components/button";
 import { Banner } from "@cloudflare/kumo/components/banner";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { Plus, WarningCircle } from "@phosphor-icons/react";
+import { Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { apply, send, type Profile } from "./api";
 import { ConfirmDanger } from "./shared";
 
@@ -227,11 +227,14 @@ export function Settings() {
 
       <Card title="Saved answers" note="Save answers to common application questions. The extension reuses them when a question matches and lets you add new answers as you go.">
         {form.answers.map((a) => (
-          <div key={a.id} className="oj-answer">
-            <Input aria-label="Question" placeholder="Question, e.g. Why do you want to work here?" value={a.question}
-              onChange={(e) => setAnswer(a.id, { question: e.target.value })} />
-            <InputArea aria-label="Answer" placeholder="Your answer" rows={2} value={a.answer} onValueChange={(v) => setAnswer(a.id, { answer: v })} />
-            <div><Button size="sm" variant="ghost" onClick={() => set("answers", form.answers.filter((x) => x.id !== a.id))}>Remove</Button></div>
+          <div key={a.id} className="oj-answer oj-item">
+            <div className="oj-grow">
+              <Input aria-label="Question" placeholder="Question, e.g. Why do you want to work here?" value={a.question}
+                onChange={(e) => setAnswer(a.id, { question: e.target.value })} />
+              <InputArea aria-label="Answer" placeholder="Your answer" rows={2} value={a.answer} onValueChange={(v) => setAnswer(a.id, { answer: v })} />
+            </div>
+            <Button variant="ghost" shape="square" aria-label={`Remove the answer to ${a.question || "this question"}`} title="Remove"
+              onClick={() => set("answers", form.answers.filter((x) => x.id !== a.id))}><X /></Button>
           </div>
         ))}
         <div>

@@ -133,7 +133,7 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 .oj-job { font-weight: 500; color: var(--text-color-kumo-strong); text-decoration: none; overflow-wrap: anywhere; }
 .oj-job:hover { text-decoration: underline; }
 .oj-sub { display: block; color: var(--text-color-kumo-subtle); font-size: 13px; overflow-wrap: anywhere; }
-.oj-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.oj-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .oj-table { overflow-x: auto; }
 .oj-table td, .oj-table th { vertical-align: top; }
 .oj-actions { display: flex; gap: 4px; justify-content: flex-end; }
@@ -144,18 +144,32 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 .oj-save { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
 .oj-tight { gap: 6px; }
 .oj-filter { max-width: 320px; }
-.oj-dialog { padding: 24px; display: flex; flex-direction: column; gap: 12px; max-width: calc(100vw - 32px); }
+/* Centred both ways; Kumo's dialog sits near the top, over the site header. */
+.oj-dialog { padding: 24px; display: flex; flex-direction: column; gap: 12px; max-width: calc(100vw - 32px);
+  top: 50%; translate: -50% -50%; max-height: calc(100dvh - 32px); overflow-y: auto; }
+/* Kumo's switch is blue when on; every other control here is the brand green. */
+[role="switch"][data-checked] { background-color: var(--color-kumo-brand); --tw-ring-color: var(--color-kumo-brand); }
+[role="switch"][data-checked] > * { background-color: #fff; }
+/* A list item and the x that removes it, on one line. */
+.oj-item { display: flex; gap: 8px; align-items: flex-start; }
+.oj-item > .oj-grow { display: flex; flex-direction: column; gap: 8px; }
+/* The question's choice keeps half the width whether or not "Your answer" shows. */
+@media (min-width: 640px) { .oj-topic { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .oj-dialog-actions { justify-content: flex-end; margin-top: 8px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 640px) {
   .oj-hide-sm { display: none; }
+  /* The section tabs scroll sideways here: fade the edge so the cut-off tab reads as "more". */
+  .oj-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
   .oj-show-sm { display: flex; margin-top: 6px; }
 }
 
 /* The AI agent tab (Agent.tsx). A fieldset only to disable it all on Free. */
 .oj-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .oj-grow { flex: 1; min-width: 0; }
+/* Disabled only until the consent box is ticked, so it stays legible. */
+.oj-waiting:disabled { opacity: 0.75; }
 .oj-try-answer { margin: 0; white-space: pre-wrap; color: var(--text-color-kumo-strong); }
 .oj-grow > *, .oj-grow input { width: 100%; }
 

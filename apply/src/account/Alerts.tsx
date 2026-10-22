@@ -206,7 +206,7 @@ export function Alerts({ alerts, error, form, reload }: {
                           {dup.has(a.alert_id) ? <span className="oj-sub">Duplicate of {dup.get(a.alert_id)}</span> : null}
                         </Table.Cell>
                         <Table.Cell className="oj-nowrap">
-                          <Switch size="sm" checked={a.active} disabled={act.busy === a.alert_id} label={a.active ? "On" : "Paused"}
+                          <Switch size="sm" checked={a.active} disabled={act.busy === a.alert_id} label={a.active ? "Active" : "Paused"}
                             aria-label={a.active ? "Alert on. Pause it" : "Alert paused. Resume it"} onClick={() => act.toggle(a)} />
                         </Table.Cell>
                         <Table.Cell className="oj-actions-cell">

@@ -366,8 +366,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   const head: Partial<Record<Section, { status?: string; action?: ReactNode }>> = {
     skills: { status: skills.length ? `${plural(skills.length, "skill")} matched against every listing` : "No skills yet",
       action: <Button size="sm" variant="secondary" icon={<UploadSimple />} onClick={pickCv}>Scan a CV</Button> },
-    alerts: { status: alerts?.length ? plural(alerts.length, "alert") : "No alerts yet",
-      action: <Button size="sm" variant="secondary" icon={<Bell />} onClick={newAlert}>New alert</Button> },
+    alerts: { status: alerts?.length ? plural(alerts.length, "alert") : "No alerts yet" },
     saved: { status: savedCount ? plural(savedCount, "saved job") : "Nothing saved yet", action: <LinkButton size="sm" variant="ghost" href="/board">Open the board</LinkButton> },
     preferences: { status: profile ? prefsLine : "" },
   };
@@ -390,7 +389,6 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           <Button variant="secondary" icon={<UploadSimple />} onClick={() => { go("skills"); pickCv(); }}>Add skills from a CV</Button>
           <Button variant="secondary" icon={<Bell />} onClick={newAlert}>New alert</Button>
           <LinkButton variant="primary" href={openHref}>See best matches <ArrowRight /></LinkButton>
-          <Button variant="ghost" onClick={logOut}>Log out</Button>
         </div>
       </header>
       <nav className="oj-tabs" aria-label="Account sections">

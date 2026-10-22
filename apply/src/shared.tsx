@@ -13,12 +13,12 @@ export const STATUS: Record<Status, { label: string; variant: "success" | "warni
   submitted: { label: "Submitted", variant: "success" },
   unconfirmed: { label: "Submission unconfirmed", variant: "warning" },
   filled: { label: "Filled", variant: "info" },
-  in_progress: { label: "In progress", variant: "neutral" },
-  needs_input: { label: "Needs your input", variant: "orange" },
+  in_progress: { label: "In progress", variant: "secondary" },
+  needs_input: { label: "Needs your input", variant: "warning" },
   failed: { label: "Failed", variant: "error" },
-  skipped: { label: "Skipped", variant: "secondary" },
+  skipped: { label: "Skipped", variant: "outline" },
   abandoned: { label: "Abandoned", variant: "outline" },
-  not_sent_disputed: { label: "Not sent (refunded)", variant: "teal-subtle" },
+  not_sent_disputed: { label: "Not sent (refunded)", variant: "secondary" },
 };
 
 export function StatusBadge({ status }: { status: Status }) {
@@ -94,7 +94,7 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
   return (
     <div className="oj-row">
       <Button variant="primary" loading={busy} disabled={!queue?.length} onClick={next}>Apply to next</Button>
-      {queue?.length ? connectedNote : <span className="oj-note">Your queue is empty.</span>}
+      {queue?.length ? null : <span className="oj-note">Your queue is empty.</span>}
     </div>
   );
 }
