@@ -1,12 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Banner } from "@cloudflare/kumo/components/banner";
-import { Empty } from "@cloudflare/kumo/components/empty";
-import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Loader } from "@cloudflare/kumo/components/loader";
-import { Button, LinkButton } from "@cloudflare/kumo/components/button";
-import { UserCircle, WarningCircle } from "@phosphor-icons/react";
-import { apply, signedIn, ApiError, type HistoryRow, type Need, type QueueItem, type Summary } from "./api";
+import { Button } from "@cloudflare/kumo/components/button";
+import { WarningCircle } from "@phosphor-icons/react";
+import { apply, ApiError, type HistoryRow, type Need, type QueueItem, type Summary } from "./api";
 import { useExtension } from "./ext";
 import { Overview, PLAN } from "./Overview";
 // Everything past the overview loads when its tab is opened.
@@ -16,7 +14,6 @@ const History = lazy(() => import("./History").then((m) => ({ default: m.History
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
 const Agent = lazy(() => import("./Agent").then((m) => ({ default: m.Agent })));
 import { plural } from "./shared";
-import { useSiteTheme } from "./theme";
 
 const SECTIONS = ["overview", "queue", "needs", "history", "settings", "agent"] as const;
 type Section = (typeof SECTIONS)[number];
@@ -25,19 +22,9 @@ const fromHash = (): Section => {
   return (SECTIONS as readonly string[]).includes(h) ? (h as Section) : "overview";
 };
 
-function SignedOut() {
-  return (
-    <LayerCard>
-      <Empty icon={<UserCircle size={40} />} title="Log in to use auto apply"
-        description="Your queue, application history and settings are saved to your account."
-        contents={<LinkButton href="/account" variant="primary">Log in</LinkButton>} />
-    </LayerCard>
-  );
-}
-
 type Data = { summary?: Summary; queue?: QueueItem[]; needs?: Need[]; history?: HistoryRow[] };
 
-function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
+export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   const [section, setSection] = useState<Section>(fromHash);
   const [data, setData] = useState<Data>({});
   const [failed, setFailed] = useState(false);
@@ -97,12 +84,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
 
   return (
     <>
-      <div className="oj-head">
-        <div>
-          <h1>Auto apply</h1>
-          <p>{s ? `${PLAN[s.plan] || "Free plan"} · ${plural(s.remaining, "application")} left ${s.period === "day" ? "today" : "this month"}` : " "}</p>
-        </div>
-      </div>
+      <p className="oj-note">{s ? `${PLAN[s.plan] || "Free plan"} · ${plural(s.remaining, "application")} left ${s.period === "day" ? "today" : "this month"}` : " "}</p>
       {failed ? (
         <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load everything"
           description="Some of what's shown here may be out of date." action={<Button size="sm" onClick={load}>Try again</Button>} />
@@ -112,7 +94,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           description="Jobs stay in your queue until your plan's limit resets." />
       ) : null}
       <div className="oj-tabs">
-        <Tabs variant="segmented" tabs={tabs} value={section} onValueChange={go} />
+        <Tabs variant="segmented" size="sm" tabs={tabs} value={section} onValueChange={go} />
       </div>
       <Suspense fallback={waiting}><div role="tabpanel">
         {section === "overview" && (s ? <Overview s={s} ext={ext} queue={data.queue} reload={load} /> : waiting)}
@@ -122,23 +104,6 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
         {section === "settings" && <Settings />}
         {section === "agent" && <Agent />}
       </div></Suspense>
-    </>
-  );
-}
-
-export function App() {
-  const [authed, setAuthed] = useState(signedIn);
-  useEffect(() => {
-    // Signed in or out in another tab.
-    const on = (e: StorageEvent) => { if (e.key === "iljobs_auth_tokens") setAuthed(signedIn()); };
-    addEventListener("storage", on);
-    return () => removeEventListener("storage", on);
-  }, []);
-  const out = useCallback(() => setAuthed(false), []);
-  useSiteTheme();
-  return (
-    <>
-      <main className="oj-main" id="main">{authed ? <Dashboard onSignedOut={out} /> : <SignedOut />}</main>
     </>
   );
 }

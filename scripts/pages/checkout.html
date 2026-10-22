@@ -31,7 +31,7 @@
               // Light or dark to match the page; the brand colour is set in Paddle.
               checkout: { settings: { theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light" } },
               eventCallback: function (e) {
-                if (e.name === "checkout.completed") location.href = "/account#autoapply";
+                if (e.name === "checkout.completed") location.href = "/apply";
               },
             });
             var q = new URLSearchParams(location.search);

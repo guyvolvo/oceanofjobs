@@ -65,11 +65,15 @@ for (const mode of ["dark", "light"]) {
         const key = p.slice("/api/me/apply/".length).split("/")[0];
         return r.fulfill({ json: API[key] ?? {} });
       }
+      // The account side of the same page.
+      if (p === "/api/me/profile") return r.fulfill({ json: { profile: { skills: ["Python"], seniority: null, workplace: [], israel_only: true, country: [], city: [],
+        cadence: "instant", digest_time: "09:00", digest_tz: "Asia/Jerusalem", digest_day: 0 }, skill_spec: null } });
+      if (p.startsWith("/api/")) return r.fulfill({ json: { alerts: [], saved: [], tokens: [] } });
       const file = p === "/apply" || (p.startsWith("/apply/") && !extname(p)) ? join(root, "apply/dist/index.html")
         : p.startsWith("/apply/") ? join(root, "apply/dist", p.slice(7)) : join(root, "frontend", p);
       try {
         r.fulfill({ body: await readFile(file), contentType: TYPES[extname(file)] || "application/octet-stream" });
-      } catch { r.fulfill({ status: 404, body: "" }); }
+      } catch { r.fulfill(p.endsWith(".json") ? { json: {} } : { status: 404, body: "" }); }  // the header's facets.json and stats.json
     });
     await ctx.addInitScript((m) => {
       localStorage.setItem("iljobs_theme", m);

@@ -289,7 +289,10 @@ const last = (pred) => [...requests].reverse().find(pred);
   await page.evaluate((t) => localStorage.setItem("iljobs_auth_tokens", JSON.stringify({ id_token: t, access_token: "a", refresh_token: "r" })), jwt());
   await page.goto("about:blank");
   await page.goto("https://oceanofjobs.com/account#aa-settings", { waitUntil: "networkidle" });
-  check("#aa-settings opens Auto apply", await page.getByRole("link", { name: "Open Auto apply" }).isVisible());
+  check("#aa-settings opens auto apply settings on the same page", page.url().endsWith("/apply#settings")
+    && await page.getByRole("tab", { name: "Auto apply settings" }).getAttribute("aria-selected") === "true");
+  await page.getByRole("tab", { name: "Account settings" }).click();
+  check("and the switch goes back to the account side", page.url().endsWith("/account") && await page.getByRole("tab", { name: /^Skills/ }).isVisible());
   await ctx.close();
 }
 
@@ -308,7 +311,7 @@ for (const mode of ["dark", "light"]) {
     await page.goto("https://oceanofjobs.com/account", { waitUntil: "networkidle" });
     await shot("signedout");
     await page.evaluate((t) => localStorage.setItem("iljobs_auth_tokens", JSON.stringify({ id_token: t, access_token: "a", refresh_token: "r" })), jwt());
-    for (const section of ["overview", "skills", "alerts", "saved", "autoapply", "preferences", "settings"]) {
+    for (const section of ["overview", "skills", "alerts", "saved", "preferences", "settings"]) {
       await page.goto(`https://oceanofjobs.com/account#${section}`, { waitUntil: "networkidle" });
       await page.reload({ waitUntil: "networkidle" });
       await page.waitForTimeout(section === "overview" ? 1200 : 400);

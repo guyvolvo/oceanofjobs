@@ -20,11 +20,24 @@ import { Card } from "./ui";
 const Preferences = lazy(() => import("./Preferences").then((m) => ({ default: m.Preferences })));
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
 
-const SECTIONS = ["overview", "skills", "alerts", "saved", "autoapply", "preferences", "settings"] as const;
+const SECTIONS = ["overview", "skills", "alerts", "saved", "preferences", "settings"] as const;
 type Section = (typeof SECTIONS)[number];
 // A hash can also name a part of a section (#aa-settings, from older
 // extension builds and the MCP server's refusal message).
-const PARTS: Record<string, Section> = { "aa-settings": "autoapply" };
+const PARTS: Record<string, Section> = {};
+
+// Account settings or auto apply settings: /account or /apply. Links from
+// before the two shared a page (/account#aa-settings, #autoapply) open the
+// auto apply side.
+type Mode = "account" | "apply";
+const ApplyDashboard = lazy(() => import("../App").then((m) => ({ default: m.Dashboard })));
+const TITLES: Record<Mode, string> = { account: "Account | Ocean of Jobs", apply: "Auto apply | Ocean of Jobs" };
+function modeFromPath(): Mode {
+  if (location.pathname.startsWith("/account") && (location.hash === "#aa-settings" || location.hash === "#autoapply")) {
+    history.replaceState(null, "", location.hash === "#aa-settings" ? "/apply#settings" : "/apply");
+  }
+  return location.pathname.startsWith("/apply") ? "apply" : "account";
+}
 const fromHash = (): Section => {
   const h = location.hash.slice(1);
   return (SECTIONS as readonly string[]).includes(h) ? (h as Section) : PARTS[h] || "overview";
@@ -146,7 +159,9 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   const name = decodeJwtName(idToken) || "";
   const signedInWith = provider(idToken);
 
-  const [section, setSection] = useState<Section>(fromHash);
+  const [mode, setMode] = useState<Mode>(modeFromPath);
+  // Opened on the auto apply side, the hash is that side's: the account side starts at its overview.
+  const [section, setSection] = useState<Section>(() => (location.pathname.startsWith("/apply") ? "overview" : fromHash()));
   const [profile, setProfile] = useState<Profile | null>(null);
   const [spec, setSpec] = useState<unknown>(null);
   const [skills, setSkills] = useState<string[]>([]);
@@ -229,13 +244,24 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   // The hash is the section, so /account#alerts opens there and Back walks
   // out of a section the way it came in.
   useEffect(() => {
-    const on = () => { setSection(fromHash()); scrollTo(0, 0); };
+    const on = () => {
+      const m = modeFromPath();
+      setMode(m);
+      document.title = TITLES[m];
+      if (m === "account") { setSection(fromHash()); scrollTo(0, 0); }
+    };
     addEventListener("popstate", on);
     addEventListener("hashchange", on);
     const part = location.hash.slice(1);
     if (PARTS[part]) requestAnimationFrame(() => document.getElementById(part)?.scrollIntoView({ block: "start" }));
     return () => { removeEventListener("popstate", on); removeEventListener("hashchange", on); };
   }, []);
+  const switchMode = (m: string) => {
+    history.pushState(null, "", m === "apply" ? "/apply" : `/account${section === "overview" ? "" : `#${section}`}`);
+    setMode(m as Mode);
+    document.title = TITLES[m as Mode];
+    scrollTo(0, 0);
+  };
   const go = (s: string) => {
     if (s !== "overview") setOverviewForm(false);
     if (location.hash !== `#${s}`) history.pushState({ acct: s }, "", `#${s}`);
@@ -354,7 +380,6 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
     { value: "skills", label: count(skills.length, "Skills") },
     { value: "alerts", label: count(alerts?.length || 0, "Alerts") },
     { value: "saved", label: count(savedCount, "Saved jobs") },
-    { value: "autoapply", label: "Auto apply" },
     { value: "preferences", label: "Preferences" },
     { value: "settings", label: "Settings" },
   ];
@@ -391,8 +416,17 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           <LinkButton variant="primary" href={openHref}>See best matches <ArrowRight /></LinkButton>
         </div>
       </header>
+      <nav className="oj-tabs oj-mode" aria-label="Settings">
+        <Tabs variant="segmented" tabs={[{ value: "account", label: "Account settings" }, { value: "apply", label: "Auto apply settings" }]}
+          value={mode} onValueChange={switchMode} />
+      </nav>
+      {mode === "apply" ? (
+        <Suspense fallback={<div className="oj-row oj-note"><Loader /> Loading</div>}>
+          <ApplyDashboard onSignedOut={onSignedOut} />
+        </Suspense>
+      ) : (<>
       <nav className="oj-tabs" aria-label="Account sections">
-        <Tabs variant="segmented" tabs={tabs} value={section} onValueChange={go} />
+        <Tabs variant="segmented" size="sm" tabs={tabs} value={section} onValueChange={go} />
       </nav>
       <div role="tabpanel" aria-label={tabs.find((t) => t.value === section)?.label} className="oj-stack">
         {h ? (
@@ -413,19 +447,13 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           )}
           {section === "alerts" && <Alerts alerts={alerts} error={alertsError} form={form} reload={reloadAlerts} />}
           {section === "saved" && <Saved jobs={savedJobs} error={savedError} removing={removing} remove={removeSaved} />}
-          {section === "autoapply" && (
-            <section id="aa-settings">
-              <Card title="Auto apply has its own page" note="Manage extension settings in a separate settings page.">
-                <div><LinkButton variant="primary" href="/apply">Open Auto apply</LinkButton></div>
-              </Card>
-            </section>
-          )}
           {section === "preferences" && (profile
             ? <Preferences profile={profile} onEditing={onPrefsEditing} save={async (prefs) => { await putProfile(prefs); }} />
             : waiting)}
           {section === "settings" && <Settings email={email} logOut={logOut} />}
         </Suspense>
       </div>
+      </>)}
     </>
   );
 }

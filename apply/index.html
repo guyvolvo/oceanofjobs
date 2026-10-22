@@ -5,10 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#17181c" />
   <title>Auto apply | Ocean of Jobs</title>
-  <meta name="description" content="Your auto apply queue, application history and settings." />
+  <meta name="description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://oceanofjobs.com/apply" />
+  <meta property="og:title" content="Auto apply | Ocean of Jobs" />
+  <meta property="og:description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
+  <meta property="og:image" content="https://oceanofjobs.com/og.jpg?v=3" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Auto apply | Ocean of Jobs" />
+  <meta name="twitter:description" content="Your alerts, saved jobs, the skills you want matched, and your auto apply settings." />
+  <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
+  <!-- noindex: the page only means something signed in. -->
   <meta name="robots" content="noindex" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
   <link rel="preload" href="/fonts/Geist-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- The site's theme choice, before anything paints. Dark unless the
@@ -23,15 +36,20 @@
       document.querySelector('meta[name="theme-color"]').content = light ? "#f2f0ef" : "#17181c";
     })();
   </script>
-  <!-- The site's own sign-in state and token refresh (getAuthTokens,
-       cognitoRequest, signOut). The app calls these globals instead of
-       keeping a second copy of the Cognito details. -->
+  <!-- Google Analytics only after consent (consent.js). -->
+  <script src="/consent.js"></script>
+  <script src="/count.js"></script>
+  <!-- The site's own sign-in (getAuthTokens, the three ways in, the token
+       refresh) and the CV skill engine (cv_skills.js, the browser twin of
+       api/skills.py). The app calls these globals. -->
   <script src="/auth.js"></script>
-  <!-- The site header\'s styles: style.css in a layer above Kumo\'s reset and
+  <script src="/cv_skills.js"></script>
+  <!-- The site header's styles: style.css in a layer above Kumo's reset and
        below its components (public/site.css). -->
   <link rel="stylesheet" href="/site.css" />
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <!-- site-header:apply --><div class="home site-header">
   <header class="home-bar hero-bar-head">
     <a class="home-brand" href="/" aria-label="Ocean of Jobs home">
@@ -46,10 +64,12 @@
   </header>
 </div><!-- /site-header -->
   <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <script type="module" src="/src/account/main.tsx"></script>
   <script src="/signin_dialog.js"></script>
+  <script src="/tabbar.js"></script>
   <script src="/hero_account.js"></script>
   <script src="/hero_nav.js"></script>
   <script src="/mobile_nav.js"></script>
+  <script src="/upstream.js"></script>
 </body>
 </html>

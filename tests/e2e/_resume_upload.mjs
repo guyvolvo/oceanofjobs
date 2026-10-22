@@ -71,7 +71,7 @@ check("and enabled once it is", await button.isEnabled());
 
 for (const name of ["resume.pdf", "resume.docx", "resume.md"]) {
   const before = sent.length;
-  await page.locator('input[type="file"]').setInputFiles(join(dir, name));
+  await page.locator('input[type="file"][accept=".pdf,.docx,.md"]').setInputFiles(join(dir, name));
   await page.waitForTimeout(2500);
   const body = sent[before] || {};
   check(`${name}: read in the browser and sent as text, with consent`, body.name === name && body.consent === true
@@ -91,7 +91,7 @@ for (const name of ["resume.pdf", "resume.docx", "resume.md"]) {
   }
 }
 const before = sent.length;
-await page.locator('input[type="file"]').setInputFiles(join(dir, "old.doc"));
+await page.locator('input[type="file"][accept=".pdf,.docx,.md"]').setInputFiles(join(dir, "old.doc"));
 await page.waitForTimeout(1000);
 check("a .doc file isn't sent, and says to save it as .docx", sent.length === before && (await page.getByText("Save it as a .docx file first").count()) > 0);
 check("no page errors", errors.length === 0, errors.join("; "));
