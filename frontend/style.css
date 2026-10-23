@@ -7203,7 +7203,13 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
    would run under its links. */
 .board-page .home.site-header,
 :root[data-theme="dark"] .board-page .home.site-header { position: static; border-bottom: 0; }
-.board-page .home.site-header .home-bar { position: static; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.board-page .home.site-header .home-bar { position: static; height: 44px; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* The same space above the header's text as below it, down to the search
+   row: the bar is just tall enough, and the main column adds none. */
+.board-page .board-main { padding-top: 0; }
+/* The name the size of the links beside it, the mark to match. */
+.board-page .home-brand { font: 500 14px/1 "Geist", var(--font); gap: 8px; }
+.board-page .home-mark { width: 18px; height: 18px; }
 .side-open { display: none; }
 
 /* The filter rail becomes the pill row. Each accordion head is a pill
