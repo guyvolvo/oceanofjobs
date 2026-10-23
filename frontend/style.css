@@ -382,6 +382,41 @@ button, input, select {
 .topbar-search-clear:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .topbar-search-clear[hidden] { display: none; }
 
+/* The board's bar in two halves (October 2026): what, then where, each
+   with its name above it. One frame with a rule between the halves; the
+   ring goes on the half being typed in. */
+.board-head .topbar-search.split { height: 52px; padding: 0; gap: 0; align-items: stretch; border-radius: 14px; }
+.topbar-search.split:focus-within { outline: none; }
+.split .topbar-field { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 0 8px 0 14px; border-radius: 12px; }
+.split .topbar-field-what { flex-grow: 1.3; }
+.split .topbar-field + .topbar-field { border-left: 1px solid var(--grey-line); }
+.split .topbar-field:focus-within { outline: 2px solid var(--green); outline-offset: -2px; }
+.split .topbar-field:focus-within .topbar-search-icon { color: var(--green-text); }
+.topbar-field-label { font: 600 12px/1.2 var(--font-ui); color: var(--grey); cursor: text; }
+.topbar-field-row { display: flex; align-items: center; gap: 8px; min-width: 0; height: 22px; }
+.split .topbar-field input { height: 100%; }
+.topbar-places { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: max(100%, 300px); max-height: 340px; overflow-y: auto;
+  margin: 0; padding: 4px; list-style: none; border: 1px solid var(--grey-line); border-radius: 12px; background: var(--white);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); }
+.topbar-places[hidden] { display: none; }
+.topbar-place { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 8px; color: var(--black);
+  font: 400 14px var(--font-ui); cursor: pointer; }
+.topbar-place[aria-selected="true"] { background: var(--hover-bg); }
+.topbar-place-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-place-sub { color: var(--grey); }
+.topbar-place-n { margin-left: auto; color: var(--grey); font-size: 13px; font-variant-numeric: tabular-nums; }
+.topbar-place-none { padding: 10px; color: var(--grey); font: 400 14px var(--font-ui); }
+/* The phone's bar is one row beside the logo: the names go, the halves stay. */
+@media (max-width: 800px) {
+  .board-head .topbar-search.split { height: 44px; }
+  .split .topbar-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .split .topbar-field { padding: 0 4px 0 12px; }
+  .split .topbar-field-row { gap: 6px; }
+  /* The where half is on the right, so its list opens leftward, inside the screen. */
+  .topbar-places { left: auto; right: 0; }
+}
+
 .topnav {
   /* Keeps the nav on the right on the pages with nothing else in the
      bar (account, stats, privacy, 404). The wordmark used to hold the

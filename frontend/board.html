@@ -168,17 +168,41 @@
       <div class="board-head">
         <button type="button" class="side-open" id="side-open" aria-label="Menu" aria-expanded="false" aria-controls="site-side"><span aria-hidden="true"><i></i><i></i><i></i></span></button>
   <a class="m-logo" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="28" height="28" alt="" /></a>
-  <div class="topbar-search" id="topbar-search" role="search">
-    <svg class="topbar-search-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-      <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
-      <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-    </svg>
-    <input type="text" id="f-search" name="search" autocomplete="off" aria-label="Search jobs" placeholder="Search jobs, companies, skills or locations…" title="Every word must appear somewhere in the listing: title, company, location, category or description. &quot;Quote a phrase&quot; to keep it together." />
-      <button type="button" class="topbar-search-clear" id="f-search-clear" aria-label="Clear search" hidden>
-      <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
-        <path d="M2 2l6 6M8 2l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-      </svg>
-    </button>
+  <!-- Two halves, what and where. Where sets the location filter
+       (app.js wireLocationBox); the Location pill still takes several. -->
+  <div class="topbar-search split" id="topbar-search" role="search">
+    <div class="topbar-field topbar-field-what">
+      <label class="topbar-field-label" for="f-search">Search</label>
+      <div class="topbar-field-row">
+        <svg class="topbar-search-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="f-search" name="search" autocomplete="off" placeholder="Job title, company or skill" title="Every word must appear somewhere in the listing: title, company, location, category or description. &quot;Quote a phrase&quot; to keep it together." />
+        <button type="button" class="topbar-search-clear" id="f-search-clear" aria-label="Clear search" hidden>
+          <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+            <path d="M2 2l6 6M8 2l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="topbar-field topbar-field-where">
+      <label class="topbar-field-label" for="f-location">Location</label>
+      <div class="topbar-field-row">
+        <!-- Material Symbols location_on. -->
+        <svg class="topbar-search-icon" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <path d="M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 400Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Z"/>
+        </svg>
+        <input type="text" id="f-location" name="location" autocomplete="off" spellcheck="false" placeholder="Anywhere"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="f-location-list" />
+        <button type="button" class="topbar-search-clear" id="f-location-clear" aria-label="Clear location" hidden>
+          <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+            <path d="M2 2l6 6M8 2l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <ul class="topbar-places" id="f-location-list" role="listbox" aria-label="Places" hidden></ul>
+    </div>
   </div>
         <div class="board-corner">
           <!-- Populated entirely by app.js's renderAuthState() -->

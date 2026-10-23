@@ -4284,7 +4284,8 @@ document.addEventListener("click", () => OPEN_MULTISELECTS.forEach((closeOther) 
 // then what kind of work, then how senior, then how it is worked, then
 // who, then what it pays.
 const RAIL_GROUPS = [
-  { key: "location", title: "Country and city", kind: "tree", search: "Add a country or city" },
+  // No search box: typing a place is the search bar's Location half (wireLocationBox).
+  { key: "location", title: "Country and city", kind: "tree" },
   { key: "department", title: "Category", kind: "list", facet: "categories" },
   { key: "seniority", title: "Level", kind: "list", facet: "seniority", labels: SENIORITY_LABELS },
   { key: "workplace", title: "Workplace", kind: "list", facet: "workplace", labels: WORKPLACE_LABELS },
@@ -4544,7 +4545,6 @@ function railLocationsWithPicked() {
 }
 
 function railCountryBlocks() {
-  const q = (railQueries.get("location") || "").trim().toLowerCase();
   const countries = railLocationsWithPicked();
   const picked = new Set(state.country);
   const cities = new Set(state.city);
@@ -4560,20 +4560,14 @@ function railCountryBlocks() {
   // list is being looked at.
   for (const c of [...countries.filter(onAlready), ...countries.filter((c) => !onAlready(c))]) {
     const all = c.cities || [];
-    const countryHit = !q || (c.label || c.value).toLowerCase().includes(q);
-    const cityHits = q ? all.filter((t) => (t.label || t.value).toLowerCase().includes(q)) : all;
-    if (q && !countryHit && !cityHits.length) continue;
-    if (!q && !listed.has(c.value) && !onAlready(c)) continue;
+    if (!listed.has(c.value) && !onAlready(c)) continue;
 
     const mine = all.filter((t) => cities.has(cityKey(c, t)));
-    // A search opens what it found. Closing a country by hand still
-    // wins, so typing does not fight a reader who just collapsed one.
     // A country that is merely listed starts folded, and the same
     // caret unfolds it: the set records a toggle away from the default.
-    const open = q ? !railCollapsed.has(c.value) || cityHits.length > 0
-      : onAlready(c) ? !railCollapsed.has(c.value) : railCollapsed.has(c.value);
-    const pool = q && cityHits.length ? cityHits : all;
-    const top = railExpanded.has(`city:${c.value}`) || q ? pool : pool.slice(0, RAIL_TOP_N);
+    const open = onAlready(c) ? !railCollapsed.has(c.value) : railCollapsed.has(c.value);
+    const pool = all;
+    const top = railExpanded.has(`city:${c.value}`) ? pool : pool.slice(0, RAIL_TOP_N);
     const shownValues = new Set(top.map((t) => t.value));
     const shown = [...top, ...all.filter((t) => cities.has(cityKey(c, t)) && !shownValues.has(t.value))];
 
@@ -4589,17 +4583,17 @@ function railCountryBlocks() {
           ${railOptionHtml({
             kind: "country", value: c.value, label: c.label || c.value, n: c.n,
             checked: picked.has(c.value) && !mine.length, mixed: mine.length > 0,
-            cls: "rail-country-option", mark: q,
+            cls: "rail-country-option",
           })}
         </div>
         ${open
           ? `<div class="rail-cities">
                ${shown.map((t, i) => railOptionHtml({
                  kind: "city", value: cityKey(c, t), label: t.label || t.value, n: t.n,
-                 checked: cities.has(cityKey(c, t)), mark: q,
+                 checked: cities.has(cityKey(c, t)),
                  cls: "rail-city" + (i === shown.length - 1 ? " last" : ""),
                })).join("")}
-               ${!q && pool.length > RAIL_TOP_N
+               ${pool.length > RAIL_TOP_N
                  ? `<button type="button" class="rail-more rail-more-city" data-more="city:${escapeHtml(c.value)}">`
                    + `${railExpanded.has(`city:${c.value}`) ? "Show fewer" : `Show all (${fmtInt(pool.length)} cities)`}</button>`
                  : ""}
@@ -4611,19 +4605,8 @@ function railCountryBlocks() {
       </div>`);
   }
 
-  // Typing is how a country gets added, so the box has to answer with
-  // countries the rail is not already showing.
-  if (q) {
-    const offered = countries.filter(
-      (c) => !picked.has(c.value)
-        && !(c.cities || []).some((t) => cities.has(t.value))
-        && ((c.label || c.value).toLowerCase().includes(q)
-            || (c.cities || []).some((t) => (t.label || t.value).toLowerCase().includes(q)))
-    );
-    if (!blocks.length && !offered.length) return '<div class="rail-empty">No matches.</div>';
-  }
   if (!blocks.length) return "";
-  const more = !q && countries.length > RAIL_TOP_N
+  const more = countries.length > RAIL_TOP_N
     ? `<button type="button" class="rail-more" data-more="location">${railExpanded.has("location") ? "Show fewer" : `Show all (${fmtInt(countries.length)})`}</button>`
     : "";
   return blocks.join("") + more;
@@ -5233,6 +5216,7 @@ function railToggleLabel() {
 }
 
 function renderActiveChips() {
+  paintLocationBox();
   railToggleLabel();
   const host = document.getElementById("active-chips");
   if (!host) return;
@@ -5495,6 +5479,122 @@ function applySearchNow(raw) {
   loadJobs();
 }
 
+// The search bar's second half: where. Typing offers the places the
+// location facet counts (the Location pill's list), and picking one makes
+// it the whole location filter, as a job site's place box does. The pill
+// still takes several at once; this box then names the first and "+2".
+const PLACE_SUGGESTIONS = 8;
+
+function locationText() {
+  const loose = state.country.filter((c) => !state.city.some((t) => cityCountry(t) === c));
+  const first = state.city[0] ? `${cityName(state.city[0])}, ${countryLabel(cityCountry(state.city[0]))}`
+    : loose[0] ? countryLabel(loose[0]) : "";
+  const more = state.city.length + loose.length - 1;
+  return more > 0 ? `${first} +${more}` : first;
+}
+
+// The open list, redrawn when the places it offers arrive: a reader can
+// start typing before the first facets answer.
+let placesRefresh = null;
+
+function paintLocationBox() {
+  const el = document.getElementById("f-location");
+  if (!el) return;
+  if (document.activeElement !== el) el.value = locationText();
+  else if (placesRefresh) placesRefresh();
+  document.getElementById("f-location-clear").hidden = !(state.country.length || state.city.length);
+}
+
+// Names that start with what was typed first, then the most jobs. With
+// nothing typed, the biggest countries.
+function placeMatches(raw) {
+  const q = raw.trim().toLowerCase();
+  const out = [];
+  for (const c of railFacets.locations || []) {
+    const name = c.label || countryLabel(c.value);
+    const at = name.toLowerCase().indexOf(q);
+    if (at >= 0) out.push({ kind: "country", value: c.value, label: name, sub: "", n: c.n, at });
+    if (!q) continue;
+    for (const t of c.cities || []) {
+      const city = t.label || t.value;
+      const i = city.toLowerCase().indexOf(q);
+      if (i >= 0) out.push({ kind: "city", value: cityKey(c, t), label: city, sub: name, n: t.n, at: i });
+    }
+  }
+  return out.sort((a, b) => (a.at > 0) - (b.at > 0) || b.n - a.n).slice(0, PLACE_SUGGESTIONS);
+}
+
+function wireLocationBox() {
+  const input = document.getElementById("f-location");
+  if (!input) return;
+  const list = document.getElementById("f-location-list");
+  let items = [];
+  let active = -1;
+  let typed = "";
+
+  const mark = () => {
+    [...list.querySelectorAll("[data-i]")].forEach((li) => li.setAttribute("aria-selected", String(+li.dataset.i === active)));
+    if (active >= 0) input.setAttribute("aria-activedescendant", `f-place-${active}`);
+    else input.removeAttribute("aria-activedescendant");
+  };
+  const close = () => {
+    list.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+  };
+  const show = (q) => {
+    items = placeMatches(q);
+    active = items.length ? 0 : -1;
+    list.innerHTML = items.length
+      ? items.map((p, i) => `<li role="option" id="f-place-${i}" class="topbar-place" data-i="${i}">`
+          + `<span class="topbar-place-name">${railMark(p.label, q.trim())}${p.sub ? `<span class="topbar-place-sub">, ${escapeHtml(p.sub)}</span>` : ""}</span>`
+          + `<span class="topbar-place-n">${fmtInt(p.n)}</span></li>`).join("")
+      : q.trim() ? '<li class="topbar-place-none">No places with listings match.</li>' : "";
+    list.hidden = !list.innerHTML;
+    input.setAttribute("aria-expanded", String(!list.hidden));
+    mark();
+  };
+  const pick = (p) => {
+    state.country = [p.kind === "country" ? p.value : cityCountry(p.value)];
+    state.city = p.kind === "city" ? [p.value] : [];
+    close();
+    input.blur();
+    railApply();
+  };
+
+  input.addEventListener("focus", () => { input.select(); show(typed = ""); });
+  input.addEventListener("input", () => show(typed = input.value));
+  placesRefresh = () => show(typed);
+  input.addEventListener("blur", () => { close(); paintLocationBox(); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (list.hidden) return show(input.value);
+      if (items.length) active = (active + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+      mark();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (items[active]) pick(items[active]);
+    } else if (e.key === "Escape") {
+      // Closes the list before the handler that closes the open listing.
+      e.stopPropagation();
+      input.blur();
+    }
+  });
+  // mousedown, not click: a click would blur the box and close the list first.
+  list.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const li = e.target.closest("[data-i]");
+    if (li) pick(items[+li.dataset.i]);
+  });
+  document.getElementById("f-location-clear").addEventListener("click", () => {
+    state.country = [];
+    state.city = [];
+    railApply();
+  });
+  paintLocationBox();
+}
+
 function wireSearchBox() {
   const el = document.getElementById("f-search");
   if (!el) return;
@@ -5558,6 +5658,7 @@ function wireSearchBox() {
 
 function wireFilters() {
   wireSearchBox();
+  wireLocationBox();
 
   renderFilterRail();
   wireFilterRail();
