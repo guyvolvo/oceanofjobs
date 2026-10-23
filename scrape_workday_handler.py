@@ -58,9 +58,8 @@ Known-state-gated descriptions (2026-09-08, same day, once partitioning
 made this cadence affordable to shrink): Workday's own search endpoint
 sends Cache-Control: no-store, no-cache and no ETag at all (confirmed
 live) -- unlike Greenhouse/Lever/Ashby/SmartRecruiters, there's no
-protocol-level "has this changed" to condition on. _known_external_ids_
-by_domain() (now _load_known, from KNOWN_KEY) reads the last-known open
-job ids before probing, and probe.f_workday's own known_external_ids parameter
+protocol-level "has this changed" to condition on. _load_known() reads
+the last-known open job ids (from KNOWN_KEY) before probing, and probe.f_workday's own known_external_ids parameter
 uses that to skip the (real cost driver) per-job description fetch for
 jobs we already have -- see probe.py's own docstring for why the
 description gets skipped, not the whole job. A job whose description
@@ -73,7 +72,6 @@ correct no-op there, not a silent wipe.
 import gzip
 import json
 import os
-import sqlite3
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
@@ -88,7 +86,6 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "loader"))
 import scrape_state  # noqa: E402
 from deltas import put_fragment  # noqa: E402
-from load_to_sqlite import s3_pull  # noqa: E402
 
 # Reported live: "most Workday listings have no description." Workday's
 # own list endpoint never has one at all -- _workday_job_detail() only
@@ -172,11 +169,10 @@ TENANT_WORKERS = 6
 WORKDAY_TIME_RESERVE_MS = BIG_TECH_TIME_RESERVE_MS + 240_000
 # New descriptions per tenant per run. A tenant's first read describes
 # this many and leaves the rest for later runs; the gate is the set of
-# jobs already described (from the partition), not merely seen, so an
+# jobs already described (from KNOWN_KEY), not merely seen, so an
 # undescribed job is described on its next turn, not never.
 WORKDAY_DESCRIBE_PER_TENANT = 300
 
-TMP = Path("/tmp")
 BUCKET = os.environ["DATA_BUCKET"]
 # What this Lambda remembers between runs, per company: its open job ids,
 # which of those already have a description, and when it was last read.
@@ -207,14 +203,14 @@ def _write_status(s3, phase: str, detail: str = "") -> None:
 
 def _load_known(s3) -> tuple[dict[str, set[str]], dict[str, set[str]], dict[str, str]]:
     """(open ids, described ids, last good read) per company, from
-    KNOWN_KEY. Seeded once from the old partition while that is missing."""
+    KNOWN_KEY. Unreadable, everything is new for one run: every board is
+    read and up to WORKDAY_DESCRIBE_PER_TENANT jobs a company described,
+    and the save at the end of the run writes the file again."""
     try:
         raw = json.loads(gzip.decompress(s3.get_object(Bucket=BUCKET, Key=KNOWN_KEY)["Body"].read()))
-    except Exception as e:  # noqa: BLE001 -- the seed is the safe answer to any of these
-        print(f"{KNOWN_KEY} unreadable ({e!r}), seeding from the old partition")
-        # shortcut: seeds from the partition last written 2026-09-23; delete
-        # this fallback and _known_state_by_domain once KNOWN_KEY exists.
-        return _known_state_by_domain()
+    except Exception as e:  # noqa: BLE001 -- treating everything as new is the safe answer to any of these
+        print(f"{KNOWN_KEY} unreadable ({e!r}), treating every company as new this run")
+        return {}, {}, {}
     return ({d: set(v.get("open") or ()) for d, v in raw.items()},
             {d: set(v.get("described") or ()) for d, v in raw.items()},
             {d: v["polled"] for d, v in raw.items() if v.get("polled")})
@@ -247,52 +243,6 @@ def _save_known(s3, known, described, polled) -> bool:
     except Exception as e:  # noqa: BLE001 -- the jobs already went out; this costs re-reads only
         print(f"KNOWN STATE NOT SAVED: {e!r}")
         return False
-
-
-def _known_state_by_domain() -> tuple[dict[str, set[str]], dict[str, set[str]], dict[str, str]]:
-    """This partition's own currently-open jobs, per company, from
-    whatever load_to_sqlite.py's own pull-modify-push cycle last wrote --
-    see probe.f_workday's own known_external_ids docstring for what this
-    feeds. A read-only peek, entirely separate from that cycle's own pull
-    a few lines down in lambda_handler: reusing it directly would mean
-    holding one sqlite3 connection open across the whole probe phase for
-    no real benefit, versus just pulling this same small (pinned, ~a
-    dozen companies) file twice.
-
-    Empty dict on any failure (partition doesn't exist yet, corrupt,
-    whatever) -- same fail-open posture as a missing known.json
-    elsewhere: nothing here already trusted becomes wrong, everything
-    just gets treated as new this one cycle (full description fetches,
-    like today), which is exactly what SHOULD happen the very first time
-    this ever runs, before any partition exists at all.
-
-    Returns three maps: every open job per company, the open jobs that
-    already have a description (a job is new to the big-tech reads until
-    it has been described once), and when each company was last read
-    successfully, taken from its jobs' last_seen, which only a successful
-    poll moves. That last one is what every_hours is measured against.
-    """
-    path = TMP / "known-workday-state.db"
-    try:
-        existed, _ = s3_pull(BUCKET, "jobs-partition-workday.db", path)
-        if not existed:
-            return {}, {}, {}
-        conn = sqlite3.connect(path)
-        rows = conn.execute(
-            "SELECT company_domain, external_id, description_sha IS NOT NULL FROM jobs WHERE closed_at IS NULL"
-        ).fetchall()
-        polled = dict(conn.execute("SELECT company_domain, MAX(last_seen) FROM jobs GROUP BY company_domain").fetchall())
-        conn.close()
-    except Exception as e:
-        print(f"couldn't read known Workday state (non-fatal, treating everything as new this cycle): {e!r}")
-        return {}, {}, {}
-    by_domain: dict[str, set[str]] = {}
-    described: dict[str, set[str]] = {}
-    for domain, external_id, has_description in rows:
-        by_domain.setdefault(domain, set()).add(external_id)
-        if has_description:
-            described.setdefault(domain, set()).add(external_id)
-    return by_domain, described, polled
 
 
 # Slack under the interval, so a board set to every hour is still due on an
