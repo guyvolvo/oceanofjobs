@@ -4599,8 +4599,8 @@ html:has(.home-hero) { scroll-behavior: smooth; }
    than twice the dither's margin (--pad), and tucks it in
    behind (z-index moves halfway through the keyframes) while the back
    card rises to the front. Same height, so the page never moves. */
-.hero-stack { display: grid; }
-.hero-slide { grid-area: 1 / 1; z-index: 0; transform: translateY(-30px) scale(0.94); filter: brightness(0.5); transition: transform 550ms cubic-bezier(0.2, 0.7, 0.2, 1), filter 550ms ease; }
+.hero-stack { display: grid; grid-template-columns: minmax(0, 1fr); }
+.hero-slide { grid-area: 1 / 1; min-width: 0; z-index: 0; transform: translateY(-30px) scale(0.94); filter: brightness(0.5); transition: transform 550ms cubic-bezier(0.2, 0.7, 0.2, 1), filter 550ms ease; }
 .hero-slide.is-on { z-index: 2; transform: none; filter: none; transition-delay: 200ms; }
 .hero-slide.is-leaving { animation: hero-card-back 750ms cubic-bezier(0.3, 0.6, 0.2, 1) both; }
 @keyframes hero-card-back {
