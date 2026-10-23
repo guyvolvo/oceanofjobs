@@ -385,10 +385,10 @@ button, input, select {
 /* The board's bar in two halves (October 2026): what, then where. One
    frame with a rule between the halves; the ring goes on the half being
    typed in. */
-.board-head .topbar-search.split { flex: 1 1 360px; width: auto; max-width: 600px; height: 40px; padding: 0; gap: 0; align-items: stretch; border-radius: 12px; }
+.board-head .topbar-search.split { flex: 1 1 360px; width: auto; max-width: 600px; height: 40px; padding: 0; gap: 0; align-items: stretch; border-radius: 999px; }
 .topbar-search.split:focus-within { outline: none; }
 .split .topbar-field { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px;
-  padding: 0 6px 0 12px; border-radius: 10px; }
+  padding: 0 8px 0 16px; border-radius: 999px; }
 /* Its own line, not the half's border: a border follows the half's
    rounded corners and curved at both ends. */
 .split .topbar-field + .topbar-field::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 1px; background: var(--grey-line); }
@@ -7207,6 +7207,9 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
 /* The same space above the header's text as below it, down to the search
    row: the bar is just tall enough, and the main column adds none. */
 .board-page .board-main { padding-top: 0; }
+/* The sidebar's first box starts level with the search bar's top edge. Not
+   in the drawer (up to 1100px), which keeps its own padding. */
+@media (min-width: 1101px) { .board-page .site-side { padding-top: 0; } }
 /* The name the size of the links beside it, the mark to match. */
 .board-page .home-brand { font: 500 14px/1 "Geist", var(--font); gap: 8px; }
 .board-page .home-mark { width: 18px; height: 18px; }
