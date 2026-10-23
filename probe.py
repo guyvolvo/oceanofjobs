@@ -3882,7 +3882,9 @@ def _parse_workday_posted_on(s: str | None) -> str | None:
     "Posted Today" jobs all showing ~17-18 minutes old at once, from one
     single discover run -- not fake data (confirmed live against the
     real API: genuinely "Posted Today" for each), just false precision
-    on a real 24-hour-wide unknown. None here, not a guess -- and unlike
+    on a real 24-hour-wide unknown. None here, not a guess; the caller
+    (_workday_build_job) stamps first sight instead when the tenant was
+    read an hour ago, which is then right to the hour -- and unlike
     Comeet's unrelated already-tracked issue, this isn't reset every
     cycle: load_to_sqlite.py's own freeze-existing-value logic only
     protects a NON-null posted_at, so a None from today's "Posted Today"
@@ -3905,42 +3907,43 @@ def _parse_workday_posted_on(s: str | None) -> str | None:
     return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
 
-_WORKDAY_MULTI_LOCATION_RE = re.compile(r"^\d+\s+Locations?$", re.IGNORECASE)
+# Not anchored at the end: Caliber sends "3 Locations   |   Glass - Michigan".
+_WORKDAY_MULTI_LOCATION_RE = re.compile(r"^\d+\s+Locations?\b", re.IGNORECASE)
 
 
 def _workday_job_detail(
-    sess: requests.Session, api_base: str, external_path: str, locations_text: str, posted_on: str | None,
+    sess: requests.Session, api_base: str, external_path: str, locations_text: str,
     wants_description: bool = True,
-) -> tuple[str, str | None, str | None]:
-    """One GET to the per-job detail endpoint, shared by three unrelated
-    needs that happen to all live at jobPostingInfo: locationsText on the
-    list endpoint collapses to "2 Locations" / "3 Locations" once a job
-    has more than one office (the real names are at .location plus
-    .additionalLocations); the list endpoint never has a description at
-    all (FETCH_FULL_DESCRIPTIONS wants .jobDescription, gated further by
-    wants_description -- see f_workday's own known_external_ids); and
-    "Posted Today" (see _parse_workday_posted_on) is the one relative
-    bucket coarse enough (a full 24h window) to be worth a real date for.
-    startDate here is the actual posting date, not an employment start
-    date -- confirmed live: a job the list endpoint reported "Posted
-    30+ Days Ago" had startDate exactly 32 days before the request, and
-    it's simply absent from the list endpoint's own response (5 keys
-    total: title, externalPath, locationsText, postedOn, bulletFields),
-    only appearing once you fetch this same per-job detail. Only
-    fetches when at least one of the three actually applies, and only
-    once even when more than one does. Falls back to the summary
-    location text / no description / no exact date if the fetch fails,
-    same as never having tried.
+) -> tuple[str, str | None]:
+    """One GET to the per-job detail endpoint, for two needs that both
+    live at jobPostingInfo: locationsText on the list endpoint collapses
+    to "2 Locations" / "3 Locations" once a job has more than one office
+    (the real names are at .location plus .additionalLocations), and the
+    list endpoint never has a description at all (FETCH_FULL_DESCRIPTIONS
+    wants .jobDescription, gated further by wants_description -- see
+    f_workday's own known_external_ids).
+
+    The locations are only read along with the description, for a job
+    not described yet. A known multi-city job was re-read on every
+    changed poll, about 1,000 GETs for a 3,000-posting tenant, which is
+    what drew the 429s that left "3 Locations" as a city; the loader now
+    keeps a stored location when a poll sends the placeholder. A job
+    whose fetch failed has no description, so it is tried again.
+
+    No startDate any more: it is a bare date, stored as midnight UTC, so
+    a job first seen at 23:57 read as a day old the next morning ("Posted
+    Today" is stamped by _workday_build_job instead). Falls back to the
+    summary location text / no description if the fetch fails, same as
+    never having tried.
 
     api_base must be the /wday/cxs/{tenant}/{site} API prefix, not the
     human-browsable URL f_workday builds job.url from. The browsable one
     returns an HTML SPA shell with no embedded data, not JSON.
     """
-    needs_location = bool(_WORKDAY_MULTI_LOCATION_RE.match(locations_text))
-    needs_exact_date = (posted_on or "").strip().lower() == "posted today"
+    needs_location = bool(_WORKDAY_MULTI_LOCATION_RE.match(locations_text)) and wants_description
     needs_description = FETCH_FULL_DESCRIPTIONS and wants_description
-    if (not needs_location and not needs_exact_date and not needs_description) or not external_path:
-        return locations_text, None, None
+    if (not needs_location and not needs_description) or not external_path:
+        return locations_text, None
 
     detail = get_json(sess, f"{api_base}{external_path}")
     info = (detail or {}).get("jobPostingInfo") or {}
@@ -3950,22 +3953,12 @@ def _workday_job_detail(
         names = [n for n in [_txt(info.get("location")), *(info.get("additionalLocations") or [])] if n]
         location = ", ".join(names) if names else locations_text
 
-    exact_posted_at = None
-    if needs_exact_date:
-        start_date = _txt(info.get("startDate"))
-        if start_date:
-            try:
-                exact_posted_at = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc).isoformat()
-            except ValueError:
-                pass
-
     # Not gated on FETCH_FULL_DESCRIPTIONS -- confirmed live (2026-09-08)
     # this was throwing away a description whenever the detail fetch
-    # already happened for a DIFFERENT reason (needs_location or
-    # needs_exact_date), which is most of the time: scrape_workday_handler.py
-    # never sets FETCH_FULL_DESCRIPTIONS at all, so a newly-posted
-    # ("posted today") job -- the one case this detail fetch always
-    # runs for regardless -- got its description discarded even though
+    # already happened for a DIFFERENT reason (needs_location), which is
+    # most of the time: scrape_workday_handler.py never sets
+    # FETCH_FULL_DESCRIPTIONS at all, so a job fetched for its locations
+    # got its description discarded even though
     # jobDescription was sitting right there in the same response
     # already paid for. Real cost is zero: no request skipped or added,
     # just no longer throwing away a field already in hand. A job whose
@@ -3973,7 +3966,7 @@ def _workday_job_detail(
     # today, FETCH_FULL_DESCRIPTIONS off) still has no description --
     # honest, since nothing was ever fetched for it.
     description = _clean_text(info.get("jobDescription"))
-    return location, description, exact_posted_at
+    return location, description
 
 
 # Reported live: intel.com was only ever showing 20 jobs when Intel's own
@@ -4036,25 +4029,23 @@ def _workday_build_job(
     external_id = _txt(bullets[0] if bullets else j.get("externalPath"))
     # known_external_ids -- see f_workday's own docstring: a job whose id
     # we already have (closed_at IS NULL in our own last-known state)
-    # skips the description half of this fetch. Location/exact-date needs
-    # still apply regardless -- those are cheap, narrow conditions, not
-    # the cost driver this exists to cut.
+    # skips this fetch: the locations come with the description now.
     # describe_ids, when given, is the allow-list f_workday cut to its
     # budget; otherwise every job not already known gets described.
     if describe_ids is not None:
         wants_description = external_id in describe_ids
     else:
         wants_description = known_external_ids is None or external_id not in known_external_ids
-    location, description, exact_posted_at = _workday_job_detail(
-        sess, api_base, external_path, _txt(j.get("locationsText")), posted_on, wants_description=wants_description
+    location, description = _workday_job_detail(
+        sess, api_base, external_path, _txt(j.get("locationsText")), wants_description=wants_description
     )
-    # exact_posted_at (the detail endpoint's real startDate) only gets
-    # fetched at all for "Posted Today" -- every other bucket's own
-    # now-minus-N-days approximation is already accurate to within a day,
-    # not worth an extra request per job for. Falls back to that same
-    # approximation (None, for "Posted Today") if the detail fetch
-    # failed or didn't have it.
-    posted_at = exact_posted_at or _parse_workday_posted_on(posted_on)
+    posted_at = _parse_workday_posted_on(posted_on)
+    # "Posted Today" on a tenant read before (the poll is hourly) is first
+    # sight, right to the hour, and the loader keeps the first date it
+    # stores. On a first read of a tenant it stays unknown: every job on
+    # the board would otherwise read "just now" at once.
+    if posted_at is None and known_external_ids is not None and (posted_on or "").strip().lower() == "posted today":
+        posted_at = datetime.now(timezone.utc).isoformat()
     return Job("workday", f"{tenant}:{wd}:{site}", external_id,
                _txt(j.get("title")), location,
                base + external_path,

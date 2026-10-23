@@ -135,6 +135,48 @@ il_calls = [c for c in sess.calls if c[0] == "POST" and c[3]]
 check("past the cap, the Israel postings are fetched on their own and merged without duplicates",
       len(il_calls) >= 1 and il_calls[0][3] == {"Location_Country": ["il1"]} and len({j.external_id for j in jobs}) == len(jobs), repr(il_calls[:2]))
 
+# Multi-city postings: the real names come from the detail page, with the
+# description, and a failed fetch keeps the placeholder for the loader to
+# ignore (load_to_sqlite keeps the stored location).
+class DetailSess(Sess):
+    def __init__(self, postings, detail):
+        super().__init__(postings)
+        self.detail = detail
+
+    def get(self, url, **kw):
+        with self.lock:
+            self.calls.append(("GET", url, None, None))
+        return self.detail(url)
+
+
+multi = [dict(posting(i), locationsText=text, externalPath=f"/job/x/Role-{i}_R{i:04d}")
+         for i, text in enumerate(["2 Locations", "3 Locations   |   Glass - Michigan"])]
+ok = DetailSess(multi, lambda url: Resp(200, {"jobPostingInfo": {"location": "Haifa, Israel", "additionalLocations": ["Tel Aviv, Israel"],
+                                                                 "jobDescription": "<p>Build</p>"}}))
+jobs = probe.f_workday(ok, "acme", "wd1", "External", known_external_ids=set())
+check("a new multi-city job gets its cities from the detail page, a suffix after the count included",
+      [j.location for j in jobs] == ["Haifa, Israel, Tel Aviv, Israel"] * 2, repr([j.location for j in jobs]))
+sleep, probe.time.sleep = probe.time.sleep, lambda s: None
+try:
+    jobs = probe.f_workday(DetailSess(multi, lambda url: Resp(429, {})), "acme", "wd1", "External", known_external_ids=set())
+finally:
+    probe.time.sleep = sleep
+check("a failed detail fetch keeps the placeholder, and no description",
+      [j.location for j in jobs] == ["2 Locations", "3 Locations   |   Glass - Michigan"] and not any(j.description for j in jobs),
+      repr([j.location for j in jobs]))
+known = DetailSess(multi, lambda url: Resp(200, {}))
+probe.f_workday(known, "acme", "wd1", "External", known_external_ids={"R0000", "R0001"})
+check("a multi-city job already described is not fetched again", not [c for c in known.calls if c[0] == "GET"], repr(known.calls))
+
+today = [dict(posting(0), postedOn="Posted Today")]
+before = probe.datetime.now(probe.timezone.utc)
+jobs = probe.f_workday(Sess(today), "acme", "wd1", "External", known_external_ids=set())
+check("'Posted Today' on a tenant read before is dated first sight, not midnight",
+      jobs[0].posted_at and before <= probe.datetime.fromisoformat(jobs[0].posted_at) <= probe.datetime.now(probe.timezone.utc),
+      repr(jobs[0].posted_at))
+jobs = probe.f_workday(Sess(today), "acme", "wd1", "External")
+check("'Posted Today' on a first read of a tenant stays unknown", jobs[0].posted_at is None, repr(jobs[0].posted_at))
+
 # The handler's poll: unchanged is one request, changed is the walk.
 class FakeProbe:
     pass

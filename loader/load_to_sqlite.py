@@ -32,7 +32,7 @@ import re
 import sqlite3
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from descriptions import description_sha, get_one, put_many
@@ -819,6 +819,26 @@ _STORED_COLUMNS = ("closed_at, title, location, department, url, posted_at, desc
                    " salary_source, seniority, workplace_type, raw_json, last_seen")
 
 
+# Workday's list says "3 Locations" for a multi-city job; probe.py swaps in
+# the real names from the detail page, and when that fetch fails the
+# placeholder comes through. Matches the upsert's GLOB '[0-9]* Location*'.
+WORKDAY_PLACEHOLDER_RE = re.compile(r"[0-9].* Location", re.S)
+
+
+def workday_reposted(new: str | None, old: str | None) -> bool:
+    """A Workday date that moved forward past the drift of its own
+    now-minus-N-days buckets: more than two days newer than the stored one,
+    and newer than 29 days ago, so the "30+ Days Ago" bucket (always exactly
+    30) never counts. JR2017130 was stored at 19 August from "30+", then
+    reposted on 22 October and still read two months old. The upsert's
+    posted_at CASE says the same in SQL."""
+    try:
+        n, o = datetime.fromisoformat(new), datetime.fromisoformat(old)
+        return n - o > timedelta(days=2) and n > datetime.now(timezone.utc) - timedelta(days=29)
+    except (TypeError, ValueError):
+        return False
+
+
 def would_not_change(row, j: dict, ts: str, already_tracked_company: bool) -> bool:
     """True when upsert_job(j) on this stored row would write nothing but
     last_seen. Mirrors its ON CONFLICT branches, and only says True where
@@ -829,15 +849,19 @@ def would_not_change(row, j: dict, ts: str, already_tracked_company: bool) -> bo
     if row is None or row["closed_at"] is not None or row["raw_json"] is not None:
         return False
     location = j.get("location")
+    country, city = j.get("country") or country_string(location), j.get("city") or city_string(location)
+    if (j.get("ats") == "workday" and location and WORKDAY_PLACEHOLDER_RE.match(location)
+            and row["location"] is not None):
+        location, country, city = row["location"], row["country"], row["city"]
     if ((j.get("title") or "") != row["title"] or location != row["location"]
             or j.get("department") != row["department"] or http_url(j.get("url")) != row["url"]
             or j.get("seniority") != row["seniority"] or j.get("workplace_type") != row["workplace_type"]
-            or (j.get("country") or country_string(location)) != row["country"]
-            or (j.get("city") or city_string(location)) != row["city"]):
+            or country != row["country"] or city != row["city"]):
         return False
     posted = ts if j.get("ats") == "comeet" and already_tracked_company else j.get("posted_at")
     if posted != row["posted_at"] and not (
-            j.get("ats") in ("workday", "comeet", "checkpoint") and row["posted_at"] is not None):
+            j.get("ats") in ("workday", "comeet", "checkpoint") and row["posted_at"] is not None
+            and not (j.get("ats") == "workday" and workday_reposted(posted, row["posted_at"]))):
         return False
     chars = j.get("description_chars", 0)
     if chars and chars > 0 and chars != row["description_chars"]:
@@ -876,7 +900,12 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
         ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
-            location = excluded.location,
+            -- Not Workday's "3 Locations" placeholder over a location an
+            -- earlier poll resolved: probe.py keeps it when the detail
+            -- fetch fails, and 374 live jobs had it as their city. The
+            -- right-hand location/country/city here are the stored ones
+            -- (SET reads the row as it was). would_not_change mirrors this.
+            location = CASE WHEN excluded.ats = 'workday' AND excluded.location GLOB '[0-9]* Location*' AND location IS NOT NULL THEN location ELSE excluded.location END,
             department = excluded.department,
             url = excluded.url,
             -- Workday's posted_at is a relative-string approximation
@@ -918,7 +947,19 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
             -- the first-ever insert for a Comeet job uses this run's own
             -- timestamp instead of time_updated, which this CASE then
             -- correctly holds forever after, same as any other ats.
-            posted_at = CASE WHEN excluded.ats IN ('workday', 'comeet', 'checkpoint') AND posted_at IS NOT NULL THEN posted_at ELSE excluded.posted_at END,
+            --
+            -- One way through for Workday: a repost. A date more than two
+            -- days newer than the stored one and newer than 29 days ago is
+            -- not drift (the buckets move a day at a time, and "30+" is
+            -- always exactly 30), it is the job posted again. JR2017130
+            -- read 19 August two months after NVIDIA reposted it. COALESCE:
+            -- a NULL date would make the whole test NULL and fall through
+            -- to writing NULL. workday_reposted() is the same rule.
+            posted_at = CASE WHEN excluded.ats IN ('workday', 'comeet', 'checkpoint') AND posted_at IS NOT NULL
+                AND NOT COALESCE(excluded.ats = 'workday'
+                    AND julianday(excluded.posted_at) - julianday(posted_at) > 2
+                    AND julianday(excluded.posted_at) > julianday('now') - 29, 0)
+                THEN posted_at ELSE excluded.posted_at END,
             -- Keep the existing description/description_chars when this
             -- upsert's own value is empty, rather than blindly overwriting.
             -- Real for two cases today: Comeet and Workday's fast-poll
@@ -941,17 +982,16 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
             -- it (keyword match), so it goes empty on the exact same
             -- re-verify passes description does.
             skills = CASE WHEN excluded.skills IS NOT NULL AND excluded.skills != '' THEN excluded.skills ELSE skills END,
-            -- No guard, unlike skills: country comes from the location
-            -- string, which every pass carries, so a re-verify pass can
-            -- never blank it the way a description-less pass blanks
-            -- skills. A moved job should follow its new location.
-            country = excluded.country,
-            -- Unguarded for the same reason, and it is the same location
-            -- string being read: a re-verify pass that carries no
-            -- description still carries the location, so there is nothing
-            -- here for it to blank. A job that moves across town should
-            -- show the town it moved to.
-            city = excluded.city,
+            -- Follows the location, which every pass carries, so a
+            -- re-verify pass can never blank it the way a description-less
+            -- pass blanks skills. A moved job should follow its new
+            -- location. The one guard is the location's own: Workday's
+            -- "3 Locations" placeholder leaves the stored one.
+            country = CASE WHEN excluded.ats = 'workday' AND excluded.location GLOB '[0-9]* Location*' AND location IS NOT NULL THEN country ELSE excluded.country END,
+            -- The same, read from the same location string: a job that
+            -- moves across town should show the town it moved to, and a
+            -- placeholder leaves the stored one.
+            city = CASE WHEN excluded.ats = 'workday' AND excluded.location GLOB '[0-9]* Location*' AND location IS NOT NULL THEN city ELSE excluded.city END,
             -- A verdict is about a title and a team; when either moves,
             -- it goes back to NULL and classify_roles reads it again.
             role_class = CASE WHEN title IS NOT excluded.title OR department IS NOT excluded.department THEN NULL ELSE role_class END,

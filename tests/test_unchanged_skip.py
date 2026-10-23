@@ -66,12 +66,17 @@ SALARIES = [(None, 0, None), ("", 0, None), ("₪20,000", 0, "disclosed"), ("₪
             ("₪25,000", 1, "estimated"), (None, 1, "estimated"), ("$100k", 0, None)]
 
 
+# Recent enough for a Workday repost to count, and the "30+ Days Ago" bucket.
+RECENT = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+THIRTY = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+
+
 def job(rng: random.Random, n: int, ats: str) -> dict:
     text, est, source = rng.choice(SALARIES)
     j = {"external_id": str(n), "ats": ats, "title": rng.choice(["Engineer", "Engineer II", "PM"]) + f" {n}",
-         "location": rng.choice(["Tel Aviv, Israel", "Haifa, Israel", "Remote", None]),
+         "location": rng.choice(["Tel Aviv, Israel", "Haifa, Israel", "Remote", None, "2 Locations", "3 Locations   |   Glass"]),
          "department": rng.choice(["R&D", None]), "url": rng.choice([f"https://x.com/{n}", "javascript:x"]),
-         "posted_at": rng.choice(["2026-09-01T00:00:00+00:00", "2026-09-02T00:00:00+00:00", None]),
+         "posted_at": rng.choice(["2026-09-01T00:00:00+00:00", "2026-09-02T00:00:00+00:00", None, RECENT, THIRTY]),
          "description": rng.choice([None, "", "Build things.", f"Build {n} things."]),
          "skills": rng.choice([[], ["python"], ["python", "go"]]),
          "seniority": rng.choice(["senior", None]), "workplace_type": rng.choice(["remote", "hybrid", None]),
@@ -185,6 +190,36 @@ with tempfile.TemporaryDirectory() as td:
           row(3)["closed_at"] is None and row(3)["reopened_at"] is not None, str(dict(row(3))))
     first_seen = row(1)["first_seen"]
     check("first_seen never moves on a skip", first_seen == (now - timedelta(hours=2)).isoformat(timespec="seconds"))
+
+    # Workday: the "N Locations" placeholder and the repost.
+    def w(**kw):
+        return [{"domain": "wd.com", "ats": "workday", "token": "wd", "job_count": 1,
+                 "jobs": [dict({"external_id": "JR1", "ats": "workday", "title": "Engineer", "url": "https://wd.com/JR1",
+                                "location": "Haifa, Israel", "posted_at": (now - timedelta(days=60)).isoformat()}, **kw)]}]
+
+    def wrow():
+        return conn.execute("SELECT * FROM jobs WHERE id = ?", (lts.job_id("wd.com", "workday", "JR1", None, ""),)).fetchone()
+
+    load(conn, tmp, w())
+    stored = wrow()
+    for placeholder in ("2 Locations", "3 Locations   |   Glass - Michigan"):
+        load(conn, tmp, w(location=placeholder))
+        check(f"a Workday '{placeholder}' keeps the location, city and country an earlier poll resolved",
+              (wrow()["location"], wrow()["city"], wrow()["country"]) == (stored["location"], stored["city"], stored["country"]),
+              str(dict(wrow())))
+    load(conn, tmp, w(location="Tel Aviv, Israel"))
+    check("a real new location still moves the job", wrow()["location"] == "Tel Aviv, Israel" and wrow()["city"] == stored["city"].replace("Haifa", "Tel Aviv"),
+          str(dict(wrow())))
+    sixty = wrow()["posted_at"]
+    load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=(now - timedelta(days=59)).isoformat()))
+    check("a day of bucket drift leaves the first Workday date", wrow()["posted_at"] == sixty)
+    load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=(now - timedelta(days=30)).isoformat()))
+    check("the 30+ bucket is never a repost", wrow()["posted_at"] == sixty)
+    repost = (now - timedelta(days=1)).isoformat()
+    load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=repost))
+    check("a Workday repost (two months stored, posted yesterday now) takes the new date", wrow()["posted_at"] == repost, wrow()["posted_at"])
+    load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=None))
+    check("a poll with no date never blanks a stored one", wrow()["posted_at"] == repost, str(wrow()["posted_at"]))
     conn.close()
 
 sys.exit(1 if failures else 0)
