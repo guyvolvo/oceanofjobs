@@ -215,11 +215,20 @@ with tempfile.TemporaryDirectory() as td:
     check("a day of bucket drift leaves the first Workday date", wrow()["posted_at"] == sixty)
     load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=(now - timedelta(days=30)).isoformat()))
     check("the 30+ bucket is never a repost", wrow()["posted_at"] == sixty)
+    check("drift and the 30+ bucket count no repost", (wrow()["reposts"], wrow()["first_posted_at"]) == (None, None),
+          str((wrow()["reposts"], wrow()["first_posted_at"])))
+    first = (now - timedelta(days=10)).isoformat()
+    load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=first))
+    check("a Workday repost (two months stored, posted ten days ago now) takes the new date", wrow()["posted_at"] == first, wrow()["posted_at"])
+    check("a repost keeps the date it replaced and counts once", (wrow()["reposts"], wrow()["first_posted_at"]) == (1, sixty),
+          str((wrow()["reposts"], wrow()["first_posted_at"])))
     repost = (now - timedelta(days=1)).isoformat()
     load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=repost))
-    check("a Workday repost (two months stored, posted yesterday now) takes the new date", wrow()["posted_at"] == repost, wrow()["posted_at"])
+    check("a second repost counts again and keeps the first date", (wrow()["posted_at"], wrow()["reposts"], wrow()["first_posted_at"]) == (repost, 2, sixty),
+          str((wrow()["posted_at"], wrow()["reposts"], wrow()["first_posted_at"])))
     load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=None))
     check("a poll with no date never blanks a stored one", wrow()["posted_at"] == repost, str(wrow()["posted_at"]))
+    check("nor counts as a repost", wrow()["reposts"] == 2, str(wrow()["reposts"]))
     conn.close()
 
 sys.exit(1 if failures else 0)

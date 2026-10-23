@@ -272,6 +272,13 @@ _NEW_COLUMNS = {
     # them. A new id for the same role is a new listing, never a return:
     # nothing here guesses from titles or from an old first_seen.
     "reopened_at": "TEXT",
+    # A Workday repost (_WORKDAY_REPOST) replaces posted_at, so the date
+    # it replaced is kept here the first time, and every repost counts.
+    # How long a job has really been open, for the ghost job score. NULL
+    # until a job's first repost; recorded since 2026-10-23, and the
+    # reposts let through from 09:16 that day lost their old date.
+    "first_posted_at": "TEXT",
+    "reposts": "INTEGER",
 }
 
 
@@ -825,6 +832,14 @@ _STORED_COLUMNS = ("closed_at, title, location, department, url, posted_at, desc
 WORKDAY_PLACEHOLDER_RE = re.compile(r"[0-9].* Location", re.S)
 
 
+# workday_reposted() in SQL, for the upsert's ON CONFLICT branch, where
+# posted_at is the stored date. Wrapped in COALESCE(..., 0) at each use: a
+# NULL date makes the whole test NULL.
+_WORKDAY_REPOST = """excluded.ats = 'workday' AND posted_at IS NOT NULL
+                    AND julianday(excluded.posted_at) - julianday(posted_at) > 2
+                    AND julianday(excluded.posted_at) > julianday('now') - 29"""
+
+
 def workday_reposted(new: str | None, old: str | None) -> bool:
     """A Workday date that moved forward past the drift of its own
     now-minus-N-days buckets: more than two days newer than the stored one,
@@ -892,7 +907,7 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
     # one payload) from being counted again.
     was_closed = conn.execute("SELECT closed_at IS NOT NULL FROM jobs WHERE id = ?", (jid,)).fetchone()
     row = conn.execute(
-        """
+        f"""
         INSERT INTO jobs (id, company_domain, ats, external_id, title, location, department,
                            url, posted_at, description_chars, description, description_sha, seniority, workplace_type,
                            skills, country, city, salary_text, salary_is_estimate, salary_source,
@@ -956,10 +971,12 @@ def upsert_job(conn: sqlite3.Connection, jid: str, domain: str, j: dict, confide
             -- a NULL date would make the whole test NULL and fall through
             -- to writing NULL. workday_reposted() is the same rule.
             posted_at = CASE WHEN excluded.ats IN ('workday', 'comeet', 'checkpoint') AND posted_at IS NOT NULL
-                AND NOT COALESCE(excluded.ats = 'workday'
-                    AND julianday(excluded.posted_at) - julianday(posted_at) > 2
-                    AND julianday(excluded.posted_at) > julianday('now') - 29, 0)
+                AND NOT COALESCE({_WORKDAY_REPOST}, 0)
                 THEN posted_at ELSE excluded.posted_at END,
+            -- The date a repost replaces, kept once, and the count.
+            first_posted_at = CASE WHEN COALESCE({_WORKDAY_REPOST}, 0)
+                THEN COALESCE(first_posted_at, posted_at) ELSE first_posted_at END,
+            reposts = CASE WHEN COALESCE({_WORKDAY_REPOST}, 0) THEN COALESCE(reposts, 0) + 1 ELSE reposts END,
             -- Keep the existing description/description_chars when this
             -- upsert's own value is empty, rather than blindly overwriting.
             -- Real for two cases today: Comeet and Workday's fast-poll
