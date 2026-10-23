@@ -30,8 +30,10 @@ PLAN_ROW = "#plan"
 APPLIED = "#applied#"
 QUEUE = "#queue#"
 
-# Plan limits, as on the pricing page: (period, applications).
-LIMITS = {"free": ("month", 30), "basic": ("month", 100), "pro": ("day", 50)}
+# Plan limits, as on the pricing page: (period, applications). The only
+# table: attempts.PLAN_LIMITS is built from it. Filling a form without
+# sending it takes nothing on any plan (attempts.Attempts.filled).
+LIMITS = {"free": ("month", 10), "basic": ("month", 100), "pro": ("day", 50)}
 # A claim that never got a result stops holding its credit after this.
 CLAIM_HOLD_S = 1800
 # Application sites the extension can fill, one per extension/ats/*.js.

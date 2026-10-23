@@ -1,4 +1,4 @@
-"""AI answers (api/ai_answers.py): only on Basic and Pro, capped per
+"""AI answers (api/ai_answers.py): on every plan, capped per
 month, never fed demographic answers, UNKNOWN saves nothing, and every
 call's neurons reach the daily total the 80% alarm reads.
 
@@ -78,12 +78,14 @@ def run(answer, p=600, c=120):
 
 
 body = {"question": "What is your notice period?", "job": {"title": "Engineer", "company": "Acme"}}
-try:
-    ai_answers.draft(t, "u", body, {}, run=run("30 days"), report=reported.append, now=NOW)
-    check("a free user gets no AI answers", False)
-except ai_answers.NotIncluded:
-    check("a free user gets no AI answers", True)
-check("and nothing was sent to the model", sent == [])
+check("free, basic and pro all have a monthly AI cap, free the smallest",
+      set(ai_answers.CAPS) == set(apply.LIMITS) and ai_answers.CAPS["free"] == min(ai_answers.CAPS.values()), repr(ai_answers.CAPS))
+tf = FakeTable()  # its own, so the daily totals below start from zero
+apply.put_profile(tf, "f", {"contact": {"first_name": "Bo", "location": "Haifa"}, "work": {"notice_period": "30 days"}})
+out = ai_answers.draft(tf, "f", body, {}, run=run("30 days"), report=reported.append, now=NOW, save=False)
+check("a free user gets an AI answer, out of 50", out["answer"] == "30 days" and out["remaining"] == 49, repr(out))
+sent.clear()
+reported.clear()
 
 t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
 out = ai_answers.draft(t, "u", body, {"skills": ["Python"]}, run=run("30 days"), report=reported.append, now=NOW)

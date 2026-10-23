@@ -5,7 +5,8 @@ topic, things never to claim, and whether new AI answers wait for review.
 One row per agent, #agent#<agent_id>; v1 has "default" only, so profiles
 can point at agents later without moving anything. Saves are conditional
 on the version the editor loaded, so a second tab gets a conflict instead
-of overwriting. Basic and Pro only (ai_answers.CAPS).
+of overwriting. Basic and Pro only (PLANS); Free gets AI answers from
+the default agent.
 
 ai_answers.draft reads it (step 2): topic rules before the model, the
 user's style and facts in the prompt, and check_answer on every answer.
@@ -40,6 +41,10 @@ PROFILE_FACT = re.compile(r"\b(salary|notice period|sponsorship|work visa|work p
 
 class Conflict(Exception):
     """Saved meanwhile from somewhere else: reload and try again."""
+
+
+# The plans whose users may change their agent.
+PLANS = ("basic", "pro")
 
 
 class NotIncluded(Exception):
@@ -115,7 +120,7 @@ def get(table, user_id: str, agent_id: str = DEFAULT_ID) -> dict:
     row = table.get_item(Key={"user_id": user_id, "alert_id": AGENT + agent_id}, ConsistentRead=True).get("Item")
     agent = {k: row[k] for k in defaults()} if row else defaults()
     agent["version"] = int(agent["version"])
-    return {**agent, "editable": apply.plan_of(table, user_id) in ai_answers.CAPS, "resume": resume_view(get_resume(table, user_id, agent_id))}
+    return {**agent, "editable": apply.plan_of(table, user_id) in PLANS, "resume": resume_view(get_resume(table, user_id, agent_id))}
 
 
 # Turning on a setting that acts without the user checking first needs a
@@ -128,7 +133,7 @@ def put(table, user_id: str, body: dict, now: datetime | None = None, agent_id: 
     """Saves the agent if it's still at body["version"]; Conflict if it was
     saved meanwhile. The version goes up by one."""
     now = now or datetime.now(timezone.utc)
-    if apply.plan_of(table, user_id) not in ai_answers.CAPS:
+    if apply.plan_of(table, user_id) not in PLANS:
         raise NotIncluded("Your own AI agent is part of Basic and Pro")
     try:
         expected = int((body or {}).get("version"))

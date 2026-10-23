@@ -248,9 +248,9 @@ async function draft(body) {
   }
 }
 
-// A required question with no saved answer. Basic and Pro get it drafted
-// (and saved) by our server; Free, or a plan out of AI answers, falls back
-// to the user's own key. undefined means skip the job. ctx.wroteIt says
+// A required question with no saved answer. Our server drafts (and saves)
+// it on every plan; a plan out of AI answers falls back to the user's own
+// key. undefined means skip the job. ctx.wroteIt says
 // whether the AI wrote this answer just now, for the Submit gate.
 async function answerUnknown(field, job, ctx) {
   ctx.wroteIt = false;
@@ -448,7 +448,7 @@ async function run() {
     let left = Math.min(PER_RUN, summary.remaining == null ? PER_RUN : summary.remaining);
     if (!left) return;
 
-    const ctx = { profile, preferences, settings, cv: st.cv, ai: st.ai, serverAi: ['basic', 'pro'].includes(summary.plan) };
+    const ctx = { profile, preferences, settings, cv: st.cv, ai: st.ai, serverAi: true };
     const queueMode = settings.mode === 'queue';
     // Queued jobs come first in both modes. The user or their AI assistant
     // chose each one, so the minimum match does not apply and a skip may retry.
@@ -597,7 +597,7 @@ async function fillHere(msg, tabId, frameId) {
   const page = await readForm(tabId, name, frameId);
   if (!page || page.error) return { error: (page && page.error) || READ_ERROR };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
-    serverAi: ['basic', 'pro'].includes(a.usage.plan) };
+    serverAi: true };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   // Filling costs nothing (R8); a credit is reserved only when the user
   // presses Submit on the card (startSubmit).
@@ -786,7 +786,7 @@ async function assist(tabId, frameId, name, page, url, title) {
   const u = new URL(url);
   const job = { ...(await jobForTab(tabId, url, title, u.hostname)), location: '', ats: name };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
-    serverAi: ['basic', 'pro'].includes(a.usage.plan) };
+    serverAi: true };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
   await recordFilled(job);
@@ -938,8 +938,8 @@ async function watchHere(tabId, frameId, before) {
   return null;
 }
 
-// The AI's best answer for a page the user will review: our server on
-// Basic and Pro, else the user's own key. Not saved as a saved answer.
+// The AI's best answer for a page the user will review: our server, or
+// the user's own key once the plan's AI answers run out. Not saved as a saved answer.
 async function suggestAnswer(field, job, ctx) {
   if (ctx.serverAi) {
     try {

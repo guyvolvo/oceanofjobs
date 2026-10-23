@@ -88,7 +88,7 @@ def counts(A, user="u", month="2026-10", day="2026-10-21"):
 with mock_aws():
     # Concurrent reservations for the last credit: exactly one succeeds.
     t, A = fresh_table()
-    for i in range(29):
+    for i in range(at.PLAN_LIMITS["free"][0] - 1):
         A.reserve("u", f"pre-{i:04d}", job(i), NOW)
     results, lock = [], threading.Lock()
 
@@ -109,7 +109,7 @@ with mock_aws():
     m, _ = counts(A)
     check("eight tabs race for the last free credit: exactly one gets it", results.count("ok") == 1 and results.count("limit") == 7,
           repr(results))
-    check("and the ledger holds exactly 30", m["held"] == 30, repr(m))
+    check("and the ledger holds exactly the free limit", m["held"] == at.PLAN_LIMITS["free"][0], repr(m))
 
     # Concurrent reservations for one job: exactly one succeeds.
     t, A = fresh_table()

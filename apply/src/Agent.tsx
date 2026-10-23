@@ -127,7 +127,7 @@ async function readResume(file: File): Promise<string> {
 }
 
 // On every plan: the resume fills the search preferences and unlocks the
-// hands-off settings; on Basic and Pro the AI also answers from it.
+// hands-off settings, and the AI answers from it.
 function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r: Resume) => void }) {
   const toasts = useKumoToastManager();
   const [agree, setAgree] = useState(false);

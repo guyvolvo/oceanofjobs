@@ -41,8 +41,8 @@ DISPUTE_WINDOW = timedelta(days=14)
 DISPUTES_PER_PERIOD = 5
 ATTEMPT_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
-# (limit per month, limit per day) by plan. R14.
-PLAN_LIMITS = {"free": (30, None), "basic": (100, None), "pro": (None, 50)}
+# (limit per month, limit per day) by plan, from apply.LIMITS. R14.
+PLAN_LIMITS = {plan: (n, None) if period == "month" else (None, n) for plan, (period, n) in apply.LIMITS.items()}
 
 RESERVED, STARTED = "reserved", "submission_started"
 SUBMITTED, UNCONFIRMED = "submitted", "unconfirmed"

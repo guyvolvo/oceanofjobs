@@ -275,7 +275,7 @@ check("and reads it back with the search preferences", got["profile"]["contact"]
 status, _ = call("/api/me/apply/answers", "POST", ext, {"question": "Why us?", "answer": "Because"})
 check("saves an answer", status.startswith("204"), status)
 status, body = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef", "company": "Acme"})
-check("claims a credit", status.startswith("200") and json.loads(body)["remaining"] == 29, status + body.decode())
+check("claims a credit", status.startswith("200") and json.loads(body)["remaining"] == handler.apply.LIMITS["free"][1] - 1, status + body.decode())
 status, _ = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef"})
 check("a second claim on the same job is 409", status.startswith("409"), status)
 status, _ = call("/api/me/apply/result", "POST", ext, {"job_id": "0123456789abcdef", "status": "submitted"})

@@ -203,7 +203,7 @@ with mock_aws():
 
     # 5. The old routes are unchanged and make no reservations.
     s, b = call("frank", "POST", "claim", {"job_id": job(20)["job_id"], "url": job(20)["url"], "company": "acme.com"})
-    check("the old claim still answers as before", s == 200 and b == {"remaining": 29}, repr((s, b)))
+    check("the old claim still answers as before", s == 200 and b == {"remaining": handler.apply.LIMITS["free"][1] - 1}, repr((s, b)))
     s, _ = call("frank", "POST", "result", {"job_id": job(20)["job_id"], "status": "submitted"})
     s2, b2 = call("frank", "GET", "usage")
     check("the old result and usage still work", s == 204 and b2["used"] == 1, repr((s, b2)))
@@ -230,11 +230,11 @@ with mock_aws():
     call("gina", "POST", "result", {"job_id": job(35)["job_id"], "status": "submitted"})  # one through the old path
     s, summ = call("gina", "GET", "summary")
     check("the summary counts submitted and unconfirmed as used, across both paths", s == 200 and summ["used"] == 3, repr(summ))
-    check("and the open attempt as in progress, with the rest left", summ["in_progress"] == 1 and summ["remaining"] == 26, repr(summ))
-    check("Filled costs nothing", summ["used"] + summ["in_progress"] + summ["remaining"] == 30)
+    check("and the open attempt as in progress, with the rest left", summ["in_progress"] == 1 and summ["remaining"] == handler.apply.LIMITS["free"][1] - 4, repr(summ))
+    check("Filled costs nothing", summ["used"] + summ["in_progress"] + summ["remaining"] == handler.apply.LIMITS["free"][1])
     check("unconfirmed, needs and disputes are counted", summ["unconfirmed"] == 1 and summ["needs_input"] == 1 and summ["disputes_left"] == 5, repr(summ))
     s, use = call("gina", "GET", "usage")
-    check("the old usage route gives the same numbers", use == {"plan": "free", "period": "month", "limit": 30, "used": 4, "remaining": 26}, repr(use))
+    check("the old usage route gives the same numbers", use == {"plan": "free", "period": "month", "limit": handler.apply.LIMITS["free"][1], "used": 4, "remaining": handler.apply.LIMITS["free"][1] - 4}, repr(use))
     s, nd = call("gina", "GET", "needs")
     check("needs list the job and its questions", s == 200 and nd["needs"][0]["questions"] == ["Why us?", "Notice period?"]
           and nd["needs"][0]["job_id"] == job(32)["job_id"], repr(nd))
@@ -253,10 +253,10 @@ with mock_aws():
           == [job(42)["job_id"], job(40)["job_id"], job(41)["job_id"], job(32)["job_id"]] and not rows("gina", "#queue#ffffffffffffffff"))
 
     # Credits used through the old path count against the new one.
-    for n in range(30):
+    for n in range(handler.apply.LIMITS["free"][1]):
         handler.apply.claim(table, "hank", {"job_id": f"{100 + n:016x}"})
     s, b = call("hank", "POST", "attempts", {"attempt_id": "hank-00001", **job(60)})
-    check("thirty used the old way: a new reservation is refused", s == 402 and b["code"] == "limit_reached", repr((s, b)))
+    check("the free limit used the old way: a new reservation is refused", s == 402 and b["code"] == "limit_reached", repr((s, b)))
 
     # An answer the extension drafted with the user's own AI key waits for review.
     s, _ = call("ivy", "POST", "answers", {"question": "Years of Go?", "answer": "Four", "source": "ai"})

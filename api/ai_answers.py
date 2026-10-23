@@ -1,4 +1,4 @@
-"""AI answers to application questions, included on Basic and Pro.
+"""AI answers to application questions, included on every plan.
 
 POST /api/me/apply/draft. When a form asks something the user has no
 saved answer for, the extension asks here; we ask Cloudflare Workers AI
@@ -41,8 +41,10 @@ AI_KEY_FILE = os.environ.get("AI_KEY_FILE", "/var/lib/otj/ai-worker.key")
 NEURONS_PER_M_IN = 0.045 / 0.011 * 1000
 NEURONS_PER_M_OUT = 0.384 / 0.011 * 1000
 # AI answers a month, per plan. Protection against runaway use, far above
-# what an honest month needs (two new questions per application).
-CAPS = {"basic": 300, "pro": 3000}
+# what an honest month needs (two new questions per application). Free
+# gets enough for its 10 applications, so a first application works
+# without the user's own AI key.
+CAPS = {"free": 50, "basic": 300, "pro": 3000}
 SYSTEM_USER = "#system"
 # Per user: model calls a minute, counted on one row that restarts each
 # minute (the table has no TTL, so per-minute rows would pile up).
@@ -247,7 +249,7 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     now = now or datetime.now(timezone.utc)
     plan = apply.plan_of(table, user_id)
     if plan not in CAPS:
-        raise NotIncluded("AI answers are included on Basic and Pro")
+        raise NotIncluded("AI answers aren't included on this plan")
     question = str((body or {}).get("question") or "").strip()[:MAX_QUESTION]
     if not question:
         raise ValueError("question is required")

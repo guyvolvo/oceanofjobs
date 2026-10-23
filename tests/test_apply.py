@@ -93,28 +93,28 @@ check("a saved answer replaces the old one to the same question",
       [a["answer"] for a in apply.get_profile(t, "u")["answers"]] == ["Better answer"])
 
 u = apply.usage(t, "u", NOW)
-check("free plan: 30 a month", u == {"plan": "free", "period": "month", "limit": 30, "used": 0, "remaining": 30}, repr(u))
+check("free plan: 10 a month", u == {"plan": "free", "period": "month", "limit": 10, "used": 0, "remaining": 10}, repr(u))
 
 jobs = [f"{i:016x}" for i in range(1, 32)]
 r = apply.claim(t, "u", {"job_id": jobs[0], "company": "Acme", "title": "Engineer"}, NOW)
-check("a claim takes one credit", r == {"remaining": 29})
+check("a claim takes one credit", r == {"remaining": 9})
 try:
     apply.claim(t, "u", {"job_id": jobs[0]}, NOW)
     check("the same job cannot be claimed twice", False)
 except apply.AlreadyApplied:
     check("the same job cannot be claimed twice", True)
 apply.result(t, "u", {"job_id": jobs[0], "status": "skipped", "reason": "needs answer: Why us?"}, NOW)
-check("a skipped job gives its credit back", apply.usage(t, "u", NOW)["remaining"] == 30)
-check("and can be claimed again later", apply.claim(t, "u", {"job_id": jobs[0]}, NOW) == {"remaining": 29})
+check("a skipped job gives its credit back", apply.usage(t, "u", NOW)["remaining"] == 10)
+check("and can be claimed again later", apply.claim(t, "u", {"job_id": jobs[0]}, NOW) == {"remaining": 9})
 apply.result(t, "u", {"job_id": jobs[0], "status": "submitted"}, NOW)
-for j in jobs[1:30]:
+for j in jobs[1:10]:
     apply.claim(t, "u", {"job_id": j}, NOW)
-check("thirty used", apply.usage(t, "u", NOW)["used"] == 30)
+check("ten used", apply.usage(t, "u", NOW)["used"] == 10)
 try:
-    apply.claim(t, "u", {"job_id": jobs[30]}, NOW)
-    check("the thirty-first claim is refused on free", False)
+    apply.claim(t, "u", {"job_id": jobs[10]}, NOW)
+    check("the eleventh claim is refused on free", False)
 except apply.LimitReached:
-    check("the thirty-first claim is refused on free", True)
+    check("the eleventh claim is refused on free", True)
 later = NOW + timedelta(seconds=apply.CLAIM_HOLD_S + 1)
 check("claims with no result free themselves after the hold", apply.usage(t, "u", later)["used"] == 1)
 check("a new month starts empty", apply.usage(t, "u", datetime(2026, 11, 1, tzinfo=timezone.utc))["used"] == 0)
@@ -138,7 +138,7 @@ except ValueError:
 
 h = apply.history(t, "u")
 check("history lists every claimed job, newest first, with its status",
-      len(h) == 30 and {"job_id", "status", "company", "at"} <= set(h[0]), repr(h[:1]))
+      len(h) == 10 and {"job_id", "status", "company", "at"} <= set(h[0]), repr(h[:1]))
 
 apply.enqueue(t, "u", jobs[5], NOW)
 apply.enqueue(t, "u", jobs[2], NOW + timedelta(minutes=1))
@@ -190,7 +190,7 @@ apply.result(t3, "u", {"job_id": "ffffffffffffffff", "status": "skipped", "reaso
 row = t3.items.get(("u", apply.APPLIED + "ffffffffffffffff"))
 check("a skip with no claim is kept as a record", row and row["status"] == "skipped" and row["reason"] == "needs answer: Why us?", repr(row))
 check("and costs nothing", apply.usage(t3, "u", NOW)["used"] == 0)
-check("the job can still be claimed once the question is answered", apply.claim(t3, "u", {"job_id": "ffffffffffffffff"}, NOW) == {"remaining": 29})
+check("the job can still be claimed once the question is answered", apply.claim(t3, "u", {"job_id": "ffffffffffffffff"}, NOW) == {"remaining": 9})
 
 for url, want in [(gh, "greenhouse:8015242003"), ("https://boards.greenhouse.io/celonis/jobs/8015242003", "greenhouse:8015242003"),
                   ("https://jobs.ashbyhq.com/synthesia/ce402b96-d2c2-4651-bb20-2b8cf6166acc/application", "ashby:ce402b96-d2c2-4651-bb20-2b8cf6166acc"),
