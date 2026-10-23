@@ -278,12 +278,8 @@ def _known_state_by_domain() -> tuple[dict[str, set[str]], dict[str, set[str]], 
         if not existed:
             return {}, {}, {}
         conn = sqlite3.connect(path)
-        # A job still placed at "3 Locations" counts as undescribed, so the
-        # probe fetches its detail page again: the real locations only come
-        # with the description now (probe._workday_job_detail).
         rows = conn.execute(
-            "SELECT company_domain, external_id, description_sha IS NOT NULL"
-            " AND (location IS NULL OR location NOT GLOB '[0-9]* Location*') FROM jobs WHERE closed_at IS NULL"
+            "SELECT company_domain, external_id, description_sha IS NOT NULL FROM jobs WHERE closed_at IS NULL"
         ).fetchall()
         polled = dict(conn.execute("SELECT company_domain, MAX(last_seen) FROM jobs GROUP BY company_domain").fetchall())
         conn.close()

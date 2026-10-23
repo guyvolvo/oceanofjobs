@@ -177,30 +177,6 @@ check("'Posted Today' on a tenant read before is dated first sight, not midnight
 jobs = probe.f_workday(Sess(today), "acme", "wd1", "External")
 check("'Posted Today' on a first read of a tenant stays unknown", jobs[0].posted_at is None, repr(jobs[0].posted_at))
 
-# A job left at "3 Locations" by an earlier failed fetch is fetched again.
-import sqlite3  # noqa: E402
-
-state_dir = Path(tempfile.mkdtemp())
-
-
-def fake_pull(bucket, key, path):
-    c = sqlite3.connect(path)
-    c.execute("CREATE TABLE jobs (company_domain, external_id, description_sha, location, closed_at, last_seen)")
-    c.executemany("INSERT INTO jobs VALUES (?, ?, ?, ?, NULL, '2026-10-23T08:00:00+00:00')", [
-        ("acme.com", "R1", "sha", "Haifa, Israel"), ("acme.com", "R2", "sha", "3 Locations"), ("acme.com", "R3", None, "Haifa, Israel")])
-    c.commit()
-    c.close()
-    return True, None
-
-
-handler.TMP, real_pull, handler.s3_pull = state_dir, handler.s3_pull, fake_pull
-try:
-    open_ids, described_ids, _ = handler._known_state_by_domain()
-finally:
-    handler.s3_pull = real_pull
-check("a job still at '3 Locations' counts as undescribed, so its detail page is read again",
-      open_ids["acme.com"] == {"R1", "R2", "R3"} and described_ids["acme.com"] == {"R1"}, repr(described_ids))
-
 # The handler's poll: unchanged is one request, changed is the walk.
 class FakeProbe:
     pass
