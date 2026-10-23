@@ -1,43 +1,63 @@
 ---
-title: Browser extension
+title: Browser extension (beta)
 icon: extension
-description: The Ocean of Jobs extension fills in and sends job applications for you, from the board, from your AI agent, or on any company's career page.
+description: The Ocean of Jobs extension fills in job applications and can submit them for you. You can start from the job board, queue jobs through your AI agent, or fill out applications directly on company career pages.
 ---
 
-The extension isn't in the Chrome Web Store yet. This page describes how it works once it's available.
+The extension isn't available on the Chrome Web Store yet. The instructions below describe how it will work once it's published.
 
-The extension runs in Chrome and Brave. It applies in your own browser, with your CV and your answers, so the application comes from you.
+It runs in Chrome and Brave and fills out forms in your browser using your CV and saved answers.
 
 ## Install and connect
 
-1. Install Ocean of Jobs from the Chrome Web Store once it's listed there.
-2. Click the extension's icon, then **Connect account**. Your account page opens and connects the extension.
-3. Add your CV in the extension's settings, and your contact details in the auto apply settings on your account page. Every application uses them.
+1. Install Ocean of Jobs from the Chrome Web Store once it's available.
+2. Click the extension icon and select **Connect account**. Follow the prompt to connect your Ocean of Jobs account.
+3. Add your CV in the extension's settings and your contact details in the **Auto apply** settings on your account page. The extension uses these details when filling out applications.
 
-## Apply from the board
+## Apply from the job board
 
-Press **Auto apply** on a job and it joins your queue. The extension opens each queued job in a background tab, fills in the form and sends it, up to 20 jobs each time it checks the queue. The board then shows **Applied** with the time you applied.
+Click **Auto apply** on a job to add it to your queue.
 
-Auto apply works on jobs hosted on Greenhouse, Ashby and Workable. The board only offers the button on those jobs.
+Every 15 minutes, the extension checks the queue, opens queued jobs in background tabs, fills out their application forms and submits them. It processes up to 20 jobs per queue check, within your plan limits.
 
-## Questions it can't answer
+Once an application is submitted, the board marks it as **Applied** and shows the application time.
 
-Some forms ask things your CV doesn't cover, like notice period or whether you need a visa. If you chose **Draft an answer with AI** in your auto apply settings, the extension first asks an AI to answer from your profile. That works on Basic and Pro, or on any plan with your own AI key. If the AI can't answer, or you chose **Skip the job**, the job waits in **Questions you need to answer** in the extension's popup, grouped per job. Answer them there and the job goes back in the queue. Answers you save on your account page are used for later jobs.
+Automatic applications are available for jobs hosted on Greenhouse, Ashby and Workable. The board only shows the **Auto apply** button for supported jobs.
 
-The AI never sees demographic questions such as gender, race or veteran status, and it never gets your name, email or phone number. You choose those answers on your account page, or leave them unanswered.
+## When the extension needs an answer
 
-## Any other career page
+Some applications ask questions your CV doesn't cover, such as your notice period or visa requirements.
 
-On a job posting outside the board, a lighthouse button appears at the top right of the page. Click it, then **Fill application**, and the extension fills every field it can match. Check the form, then press **Submit application**.
+If you've selected **Draft an answer with AI** in your Auto apply settings, the extension asks AI to draft an answer using your profile. This feature is available on Basic and Pro, or on any plan when using your own AI key.
 
-Some sites protect their form with a CAPTCHA or another human check. The extension fills those forms but leaves sending to you, so press the site's own button.
+If the AI can't answer, or you've selected **Skip the job**, the application moves to **Questions you need to answer** in the extension's popup. Questions are grouped by job. Answer them there and the job returns to the queue.
 
-To show the button on every company's site, turn on **Show the fill button on every careers page** in the extension's settings. Without it, the button shows on supported job sites such as Greenhouse, Lever and Workday. Elsewhere, open the extension and click **Fill application**. The button says **No application detected** when the page has no form to fill, and **Review filled fields** after a fill, to take you to each field that needs your attention.
+Answers you save to your account can be reused on future applications.
+
+The AI doesn't receive your name, email address, phone number or demographic information such as gender, race or veteran status. You can set demographic answers in your account or leave them blank.
+
+## Fill out applications on other career pages
+
+When you visit a job posting, the extension can offer a lighthouse button in the top-right corner of the page.
+
+Click the button and select **Fill application**. The extension fills in the fields it can match to your saved details. Review the form and click **Submit application** when you're ready.
+
+Some sites require a CAPTCHA or another human verification step. The extension can fill in the form, but you'll need to complete the verification and submit the application yourself.
+
+To show the fill button on every company's career page, enable **Show the fill button on every careers page** in the extension's settings.
+
+Otherwise, the button appears on supported sites, including Greenhouse, Lever and Workday. On other sites, open the extension and select **Fill application**.
+
+If there's no application form on the page, the extension shows **No application detected**. After filling a form, **Review filled fields** takes you to the fields that need your attention.
 
 ## Use it with your AI agent
 
-An agent connected through the [MCP server](/mcp) can add jobs to your auto apply queue with a personal access token. The extension applies to them the same way as jobs you queued yourself. Create the token on your account page.
+An AI agent connected to the Ocean of Jobs [MCP server](/mcp) can add jobs to your automatic application queue using a personal access token.
+
+The extension processes those jobs the same way as jobs you add yourself. You can create a token from your account page.
 
 ## Plans
 
-The free plan includes 30 automatic applications a month. [Pricing](https://oceanofjobs.com/pricing) lists the paid plans.
+The free plan includes 30 automatic applications per month. Paid plans include higher application limits and additional AI answers.
+
+See [pricing](https://oceanofjobs.com/pricing) for the current plans and limits.
