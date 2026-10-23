@@ -4284,8 +4284,6 @@ document.addEventListener("click", () => OPEN_MULTISELECTS.forEach((closeOther) 
 // then what kind of work, then how senior, then how it is worked, then
 // who, then what it pays.
 const RAIL_GROUPS = [
-  // No search box: typing a place is the search bar's Location half (wireLocationBox).
-  { key: "location", title: "Country and city", kind: "tree" },
   { key: "department", title: "Category", kind: "list", facet: "categories" },
   { key: "seniority", title: "Level", kind: "list", facet: "seniority", labels: SENIORITY_LABELS },
   { key: "workplace", title: "Workplace", kind: "list", facet: "workplace", labels: WORKPLACE_LABELS },
@@ -4303,8 +4301,6 @@ const RAIL_ICON = (d) => `<svg class="rail-acc-icon" viewBox="0 0 24 24" width="
 // 16px box as RAIL_ICON, filled with the text colour rather than stroked.
 const RAIL_GLYPH = (d) => `<svg class="rail-acc-icon" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true">${d}</svg>`;
 const RAIL_ACCORDION = [
-  { key: "place", title: "Location", parts: ["location"],
-    icon: RAIL_GLYPH('<path d="M536.5-503.5Q560-527 560-560t-23.5-56.5Q513-640 480-640t-56.5 23.5Q400-593 400-560t23.5 56.5Q447-480 480-480t56.5-23.5ZM480-186q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z"/>') },
   { key: "pay", title: "Salary", parts: ["salary"],
     icon: RAIL_GLYPH('<path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/>') },
   { key: "employer", title: "Company", parts: ["company"],
@@ -4392,7 +4388,6 @@ let railFacetsLoaded = false;
 // localStorage, and Back has no business re-collapsing a group somebody
 // just opened.
 const railExpanded = new Set(["department"]);
-const railCollapsed = new Set();
 const railQueries = new Map();
 // Companies found by typing past the top 500 the facet carries, so a
 // name searched for once stays tickable while the reader looks at it.
@@ -4511,107 +4506,6 @@ const cityKey = (country, city) => `${country.value}:${city.value}`;
 const cityCountry = (v) => (/^[A-Z]{2}:/.test(v) ? v.slice(0, 2) : null);
 const cityName = (v) => v.replace(/^[A-Z]{2}:/, "");
 
-// Location: countries, each with its own cities under it
-//
-// Several countries can be on at once and each is its own block, so
-// "Tel Aviv and Berlin" is one question rather than two filters that
-// have to be reconciled. A ticked country with no cities means the
-// whole country; ticking a city narrows it to that city and leaves the
-// country's own box showing a dash, because it is no longer the whole
-// of anything.
-// The location facet, plus every ticked country and city it did not
-// count, at zero. A search that leaves no listings in Israel returns no
-// Israel row, and without one the ticked IL had nowhere to be unticked.
-function railLocationsWithPicked() {
-  const out = (railFacets.locations || []).map((c) => ({ ...c, cities: [...(c.cities || [])] }));
-  const byCode = new Map(out.map((c) => [c.value, c]));
-  const country = (code) => {
-    if (!byCode.has(code)) {
-      const c = { value: code, label: countryLabel(code), n: 0, cities: [] };
-      out.push(c);
-      byCode.set(code, c);
-    }
-    return byCode.get(code);
-  };
-  for (const code of state.country) country(code);
-  for (const key of state.city) {
-    const i = key.indexOf(":");
-    if (i < 0) continue;
-    const c = country(key.slice(0, i));
-    const name = key.slice(i + 1);
-    if (!c.cities.some((t) => t.value === name)) c.cities.push({ value: name, label: name, n: 0 });
-  }
-  return out;
-}
-
-function railCountryBlocks() {
-  const countries = railLocationsWithPicked();
-  const picked = new Set(state.country);
-  const cities = new Set(state.city);
-  const blocks = [];
-
-  // Without a search the list is the biggest few countries, and every
-  // country that is on, with a Show all under them: the way the other
-  // groups work, so a reader sees where the roles are before typing.
-  // The facet lists up to sixty.
-  const onAlready = (c) => picked.has(c.value) || (c.cities || []).some((t) => cities.has(cityKey(c, t)));
-  const listed = new Set((railExpanded.has("location") ? countries : countries.slice(0, RAIL_TOP_N)).map((c) => c.value));
-  // What is on comes first, whatever its size: it is the reason the
-  // list is being looked at.
-  for (const c of [...countries.filter(onAlready), ...countries.filter((c) => !onAlready(c))]) {
-    const all = c.cities || [];
-    if (!listed.has(c.value) && !onAlready(c)) continue;
-
-    const mine = all.filter((t) => cities.has(cityKey(c, t)));
-    // A country that is merely listed starts folded, and the same
-    // caret unfolds it: the set records a toggle away from the default.
-    const open = onAlready(c) ? !railCollapsed.has(c.value) : railCollapsed.has(c.value);
-    const pool = all;
-    const top = railExpanded.has(`city:${c.value}`) ? pool : pool.slice(0, RAIL_TOP_N);
-    const shownValues = new Set(top.map((t) => t.value));
-    const shown = [...top, ...all.filter((t) => cities.has(cityKey(c, t)) && !shownValues.has(t.value))];
-
-    blocks.push(`
-      <div class="rail-country${open ? " open" : ""}">
-        <div class="rail-country-row">
-          <button type="button" class="rail-caret" data-country="${escapeHtml(c.value)}"
-                  aria-expanded="${open}"
-                  aria-label="${open ? "Collapse" : "Expand"} ${escapeHtml(c.label || c.value)}">
-            <svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none"
-              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          ${railOptionHtml({
-            kind: "country", value: c.value, label: c.label || c.value, n: c.n,
-            checked: picked.has(c.value) && !mine.length, mixed: mine.length > 0,
-            cls: "rail-country-option",
-          })}
-        </div>
-        ${open
-          ? `<div class="rail-cities">
-               ${shown.map((t, i) => railOptionHtml({
-                 kind: "city", value: cityKey(c, t), label: t.label || t.value, n: t.n,
-                 checked: cities.has(cityKey(c, t)),
-                 cls: "rail-city" + (i === shown.length - 1 ? " last" : ""),
-               })).join("")}
-               ${pool.length > RAIL_TOP_N
-                 ? `<button type="button" class="rail-more rail-more-city" data-more="city:${escapeHtml(c.value)}">`
-                   + `${railExpanded.has(`city:${c.value}`) ? "Show fewer" : `Show all (${fmtInt(pool.length)} cities)`}</button>`
-                 : ""}
-             </div>`
-          // Folded, a country still has to say it is doing something,
-          // or the count above the list disagrees with a rail that
-          // looks idle.
-          : mine.length ? `<div class="rail-country-note">${mine.length} ${mine.length === 1 ? "city" : "cities"}</div>` : ""}
-      </div>`);
-  }
-
-  if (!blocks.length) return "";
-  const more = countries.length > RAIL_TOP_N
-    ? `<button type="button" class="rail-more" data-more="location">${railExpanded.has("location") ? "Show fewer" : `Show all (${fmtInt(countries.length)})`}</button>`
-    : "";
-  return blocks.join("") + more;
-}
-
 // Salary
 //
 // Two handles over the range the current result set actually occupies,
@@ -4695,13 +4589,7 @@ function renderFilterRail() {
   for (const group of RAIL_GROUPS) {
     let body = "";
 
-    if (group.kind === "tree") {
-      if (!railFacetsLoaded && !(railFacets.locations || []).length) {
-        push(group.key, railGroupSkeleton(group));
-        continue;
-      }
-      body = railSearchHtml(group) + railCountryBlocks();
-    } else if (group.kind === "range") {
+    if (group.kind === "range") {
       body = railSalaryHtml();
       if (!body) continue; // nothing measurable here, so no group at all
     } else {
@@ -4996,15 +4884,6 @@ function wireFilterRail() {
       renderFilterRail();
       return;
     }
-    // The caret sits outside the label on purpose: a click anywhere in
-    // a label toggles its checkbox, and folding a country away is not
-    // the same act as filtering by it.
-    const caret = e.target.closest(".rail-caret");
-    if (caret) {
-      const c = caret.dataset.country;
-      railCollapsed.has(c) ? railCollapsed.delete(c) : railCollapsed.add(c);
-      renderFilterRail();
-    }
   });
 }
 
@@ -5136,20 +5015,16 @@ function railRedrawGroup(key) {
   const focused = document.activeElement === search;
   const caret = search ? search.selectionStart : null;
 
-  if (group.kind === "tree") {
-    section.innerHTML = railSearchHtml(group) + railCountryBlocks();
-  } else {
-    const rows = railVisibleRows(group);
-    const picked = railSelected(group);
-    section.innerHTML = railSearchHtml(group)
-      + (rows.length
-        ? rows.map((r) => railOptionHtml({
-            kind: group.key, value: r.value, label: railLabel(group, r), n: r.n,
-            checked: picked.has(r.value),
-          })).join("")
-        : '<div class="rail-empty">No matches.</div>')
-      + railMoreHtml(group, railRows(group).length);
-  }
+  const rows = railVisibleRows(group);
+  const picked = railSelected(group);
+  section.innerHTML = railSearchHtml(group)
+    + (rows.length
+      ? rows.map((r) => railOptionHtml({
+          kind: group.key, value: r.value, label: railLabel(group, r), n: r.n,
+          checked: picked.has(r.value),
+        })).join("")
+      : '<div class="rail-empty">No matches.</div>')
+    + railMoreHtml(group, railRows(group).length);
   if (focused) {
     const next = section.querySelector(".rail-search");
     next.focus();
@@ -5962,6 +5837,8 @@ function toggleTheme() {
 
 function wireThemeToggle() {
   const btn = document.getElementById("theme-toggle");
+  // The board's switch went to the site header (hero_nav.js) in October 2026.
+  if (!btn) return;
   const sync = () => {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     // A switch, not a labelled button: the CSS draws the side from

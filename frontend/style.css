@@ -385,7 +385,7 @@ button, input, select {
 /* The board's bar in two halves (October 2026): what, then where, each
    with its name above it. One frame with a rule between the halves; the
    ring goes on the half being typed in. */
-.board-head .topbar-search.split { width: min(100%, 600px); height: 44px; padding: 0; gap: 0; align-items: stretch; border-radius: 12px; }
+.board-head .topbar-search.split { flex: 1 1 360px; width: auto; max-width: 600px; height: 44px; padding: 0; gap: 0; align-items: stretch; border-radius: 12px; }
 .topbar-search.split:focus-within { outline: none; }
 .split .topbar-field { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px;
   padding: 0 6px 0 12px; border-radius: 10px; }
@@ -395,9 +395,10 @@ button, input, select {
 .split .topbar-field:focus-within { outline: 2px solid var(--green); outline-offset: -2px; }
 .split .topbar-field:focus-within .topbar-search-icon { color: var(--green-text); }
 .topbar-field-label { font: 600 11px/1.2 var(--font-ui); color: var(--grey); cursor: text; }
-.topbar-field-row { display: flex; align-items: center; gap: 6px; min-width: 0; height: 18px; }
-.split .topbar-field input { font-size: 13px; }
-.split .topbar-search-icon { width: 13px; height: 13px; }
+.topbar-field-row { display: flex; align-items: center; gap: 7px; min-width: 0; height: 20px; }
+/* The pills' own size (.board-pills .rail-acc-name), so the bar is not the quiet one in the row. */
+.split .topbar-field input { font: 500 15px var(--font-ui); }
+.split .topbar-search-icon { width: 15px; height: 15px; }
 .split .topbar-field input { height: 100%; }
 .topbar-places { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: max(100%, 300px); max-height: 340px; overflow-y: auto;
   margin: 0; padding: 4px; list-style: none; border: 1px solid var(--grey-line); border-radius: 12px; background: var(--white);
@@ -7192,14 +7193,11 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
   min-height: 0;
   padding: 14px 20px 0;
 }
-/* The head is on the grid's own columns: the search runs the width of
-   the list and ends at the list panel's right edge, the account and
-   the theme switch sit over the right panel. It follows the grid when
-   a listing opens and the panel widens. */
-.board-head { display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 29vw, 480px); gap: 10px; align-items: center; transition: grid-template-columns 220ms var(--pop-ease); }
-.board-main:has(.job-detail.open) .board-head { grid-template-columns: minmax(0, 1fr) clamp(500px, 42vw, 760px); }
-.board-head .topbar-search { grid-column: 1; width: auto; min-width: 0; }
-.board-corner { grid-column: 2; display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
+/* One row: the search, then the filter pills. The account and theme
+   are the site header's now. Short of room, the pills wrap under the
+   search rather than squeeze it. */
+.board-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.board-head .board-pills { flex: 0 0 auto; }
 .side-open { display: none; }
 
 /* The filter rail becomes the pill row. Each accordion head is a pill
@@ -7419,8 +7417,6 @@ table.jobs tbody tr.skeleton-row {
 }
 
 @media (max-width: 640px) {
-  /* Sign-in and the theme switch move into the drawer (wireSideBar). */
-  .board-corner { display: none; }
   /* One row: the account at the left, the theme switch at the right.
      The account menu is a popover hung off the topbar's right edge; in
      the drawer that put it off the left edge and its height under the
@@ -8011,13 +8007,13 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
    screen with Apply fixed at the bottom. Everything here is for that
    width; the desktop rules above stand unchanged, and the phone's own
    elements are hidden there. */
-.m-bar, .m-chips, .m-sheet, .m-sheet-scrim, .m-alert, .m-logo, .tabbar, .acct-getmatched, .pane-back, .pane-share, .pane-grip, .job-age-tail { display: none; }
+.m-bar, .m-chips, .m-sheet, .m-sheet-scrim, .m-alert, .tabbar, .acct-getmatched, .pane-back, .pane-share, .pane-grip, .job-age-tail { display: none; }
 .job-chip-run { display: contents; }
 .alert-dup { display: block; margin-top: 2px; font: 400 12px var(--font-ui); color: var(--grey); }
 
 @media (max-width: 800px) {
   /* Navigation: the tab bar, and nothing else. */
-  .site-side, #side-open, .side-scrim, .board-corner, .hero-nav-toggle, .hero-nav-panel { display: none !important; }
+  .site-side, #side-open, .side-scrim, .hero-nav-toggle, .hero-nav-panel { display: none !important; }
   body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--grey-line); background: var(--white); }
   .tabbar-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding-top: 8px; color: var(--grey); font: 400 11px var(--font-ui); text-decoration: none; min-height: 44px; }
@@ -8039,8 +8035,6 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   body.m-sheet-open, body:has(.job-detail.open) { overflow: hidden; }
   .board-main { padding: 10px 16px 0; gap: 10px; }
   .board-head { display: flex; align-items: center; gap: 10px; }
-  .m-logo { display: block; flex: none; width: 28px; height: 28px; }
-  .m-logo img { display: block; }
   .board-head .topbar-search { flex: 1 1 auto; width: auto; height: 44px; }
   .m-bar { display: flex; align-items: center; gap: 8px; }
   .m-filters { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1.5px solid var(--black); border-radius: 999px; background: none; color: var(--black); font: 700 13px var(--font-ui); }
