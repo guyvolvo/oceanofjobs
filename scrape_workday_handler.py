@@ -338,6 +338,16 @@ def _workday_entries() -> list[dict]:
     return entries
 
 
+def _this_run(state: dict, entries: list[dict]) -> list[dict]:
+    """The tenants this run reads: every pin, then the rotation's most
+    overdue. The pins are companies.yml's hand-verified employers, the
+    ones people search for; sorted into the rotation with 3,000
+    discovered tenants, NVIDIA waited about 20 hours between reads. An
+    unchanged board is one request, so reading them every run is cheap."""
+    pins = set(probe.PINS.get("workday", {}))
+    return [e for e in entries if e["domain"] in pins] + [e for e in scrape_state.due(state, entries) if e["domain"] not in pins]
+
+
 def _delivered_under_current_rules(state_row: dict | None) -> bool:
     """Whether a stored fingerprint still stands for jobs that were sent.
 
@@ -417,8 +427,8 @@ def lambda_handler(event, context):
           f"{len(known_ids)} companies")
 
     state, state_etag = scrape_state.load(BUCKET, s3, key=WORKDAY_STATE_KEY)
-    due = scrape_state.due(state, entries)
-    print(f"{len(due)} of {len(entries)} Workday tenants due")
+    due = _this_run(state, entries)
+    print(f"{len(due)} of {len(entries)} Workday tenants this run, the {len(probe.PINS.get('workday', {}))} pins first")
     _write_status(s3, "scraping", f"re-checking {len(due)} Workday tenants and {len(big_tech)} big-tech companies")
 
     sess = probe.session()

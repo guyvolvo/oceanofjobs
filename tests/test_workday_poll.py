@@ -249,6 +249,16 @@ entries = handler._workday_entries()
 check("a discovered tenant that is also a pin appears once, as the pin",
       sum(1 for e in entries if e["tenant"].lower() == "3m") == 1 and any(e["domain"] == "acme.myworkdayjobs.com" for e in entries))
 
+# Every run reads every pin first, even one its backoff says can wait; a
+# discovered tenant waits its turn in the rotation.
+later = {"next_at": "2999-01-01T00:00:00+00:00"}
+pin_domains = [e["domain"] for e in entries if e["domain"] in probe.PINS["workday"]]
+run = [e["domain"] for e in handler._this_run({"3m.com": later, "acme.myworkdayjobs.com": later}, entries)]
+check("pins are read every run, first, even while backed off; a discovered tenant waits", run == pin_domains and "3m.com" in run, repr(run[-3:]))
+run = [e["domain"] for e in handler._this_run({}, entries)]
+check("a due discovered tenant follows the pins, and nothing is read twice",
+      run[:len(pin_domains)] == pin_domains and "acme.myworkdayjobs.com" in run[len(pin_domains):] and len(run) == len(set(run)), repr(run[-3:]))
+
 print()
 if failures:
     print("%d failed:" % len(failures))
