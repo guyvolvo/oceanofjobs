@@ -7198,6 +7198,12 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
    search rather than squeeze it. */
 .board-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .board-head .board-pills { flex: 0 0 auto; }
+/* The site header on the board: no fill, no rule, on the page's own
+   ground. It scrolls away rather than sticking: with no fill, rows
+   would run under its links. */
+.board-page .home.site-header,
+:root[data-theme="dark"] .board-page .home.site-header { position: static; border-bottom: 0; }
+.board-page .home.site-header .home-bar { position: static; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .side-open { display: none; }
 
 /* The filter rail becomes the pill row. Each accordion head is a pill
