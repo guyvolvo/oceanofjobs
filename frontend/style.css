@@ -4437,8 +4437,15 @@ a.hero-account-btn { text-decoration: none; }
   color: var(--h-text);
 }
 .home-hero p { max-width: 480px; margin: 22px 0 0; font-size: 17px; line-height: 26px; color: var(--h-muted); }
-.home-hero p.home-soon { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-weight: 500; color: var(--h-text); }
-.home-soon svg { flex: none; fill: currentColor; }
+/* The extension's Chrome Web Store link: its name, and the beta note under it. */
+.home-hero .home-soon { display: block; margin-top: 12px; color: var(--h-text); }
+.home-soon-head { display: flex; align-items: flex-start; gap: 8px; }
+.home-soon svg { flex: none; margin-top: 3px; fill: currentColor; }
+.home-soon-title { display: block; font-size: 17px; line-height: 26px; font-weight: 500; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color 150ms ease; }
+.home-soon:hover .home-soon-title { text-decoration-color: currentColor; }
+/* The pill colors of the page's main buttons, so it catches the eye in both themes. */
+.home-new { display: inline-block; margin-left: 6px; padding: 3px 9px; border-radius: 999px; background: var(--h-pill-bg); color: var(--h-pill-fg); font-size: 12px; line-height: 16px; font-weight: 600; vertical-align: 2px; }
+.home-soon-note { display: block; font-size: 14px; line-height: 20px; color: var(--h-muted); }
 /* The pill tokens: paper on the dark page, the board's green ink on the
    light one, the same pair as the other big buttons on this page. */
 .home-search {
@@ -4502,6 +4509,13 @@ a.hero-account-btn { text-decoration: none; }
 }
 .home-docs:hover { background: var(--h-soft-hover); }
 .home-docs svg { color: var(--h-muted); }
+.home-docs svg.home-down { fill: currentColor; stroke: none; }
+/* API docs and See pricing, side by side under the search. */
+.home-hero-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.home-hero-links .home-docs { margin-top: 0; }
+/* See pricing glides down instead of jumping, clear of the sticky header. */
+html:has(.home-hero) { scroll-behavior: smooth; }
+#pricing { scroll-margin-top: 72px; }
 
 /* The window and its panel are a picture of a product, so they stay dark
    in both themes: every colour from here to the install lines is fixed.
