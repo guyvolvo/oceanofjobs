@@ -6,12 +6,14 @@ import react from "@vitejs/plugin-react";
 // settings and auto apply settings, src/account/main.tsx) with their own
 // titles. infra/cloudfront.tf sends /apply and any extensionless /apply/...
 // path to apply/index.html, and /account to apply/account.html.
+// contact.html (src/Contact.tsx) is copied over frontend/contact.html at
+// deploy, so /contact keeps its address and its CloudFront rule.
 export default defineConfig({
   base: "/apply/",
   plugins: [react()],
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    rollupOptions: { input: { index: "index.html", account: "account.html" } },
+    rollupOptions: { input: { index: "index.html", account: "account.html", contact: "contact.html" } },
   },
 });

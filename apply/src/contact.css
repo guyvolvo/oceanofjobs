@@ -1,0 +1,14 @@
+/* The contact page's form card, on top of the static page's layout
+   (style.css .contact-shell, -intro, -claim, -direct, -way). */
+/* Stretched: on a phone the shell is a column that sizes its items to
+   their content, and the topic tabs would widen the page. */
+.contact-card { min-width: 0; align-self: stretch; }
+.contact-card .oj-card-body { padding: clamp(20px, 3vw, 32px); }
+.contact-topic { display: flex; flex-direction: column; gap: 8px; }
+.contact-label { font-weight: 500; color: var(--text-color-kumo-strong); }
+.contact-card .oj-tabs { margin: 0; padding: 0; }
+.contact-pair { display: grid; align-items: start; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.contact-way-icon { display: inline-grid; place-items: center; }
+.contact-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.contact-sent { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; min-height: 340px; }
+.contact-sent-mark { color: var(--text-color-kumo-success); }

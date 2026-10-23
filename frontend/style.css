@@ -5050,147 +5050,11 @@ a.hero-account-btn { text-decoration: none; }
 .contact-way-value { font-size: 14px; overflow-wrap: anywhere; }
 .contact-way-go { font-size: 15px; }
 
-.contact-panel {
-  border: 1px solid var(--grey-line);
-  border-radius: 14px;
-  padding: clamp(20px, 3vw, 32px);
-}
-/* display:flex beats the browser's own [hidden] rule, so the sent panel
-   has to say so itself or the form stays under it. */
-.contact-form { display: flex; flex-direction: column; gap: 20px; }
-.contact-form[hidden] { display: none; }
-
-.contact-topics { margin: 0; padding: 0; border: 0; }
-.contact-topics legend { padding: 0 0 8px; font: 600 14px var(--font-ui); }
-.contact-topic-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.contact-topic {
-  /* A label is inline by default, so its height was ignored and the text
-     sat against the top border. Flex centres it in the full 36px. */
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  height: 36px;
-  padding: 0 14px;
-  border: 1.5px solid var(--black);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--black);
-  font: 600 14px var(--font-ui);
-  cursor: pointer;
-}
-.contact-topic:hover { background: var(--hover-bg); }
-.contact-topic.on { background: var(--black); color: var(--white); }
-
-.contact-bugnote {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--hover-bg);
-  font-size: 14px;
-  line-height: 1.4;
-}
-.contact-bugnote[hidden] { display: none; }
-.contact-bugnote svg { width: 20px; height: 20px; flex: 0 0 auto; }
-.contact-bugnote span { flex: 1; }
-.contact-bugnote a { color: var(--black); font: 600 14px var(--font-ui); white-space: nowrap; }
-
-.contact-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.contact-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.contact-field label {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  font: 600 14px var(--font-ui);
-}
-.contact-hint { font: 400 13px var(--font); color: var(--grey); opacity: 0.75; }
-.contact-hint.near { opacity: 1; color: var(--red); }
-.contact-field input,
-.contact-field textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1.5px solid var(--black);
-  border-radius: 8px;
-  background: var(--white);
-  color: var(--black);
-  padding: 0 14px;
-  font: 400 15px var(--font-ui);
-}
-.contact-field input { height: 44px; }
-.contact-field textarea {
-  height: 220px;
-  padding: 12px 14px;
-  line-height: 1.45;
-  resize: vertical;
-}
-.contact-field input:focus,
-.contact-field textarea:focus { outline: 2px solid var(--green); outline-offset: -2px; }
-.contact-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-
-.contact-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.contact-send {
-  height: 44px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--black);
-  color: var(--white);
-  font: 600 15px var(--font-ui);
-  cursor: pointer;
-}
-.contact-send:hover { background: var(--green-text); }
-.contact-send:disabled { opacity: 0.6; cursor: default; }
-.contact-status { margin: 0; font-size: 13px; color: var(--grey); opacity: 0.8; }
-.contact-status.bad { color: var(--red); opacity: 1; }
-
-/* Sent. The same height the form had, so the panel does not jump. */
-.contact-sent {
-  min-height: 520px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 14px;
-}
-.contact-sent[hidden] { display: none; }
-.contact-sent-mark {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--row-selected);
-  color: var(--green-text);
-  font: 600 20px var(--font-ui);
-}
-.contact-sent h2 { margin: 0; font: 400 34px/1 var(--font-display); letter-spacing: -0.02em; }
-.contact-sent p { margin: 0; max-width: 420px; font-size: 15px; line-height: 1.45; }
-.contact-again {
-  margin-top: 8px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--black);
-  font: 400 14px var(--font);
-  text-decoration: underline;
-  cursor: pointer;
-}
-.contact-again:hover { color: var(--green-text); }
-
-/* One column, form first: the reason to be on this page is to write. */
+/* One column, form first: the reason to be on this page is to write.
+   The form card is the React page's (apply/src/contact.css). */
 @media (max-width: 900px) {
   .contact-shell { grid-template-columns: 1fr; gap: 40px; }
-  .contact-panel { order: -1; }
-  .contact-sent { min-height: 340px; }
-}
-@media (max-width: 560px) {
-  .contact-pair { grid-template-columns: 1fr; }
-  .contact-bugnote { flex-wrap: wrap; }
-  .contact-bugnote span { flex: 1 1 100%; order: 3; }
+  .contact-card { order: -1; }
 }
 
 
@@ -8100,11 +7964,6 @@ h3.alerts-header { margin: 0 0 10px; }
 .job-title-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 2px; }
 button.dir-name { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 2px; }
-.contact-topic { cursor: pointer; }
-.contact-topic input { position: absolute; width: 1px; height: 1px; margin: -1px; opacity: 0; pointer-events: none; }
-.contact-topic:focus-within { outline: 2px solid var(--green); outline-offset: 2px; }
-.contact-error { margin: 6px 0 0; font: 13px var(--font-ui); color: var(--red); }
-.contact-error:empty { display: none; }
 
 /* The phone (October 2026). Up to 800px the app pages are built for a
    thumb: a tab bar at the bottom in place of the sidebar, the drawer
@@ -8320,17 +8179,12 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .alert-toggle[data-active="true"]::after { left: auto; right: 2px; background: var(--white); }
 
   /* The contact page: the heading first, the form, then the direct links. */
-  .contact-shell { display: flex; flex-direction: column; gap: 20px; padding: 20px 16px; }
+  .contact-shell { display: flex; flex-direction: column; align-items: stretch; gap: 20px; padding: 20px 16px; }
   .contact-intro { display: contents; }
   .contact-claim { order: 1; }
-  .contact-panel { order: 2; }
+  .contact-card { order: 2; }
   .contact-direct { order: 3; }
   .contact-claim h1 { font-size: 34px; }
-  .contact-topic-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .contact-topic { height: 40px; justify-content: center; }
-  .contact-pair { grid-template-columns: 1fr; }
-  .contact-field input { height: 48px; }
-  .contact-send { width: 100%; height: 48px; }
 }
 
 /* The listing page and the company page (October 2026). Server-rendered

@@ -52,6 +52,13 @@ jobs:
         working-directory: apply
         run: npm ci && npm run build
 
+      # /contact is the build's third page (apply/src/Contact.tsx). It is
+      # put where the static contact.html was, so /contact keeps its
+      # CloudFront rule (PAGES in infra/cloudfront.tf) and its address.
+      # Its bundles are /apply/assets/..., uploaded by the step below.
+      - name: Put the contact page with the static pages
+        run: cp apply/dist/contact.html frontend/contact.html
+
       - name: Stamp asset URLs with the commit
         run: |
           # Cloudflare does not pass our no-cache through for .js and
@@ -71,7 +78,7 @@ jobs:
           # Not the bundles: Vite's loader finds its stylesheets by exact href,
           # so a stamped one is loaded twice and the second copy overrides the
           # account page's own CSS (seen live 2026-10-22).
-          sed -i -E "s#(/apply/assets/[^\"?]+)\?v=$v#\1#g" apply/dist/index.html apply/dist/account.html
+          sed -i -E "s#(/apply/assets/[^\"?]+)\?v=$v#\1#g" apply/dist/index.html apply/dist/account.html frontend/contact.html
           grep -n '?v=' frontend/*.html apply/dist/index.html apply/dist/account.html
 
       - name: Sync frontend/ to S3
