@@ -87,14 +87,14 @@ export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
       <p className="oj-note">{s ? `${PLAN[s.plan] || "Free plan"} · ${plural(s.remaining, "application")} left ${s.period === "day" ? "today" : "this month"}` : " "}</p>
       {failed ? (
         <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load everything"
-          description="Some of what's shown here may be out of date." action={<Button size="sm" onClick={load}>Try again</Button>} />
+          description="Some of what's shown here may be out of date." action={<Button onClick={load}>Try again</Button>} />
       ) : null}
       {s && s.remaining === 0 ? (
         <Banner variant="alert" icon={<WarningCircle weight="fill" />} title={`No applications left ${s.period === "day" ? "today" : "this month"}`}
           description="Jobs stay in your queue until your plan's limit resets." />
       ) : null}
       <div className="oj-tabs">
-        <Tabs variant="segmented" size="sm" tabs={tabs} value={section} onValueChange={go} />
+        <Tabs variant="segmented" tabs={tabs} value={section} onValueChange={go} />
       </div>
       <Suspense fallback={waiting}><div role="tabpanel">
         {section === "overview" && (s ? <Overview s={s} ext={ext} queue={data.queue} reload={load} /> : waiting)}

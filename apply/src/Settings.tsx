@@ -113,7 +113,7 @@ export function Settings() {
 
   if (loadFailed) {
     return <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load your auto apply settings."
-      action={<Button size="sm" onClick={load}>Try again</Button>} />;
+      action={<Button onClick={load}>Try again</Button>} />;
   }
   if (!form) return <div className="oj-row oj-note"><Loader /> Loading your settings</div>;
 
@@ -240,12 +240,12 @@ export function Settings() {
                 onChange={(e) => setAnswer(a.id, { question: e.target.value })} />
               <InputArea aria-label="Answer" placeholder="Your answer" rows={2} value={a.answer} onValueChange={(v) => setAnswer(a.id, { answer: v })} />
             </div>
-            <Button variant="ghost" shape="square" aria-label={`Remove the answer to ${a.question || "this question"}`} title="Remove"
+            <Button size="sm" variant="ghost" shape="square" aria-label={`Remove the answer to ${a.question || "this question"}`} title="Remove"
               onClick={() => set("answers", form.answers.filter((x) => x.id !== a.id))}><X /></Button>
           </div>
         ))}
         <div>
-          <Button size="sm" variant="secondary" icon={<Plus />}
+          <Button variant="secondary" icon={<Plus />}
             onClick={() => set("answers", [...form.answers, { id: nextId++, question: "", answer: "" }])}>Add an answer</Button>
         </div>
       </Card>

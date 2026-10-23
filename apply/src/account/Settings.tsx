@@ -88,7 +88,7 @@ function Secret({ full, shown, label }: { full: string; shown: string; label: st
   return (
     <div className="oj-secret">
       <code onCopy={(e) => { e.preventDefault(); e.clipboardData.setData("text/plain", full); }}>{shown}</code>
-      <Button size="sm" variant="secondary" aria-label={`Copy ${label}`} onClick={async () => {
+      <Button variant="secondary" aria-label={`Copy ${label}`} onClick={async () => {
         try {
           await navigator.clipboard.writeText(full);
           setCopied(true);
@@ -181,7 +181,7 @@ function Tokens() {
           <Secret full={made} shown={mask(made)} label="the token" />
           <p className="oj-note">Or add it to your AI client in one line:</p>
           <div className="oj-tabs">
-            <Tabs variant="segmented" size="sm" value={agent} onValueChange={setAgent}
+            <Tabs variant="segmented" value={agent} onValueChange={setAgent}
               tabs={Object.entries(AGENTS).map(([value, x]) => ({ value, label: x.name }))} />
           </div>
           <Secret full={a.cmd(made)} shown={a.cmd(mask(made))} label="the command" />
@@ -204,7 +204,7 @@ function Tokens() {
                   </Table.Cell>
                   <Table.Cell className="oj-actions-cell">
                     {/* The list holds the extension's token too, so one stray click could disconnect it. */}
-                    <ConfirmButton ask="Revoke?" size="sm" variant="ghost" loading={revoking === t.id} onConfirm={() => revoke(t.id)}>Revoke</ConfirmButton>
+                    <ConfirmButton ask="Revoke?" variant="ghost" loading={revoking === t.id} onConfirm={() => revoke(t.id)}>Revoke</ConfirmButton>
                   </Table.Cell>
                 </Table.Row>
               ))}

@@ -404,9 +404,9 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   ].filter(Boolean).join(" · ");
   const head: Partial<Record<Section, { status?: string; action?: ReactNode }>> = {
     skills: { status: skills.length ? `${plural(skills.length, "skill")} matched against every listing` : "No skills yet",
-      action: <Button size="sm" variant="secondary" icon={<UploadSimple />} onClick={pickCv}>Scan a CV</Button> },
+      action: <Button variant="secondary" icon={<UploadSimple />} onClick={pickCv}>Scan a CV</Button> },
     alerts: { status: alerts?.length ? plural(alerts.length, "alert") : "No alerts yet" },
-    saved: { status: savedCount ? plural(savedCount, "saved job") : "Nothing saved yet", action: <LinkButton size="sm" variant="ghost" href="/board">Open the board</LinkButton> },
+    saved: { status: savedCount ? plural(savedCount, "saved job") : "Nothing saved yet", action: <LinkButton variant="ghost" href="/board">Open the board</LinkButton> },
     preferences: { status: profile ? prefsLine : "" },
   };
   const waiting = <div className="oj-row oj-note"><Loader /> Loading</div>;
@@ -440,7 +440,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
         </Suspense>
       ) : (<>
       <nav className="oj-tabs" aria-label="Account sections">
-        <Tabs variant="segmented" size="sm" tabs={tabs} value={section} onValueChange={go} />
+        <Tabs variant="segmented" tabs={tabs} value={section} onValueChange={go} />
       </nav>
       <div role="tabpanel" aria-label={tabs.find((t) => t.value === section)?.label} className="oj-stack">
         {h ? (

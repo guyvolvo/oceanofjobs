@@ -87,12 +87,12 @@ function List({ items, onChange, max, limit, label, placeholder, area }: {
               <Input aria-label={`${label} ${i + 1}`} placeholder={placeholder} maxLength={limit} value={r.text} onChange={(e) => set(r.key, e.target.value)} />
             )}
           </div>
-          <Button variant="ghost" shape="square" aria-label={`Remove ${label.toLowerCase()} ${i + 1}`} title="Remove"
+          <Button size="sm" variant="ghost" shape="square" aria-label={`Remove ${label.toLowerCase()} ${i + 1}`} title="Remove"
             onClick={() => onChange(items.filter((x) => x.key !== r.key))}><X /></Button>
         </div>
       ))}
       <div>
-        <Button size="sm" variant="secondary" icon={<Plus />} disabled={items.length >= max}
+        <Button variant="secondary" icon={<Plus />} disabled={items.length >= max}
           onClick={() => onChange([...items, { key: nextKey++, text: "" }])}>{items.length >= max ? `Up to ${max}` : `Add ${label.toLowerCase()}`}</Button>
       </div>
     </div>
@@ -183,7 +183,7 @@ function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r: Resum
             {resume.chars.toLocaleString()} characters{resume.truncated ? ", the first 8,000 kept" : ""} · added {new Date(resume.uploaded_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
           </span>
         </div>
-        <Button size="sm" variant="secondary" loading={busy} onClick={remove}>Remove</Button>
+        <Button variant="secondary" loading={busy} onClick={remove}>Remove</Button>
       </div>
     );
   }
@@ -268,7 +268,7 @@ export function Agent() {
   useEffect(load, [load]);
 
   if (loadFailed) {
-    return <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load your AI agent." action={<Button size="sm" onClick={load}>Try again</Button>} />;
+    return <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load your AI agent." action={<Button onClick={load}>Try again</Button>} />;
   }
   if (!form) return <div className="oj-row oj-note"><Loader /> Loading your AI agent</div>;
 
@@ -305,7 +305,7 @@ export function Agent() {
       ) : null}
       {conflict ? (
         <Banner variant="alert" icon={<WarningCircle weight="fill" />} title="Your agent was changed in another tab"
-          description="Reload to see the latest version, then make your changes again." action={<Button size="sm" onClick={load}>Reload</Button>} />
+          description="Reload to see the latest version, then make your changes again." action={<Button onClick={load}>Reload</Button>} />
       ) : null}
       <fieldset className="oj-fieldset" disabled={!editable}>
         <div className="oj-stack">

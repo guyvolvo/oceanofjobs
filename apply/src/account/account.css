@@ -29,7 +29,7 @@
 .oj-stat { gap: 6px; }
 .oj-aside { text-align: right; }
 .oj-bins { display: block; width: 96px; flex: none; }
-.oj-pill { display: inline-flex; align-items: center; gap: 2px; padding: 1px 6px; border-radius: 999px; font: 500 12px/1.5 var(--font-mono);
+.oj-pill { display: inline-flex; align-items: center; gap: 2px; padding: 1px 6px; border-radius: 999px; font: 500 13px/1.5 var(--font-mono);
   background: var(--color-kumo-tint); color: var(--text-color-kumo-subtle); }
 .oj-pill-up { background: var(--color-kumo-success-tint); color: var(--text-color-kumo-success); }
 .oj-pill-down { background: var(--color-kumo-danger-tint); color: var(--text-color-kumo-danger); }

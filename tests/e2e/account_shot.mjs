@@ -292,6 +292,8 @@ const last = (pred) => [...requests].reverse().find(pred);
   await page.goto("https://oceanofjobs.com/account#aa-settings", { waitUntil: "networkidle" });
   check("#aa-settings opens auto apply settings on the same page", page.url().endsWith("/apply#settings")
     && await page.getByRole("tab", { name: "Auto apply settings" }).getAttribute("aria-selected") === "true");
+  check("no tab label is cut off", await page.$$eval(".oj-tabs .kumo-tabs-list", (ls) => ls.every((l) => l.scrollWidth <= l.clientWidth)));
+  await page.screenshot({ path: join(out, "account-apply-desktop-dark.png") });
   await page.getByRole("tab", { name: "Account settings" }).click();
   check("and the switch goes back to the account side", page.url().endsWith("/account") && await page.getByRole("tab", { name: /^Skills/ }).isVisible());
   await ctx.close();

@@ -30,7 +30,7 @@ export function Saved({ jobs, error, removing, remove }: {
                         <span className="oj-sub">{where}</span>
                       </Table.Cell>
                       <Table.Cell className="oj-actions-cell">
-                        <ConfirmButton ask="Remove?" size="sm" variant="ghost" shape="square" title="Remove from saved"
+                        <ConfirmButton size="sm" ask="Remove?" variant="ghost" shape="square" title="Remove from saved"
                           aria-label={`Remove ${j.title} from saved`} disabled={removing === j.id} onConfirm={() => remove(j.id)}><X /></ConfirmButton>
                       </Table.Cell>
                     </Table.Row>

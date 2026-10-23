@@ -76,7 +76,7 @@ function DisputeButton({ row, left, reload }: { row: HistoryRow; left: number; r
   };
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger render={(p) => <Button {...p} size="sm" variant="secondary" disabled={!left}>Refund credit</Button>} />
+      <Dialog.Trigger render={(p) => <Button {...p} variant="secondary" disabled={!left}>Refund credit</Button>} />
       <Dialog className="oj-dialog">
         <Dialog.Title className="oj-card-title">Refund the credit for this application?</Dialog.Title>
         <Dialog.Description className="oj-note">
@@ -99,8 +99,7 @@ export function Attention({ needs, history, disputesLeft, reload }: { needs: Nee
   if (!needs.length && !unconfirmed.length) {
     return (
       <LayerCard>
-        <Empty icon={<CheckCircle size={40} />} title="Nothing needs your attention"
-          description="Questions the extension couldn't answer and applications it couldn't confirm show up here." />
+        <Empty icon={<CheckCircle size={40} />} title="Looks good" />
       </LayerCard>
     );
   }

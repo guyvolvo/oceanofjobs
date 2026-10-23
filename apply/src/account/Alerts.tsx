@@ -212,7 +212,7 @@ export function Alerts({ alerts, error, form, reload }: {
                         <Table.Cell className="oj-actions-cell">
                           <span className="oj-row oj-tight oj-nowrap">
                             {/* The form sits below the list: take the reader to it, which on a phone is off screen. */}
-                            <Button size="sm" variant="secondary" icon={<PencilSimple />} aria-label={`Edit alert ${name}`}
+                            <Button variant="secondary" icon={<PencilSimple />} aria-label={`Edit alert ${name}`}
                               onClick={() => { form.edit(a); requestAnimationFrame(() => document.getElementById("alert-form-title")?.scrollIntoView({ block: "start", behavior: "smooth" })); }}>Edit</Button>
                             <ConfirmButton size="sm" variant="ghost" shape="square" aria-label={`Delete alert ${name}`} title="Delete alert"
                               disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>

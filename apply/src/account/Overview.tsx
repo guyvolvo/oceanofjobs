@@ -227,7 +227,7 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
                     <Pill pct={isM ? change(trendValues[trendValues.length - 1], trendValues[trendValues.length - 2]) : change(open, monthAgo)} /></div>
                 ) : null}
               </div>
-              <Tabs variant="segmented" size="sm" value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}
+              <Tabs variant="segmented" value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}
                 tabs={[{ value: "matches", label: "New matches" }, { value: "roles", label: "Open jobs" }]} />
             </div>
             {!ready ? <div className="oj-chart-bones"><SkeletonLine blockHeight={300} /></div>
@@ -249,7 +249,7 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
           </section>
         </LayerCard>
 
-        <Card title="New best matches" action={<LinkButton size="sm" variant="ghost" href="/board?view=matches">{week ? `View all ${fmt(week)}` : "View all"}</LinkButton>}>
+        <Card title="New best matches" action={<LinkButton variant="ghost" href="/board?view=matches">{week ? `View all ${fmt(week)}` : "View all"}</LinkButton>}>
           {!skills.length ? <p className="oj-note">Add skills to see matches.</p>
             : best === "failed" ? <p className="oj-note">Could not load matches.</p>
             : !best ? <div className="oj-stack">{bone(220)}{bone(180)}{bone(200)}</div>
@@ -282,8 +282,8 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
       <div className="oj-split">
         <Card title="Open jobs per skill" action={
           <span className="oj-row oj-tight">
-            <LinkButton size="sm" variant="secondary" href="#preferences" title="Where these are counted. Change it in Preferences.">{places}</LinkButton>
-            <LinkButton size="sm" variant="ghost" href="#skills">Edit skills</LinkButton>
+            <LinkButton variant="secondary" href="#preferences" title="Where these are counted. Change it in Preferences.">{places}</LinkButton>
+            <LinkButton variant="ghost" href="#skills">Edit skills</LinkButton>
           </span>}>
           {!savedSkills.length ? <p className="oj-note">Add skills to see demand for them.</p>
             : !ready ? <div className="oj-stack">{bone(240)}{bone(200)}{bone(220)}{bone(180)}</div>
@@ -296,7 +296,7 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
                 {gaps.length ? (
                   <div className="oj-row">
                     {gaps.map((g) => (
-                      <Button key={g.sk} size="sm" variant="secondary" loading={adding === g.sk} aria-label={`Add ${g.sk} to your skills`}
+                      <Button key={g.sk} variant="secondary" loading={adding === g.sk} aria-label={`Add ${g.sk} to your skills`}
                         title={`${g.sk} is named by ${g.share}% of your matches; ${fmt(g.n)} open jobs ask for it`} onClick={() => add(g.sk)}>Add {g.sk}</Button>
                     ))}
                   </div>
@@ -308,7 +308,7 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
         </Card>
 
         <Card title={<>Alerts {sent ? <span className="oj-note">· sent {ago(sent)}</span> : null}</>}
-          action={<Button size="sm" variant="secondary" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
+          action={<Button variant="secondary" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
           {formOpen ? <AlertFormView form={form} autoFocus onDone={() => setFormOpen(false)} />
             : !alerts ? <div className="oj-stack">{bone(220)}{bone(180)}</div>
             : !alerts.length ? <p className="oj-note">No alerts yet. Create one and new listings that match it are emailed to you.</p>
@@ -330,7 +330,7 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
                           <Table.Cell><span className="oj-row oj-tight oj-nowrap">{a.active ? <><Check aria-hidden="true" />Active</> : <><Pause aria-hidden="true" />Paused</>}</span></Table.Cell>
                           <Table.Cell className="oj-actions-cell">
                             <span className="oj-row oj-tight oj-nowrap">
-                              <Button size="sm" variant="secondary" disabled={act.busy === a.alert_id} onClick={() => act.toggle(a)}>{a.active ? "Pause" : "Resume"}</Button>
+                              <Button variant="secondary" disabled={act.busy === a.alert_id} onClick={() => act.toggle(a)}>{a.active ? "Pause" : "Resume"}</Button>
                               <Button size="sm" variant="ghost" shape="square" aria-label={`Edit alert ${name}`} title="Edit alert"
                                 onClick={() => { form.edit(a); setFormOpen(true); }}><PencilSimple /></Button>
                               <ConfirmButton size="sm" variant="ghost" shape="square" title="Delete alert" aria-label={`Delete alert ${name}`}

@@ -106,7 +106,9 @@
 :root[data-mode="dark"] [data-kumo-component="LinkButton"].\!text-white { color: #0e0f11 !important; }
 
 html, body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-kumo-default); }
-body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+/* Kumo's scale (12/13/14/16) one step up: at 14px the page read small. */
+:root { --text-xs: 13px; --text-sm: 14px; --text-base: 15px; --text-lg: 17px; }
+body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 #root a { color: inherit; }
 /* The app in its own stacking context, so Kumo's dialogs and toasts (portals
    after #root in body) always paint above the site header. */
@@ -132,7 +134,7 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 .oj-show-sm { display: none; }
 .oj-job { font-weight: 500; color: var(--text-color-kumo-strong); text-decoration: none; overflow-wrap: anywhere; }
 .oj-job:hover { text-decoration: underline; }
-.oj-sub { display: block; color: var(--text-color-kumo-subtle); font-size: 13px; overflow-wrap: anywhere; }
+.oj-sub { display: block; color: var(--text-color-kumo-subtle); font-size: 14px; overflow-wrap: anywhere; }
 .oj-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .oj-table { overflow-x: auto; }
 .oj-table td, .oj-table th { vertical-align: top; }
@@ -192,6 +194,12 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit
 @media (max-width: 640px) { .oj-card-body { padding: 16px; } }
 /* The segmented tabs hug their labels, as one compact control (Kumo stretches the track). */
 .oj-tabs > * { width: max-content; max-width: none; box-shadow: inset 0 0 0 1px var(--color-kumo-hairline); border-radius: 10px; }
+/* The tab list never shrinks below its labels, so Kumo's scroll arrow has
+   nothing to scroll. Once shown, the arrow took room, the list shrank to make
+   it, and the last tab stayed clipped ("Auto apply settin>"). .oj-tabs
+   scrolls sideways itself on a phone. */
+.oj-tabs .kumo-tabs-list { flex-shrink: 0; }
+.oj-tabs [data-kumo-part="overflow-control"] { display: none; }
 
 /* Danger options (Send without review, Apply automatically): a red check
    when chosen, on top of Kumo's red border for the "error" variant. */
