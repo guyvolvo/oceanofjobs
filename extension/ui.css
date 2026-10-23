@@ -74,3 +74,18 @@ a:hover { color: var(--good); }
 }
 select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
   background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+/* Chrome 135 on draws the open list from CSS too (a customizable select), in
+   the look of the site's Kumo dropdowns; older builds keep the native list. */
+@supports (appearance: base-select) {
+  select.input, select.input::picker(select) { appearance: base-select; }
+  select.input { display: flex; align-items: center; background-image: none; padding-right: 12px; cursor: pointer; }
+  select.input:hover { border-color: var(--soft-hover); }
+  select.input::picker-icon { color: var(--muted); transition: rotate 150ms ease; }
+  select.input:open::picker-icon { rotate: 180deg; }
+  select.input::picker(select) { margin-top: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); color: var(--text); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); }
+  select.input option { padding: 8px 10px; border-radius: 6px; font: 400 14px "Geist", sans-serif; cursor: pointer; }
+  select.input option:hover, select.input option:focus-visible { background: var(--soft-hover); outline: none; }
+  select.input option:checked { font-weight: 500; }
+  select.input option::checkmark { color: var(--good); }
+}

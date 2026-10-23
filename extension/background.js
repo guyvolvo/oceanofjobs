@@ -1,4 +1,4 @@
-importScripts('lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js', 'ats/generic.js');
+importScripts('lib/providers.js', 'lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js', 'ats/generic.js');
 
 const API = 'https://oceanofjobs.com/api';
 // One job at a time, so a full run is a few minutes; the plan and the
@@ -200,8 +200,10 @@ async function draftAnswer(field, profile, preferences, job, ai) {
     'Use only the facts above. If they do not answer the question truthfully, reply UNKNOWN.',
   ].join('\n\n');
   let text;
+  const provider = oojProviders[ai.provider];
+  if (!provider) return undefined;
   if (ai.provider === 'anthropic') {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(provider.url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json', 'x-api-key': ai.key, 'anthropic-version': '2023-06-01',
@@ -212,8 +214,8 @@ async function draftAnswer(field, profile, preferences, job, ai) {
     const data = await res.json();
     if (!res.ok || data.stop_reason === 'refusal') return undefined;
     text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
-  } else if (ai.provider === 'openai') {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  } else {
+    const res = await fetch(provider.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${ai.key}` },
       body: JSON.stringify({ model: ai.model, messages: [{ role: 'user', content: prompt }] }),
@@ -1070,6 +1072,10 @@ chrome.runtime.onMessageExternal.addListener((msg, sender, reply) => {
   if (msg && msg.type === 'ping') {
     chrome.storage.local.get(['token', 'authError']).then((st) =>
       reply({ ok: true, version: chrome.runtime.getManifest().version, connected: !!st.token && !st.authError }));
+    return true;
+  }
+  if (msg && msg.type === 'openOptions') {
+    chrome.runtime.openOptionsPage().then(() => reply({ ok: true }), () => reply({ ok: false }));
     return true;
   }
   if (msg && msg.type === 'applyNext') {

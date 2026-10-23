@@ -13,7 +13,8 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { ApiError, apply, send, type Profile } from "./api";
-import { ConfirmDanger, NeedsResume } from "./shared";
+import { ConfirmDanger, ExtensionSettingsButton, NeedsResume } from "./shared";
+import type { Ext } from "./ext";
 
 const EEO = [["gender", "Gender"], ["race", "Race or ethnicity"], ["veteran", "Veteran status"], ["disability", "Disability"]] as const;
 type EeoKey = (typeof EEO)[number][0];
@@ -92,7 +93,7 @@ function Card({ title, note, children }: { title: string; note?: ReactNode; chil
   );
 }
 
-export function Settings() {
+export function Settings({ ext }: { ext: Ext }) {
   const toasts = useKumoToastManager();
   const [form, setForm] = useState<Form | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -154,6 +155,9 @@ export function Settings() {
 
   return (
     <form className="oj-stack" noValidate onSubmit={(e) => { e.preventDefault(); save(); }}>
+      <Card title="Extension settings" note="Your CV, your own AI key and where the fill button shows are set in the extension, and stay in your browser.">
+        <div className="oj-row"><ExtensionSettingsButton ext={ext} /></div>
+      </Card>
       <Card title="Personal details" note="Used to fill in application forms. Your details are saved to your account so you can use them on any computer.">
         <div className="oj-form">
           {text("first_name", "First name", "")}

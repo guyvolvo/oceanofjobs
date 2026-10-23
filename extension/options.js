@@ -4,10 +4,8 @@ const CV_TYPES = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 };
-const PROVIDERS = {
-  anthropic: { origin: 'https://api.anthropic.com/*', model: 'claude-haiku-5-5' },
-  openai: { origin: 'https://api.openai.com/*', model: '' },
-};
+const PROVIDERS = globalThis.oojProviders;
+for (const [value, p] of Object.entries(PROVIDERS)) $('provider').add(new Option(p.label, value));
 
 function showCv(cv) {
   $('cv-now').textContent = cv ? `Saved: ${cv.name} (${Math.round(cv.size / 1024)} KB)` : 'No CV saved yet.';
@@ -30,7 +28,7 @@ $('cv').addEventListener('change', async () => {
 
 $('provider').addEventListener('change', () => {
   const p = PROVIDERS[$('provider').value];
-  if (p && !$('model').value) $('model').value = p.model;
+  $('model').value = (p && p.model) || '';
 });
 
 $('save-ai').addEventListener('click', async () => {

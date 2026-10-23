@@ -101,7 +101,7 @@ export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
         {section === "queue" && (data.queue ? <Queue items={data.queue} ext={ext} reload={load} /> : waiting)}
         {section === "needs" && (data.needs && data.history ? <Attention needs={data.needs} history={data.history} disputesLeft={s?.disputes_left ?? 0} reload={load} /> : waiting)}
         {section === "history" && (data.history ? <History rows={data.history} /> : waiting)}
-        {section === "settings" && <Settings />}
+        {section === "settings" && <Settings ext={ext} />}
         {section === "agent" && <Agent />}
       </div></Suspense>
     </>

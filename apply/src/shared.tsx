@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Badge } from "@cloudflare/kumo/components/badge";
-import { Button } from "@cloudflare/kumo/components/button";
+import { Button, LinkButton } from "@cloudflare/kumo/components/button";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { WarningCircle } from "@phosphor-icons/react";
+import { GearSix, WarningCircle } from "@phosphor-icons/react";
 import type { QueueItem, Status } from "./api";
 import { ask, connectExtension, type Ext } from "./ext";
 
@@ -68,6 +68,18 @@ export function fmtDate(iso: string) {
 }
 
 export const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+
+// The extension's own settings page (CV, own AI key, fill button), which
+// only the extension can open: 1.9.8 on answers openOptions.
+export function ExtensionSettingsButton({ ext }: { ext: Ext }) {
+  const toasts = useKumoToastManager();
+  if (!ext.installed) return <LinkButton variant="secondary" href="/docs/extension">How to install the extension</LinkButton>;
+  const open = () => ask<{ ok?: boolean }>({ type: "openOptions" })
+    .then((r) => { if (!r.ok) throw new Error("not opened"); })
+    .catch(() => toasts.add({ variant: "error", title: "Couldn't open the extension's settings",
+      description: "Update the extension, or right-click its icon and select Options." }));
+  return <Button variant="secondary" icon={<GearSix />} onClick={open}>Open extension settings</Button>;
+}
 
 // The one control that reaches the extension: install it, connect it, or
 // open the next queued job.

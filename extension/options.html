@@ -44,15 +44,13 @@
     <label class="field" for="provider">Provider
       <select class="input" id="provider">
         <option value="">None</option>
-        <option value="anthropic">Anthropic</option>
-        <option value="openai">OpenAI</option>
       </select>
     </label>
     <label class="field" for="key">API key
       <input class="input" type="password" id="key" autocomplete="off" spellcheck="false">
     </label>
     <label class="field" for="model">Model
-      <input class="input" type="text" id="model" spellcheck="false">
+      <input class="input" type="text" id="model" spellcheck="false" placeholder="The model's name, as your provider lists it">
     </label>
     <div class="actions row">
       <button class="btn primary" id="save-ai">Save</button>
@@ -76,6 +74,7 @@
     </div>
   </section>
 </main>
+<script src="lib/providers.js"></script>
 <script src="options.js"></script>
 </body>
 </html>
