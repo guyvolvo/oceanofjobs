@@ -317,62 +317,91 @@
     </section>
 
     <!-- pricing:start -->
-    <!-- Three plans side by side, split by hairlines, the middle one
-         lifted. /pricing is generated from this block by
+    <!-- One table, plans across and features down, on the dither panel.
+         /pricing is generated from this block by
          scripts/build_pages.py, so edit it here and rerun that. -->
     <section class="home-section" id="pricing" aria-labelledby="pricing-title">
       <div class="home-wrap">
         <h2 class="home-h2" id="pricing-title">Pricing plans</h2>
         <p class="home-body">Searching jobs, setting alerts, using the REST API, and connecting AI assistants through MCP are all free. The Ocean of Jobs browser extension fills out applications in your browser and can submit them for you. Filling is free on every plan; paid plans submit more.</p>
         <div class="price3-panel">
-        <div class="price3">
-          <section class="price3-col" aria-labelledby="plan-free">
-            <h3 class="price3-name" id="plan-free">Free</h3>
-            <p class="price3-amount">$0<small>/month</small></p>
-            <p class="price3-desc">Browse millions of open jobs, set alerts, use MCP &amp; the REST API, and get a free version of auto apply.</p>
-            <hr class="price3-rule" />
-            <p class="price3-plus">Includes:</p>
-            <ul class="price3-list">
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Unlimited form filling: the extension fills the application, you press Submit</span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>10 automatic applications per month <span class="price3-badge">Coming soon</span></span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>50 AI answers per month, no AI key needed</span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Review applications before submitting or let the extension apply automatically <span class="price3-badge">Coming soon</span></span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Unlimited job search and saved jobs, plus up to 5 alerts</span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Free REST API and MCP access for AI assistants like Claude</span></li>
-            </ul>
-            <a class="home-soft home-soft-sm price3-cta" href="/account">Get started</a>
-            <p class="price3-terms">No credit card required.</p>
-          </section>
-          <section class="price3-col price3-hot" aria-labelledby="plan-basic">
-            <h3 class="price3-name" id="plan-basic">Basic <span class="price3-badge">Popular</span></h3>
-            <p class="price3-amount">$5.99<small>/month</small></p>
-            <p class="price3-desc">For job seekers looking to supercharge their job search workflows. Get higher limits on auto apply and a custom Cloudflare AI agent.</p>
-            <hr class="price3-rule" />
-            <p class="price3-plus">Everything in Free, plus:</p>
-            <ul class="price3-list">
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>100 automatic applications per month <span class="price3-badge">Coming soon</span></span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Custom AI agent that answers new application questions for you <span class="price3-badge">Coming soon</span></span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>300 AI calls per month <span class="price3-badge">Coming soon</span></span></li>
-            </ul>
-            <a class="home-pill price3-cta" data-plan="basic" aria-disabled="true">Coming soon</a>
-            <p class="price3-terms">7-day free trial · <strong class="price3-deal">50% off your first month</strong> · Cancel anytime.</p>
-          </section>
-          <section class="price3-col" aria-labelledby="plan-pro">
-            <h3 class="price3-name" id="plan-pro">Pro</h3>
-            <p class="price3-amount">$19.99<small>/month</small></p>
-            <p class="price3-desc">For the elite of the unemployed. Get all the previous perks, plus up to 50 automatic applications per day (~1,500 a month).</p>
-            <hr class="price3-rule" />
-            <p class="price3-plus">Everything in Basic, plus:</p>
-            <ul class="price3-list">
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>Up to 50 automatic applications per day (~1,500 a month) <span class="price3-badge">Coming soon</span></span></li>
-              <li><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg><span>3,000 AI calls per month <span class="price3-badge">Coming soon</span></span></li>
-            </ul>
-            <a class="home-soft home-soft-sm price3-cta" data-plan="pro" aria-disabled="true">Coming soon</a>
-            <p class="price3-terms"><strong class="price3-deal">50% off your first month</strong> · Cancel anytime.</p>
-          </section>
+        <div class="ptable-card">
+          <div class="ptable-scroll">
+          <table class="ptable">
+            <caption class="sr-only">Compare plans</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="ptable-feature">Feature</th>
+                <th scope="col"><span class="ptable-plan">Free</span><span class="ptable-price">$0<small>/month</small></span></th>
+                <th scope="col" class="ptable-hot"><span class="ptable-plan">Basic <span class="price3-badge">Best value</span></span><span class="ptable-price">$7.99<small>/month</small></span></th>
+                <th scope="col"><span class="ptable-plan">Pro</span><span class="ptable-price">$24.99<small>/month</small></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Application form filling</th><td>Unlimited</td><td class="ptable-hot">Unlimited</td><td>Unlimited</td></tr>
+              <tr><th scope="row">Automatic applications <span class="price3-badge">Coming soon</span></th><td>10/month</td><td class="ptable-hot">100/month</td><td>Up to 50/day</td></tr>
+              <tr><th scope="row">AI-generated answers based on your profile<small>No AI key needed.</small></th><td>50/month</td><td class="ptable-hot">300/month</td><td>3,000/month</td></tr>
+              <tr><th scope="row">Use your own AI key</th><td><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td><td class="ptable-hot"><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td><td><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td></tr>
+              <tr><th scope="row">Customize your AI agent</th><td><span aria-hidden="true">&mdash;</span><span class="sr-only">Not included</span></td><td class="ptable-hot"><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td><td><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td></tr>
+              <tr><th scope="row">Fully hands-off applying<small>New AI answers are sent without waiting for your review.</small></th><td><span aria-hidden="true">&mdash;</span><span class="sr-only">Not included</span></td><td class="ptable-hot"><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td><td><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td></tr>
+              <tr><th scope="row">REST API and MCP access</th><td><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td><td class="ptable-hot"><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td><td><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span class="sr-only">Included</span></td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row"><span class="sr-only">Get the plan</span></th>
+                <td><a class="home-soft home-soft-sm" href="/account">Get started</a><p class="ptable-terms">No credit card required.</p></td>
+                <td class="ptable-hot"><a class="home-pill" data-plan="basic" aria-disabled="true">Coming soon</a><p class="ptable-terms">7-day free trial. <strong class="price3-deal">50% off your first month.</strong></p></td>
+                <td><a class="home-soft home-soft-sm" data-plan="pro" aria-disabled="true">Coming soon</a><p class="ptable-terms"><strong class="price3-deal">50% off your first month.</strong></p></td>
+              </tr>
+            </tfoot>
+          </table>
+          </div>
         </div>
+          <!-- The same plans for a phone, where the table has no room.
+               Keep the two in step when a limit changes. -->
+          <div class="pcards">
+            <section class="pcard" aria-labelledby="m-plan-free">
+              <h3 class="ptable-plan" id="m-plan-free">Free</h3>
+              <p class="ptable-price">$0<small>/month</small></p>
+              <p class="pcard-desc">Fill applications yourself and try automatic applying.</p>
+              <ul class="pcard-list">
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>Unlimited application form filling</span></li>
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>10 automatic applications a month <span class="price3-badge">Coming soon</span></span></li>
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>50 AI-generated answers a month</span></li>
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>REST API and MCP access</span></li>
+              </ul>
+              <a class="home-soft home-soft-sm" href="/account">Get started</a>
+              <p class="ptable-terms">No credit card required.</p>
+            </section>
+            <section class="pcard ptable-hot" aria-labelledby="m-plan-basic">
+              <h3 class="ptable-plan" id="m-plan-basic">Basic <span class="price3-badge">Best value</span></h3>
+              <p class="ptable-price">$7.99<small>/month</small></p>
+              <p class="pcard-desc">Apply regularly with your own AI agent.</p>
+              <p class="pcard-plus">Everything in Free, plus:</p>
+              <ul class="pcard-list">
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>100 automatic applications a month <span class="price3-badge">Coming soon</span></span></li>
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>300 AI-generated answers a month</span></li>
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>Customize your AI agent</span></li>
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>Fully hands-off applying</span></li>
+              </ul>
+              <a class="home-pill" data-plan="basic" aria-disabled="true">Coming soon</a>
+              <p class="ptable-terms">7-day free trial. <strong class="price3-deal">50% off your first month.</strong></p>
+            </section>
+            <section class="pcard" aria-labelledby="m-plan-pro">
+              <h3 class="ptable-plan" id="m-plan-pro">Pro</h3>
+              <p class="ptable-price">$24.99<small>/month</small></p>
+              <p class="pcard-desc">Automate a high-volume job search.</p>
+              <p class="pcard-plus">Everything in Basic, plus:</p>
+              <ul class="pcard-list">
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>Up to 50 automatic applications a day <span class="price3-badge">Coming soon</span></span></li>
+                <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>3,000 AI-generated answers a month</span></li>
+              </ul>
+              <a class="home-soft home-soft-sm" data-plan="pro" aria-disabled="true">Coming soon</a>
+              <p class="ptable-terms"><strong class="price3-deal">50% off your first month.</strong></p>
+            </section>
+          </div>
         </div>
-        <p class="price3-note">Prices are in USD. Applicable taxes are added at checkout. Payments are handled by Paddle, our payment provider.<br /><a href="/refunds">Refund policy</a> · <a href="/terms">Terms of service</a> · Questions? <a href="/contact">Get in touch</a>.</p>
+        <p class="price3-note">Pro's daily limit works out to about 1,500 applications a month. Paid plans cancel anytime. Prices are in USD. Applicable taxes are added at checkout. Payments are handled by Paddle, our payment provider.<br /><a href="/refunds">Refund policy</a> · <a href="/terms">Terms of service</a> · Questions? <a href="/contact">Get in touch</a>.</p>
       </div>
     </section>
     <!-- pricing:end -->
