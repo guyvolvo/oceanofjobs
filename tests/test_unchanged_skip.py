@@ -211,8 +211,8 @@ with tempfile.TemporaryDirectory() as td:
     check("a real new location still moves the job", wrow()["location"] == "Tel Aviv, Israel" and wrow()["city"] == stored["city"].replace("Haifa", "Tel Aviv"),
           str(dict(wrow())))
     sixty = wrow()["posted_at"]
-    load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=(now - timedelta(days=59)).isoformat()))
-    check("a day of bucket drift leaves the first Workday date", wrow()["posted_at"] == sixty)
+    load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=(now - timedelta(days=57.4)).isoformat()))
+    check("2.6 days of bucket drift leaves the first Workday date", wrow()["posted_at"] == sixty)
     load(conn, tmp, w(location="Tel Aviv, Israel", posted_at=(now - timedelta(days=30)).isoformat()))
     check("the 30+ bucket is never a repost", wrow()["posted_at"] == sixty)
     check("drift and the 30+ bucket count no repost", (wrow()["reposts"], wrow()["first_posted_at"]) == (None, None),

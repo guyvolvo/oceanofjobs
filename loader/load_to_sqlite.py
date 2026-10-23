@@ -836,20 +836,23 @@ WORKDAY_PLACEHOLDER_RE = re.compile(r"[0-9].* Location", re.S)
 # posted_at is the stored date. Wrapped in COALESCE(..., 0) at each use: a
 # NULL date makes the whole test NULL.
 _WORKDAY_REPOST = """excluded.ats = 'workday' AND posted_at IS NOT NULL
-                    AND julianday(excluded.posted_at) - julianday(posted_at) > 2
+                    AND julianday(excluded.posted_at) - julianday(posted_at) > 3
                     AND julianday(excluded.posted_at) > julianday('now') - 29"""
 
 
 def workday_reposted(new: str | None, old: str | None) -> bool:
     """A Workday date that moved forward past the drift of its own
-    now-minus-N-days buckets: more than two days newer than the stored one,
+    now-minus-N-days buckets: more than three days newer than the stored one,
     and newer than 29 days ago, so the "30+ Days Ago" bucket (always exactly
     30) never counts. JR2017130 was stored at 19 August from "30+", then
-    reposted on 22 October and still read two months old. The upsert's
+    reposted on 22 October and still read two months old. Three days, not
+    two: the employer's time zone, the time of day we read the bucket and
+    Workday's own rounding each move it up to a day, and together they made
+    2.6-day "reposts" of untouched jobs (fielmann R-65863). The upsert's
     posted_at CASE says the same in SQL."""
     try:
         n, o = datetime.fromisoformat(new), datetime.fromisoformat(old)
-        return n - o > timedelta(days=2) and n > datetime.now(timezone.utc) - timedelta(days=29)
+        return n - o > timedelta(days=3) and n > datetime.now(timezone.utc) - timedelta(days=29)
     except (TypeError, ValueError):
         return False
 
