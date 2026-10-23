@@ -382,10 +382,10 @@ button, input, select {
 .topbar-search-clear:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .topbar-search-clear[hidden] { display: none; }
 
-/* The board's bar in two halves (October 2026): what, then where, each
-   with its name above it. One frame with a rule between the halves; the
-   ring goes on the half being typed in. */
-.board-head .topbar-search.split { flex: 1 1 360px; width: auto; max-width: 600px; height: 44px; padding: 0; gap: 0; align-items: stretch; border-radius: 12px; }
+/* The board's bar in two halves (October 2026): what, then where. One
+   frame with a rule between the halves; the ring goes on the half being
+   typed in. */
+.board-head .topbar-search.split { flex: 1 1 360px; width: auto; max-width: 600px; height: 40px; padding: 0; gap: 0; align-items: stretch; border-radius: 12px; }
 .topbar-search.split:focus-within { outline: none; }
 .split .topbar-field { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px;
   padding: 0 6px 0 12px; border-radius: 10px; }
@@ -394,7 +394,8 @@ button, input, select {
 .split .topbar-field + .topbar-field::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 1px; background: var(--grey-line); }
 .split .topbar-field:focus-within { outline: 2px solid var(--green); outline-offset: -2px; }
 .split .topbar-field:focus-within .topbar-search-icon { color: var(--green-text); }
-.topbar-field-label { font: 600 11px/1.2 var(--font-ui); color: var(--grey); cursor: text; }
+/* Named for screen readers only: the placeholders say it on screen. */
+.topbar-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .topbar-field-row { display: flex; align-items: center; gap: 7px; min-width: 0; height: 20px; }
 /* The pills' own size (.board-pills .rail-acc-name), so the bar is not the quiet one in the row. */
 .split .topbar-field input { font: 500 15px var(--font-ui); }
@@ -411,10 +412,9 @@ button, input, select {
 .topbar-place-sub { color: var(--grey); }
 .topbar-place-n { margin-left: auto; color: var(--grey); font-size: 13px; font-variant-numeric: tabular-nums; }
 .topbar-place-none { padding: 10px; color: var(--grey); font: 400 14px var(--font-ui); }
-/* The phone's bar is one row beside the logo: the names go, the halves stay. */
+/* The phone's bar: a little tighter. */
 @media (max-width: 800px) {
   .board-head .topbar-search.split { width: auto; height: 40px; }
-  .split .topbar-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .split .topbar-field { padding: 0 4px 0 12px; }
   .split .topbar-field-row { gap: 6px; }
   /* The where half is on the right, so its list opens leftward, inside the screen. */
