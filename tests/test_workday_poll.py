@@ -177,6 +177,18 @@ check("'Posted Today' on a tenant read before is dated first sight, not midnight
 jobs = probe.f_workday(Sess(today), "acme", "wd1", "External")
 check("'Posted Today' on a first read of a tenant stays unknown", jobs[0].posted_at is None, repr(jobs[0].posted_at))
 
+# An unreadable state file ends the run instead of saving a near-empty one.
+class NoS3:
+    def get_object(self, **kw):
+        raise TimeoutError("S3 timed out")
+
+
+try:
+    handler._load_known(NoS3())
+    check("an unreadable workday-known.json.gz ends the run", False, "returned instead of raising")
+except TimeoutError:
+    check("an unreadable workday-known.json.gz ends the run", True)
+
 # The handler's poll: unchanged is one request, changed is the walk.
 class FakeProbe:
     pass

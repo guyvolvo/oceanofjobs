@@ -203,14 +203,12 @@ def _write_status(s3, phase: str, detail: str = "") -> None:
 
 def _load_known(s3) -> tuple[dict[str, set[str]], dict[str, set[str]], dict[str, str]]:
     """(open ids, described ids, last good read) per company, from
-    KNOWN_KEY. Unreadable, everything is new for one run: every board is
-    read and up to WORKDAY_DESCRIBE_PER_TENANT jobs a company described,
-    and the save at the end of the run writes the file again."""
-    try:
-        raw = json.loads(gzip.decompress(s3.get_object(Bucket=BUCKET, Key=KNOWN_KEY)["Body"].read()))
-    except Exception as e:  # noqa: BLE001 -- treating everything as new is the safe answer to any of these
-        print(f"{KNOWN_KEY} unreadable ({e!r}), treating every company as new this run")
-        return {}, {}, {}
+    KNOWN_KEY. Unreadable, the run ends here: nothing is written before
+    this, so a failed read costs one run. Carrying on with empty maps did
+    not: _save_known writes only the companies a run reaches, so one S3
+    timeout would have left the file with a hundred of its 3,400 and made
+    the rest new for weeks of full re-reads."""
+    raw = json.loads(gzip.decompress(s3.get_object(Bucket=BUCKET, Key=KNOWN_KEY)["Body"].read()))
     return ({d: set(v.get("open") or ()) for d, v in raw.items()},
             {d: set(v.get("described") or ()) for d, v in raw.items()},
             {d: v["polled"] for d, v in raw.items() if v.get("polled")})
