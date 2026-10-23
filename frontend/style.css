@@ -4521,11 +4521,13 @@ html:has(.home-hero) { scroll-behavior: smooth; }
    in both themes: every colour from here to the install lines is fixed.
    The panel is a 384 x 256 two-colour PNG shown at exactly 3x, so each
    dot is a crisp 3px square. */
-.mcp-panel { position: relative; isolation: isolate; }
+/* --pad: how far the dither runs past the window, which also caps how
+   far a preview card slides out when switching (twice this). */
+.mcp-panel { --pad: 48px; position: relative; isolation: isolate; }
 .mcp-panel::before {
   content: "";
   position: absolute;
-  inset: -48px;
+  inset: calc(-1 * var(--pad));
   z-index: -1;
   border-radius: 16px;
   background: url(/img/dither-mcp.png) center 40% / 1152px 768px;
@@ -4590,6 +4592,85 @@ html:has(.home-hero) { scroll-behavior: smooth; }
 .mcp-body [data-s] { transition: opacity 220ms ease-out, transform 220ms ease-out; }
 .mcp-body .mcp-fade { opacity: 0; transform: translateY(6px); transition: none; }
 @keyframes mcp-blink { 50% { opacity: 0; } }
+
+/* The hero's previews: two windows stacked like cards on the one dither
+   panel, the other one behind, smaller, dimmer and peeking out on top.
+   Switching slides the front card out to the right, straight and no more
+   than twice the dither's margin (--pad), and tucks it in
+   behind (z-index moves halfway through the keyframes) while the back
+   card rises to the front. Same height, so the page never moves. */
+.hero-stack { display: grid; }
+.hero-slide { grid-area: 1 / 1; z-index: 0; transform: translateY(-30px) scale(0.94); filter: brightness(0.5); transition: transform 550ms cubic-bezier(0.2, 0.7, 0.2, 1), filter 550ms ease; }
+.hero-slide.is-on { z-index: 2; transform: none; filter: none; transition-delay: 200ms; }
+.hero-slide.is-leaving { animation: hero-card-back 750ms cubic-bezier(0.3, 0.6, 0.2, 1) both; }
+@keyframes hero-card-back {
+  0% { z-index: 3; transform: none; filter: none; }
+  45% { z-index: 3; transform: translateX(calc(2 * var(--pad))); filter: brightness(0.85); }
+  55% { z-index: 0; transform: translateX(calc(2 * var(--pad))) scale(0.97); filter: brightness(0.7); }
+  100% { z-index: 0; transform: translateY(-30px) scale(0.94); filter: brightness(0.5); }
+}
+/* Under the panel: back, the two previews by name, forward. Follows the
+   page theme, like the install lines. */
+.hero-slide-nav { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 60px; }
+.hero-slide-arrow, .hero-slide-tab { display: inline-flex; align-items: center; justify-content: center; height: 32px; border: 0; border-radius: 999px; background: none; color: var(--h-muted); font: 400 13px/1 "Geist", var(--font); cursor: pointer; transition: background-color 150ms ease, color 150ms ease; }
+.hero-slide-arrow { width: 32px; }
+.hero-slide-arrow svg { fill: currentColor; }
+.hero-slide-tab { padding: 0 14px; }
+.hero-slide-arrow:hover, .hero-slide-tab:hover { background: var(--h-soft); color: var(--h-text); }
+.hero-slide-tab[aria-pressed="true"] { background: var(--h-soft-hover); color: var(--h-text); }
+.hero-slide-nav ~ .mcp-install, .ext-install { margin-top: 16px; }
+.ext-install { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 12px; width: 540px; min-height: 130px; text-align: center; }
+.ext-install[hidden], .mcp-install[hidden] { display: none; }
+.home-hero .ext-install p { margin: 0; font-size: 14px; line-height: 20px; color: var(--h-muted); }
+
+/* The extension preview: a browser on a job application. The window is
+   dark like the terminal; the page in it is white, as such forms are. */
+.ext-win { width: 540px; border-radius: 10px; overflow: hidden; background: #1c1c1e; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 60px 120px -30px rgba(0, 0, 0, 0.6); }
+.ext-tbar { gap: 12px; }
+.ext-url { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; height: 20px; padding: 0 10px; border-radius: 6px; background: #1a1a1c; color: #9b9b9b; font: 400 11px/1 "Geist", system-ui, sans-serif; white-space: nowrap; overflow: hidden; }
+.ext-url svg { flex: none; fill: #8b8b8b; }
+.ext-body { position: relative; height: 452px; overflow: hidden; background: #fff; color: #1f2328; font: 400 12px/16px "Geist", system-ui, sans-serif; }
+.ext-page { padding: 22px 28px 120px; transition: transform 450ms cubic-bezier(0.2, 0, 0, 1), opacity 300ms ease; }
+.ext-co { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+.ext-logo { fill: #0d0d0d; }
+.ext-tabs { display: flex; gap: 18px; margin-top: 16px; border-bottom: 1px solid #e6e8eb; color: #656d76; font-size: 12.5px; }
+.ext-tabs span { padding-bottom: 8px; }
+.ext-tabs .is-on { color: #1f2328; font-weight: 600; box-shadow: inset 0 -2px 0 #1f2328; }
+.ext-yn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ext-yn span { display: flex; align-items: center; justify-content: center; height: 30px; border: 1px solid #d0d7de; border-radius: 6px; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.ext-yn .is-picked { border-color: #2f7d4f; background: #f3faf5; color: #1a5c37; font-weight: 600; }
+.ext-check { display: flex; align-items: flex-start; gap: 8px; color: #424a53; }
+.ext-box { flex: none; width: 14px; height: 14px; margin-top: 1px; border: 1px solid #8c959f; border-radius: 3px; transition: background-color 150ms ease, border-color 150ms ease; }
+.ext-check.is-picked .ext-box { border-color: #2f7d4f; background: #2f7d4f url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3.5 7.2l2.3 2.3 4.7-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat; }
+.ext-job { margin-top: 14px; font-size: 19px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
+.ext-meta { margin-top: 4px; color: #656d76; }
+.ext-form { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px; }
+.ext-f { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 5px; }
+.ext-l { color: #424a53; font-size: 11.5px; }
+.ext-l em { margin-left: 2px; font-style: normal; color: #cf222e; }
+.ext-in { display: flex; align-items: center; min-height: 30px; padding: 0 10px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; transition: border-color 150ms ease, box-shadow 150ms ease, background-color 300ms ease; }
+.ext-in.is-filling { border-color: #2f7d4f; box-shadow: 0 0 0 3px rgba(47, 125, 79, 0.18); }
+.ext-in.is-filled { background: #f3faf5; }
+.ext-area { align-items: flex-start; min-height: 74px; padding: 7px 10px; line-height: 17px; }
+.ext-file { gap: 10px; padding-left: 6px; }
+.ext-file-btn { padding: 3px 8px; border: 1px solid #d0d7de; border-radius: 4px; background: #f6f8fa; font-size: 11px; }
+.ext-ai { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: #eef1ff; color: #4a4fc4; font-size: 10px; font-weight: 600; vertical-align: 1px; }
+.ext-ai[hidden] { display: none; }
+.ext-submit { justify-self: start; margin-top: 4px; padding: 9px 16px; border-radius: 6px; background: #1f2328; color: #fff; font-weight: 600; transition: transform 120ms ease, background-color 120ms ease; }
+.ext-submit.is-pressed { transform: scale(0.96); background: #2f7d4f; }
+.ext-done { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 0 40px 60px; text-align: center; opacity: 0; pointer-events: none; transition: opacity 350ms ease 150ms; }
+.ext-done svg circle { fill: #2f7d4f; }
+.ext-done svg path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ext-done-t { margin-top: 6px; font-size: 18px; font-weight: 600; }
+.ext-done-s { color: #656d76; }
+.ext-win.is-done .ext-page { opacity: 0; }
+.ext-win.is-done .ext-done { opacity: 1; }
+/* The extension's own status card, over the page, bottom right. */
+.ext-card { position: absolute; right: 14px; bottom: 14px; width: 232px; padding: 10px 12px 12px; border-radius: 10px; background: #111214; color: #e9e9ea; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.ext-card-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #9b9b9b; }
+.ext-card-msg { margin-top: 6px; font-size: 12.5px; line-height: 17px; font-weight: 500; }
+.ext-card-bar { height: 3px; margin-top: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.ext-card-bar i { display: block; width: 4%; height: 100%; border-radius: inherit; background: #4ade80; transition: width 400ms ease; }
 
 /* The install lines follow the page theme, unlike the window above. */
 /* Each pane hugs its content; the block keeps the tallest pane's room
@@ -4675,14 +4756,18 @@ html:has(.home-hero) { scroll-behavior: smooth; }
 @media (max-width: 1099px) {
   .home-hero-grid { grid-template-columns: minmax(0, 1fr); }
   .home-hero-text { min-height: 0; }
-  .mcp-win, .mcp-install { width: 100%; }
-  .mcp-panel::before { inset: -16px; border-radius: 12px; }
+  .mcp-win, .mcp-install, .ext-win, .ext-install { width: 100%; }
+  .hero-slide-nav { margin-top: 28px; }
+  .mcp-panel { --pad: 16px; }
+  .mcp-panel::before { border-radius: 12px; }
 }
 @media (max-width: 900px) {
   .home-hero { padding: 56px var(--h-pad) 48px; }
   .home-hero h1 { font-size: 44px; line-height: 45px; }
   .mcp-install { margin-top: 28px; } /* 12px clear of the dither panel, which runs 16px past the window here */
   .mcp-body { height: 520px; padding: 12px; font-size: 11px; line-height: 15px; }
+  .ext-body { height: 520px; }
+  .ext-page { padding: 18px 16px 130px; }
   .mcp-rule { margin: 0 -12px 7px; }
 }
 @media (max-width: 640px) {
