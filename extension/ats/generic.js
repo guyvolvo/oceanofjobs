@@ -511,11 +511,40 @@
     return null;
   }
 
+  // A site that uploads the CV the moment it is attached shows it doing
+  // so ("Uploading Resume" on Breezy), and holds the form invalid until it
+  // is done: Next or Submit pressed before then is refused.
+  const UPLOADING = /^(uploading|upload in progress|subiendo|cargando|téléchargement en cours|envoi en cours|wird hochgeladen|hochladen|caricamento|carregando|enviando|bezig met uploaden|uploaden|מעלה)/i;
+  const uploading = (f) => deep(f, 'button, [role="button"], [role="status"], [class*="upload" i], [aria-busy="true"]')
+    .some((el) => shown(el) && (el.getAttribute('aria-busy') === 'true' || UPLOADING.test(clean(el.innerText || caption(el)))));
+
+  // The CV goes in first. A site that reads it on arrival (Breezy) fills
+  // the form from it when the upload is done, over anything typed before,
+  // so the rest waits for that.
   async function fill(fills, cv) {
     const errors = [];
-    for (const f of fills) {
+    const files = fills.filter((x) => x.type === 'file');
+    for (const f of [...files, ...fills.filter((x) => x.type !== 'file')]) {
       const err = await fillOne(f, cv);
       if (err) errors.push(`${f.label}: ${err}`);
+      if (f === files[files.length - 1] && markedForm()) {
+        await sleep(500);
+        await waitFor(() => !uploading(markedForm()), 30000);
+        await sleep(1500);
+      }
+    }
+    // A page that resets its own state late (Breezy, as it reads the CV)
+    // can keep a typed value yet still count the field as empty. Telling
+    // it once more, with the value as it stands, makes it check again.
+    if (files.length) {
+      await sleep(1000);
+      for (const f of fills) {
+        const el = find(f.name)[0];
+        if (!el || !/^(INPUT|TEXTAREA)$/.test(el.tagName) || /^(file|radio|checkbox)$/.test(el.type) || !el.value) continue;
+        el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+        leave(el);
+      }
     }
     return { errors };
   }
