@@ -4437,15 +4437,28 @@ a.hero-account-btn { text-decoration: none; }
   color: var(--h-text);
 }
 .home-hero p { max-width: 480px; margin: 22px 0 0; font-size: 17px; line-height: 26px; color: var(--h-muted); }
-/* The extension's Chrome Web Store link: its name, and the beta note under it. */
-.home-hero .home-soon { display: block; margin-top: 12px; color: var(--h-text); }
-.home-soon-head { display: flex; align-items: flex-start; gap: 8px; }
-.home-soon svg { flex: none; margin-top: 3px; fill: currentColor; }
-.home-soon-title { display: block; font-size: 17px; line-height: 26px; font-weight: 500; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color 150ms ease; }
-.home-soon:hover .home-soon-title { text-decoration-color: currentColor; }
-/* The pill colors of the page's main buttons, so it catches the eye in both themes. */
-.home-new { display: inline-block; margin-left: 6px; padding: 3px 9px; border-radius: 999px; background: var(--h-pill-bg); color: var(--h-pill-fg); font-size: 12px; line-height: 16px; font-weight: 600; vertical-align: 2px; }
-.home-soon-note { display: block; font-size: 14px; line-height: 20px; color: var(--h-muted); }
+/* The extension's announcement under the headline: one outlined card in
+   the page's green, no glow. The line under the title sits halfway
+   between it and the badge. */
+.home-promo { --promo: var(--h-link-hover); margin-top: 24px; max-width: 480px; padding: 20px 22px 22px; border: 1px solid color-mix(in srgb, var(--promo) 45%, transparent); border-radius: 16px; background: color-mix(in srgb, var(--promo) 4%, var(--h-bg)); }
+/* Darker and greyer than the page's link green, which reads neon at this size. */
+:root[data-theme="dark"] .home-promo { --promo: #6aa982; }
+.home-hero .home-promo p { max-width: none; margin: 0; }
+.home-hero .home-promo-eyebrow { display: flex; align-items: flex-start; gap: 8px; color: var(--promo); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+/* A black-on-clear PNG used as a mask, so it takes the label's green. */
+.home-promo-icon { flex: none; width: 16px; height: 16px; background: currentColor; -webkit-mask: url(/img/sparkles.png) center / contain no-repeat; mask: url(/img/sparkles.png) center / contain no-repeat; }
+.home-promo-title { margin: 10px 0 0; color: var(--h-text); font: 600 22px/28px "Geist", var(--font); letter-spacing: -0.02em; }
+.home-hero .home-promo .home-promo-text { margin-top: 14px; font-size: 15px; line-height: 22px; color: var(--h-muted); }
+.home-promo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-top: 14px; }
+/* Google's own badge (the borderless one, clear background), unmodified
+   apart from its size and always a link to our store page
+   (developer.chrome.com/docs/webstore/branding). The rounded white card
+   is ours, so the badge itself is never clipped. */
+.home-promo-badge { display: block; padding: 0 6px; border-radius: 10px; background: #fff; line-height: 0; }
+.home-promo-badge img { display: block; width: auto; height: 48px; }
+.home-promo-link { display: inline-flex; align-items: center; gap: 6px; color: var(--h-text); font: 500 14px/1 "Geist", var(--font); }
+.home-promo-link svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+.home-promo-link:hover svg { transform: translateX(3px); }
 /* The pill tokens: paper on the dark page, the board's green ink on the
    light one, the same pair as the other big buttons on this page. */
 .home-search {
