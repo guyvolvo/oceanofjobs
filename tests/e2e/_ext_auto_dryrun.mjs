@@ -6,6 +6,11 @@
 // answered every required question and found the button that sends it.
 // Run from the repo root:
 //   SYSTEMS=teamtailor,breezy PER_ATS=4 node tests/e2e/_ext_auto_dryrun.mjs [out-dir]
+// WRITES="regex" lets writes to matching addresses through (a Workday
+// sign-in and its Save and Continue, a CV upload), except any that match
+// NEVER (default /submit/i), which stays aborted whatever WRITES says.
+// EMAIL sets the profile's email; the Workday password is WORKDAY_TEST_PASSWORD
+// in .env.
 import { chromium } from "playwright";
 import path from "node:path";
 import os from "node:os";
@@ -14,6 +19,10 @@ import fs from "node:fs";
 const out = process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), "ooj-dryrun-"));
 fs.mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const WRITES = process.env.WRITES ? new RegExp(process.env.WRITES, "i") : null;
+const NEVER = new RegExp(process.env.NEVER || "submit", "i");
+const envFile = fs.existsSync(".env") ? fs.readFileSync(".env", "utf8") : "";
+const WORKDAY_PASSWORD = (/^WORKDAY_TEST_PASSWORD=(.*)$/m.exec(envFile) || [])[1] || "Dry-run-0nly!";
 const N = Number(process.env.PER_ATS || 4);
 const SYSTEMS = (process.env.SYSTEMS || "smartrecruiters,bamboohr,jazzhr,recruitee,lever,teamtailor,pinpoint,breezy,personio,comeet").split(",");
 
@@ -47,7 +56,7 @@ const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.t
 });
 
 const profile = {
-  contact: { first_name: "Test", last_name: "Person", email: "test.person@example.com", phone: "+1 415 555 0134", location: "San Francisco, CA, United States" },
+  contact: { first_name: "Test", last_name: "Person", email: process.env.EMAIL || "test.person@example.com", phone: "+1 415 555 0134", location: "San Francisco, CA, United States" },
   links: { linkedin: "https://www.linkedin.com/in/test-person", github: "https://github.com/test-person", website: "" },
   work: { authorized_countries: ["US"], needs_sponsorship: false, notice_period: "2 weeks", salary: "100000" },
   eeo: { gender: "decline", race: "decline", veteran: "decline", disability: "decline" },
@@ -90,26 +99,37 @@ await ctx.route("**/*", (r) => {
   // no application data, and a page whose pings fail refuses to go on.
   if (/^https:\/\/(api-js\.datadome\.co\/js\/|[^/]+\/cdn-cgi\/challenge-platform\/)/.test(req.url())) return r.continue();
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method())) {
+    if (WRITES && WRITES.test(req.url()) && !NEVER.test(u.pathname)) {
+      if (cur) cur.allowed.push(`${req.method()} ${u.hostname}${u.pathname}`.slice(0, 120));
+      return r.continue();
+    }
     if (cur) cur.blocked.push(`${req.method()} ${u.hostname}${u.pathname}`.slice(0, 120));
     return r.abort();
   }
   return r.continue();
 });
 
+// What a site answered to a write let through (WRITES), for the log.
+ctx.on("response", async (res) => {
+  if (!cur || res.request().method() === "GET" || !WRITES || !WRITES.test(res.url())) return;
+  const body = (await res.text().catch(() => "")).replace(/"password"\s*:\s*"[^"]*"/gi, '"password":"***"');
+  cur.answers_from_site = cur.answers_from_site || [];
+  cur.answers_from_site.push(`${res.status()} ${new URL(res.url()).pathname.slice(-40)} ${body.replace(/\s+/g, " ").slice(0, 300)}`);
+});
 let [sw] = ctx.serviceWorkers();
 if (!sw) sw = await ctx.waitForEvent("serviceworker", { timeout: 20000 });
 const pdf = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF";
-await sw.evaluate(async (data) => {
+await sw.evaluate(async ({ data, password }) => {
   await chrome.storage.local.set({ token: "ooj_test.00000000.x", cv: { name: "Test_Person_CV.pdf", type: "application/pdf", size: data.length, data: btoa(data) },
-    workday: { password: "Dry-run-0nly!" } });
+    workday: { password } });
   await chrome.alarms.clearAll();
   // Runs close their tab at the end; here it stays for a screenshot.
   chrome.tabs.remove = async () => {};
-}, pdf);
+}, { data: pdf, password: WORKDAY_PASSWORD });
 
 const rows = [];
 for (const job of jobs) {
-  cur = { drafts: [], settled: [], blocked: [], gate: false, answers: [] };
+  cur = { drafts: [], settled: [], blocked: [], allowed: [], gate: false, answers: [] };
   const t0 = Date.now();
   const outcome = await sw.evaluate(async ({ job, profile }) => {
     const ctx = { profile: structuredClone(profile), preferences: { skills: ["Python"] }, settings: profile.settings, cv: (await chrome.storage.local.get("cv")).cv, serverAi: true };
@@ -119,6 +139,8 @@ for (const job of jobs) {
   const row = { ats: job.ats, url: job.url, outcome, gate: cur.gate, answered: cur.answers.length, drafts: cur.drafts.length,
     settled: last.outcome || "", reason: (last.reason || "").slice(0, 160), questions: last.questions || [], secs: Math.round((Date.now() - t0) / 1000), blocked: cur.blocked.length };
   rows.push(row);
+  if (cur.allowed.length) console.log("   writes let through:", cur.allowed.join(" | ").slice(0, 600));
+  for (const a of cur.answers_from_site || []) console.log("   site answered:", a);
   // The run's tab, kept for its screenshot, then closed; a blank one stays
   // so the browser keeps a window to open the next run's tab in.
   for (const tab of ctx.pages()) {

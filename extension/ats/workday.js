@@ -69,7 +69,11 @@
   // page, {at: 'form'} on a step of the form, {error} when there is no way
   // in. Runs again after a navigation, so it starts wherever the tab is.
   async function enter() {
-    const inside = () => (pin() && ($('signInContent') ? 'account' : $('progressBar') || $('pageFooterNextButton') || $('bottom-navigation-next-button') ? 'form' : null));
+    // The progress bar draws before the sign-in box, and its first step is
+    // the sign-in: on that step it's the account, never the form.
+    const step = () => ($('progressBarActiveStep') || {}).innerText || '';
+    const inside = () => (pin() && ($('signInContent') || /sign in|create account/i.test(step()) ? 'account'
+      : $('progressBar') || $('pageFooterNextButton') || $('bottom-navigation-next-button') ? 'form' : null));
     let at = await waitFor(inside, 3000);
     if (at) return { at };
     const apply = await waitFor(() => $('adventureButton'), 15000);
@@ -92,7 +96,7 @@
   // 'in' once past it, {verify: true} when Workday emailed a link to click
   // first, {failed: reason} otherwise. Never fills the "beecatcher" trap.
   async function account(email, password) {
-    if (!$('signInContent')) return 'in';
+    if (!(await waitFor(() => $('signInContent'), 10000))) return 'in';
     const byEmail = $('SignInWithEmailButton');
     if (byEmail) press(byEmail);
     if (await waitFor(() => $('createAccountSubmitButton'), 1500) && $('signInLink')) press($('signInLink'));
@@ -128,6 +132,24 @@
     return { failed: 'Workday account: ' + (made || 'no answer') };
   }
 
+  // Workday's own sign-in page, outside any application: where some sites
+  // send a new account. Signs in there; the caller goes back to the job.
+  // 'in', {verify: true} when the account isn't confirmed yet, or {failed}.
+  async function signInPage(email, password) {
+    const byEmail = await waitFor(() => $('SignInWithEmailButton') || $('signInSubmitButton'), 10000);
+    if (!byEmail) return { failed: 'Workday sign-in form not found' };
+    if (byEmail === $('SignInWithEmailButton')) press(byEmail);
+    if (!(await waitFor(() => $('signInSubmitButton') && $('email') && $('password'), 8000))) return { failed: 'Workday sign-in form not found' };
+    type($('email'), email);
+    type($('password'), password);
+    await sleep(600);
+    pressButton($('signInSubmitButton'));
+    const r = await waitFor(() => (!$('signInSubmitButton') ? 'in' : VERIFY.test(text()) ? 'verify' : problem()), 15000);
+    if (r === 'in') return 'in';
+    if (r === 'verify' || /verif|confirm/i.test(r || '')) return { verify: true };
+    return { failed: 'Workday sign-in: ' + (r || 'no answer') };
+  }
+
   // After the Review page's Submit: Workday's own confirmation, then the
   // general check in its strict mode (a form that only went away is
   // unconfirmed).
@@ -144,6 +166,6 @@
   }
 
   root.oojAts = root.oojAts || {};
-  root.oojAts.workday = { matches, onSite, enter, account, outcome };
+  root.oojAts.workday = { matches, onSite, enter, account, signInPage, outcome };
   if (typeof module === 'object' && module.exports) module.exports = { matches, onSite, DONE, VERIFY };
 })(globalThis);

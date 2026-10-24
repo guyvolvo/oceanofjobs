@@ -361,7 +361,7 @@ const canRun = (job) => dedicatedRun(job) || generalRun(job);
 // with the profile's email and the Workday password from the extension's
 // options, or a new account made with them. null once on the form's first
 // page, else the reason it stopped.
-async function intoWorkday(tabId, ctx) {
+async function intoWorkday(tabId, ctx, job) {
   const enter = async () => {
     // The Apply buttons may load a new page, which ends the script unanswered.
     for (let i = 0; i < 4; i++) {
@@ -378,10 +378,24 @@ async function intoWorkday(tabId, ctx) {
   const email = (ctx.profile.contact || {}).email;
   if (!workday || !workday.password) return 'no Workday password';
   if (!email) return 'no email in the profile';
-  const signed = await inTab(tabId, 'workday', 'account', [email, workday.password]).catch(() => null);
+  let signed = await inTab(tabId, 'workday', 'account', [email, workday.password]).catch(() => null);
+  // A new account sends some sites to their own sign-in page; the redirect
+  // can land a moment after the page reports loaded.
+  await new Promise((res) => setTimeout(res, 2000));
+  await waitForLoad(tabId);
+  if (/\/login/.test((await chrome.tabs.get(tabId)).url)) {
+    signed = await inTab(tabId, 'workday', 'signInPage', [email, workday.password]).catch(() => null);
+    // An account just made that can't sign in yet: Workday wants its email
+    // confirmed first ("wrong email or password" until then, on NVIDIA's).
+    if (signed && signed.failed) return 'Workday account to verify';
+    if (signed === 'in' || signed === null) {
+      await chrome.tabs.update(tabId, { url: job.url });
+      await new Promise((res) => setTimeout(res, 1000));
+      await waitForLoad(tabId);
+    }
+  }
   if (signed && signed.verify) return 'Workday account to verify';
   if (signed && signed.failed) return signed.failed;
-  await waitForLoad(tabId);
   r = await enter();
   return r.at === 'form' ? null : r.error || 'Workday sign-in: no answer';
 }
@@ -396,7 +410,7 @@ async function intoWorkday(tabId, ctx) {
 async function viaGeneral(job, ctx, id, tabId, state) {
   const workday = job.ats === 'workday';
   if (workday) {
-    const stop = await intoWorkday(tabId, ctx);
+    const stop = await intoWorkday(tabId, ctx, job);
     if (stop) return ['failed', stop];
   }
   let frameId = 0, page = null;
