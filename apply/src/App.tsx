@@ -14,6 +14,7 @@ const History = lazy(() => import("./History").then((m) => ({ default: m.History
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
 const Agent = lazy(() => import("./Agent").then((m) => ({ default: m.Agent })));
 import { plural } from "./shared";
+import { useLeaveGuard } from "./unsaved";
 
 const SECTIONS = ["overview", "queue", "needs", "history", "settings", "agent"] as const;
 type Section = (typeof SECTIONS)[number];
@@ -29,18 +30,19 @@ export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   const [data, setData] = useState<Data>({});
   const [failed, setFailed] = useState(false);
   const ext = useExtension();
+  const { guard, dialog } = useLeaveGuard();
 
   useEffect(() => {
     const on = () => setSection(fromHash());
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
-  const go = (s: string) => {
+  const go = (s: string) => guard(() => {
     // replaceState, so switching sections doesn't fill Back with tabs.
     history.replaceState(null, "", s === "overview" ? location.pathname : `#${s}`);
     setSection(s as Section);
     scrollTo(0, 0);
-  };
+  });
 
   const load = useCallback(async () => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -84,6 +86,7 @@ export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
 
   return (
     <>
+      {dialog}
       <p className="oj-note">{s ? `${PLAN[s.plan] || "Free plan"} · ${plural(s.remaining, "application")} left ${s.period === "day" ? "today" : "this month"}` : " "}</p>
       {failed ? (
         <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load everything"

@@ -17,6 +17,7 @@ import { Overview } from "./Overview";
 import { Skills } from "./Skills";
 import { Saved } from "./Saved";
 import { Card } from "./ui";
+import { useLeaveGuard } from "../unsaved";
 const Preferences = lazy(() => import("./Preferences").then((m) => ({ default: m.Preferences })));
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
 
@@ -270,12 +271,13 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
     if (PARTS[part]) requestAnimationFrame(() => document.getElementById(part)?.scrollIntoView({ block: "start" }));
     return () => { removeEventListener("popstate", on); removeEventListener("hashchange", on); };
   }, []);
-  const switchMode = (m: string) => {
+  const leaveGuard = useLeaveGuard();
+  const switchMode = (m: string) => leaveGuard.guard(() => {
     history.pushState(null, "", m === "apply" ? "/apply" : `/account${section === "overview" ? "" : `#${section}`}`);
     setMode(m as Mode);
     document.title = TITLES[m as Mode];
     scrollTo(0, 0);
-  };
+  });
   const go = (s: string) => {
     if (s !== "overview") setOverviewForm(false);
     if (location.hash !== `#${s}`) history.pushState({ acct: s }, "", `#${s}`);
@@ -430,6 +432,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           <LinkButton variant="primary" href={openHref}>See best matches <ArrowRight /></LinkButton>
         </div>
       </header>
+      {leaveGuard.dialog}
       <nav className="oj-tabs oj-mode" aria-label="Settings">
         <Tabs variant="segmented" tabs={[{ value: "account", label: "Account settings" }, { value: "apply", label: "Auto apply settings" }]}
           value={mode} onValueChange={switchMode} />

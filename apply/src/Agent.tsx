@@ -15,6 +15,7 @@ import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { FileArrowUp, Info, Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { apply, send, ApiError } from "./api";
 import { ConfirmDanger, NeedsResume, RESUME_FOCUS } from "./shared";
+import { useUnsaved } from "./unsaved";
 
 type Topic = "referral_source" | "start_date" | "relocation" | "onsite_days" | "why_company" | "why_role";
 type Action = "answer" | "ai" | "ask";
@@ -252,6 +253,8 @@ function TryIt({ editable }: { editable: boolean }) {
 export function Agent() {
   const toasts = useKumoToastManager();
   const [form, setForm] = useState<Form | null>(null);
+  // The form as last loaded or saved, to tell whether it has been edited.
+  const [saved, setSaved] = useState("");
   const [editable, setEditable] = useState(false);
   const [resume, setResume] = useState<Resume>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -262,10 +265,12 @@ export function Agent() {
   const load = useCallback(() => {
     setLoadFailed(false);
     setConflict(false);
-    apply<{ agent: AgentData }>("agent").then((r) => { setForm(toForm(r.agent)); setEditable(r.agent.editable); setResume(r.agent.resume); })
+    apply<{ agent: AgentData }>("agent").then((r) => { stored(toForm(r.agent)); setEditable(r.agent.editable); setResume(r.agent.resume); })
       .catch(() => setLoadFailed(true));
   }, []);
   useEffect(load, [load]);
+  const stored = (f: Form) => { setForm(f); setSaved(JSON.stringify(f)); };
+  useUnsaved("apply-agent", editable && !!form && JSON.stringify(form) !== saved, () => save());
 
   if (loadFailed) {
     return <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load your AI agent." action={<Button onClick={load}>Try again</Button>} />;
@@ -278,7 +283,10 @@ export function Agent() {
 
   const save = async () => {
     const missing = TOPICS.find(([t]) => form.topics[t].action === "answer" && !form.topics[t].value.trim());
-    if (missing) return toasts.add({ variant: "error", title: "Couldn't save", description: `Add your answer to "${missing[1]}", or choose another option.` });
+    if (missing) {
+      toasts.add({ variant: "error", title: "Couldn't save", description: `Add your answer to "${missing[1]}", or choose another option.` });
+      return false;
+    }
     setBusy(true);
     try {
       const body = {
@@ -287,11 +295,13 @@ export function Agent() {
         never_claim: form.never.map((r) => r.text.trim()).filter(Boolean),
       };
       const { agent } = await apply<{ agent: AgentData }>("agent", send("PUT", body));
-      setForm(toForm(agent));
+      stored(toForm(agent));
       toasts.add({ variant: "success", title: "Saved" });
+      return true;
     } catch (e) {
       if (e instanceof ApiError && e.code === "conflict") setConflict(true);
       else toasts.add({ variant: "error", title: "Couldn't save", description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
+      return false;
     } finally {
       setBusy(false);
     }

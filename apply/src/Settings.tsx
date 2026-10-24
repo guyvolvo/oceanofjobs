@@ -14,6 +14,7 @@ import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { ApiError, apply, send, type Profile } from "./api";
 import { ConfirmDanger, ExtensionSettingsButton, NeedsResume } from "./shared";
+import { useUnsaved } from "./unsaved";
 import type { Ext } from "./ext";
 
 const EEO = [["gender", "Gender"], ["race", "Race or ethnicity"], ["veteran", "Veteran status"], ["disability", "Disability"]] as const;
@@ -96,6 +97,8 @@ function Card({ title, note, children }: { title: string; note?: ReactNode; chil
 export function Settings({ ext }: { ext: Ext }) {
   const toasts = useKumoToastManager();
   const [form, setForm] = useState<Form | null>(null);
+  // The form as last loaded or saved, to tell whether it has been edited.
+  const [saved, setSaved] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -108,9 +111,11 @@ export function Settings({ ext }: { ext: Ext }) {
 
   const load = useCallback(() => {
     setLoadFailed(false);
-    apply<{ profile: Profile }>("profile").then((r) => setForm(toForm(r.profile))).catch(() => setLoadFailed(true));
+    apply<{ profile: Profile }>("profile").then((r) => stored(toForm(r.profile))).catch(() => setLoadFailed(true));
   }, []);
   useEffect(load, [load]);
+  const stored = (f: Form) => { setForm(f); setSaved(JSON.stringify(f)); };
+  useUnsaved("apply-settings", !!form && JSON.stringify(form) !== saved, () => save());
 
   if (loadFailed) {
     return <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load your auto apply settings."
@@ -139,15 +144,18 @@ export function Settings({ ext }: { ext: Ext }) {
     }
     setErrors(bad);
     if (Object.keys(bad).length) {
-      return toasts.add({ variant: "error", title: "Couldn't save", description: Object.values(bad)[0] });
+      toasts.add({ variant: "error", title: "Couldn't save", description: Object.values(bad)[0] });
+      return false;
     }
     setBusy(true);
     try {
       const { profile } = await apply<{ profile: Profile }>("profile", send("PUT", { profile: fromForm(form) }));
-      setForm(toForm(profile));
+      stored(toForm(profile));
       toasts.add({ variant: "success", title: "Saved" });
+      return true;
     } catch (e) {
       toasts.add({ variant: "error", title: "Couldn't save", description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
+      return false;
     } finally {
       setBusy(false);
     }
