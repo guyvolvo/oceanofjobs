@@ -322,8 +322,9 @@ async function waitForOutcome(tabId, atsName, redirectTo) {
 // it drafted go in drafted, for the Submit gate.
 async function planRun(fields, job, ctx, drafted) {
   const plan = oojMatch.planFill(fields, ctx.profile, job);
-  // Required privacy boxes are ticked only when the user said so in their
-  // settings; no other consent, and never by the AI.
+  // Required privacy boxes are ticked when the user said so in their
+  // settings. Without it, in AI mode the AI answers them like any other
+  // required question, as runs always have.
   for (const f of [...plan.missing]) {
     if (!ctx.settings.consent || !oojMatch.consentBox(f)) continue;
     plan.missing.splice(plan.missing.indexOf(f), 1);
@@ -331,7 +332,7 @@ async function planRun(fields, job, ctx, drafted) {
   }
   if (!plan.missing.length || ctx.settings.unknowns !== 'ai') return plan;
   for (const f of [...plan.missing]) {
-    if (f.type === 'file' || oojMatch.isEeo(f) || f.type === 'checkbox' && !(f.options || []).length && oojMatch.isStatement(f.label)) continue;
+    if (f.type === 'file' || oojMatch.isEeo(f)) continue;
     const answer = await answerUnknown(f, job, ctx);
     if (answer === undefined) continue;
     ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer, ...(ctx.wroteIt ? { source: 'ai', approval: 'pending' } : {}) }];

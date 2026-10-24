@@ -230,7 +230,7 @@ export function Settings({ ext }: { ext: Ext }) {
             <Radio.Item value="skip" label="Skip the job" description="Leave it for me to review." />
           </Radio.Group>
           <Checkbox.Group legend="Privacy boxes" value={form.consent ? ["consent"] : []} onValueChange={(v) => set("consent", (v as string[]).includes("consent"))}
-            description="Many forms can't be sent until you agree to the company's privacy policy or to processing your application data. With this on, automatic runs tick those required boxes. They never tick marketing, newsletter or talent pool boxes. With it off, those jobs wait in Needs attention.">
+            description="Many forms can't be sent until you agree to the company's privacy policy or to processing your application data. With this on, automatic runs tick those required boxes. They never tick marketing, newsletter or talent pool boxes. With it off, Draft an answer with AI answers them like any other question, and Skip the job leaves them for you.">
             <Checkbox.Item value="consent" label="Accept required privacy and data-processing boxes for me" />
           </Checkbox.Group>
         </Card>
