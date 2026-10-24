@@ -94,7 +94,7 @@ await sw.evaluate(async (data) => {
 const id = new URL(sw.url()).host;
 
 // Every visible field's value in every frame, to prove the page check changed nothing.
-const SUBMIT = /\/applications?|\/apply|submit/i;
+const SUBMIT = /\/applications?\b|\/apply\b|submit/i;
 const sent = () => writes.filter((w) => !w.startsWith("stubbed") && SUBMIT.test(w.split(" ")[1] || ""));
 const values = (page) => Promise.all(page.frames().map((f) => f.evaluate(() =>
   [...document.querySelectorAll("input, select, textarea")].map((e) => (e.type === "checkbox" || e.type === "radio" ? e.checked : e.value)).join("|")).catch(() => "")))

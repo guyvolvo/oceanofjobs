@@ -166,9 +166,9 @@ for (const { ats, url } of pages) {
         const words = (s) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
         const buttons = [...document.querySelectorAll('button, input[type="submit"], input[type="button"], [role="button"]')].filter(shown);
         return {
-          step: buttons.map((b) => words(b.textContent || b.value)).filter((t) => /^(next|continue|weiter|suivant|siguiente|save and continue|save & continue)/.test(t)).slice(0, 3),
+          step: buttons.map((b) => words(b.textContent || b.value)).filter((t) => /^(next|continue|weiter|suivant|siguiente|save and continue|save & continue)\b/.test(t)).slice(0, 3),
           password: [...document.querySelectorAll('input[type="password"]')].some(shown),
-          signin: /(sign in|log in|create (an )?account)/i.test(document.body.innerText.slice(0, 4000)),
+          signin: /\b(sign in|log in|create (an )?account)\b/i.test(document.body.innerText.slice(0, 4000)),
           captcha: [...document.querySelectorAll('iframe')].some((f) => /captcha|challenges\.cloudflare/.test(f.src) && f.getBoundingClientRect().width > 50),
           botScript: !!document.querySelector('script[src*="recaptcha"], script[src*="hcaptcha"], script[src*="turnstile"], .grecaptcha-badge'),
         };

@@ -94,7 +94,7 @@ async function visit(n) {
       // The same call once a country has been chosen, which is the one
       // first view with nothing precomputed behind it.
       const country = first(/\/api\/jobs\?.*country=.*limit=50/);
-      const stats = first(/stats\.json|\/api\/stats/);
+      const stats = first(/stats\.json|\/api\/stats\b/);
       const fcp = performance.getEntriesByName("first-contentful-paint")[0];
       return {
         html_ttfb: Math.round(nav.responseStart || 0),

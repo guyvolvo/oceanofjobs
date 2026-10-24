@@ -383,7 +383,7 @@ async function intoWorkday(tabId, ctx, job) {
   // can land a moment after the page reports loaded.
   await new Promise((res) => setTimeout(res, 2000));
   await waitForLoad(tabId);
-  if (/\/login/.test((await chrome.tabs.get(tabId)).url)) {
+  if (/\/login\b/.test((await chrome.tabs.get(tabId)).url)) {
     signed = await inTab(tabId, 'workday', 'signInPage', [email, workday.password]).catch(() => null);
     // An account just made that can't sign in yet: Workday wants its email
     // confirmed first ("wrong email or password" until then, on NVIDIA's).
