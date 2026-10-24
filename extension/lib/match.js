@@ -234,6 +234,16 @@
   // Consent, terms and privacy wording, in English and Hebrew.
   const isStatement = (text) => /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that|מדיניות|פרטיות|מאשר|מסכים|תנאי/i.test(text);
 
+  // A required box agreeing to the site's privacy policy or to processing
+  // the application's data: what the "accept required privacy boxes" setting
+  // lets a run tick. Never an opt-in to marketing, a talent pool or being
+  // kept for other roles, and never a statement about the applicant
+  // ("I certify that the information is true").
+  const DATA_CONSENT = /privacy|personal (data|information)|data (protection|processing)|process(ing)? (of )?(my|your) (personal |application )?(data|information)|gdpr|consent|מדיניות|פרטיות/i;
+  const OPT_IN = /newsletter|marketing|talent (pool|community|network)|future (opportunit|role|position|vacanc|job)|other (role|position|opportunit|job)|keep (me|my|your)|job alerts?|updates|promotional|text messages|sms/i;
+  const consentBox = (field) => field.type === 'checkbox' && !(field.options || []).length && !!field.required
+    && DATA_CONSENT.test(field.label) && !OPT_IN.test(field.label) && !/certif|attest|true and (correct|complete)|accurate/i.test(field.label);
+
   // The questions an AI may suggest an answer for, on a form the user
   // checks before it is sent: the required ones nothing answered, and an
   // optional Yes/No radio question nothing is picked in yet. Comeet's
@@ -369,7 +379,7 @@
     'no email in the profile': 'Add your email under Auto apply settings.',
     'Workday sign-in form not found': "Couldn't find Workday's sign-in form.",
     'Workday account form not found': "Couldn't find Workday's form for a new account.",
-    'human check': 'This site checks that a person sends the form. Open the job and press its Submit button yourself.',
+    'ready to submit': 'Ready to submit. This site checks that a person sends the form, so open it and press Submit yourself.',
     'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
   };
   const PREFIXES = [
@@ -424,7 +434,7 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, suggestable,
+    notJobSite, jobish, pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, consentBox, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf, plural, reasonText, filledText,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

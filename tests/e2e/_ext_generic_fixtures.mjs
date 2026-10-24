@@ -361,6 +361,114 @@ for (const [name, html, want] of OUTCOMES) {
   });
 }
 
+// An automatic run's strict check: only the site's own word counts.
+const strictWatch = (ms) => page.evaluate(async (ms) => {
+  const g = globalThis.oojAts.generic;
+  await g.read();
+  return g.outcome(g.submit(), ms, true);
+}, ms);
+await check("strict outcome: a form that only goes away is unconfirmed", async () => {
+  await serve(`<form id="f" onsubmit="event.preventDefault(); setTimeout(() => f.remove(), 300)">${FIELDS}<button>Submit</button></form>`);
+  assert.deepEqual(await strictWatch(12000), { failed: "unconfirmed: the form closed without a confirmation" });
+});
+await check("strict outcome: a thank-you message still counts", async () => {
+  await serve(`<form id="f" onsubmit="event.preventDefault(); f.outerHTML = '<h2>Thank you for applying!</h2>'">${FIELDS}<button>Submit</button></form>`);
+  assert.equal(await strictWatch(5000), "submitted");
+});
+
+// A wizard: page one has Next, page two the button that sends.
+const WIZARD = `<form id="f" onsubmit="event.preventDefault()">
+  <div id="p1">${FIELDS}<button type="button" onclick="p1.remove(); p2.hidden = false">Save and Continue</button></div>
+  <div id="p2" hidden><label>Why us? <textarea name="why"></textarea></label><label>Years of experience <input name="y"></label>
+    <label>Notice period <input name="n"></label><button>Submit</button></div></form>`;
+await check("wizard: no submit on page one, Next moves to page two, which has Submit", async () => {
+  await serve(WIZARD);
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const one = await g.read();
+    const first = g.submitInfo();
+    const before = g.next();
+    const moved = await g.nextOutcome(before, 3000);
+    const two = await g.read();
+    return { one: one.fields.map((f) => f.label), first, moved, two: two.fields.map((f) => f.label), last: g.submitInfo() };
+  });
+  assert.deepEqual(r.one, ["Full name", "Email", "Phone"]);
+  assert.equal(r.first, null);
+  assert.equal(r.moved, "moved");
+  assert.deepEqual(r.two, ["Why us?", "Years of experience", "Notice period"]);
+  assert.equal(r.last.text, "Submit");
+});
+await check("wizard: Next refused by the form is a failure, not a move", async () => {
+  await serve(`<form id="f" novalidate onsubmit="event.preventDefault()">${FIELDS}
+    <button type="button" onclick="document.querySelector('[type=email]').setAttribute('aria-invalid', 'true')">Next</button></form>`);
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    await g.read();
+    return g.nextOutcome(g.next(), 3000);
+  });
+  assert.deepEqual(r, { failed: "form errors: Email" });
+});
+
+await check("wall: a password field on show is a sign-in wall", async () => {
+  await serve(`<form><label>Email <input type="email"></label><label>Password <input type="password"></label><button>Sign in</button></form>`);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.wall()), { signIn: true, captcha: false });
+  await serve(`<form>${FIELDS}<button>Submit</button></form>`);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.wall()), { signIn: false, captcha: false });
+});
+
+await check("a bot trap is never read, so never filled", async () => {
+  await serve(`<form>${FIELDS}<label>Leave empty <input data-automation-id="beecatcher" name="x"></label><button>Submit</button></form>`);
+  const labels = await page.evaluate(async () => (await globalThis.oojAts.generic.read()).fields.map((f) => f.label));
+  assert.deepEqual(labels, ["Full name", "Email", "Phone"]);
+});
+
+await check("a button dropdown (Workday's) is read with its options and picked", async () => {
+  await serve(`<form>${FIELDS}<div><label id="src-l">How did you hear about us?</label>
+    <button type="button" aria-haspopup="listbox" aria-labelledby="src-l" aria-controls="src" onclick="src.hidden = false">Select One</button>
+    <ul id="src" role="listbox" hidden><li role="option" onclick="this.parentElement.previousElementSibling.textContent = this.textContent; this.parentElement.hidden = true">LinkedIn</li>
+      <li role="option" onclick="this.parentElement.previousElementSibling.textContent = this.textContent; this.parentElement.hidden = true">Referral</li></ul></div>
+    <button>Submit</button></form>`);
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const { fields } = await g.read();
+    const f = fields.find((x) => x.label === "How did you hear about us?");
+    const res = await g.fill([{ ...f, value: "Referral" }], null);
+    return { type: f.type, options: f.options, errors: res.errors, shows: document.querySelector('[aria-haspopup]').textContent };
+  });
+  assert.deepEqual(r, { type: "combobox", options: ["LinkedIn", "Referral"], errors: [], shows: "Referral" });
+});
+
+await check("a pinned form area wins over a bigger form elsewhere", async () => {
+  await serve(`<form id="other">${FIELDS}<label>A <input name="a1"></label><label>B <input name="b1"></label><textarea></textarea></form>
+    <div data-ooj-root><label>Given name <input name="g"></label><label>Email <input type="email" name="e"></label><label>Phone <input type="tel" name="t"></label></div>`);
+  const labels = await page.evaluate(async () => (await globalThis.oojAts.generic.read()).fields.map((f) => f.label));
+  assert.deepEqual(labels, ["Given name", "Email", "Phone"]);
+});
+
+await check("web components: fields inside open shadow roots are read, labelled and filled", async () => {
+  await serve(`<script>
+    customElements.define("x-input", class extends HTMLElement {
+      connectedCallback() { const r = this.attachShadow({ mode: "open" });
+        r.innerHTML = '<label for="i">' + this.getAttribute("label") + ' *</label><input id="i" type="' + (this.getAttribute("type") || "text") + '">'; } });
+    customElements.define("x-button", class extends HTMLElement {
+      connectedCallback() { this.attachShadow({ mode: "open" }).innerHTML = '<button type="button">' + this.getAttribute("label") + '</button>'; } });
+  </script><div id="app"><x-input label="First name"></x-input><x-input label="Last name"></x-input>
+    <x-input label="Email" type="email"></x-input><x-input label="Phone number" type="tel"></x-input><x-button label="Submit"></x-button></div>`);
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const { fields } = await g.read();
+    await g.fill(fields.filter((f) => f.label === "Email").map((f) => ({ ...f, value: "t@example.com" })), null);
+    const email = document.querySelectorAll("x-input")[2].shadowRoot.querySelector("input").value;
+    return { labels: fields.map((f) => f.label), required: fields.every((f) => f.required), email, submit: g.submitInfo() && g.submitInfo().text };
+  });
+  assert.deepEqual(r, { labels: ["First name", "Last name", "Email", "Phone number"], required: true, email: "t@example.com", submit: "Submit" }, JSON.stringify(r));
+});
+
+await check("SmartRecruiters' localised I'm interested link leads to the form", async () => {
+  await load(`<h1>Manager</h1><a class="button js-oneclick" data-sr-track="apply" href="https://jobs.smartrecruiters.com/oneclick-ui/company/X/publication/1">Je suis intéressé(e)</a>`);
+  assert.equal((await page.evaluate(() => globalThis.oojAts.generic.read())).openUrl, "https://jobs.smartrecruiters.com/oneclick-ui/company/X/publication/1");
+});
+
 // detect.js on a posting page, with chrome.runtime stubbed: the button
 // shows before the form exists, and not on a list of jobs.
 async function detectOn(html, at) {

@@ -2585,9 +2585,9 @@ const QUEUE_SVG =
   + '<path d="M9.2 1.5 3.2 9h4.3l-.9 5.5 6.2-7.6H8.4z"'
   + ' fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
-// The extension fills Greenhouse, Ashby and Workable forms only (api/handler.py
-// route_apply answers 422 for the rest), so no other listing gets the button.
-const FILLABLE_ATS = new Set(["greenhouse", "ashby", "workable"]);
+// The sites an automatic run can apply on (api/apply.py FILLABLE_ATS; the
+// API answers 422 for the rest), so no other listing gets the button.
+const FILLABLE_ATS = new Set(["greenhouse", "ashby", "workable", "workday", "smartrecruiters", "bamboohr", "jazzhr", "recruitee", "lever", "teamtailor", "pinpoint", "breezy", "personio", "comeet"]);
 function queueButtonHtml(job, cls, label) {
   if (!FILLABLE_ATS.has(job.ats) || appliedAt.has(job.id)) return "";
   const on = applyQueue.has(job.id);

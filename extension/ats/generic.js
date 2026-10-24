@@ -34,6 +34,32 @@
     return el.checkVisibility ? el.checkVisibility({ visibilityProperty: true }) : el.getClientRects().length > 0;
   }
 
+  // Web components (SmartRecruiters' spl-input) keep their fields in open
+  // shadow roots, where querySelectorAll does not look. deep() does, in
+  // page order; up() steps out of a shadow root to the element that holds
+  // it; scope() is where an id or a label[for] is looked up.
+  function deep(root, sel) {
+    const out = [];
+    const visit = (node) => {
+      for (const el of node.children) {
+        if (el.matches(sel)) out.push(el);
+        if (el.shadowRoot) visit(el.shadowRoot);
+        visit(el);
+      }
+    };
+    if (root.shadowRoot) visit(root.shadowRoot);
+    visit(root);
+    return out;
+  }
+  const up = (el) => el.parentElement || (el.parentNode && el.parentNode.host) || null;
+  const scope = (el) => el.getRootNode();
+  // What a button says. A web component's button shows its host's words
+  // through a slot (<spl-button>Envoyer</spl-button>), so it has none of its own.
+  const caption = (b) => clean(b.textContent || b.value || b.getAttribute('aria-label'))
+    || (scope(b).host ? clean(scope(b).host.textContent || scope(b).host.getAttribute('aria-label')) : '');
+  const within = (box, el) => { for (let n = el; n; n = up(n)) if (n === box) return true; return false; };
+  const inForm = (el) => { for (let n = el; n; n = up(n)) if (n.tagName === 'FORM') return true; return false; };
+
   const kind = (el) => (el.tagName === 'INPUT' ? (el.getAttribute('role') === 'combobox' ? 'combobox' : el.type)
     : el.tagName === 'TEXTAREA' ? 'textarea' : el.tagName === 'SELECT' ? (el.multiple ? 'multiselect' : 'select') : 'combobox');
 
@@ -53,16 +79,16 @@
     const r = el.getBoundingClientRect();
     if (shown(el) && el.checkVisibility({ opacityProperty: true }) && r.width > 2 && r.height > 2) return true;
     if (!['radio', 'checkbox'].includes(el.type) && el.tagName !== 'SELECT') return false;
-    const around = el.closest('label') || el.parentElement;
+    const around = el.closest('label') || up(el);
     return !!around && shown(around);
   }
 
-  const controls = (container) => [...container.querySelectorAll(CONTROLS)].filter(usable);
+  const controls = (container) => deep(container, CONTROLS).filter(usable);
 
   // Login, search, newsletter and comment forms are never the application.
   const UNRELATED = /search|login|log-in|signin|sign-in|newsletter|subscribe|comment/i;
   function unrelated(form) {
-    return !!form.querySelector('input[type="password"]') || form.matches('[role="search"]')
+    return deep(form, 'input[type="password"]').length > 0 || form.matches('[role="search"]')
       || UNRELATED.test(`${form.id} ${form.className} ${form.getAttribute('action') || ''}`);
   }
 
@@ -75,8 +101,8 @@
   }
 
   function common(els) {
-    let box = els[0].parentElement;
-    while (box && !els.every((el) => box.contains(el))) box = box.parentElement;
+    let box = up(els[0]);
+    while (box && !els.every((el) => within(box, el))) box = up(box);
     return box;
   }
 
@@ -88,12 +114,12 @@
     if (pinned) return pinned;
     let best = null, top = 0;
     for (const doc of docs()) {
-      for (const form of doc.querySelectorAll('form')) {
+      for (const form of deep(doc, 'form')) {
         if (unrelated(form)) continue;
         const s = score(controls(form));
         if (s > top) { best = form; top = s; }
       }
-      const loose = controls(doc.body).filter((el) => !el.closest('form'));
+      const loose = controls(doc.body).filter((el) => !inForm(el));
       const s = score(loose);
       if (s > top) { best = common(loose); top = s; }
     }
@@ -121,7 +147,7 @@
 
   // What the page itself says the control is called.
   function ownLabel(el) {
-    const doc = el.ownerDocument;
+    const doc = scope(el);
     const by = byIds(doc, el.getAttribute('aria-labelledby'));
     if (by) return by;
     if (el.id) {
@@ -134,16 +160,37 @@
     if (t) return t;
     // Some widgets set an identifier there ("file-input"), not words.
     const aria = clean(el.getAttribute('aria-label'));
-    return /^[a-z0-9]+([-_][a-z0-9]+)+$/i.test(aria) ? '' : aria;
+    if (aria && !/^[a-z0-9]+([-_][a-z0-9]+)+$/i.test(aria)) return aria;
+    // A web component may carry the words on itself: <spl-input label="First name">.
+    const host = doc.host;
+    return host ? clean(host.getAttribute('label') || host.getAttribute('aria-label')) : '';
   }
 
   // The nearest text before el that no other field sits between.
   function textBefore(el, stop) {
-    for (let node = el, depth = 0; node && node !== stop && depth < 5; node = node.parentElement, depth++) {
+    for (let node = el, depth = 0; node && node !== stop && depth < 5; node = up(node), depth++) {
       for (let s = node.previousSibling; s; s = s.previousSibling) {
-        if (s.nodeType === 1 && (s.matches(CONTROLS) || s.querySelector(CONTROLS))) return '';
+        if (s.nodeType === 1 && (s.matches(CONTROLS) || deep(s, CONTROLS).length)) return '';
         const t = s.nodeType === 1 ? textOf(s) : s.nodeType === 3 ? clean(s.textContent) : '';
         if (t) return t.slice(0, 300);
+      }
+    }
+    return '';
+  }
+
+  const UPLOAD_ONLY = /^(choose|select|browse|attach|upload|drag|drop|choisissez|sélectionnez|déposez|glissez|datei|archivo|selecciona|arrastra|carica|scegli|bestand|kies|העל|בחר)/i;
+  // "Choose a file" says nothing about which; "Upload your CV" does, as
+  // the planner reads it (lib/match.js, loaded next to this file).
+  const uploadOnly = (t) => UPLOAD_ONLY.test(t) && !(root.oojMatch && root.oojMatch.classify({ label: t, type: 'file', name: '' }));
+
+  // The nearest heading above el, its section's name. Headings may be web
+  // components too (SmartRecruiters' <spl-typography-title data-test="section-title">).
+  const HEADING = 'h1, h2, h3, h4, h5, h6, legend, [role="heading"], [data-test*="section-title" i], [class*="section-title" i]';
+  function headingBefore(el) {
+    for (let node = el, depth = 0; node && depth < 8; node = up(node), depth++) {
+      for (let s = node.previousElementSibling; s; s = s.previousElementSibling) {
+        const h = s.matches(HEADING) ? s : deep(s, HEADING).pop();
+        if (h && textOf(h)) return textOf(h).slice(0, 150);
       }
     }
     return '';
@@ -152,15 +199,19 @@
   const GENERIC_HINT = /^(type|enter|select|choose|start typing|search|your answer|e\.?g\.?|\.\.\.)/i;
   function labelOf(el, stop) {
     const own = ownLabel(el);
-    if (own) return own;
+    if (own && !(el.type === 'file' && uploadOnly(own))) return own;
+    if (own) return headingBefore(el) || own;
     // A file input sits in an upload widget ("Choose file", "No file
     // selected"): the text above the widget names it, else the widget's own.
     if (el.type === 'file') {
       let box = el;
-      while (box.parentElement && box.parentElement !== stop
-        && box.parentElement.querySelectorAll('input:not([type="hidden"]), textarea, select').length === 1) box = box.parentElement;
+      while (up(box) && up(box) !== stop
+        && deep(up(box), 'input:not([type="hidden"]), textarea, select').length === 1) box = up(box);
       const t = textBefore(box, stop) || textOf(box).slice(0, 150);
-      if (t) return t;
+      // "Choose a file or drop it here" names no file: the section's heading
+      // does ("CV", "Cover letter"), as on SmartRecruiters.
+      if (t && !uploadOnly(t)) return t;
+      return headingBefore(box) || t;
     }
     const hint = clean(el.getAttribute('placeholder'));
     if (hint && !GENERIC_HINT.test(hint)) return hint;
@@ -182,7 +233,7 @@
     if (legend && textOf(legend)) return textOf(legend);
     const group = members[0].closest('[role="radiogroup"], [role="group"]');
     if (group && members.every((m) => group.contains(m))) {
-      const t = byIds(group.ownerDocument, group.getAttribute('aria-labelledby')) || clean(group.getAttribute('aria-label'));
+      const t = byIds(scope(group), group.getAttribute('aria-labelledby')) || clean(group.getAttribute('aria-label'));
       if (t) return t;
     }
     return textBefore(box, stop);
@@ -190,20 +241,20 @@
 
   function selectOptions(el) {
     return [...el.options].filter((o, i) => !o.disabled && !(i === 0 && (o.value === '' || /^(select|choose|please|--)/i.test(clean(o.textContent)))))
-      .map((o) => clean(o.textContent));
+      .map((o) => clean(o.textContent)).filter(Boolean);
   }
 
   // The nearest box the user can see, for the red and amber outlines.
   function mark(el, id) {
     let box = el;
-    while (box && !shown(box)) box = box.parentElement;
+    while (box && !shown(box)) box = up(box);
     if (box) box.setAttribute('data-ooj-box', id);
   }
 
   let form = null;
 
   function fieldsOf(container) {
-    for (const old of container.querySelectorAll('[data-ooj], [data-ooj-box]')) { old.removeAttribute('data-ooj'); old.removeAttribute('data-ooj-box'); }
+    for (const old of deep(container, '[data-ooj], [data-ooj-box]')) { old.removeAttribute('data-ooj'); old.removeAttribute('data-ooj-box'); }
     const fields = [], groups = new Map();
     for (const el of controls(container)) {
       if (el.type === 'radio' || el.type === 'checkbox') {
@@ -239,15 +290,15 @@
 
   // "Apply", "Apply for this job", "Auf diese Stelle bewerben", "I'm interested",
   // "שליחת קו"ח" (Experis). Not "שלח": Hebrew forms send with that.
-  const APPLY = /(?<!\p{L})(apply|bewerben|postuler|postular|postularme|inscribirme|aplicar|candidatar|candidatura|candidati|solliciteer|solliciteren|søk|sök|ansök|hae|aplikuj|jelentkezem|i['’]?m interested|(ל?הגשת|הגש|שליחת) (מועמדות|קו["״”']?ח|קורות חיים))(?!\p{L})/iu;
+  const APPLY = /(?<!\p{L})(apply|bewerben|postuler|postular|postularme|inscribirme|aplicar|candidatar|candidatura|candidati|solliciteer|solliciteren|søk|sök|ansök|hae|aplikuj|jelentkezem|i['’]?m interested|je suis intéressée?(\(e\))?|ich bin interessiert|estoy interesad[oa]|sono interessat[oa]|ik ben geïnteresseerd|tenho interesse|(ל?הגשת|הגש|שליחת) (מועמדות|קו["״”']?ח|קורות חיים))(?!\p{L})/iu;
   const NOT_APPLY = /linkedin|indeed|seek|xing|google|facebook|filter|later|share|save|how to/i;
 
   // "Apply" links and buttons that lead to the form. Never a form's own
   // submit button: that would send an application.
   const canApply = (el) => !(el.form && el.type === 'submit') && !el.disabled && shown(el);
   function applyControls() {
-    return [...document.querySelectorAll('a, button, [role="button"], input[type="button"]')].filter((el) => {
-      const t = clean(el.textContent || el.value);
+    return deep(document, 'a, button, [role="button"], input[type="button"]').filter((el) => {
+      const t = caption(el);
       return t.length < 40 && APPLY.test(t) && !NOT_APPLY.test(t) && canApply(el);
     });
   }
@@ -257,7 +308,7 @@
     if (first) return first;
     // A button with its own wording ("Join our Kingdom!") still says what
     // it does in its markup.
-    const marked = 'a[href*="/apply"], a[href*="/applications/new"], button[class*="apply" i], button[id*="apply" i], [data-action*="apply" i], [data-action*="form-overlay" i]';
+    const marked = 'a[href*="/apply"], a[href*="/applications/new"], a[data-sr-track="apply"], button[class*="apply" i], button[id*="apply" i], [data-action*="apply" i], [data-action*="form-overlay" i]';
     return [...document.querySelectorAll(marked)].find((el) => canApply(el) && !NOT_APPLY.test(el.textContent)) || null;
   }
 
@@ -292,7 +343,8 @@
       if (apply) {
         const href = apply.tagName === 'A' && apply.getAttribute('href');
         if (href && !/^(#|javascript:)/i.test(href) && apply.href.split('#')[0] !== location.href.split('#')[0]) return { openUrl: apply.href };
-        apply.click();
+        // The whole press: a tab (Radix, on Recruitee) switches on mousedown, not on click.
+        press(apply);
         form = await waitFor(() => findForm() || formFrame(), 10000);
       }
     }
@@ -309,7 +361,7 @@
 
   function find(name) {
     for (const doc of docs()) {
-      const els = [...doc.querySelectorAll(`[data-ooj="${CSS.escape(name)}"]`)];
+      const els = deep(doc, `[data-ooj="${CSS.escape(name)}"]`);
       if (els.length) return els;
     }
     return [];
@@ -322,13 +374,14 @@
     const proto = el.tagName === 'TEXTAREA' ? win.HTMLTextAreaElement.prototype : el.tagName === 'SELECT' ? win.HTMLSelectElement.prototype : win.HTMLInputElement.prototype;
     el.focus();
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
+    // composed, so a web component's own listeners outside its shadow root hear it too.
+    el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
   }
 
   function leave(el) {
     el.dispatchEvent(new FocusEvent('blur'));
-    el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    el.dispatchEvent(new FocusEvent('focusout', { bubbles: true, composed: true }));
   }
 
   function attachCv(el, cv) {
@@ -338,8 +391,8 @@
     const dt = new win.DataTransfer();
     dt.items.add(new win.File([bytes], cv.name, { type: cv.type }));
     el.files = dt.files;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
     return null;
   }
 
@@ -354,7 +407,7 @@
   }
 
   function press(el) {
-    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, composed: true }));
     el.click();
   }
 
@@ -363,11 +416,11 @@
   // The options a custom dropdown shows once open: in the list it points
   // at, else anywhere on the page.
   function listOf(el) {
-    const input = el.tagName === 'INPUT' ? el : el.querySelector('input');
-    const doc = el.ownerDocument;
+    const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
+    const doc = scope(el);
     const lists = [...new Set([el.getAttribute('aria-controls'), el.getAttribute('aria-owns'), input && input.getAttribute('aria-controls')])]
-      .map((id) => id && doc.getElementById(id)).filter(Boolean);
-    const opts = (lists.length ? lists : [doc]).flatMap((l) => [...l.querySelectorAll('[role="option"]')]).filter(shown);
+      .map((id) => id && (doc.getElementById(id) || el.ownerDocument.getElementById(id))).filter(Boolean);
+    const opts = (lists.length ? lists : [el.ownerDocument]).flatMap((l) => deep(l, '[role="option"]')).filter(shown);
     return opts.length && opts;
   }
 
@@ -386,7 +439,7 @@
 
   // Typeahead and custom dropdowns: type, then pick from what the list shows.
   async function chooseOption(el, value, key) {
-    const input = el.tagName === 'INPUT' ? el : el.querySelector('input');
+    const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
     const listed = () => listOf(el);
     press(el);
     el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
@@ -465,11 +518,11 @@
     // A div form's button often sits just outside its fields' box.
     let box = f;
     const n = controls(f).length;
-    for (let i = 0; f.tagName !== 'FORM' && i < 3 && box.parentElement && box.parentElement !== f.ownerDocument.body
-      && controls(box.parentElement).length === n; i++) box = box.parentElement;
-    const buttons = [...box.querySelectorAll('button, input[type="submit"], [role="button"]:not(a)')]
-      .filter((b) => !b.disabled && b.getAttribute('aria-disabled') !== 'true' && shown(b) && !SOCIAL.test(b.textContent || b.value));
-    return { buttons, kinds: buttons.map((b) => buttonKind(b.textContent || b.value || b.getAttribute('aria-label'))) };
+    for (let i = 0; f.tagName !== 'FORM' && i < 3 && up(box) && up(box) !== f.ownerDocument.body
+      && controls(up(box)).length === n; i++) box = up(box);
+    const buttons = deep(box, 'button, input[type="submit"], [role="button"]:not(a)')
+      .filter((b) => !b.disabled && b.getAttribute('aria-disabled') !== 'true' && shown(b) && !SOCIAL.test(caption(b)));
+    return { buttons, kinds: buttons.map((b) => buttonKind(caption(b))) };
   }
 
   // The form's own button that sends it, or null when that is not clear:
@@ -502,7 +555,7 @@
     if (!b) return null;
     const sel = b.tagName.toLowerCase() + (b.id ? '#' + CSS.escape(b.id) : '') + (b.getAttribute('type') ? `[type="${b.getAttribute('type')}"]` : '')
       + [...b.classList].slice(0, 2).map((c) => '.' + CSS.escape(c)).join('');
-    return { text: clean(b.textContent || b.value || b.getAttribute('aria-label')).slice(0, 60), selector: sel };
+    return { text: caption(b).slice(0, 60), selector: sel };
   }
 
   // A wizard's way to its next page: the form's one button with step
@@ -548,7 +601,7 @@
   // What stops an automatic run before anything is filled: a sign-in or
   // sign-up wall (a password field on show) or a CAPTCHA to solve.
   function wall() {
-    const pw = docs().some((d) => [...d.querySelectorAll('input[type="password"]')].some((el) => shown(el) && el.getBoundingClientRect().width > 2));
+    const pw = docs().some((d) => deep(d, 'input[type="password"]').some((el) => shown(el) && el.getBoundingClientRect().width > 2));
     return { signIn: pw, captcha: captcha() };
   }
 
@@ -574,10 +627,10 @@
 
   // What the form flags: fields marked invalid, else visible error text.
   function fieldErrors(f) {
-    const bad = [...f.querySelectorAll('[aria-invalid="true"]')].filter(shown).map((el) => tidy(labelOf(el, f)));
+    const bad = deep(f, '[aria-invalid="true"]').filter(shown).map((el) => tidy(labelOf(el, f)));
     if (!bad.length) {
-      bad.push(...[...f.querySelectorAll('[role="alert"], [class*="error" i], [class*="invalid" i]')]
-        .filter((el) => shown(el) && !el.querySelector(CONTROLS)).map((el) => clean(el.innerText)).filter((t) => t.length < 200));
+      bad.push(...deep(f, '[role="alert"], [class*="error" i], [class*="invalid" i]')
+        .filter((el) => shown(el) && !deep(el, CONTROLS).length).map((el) => clean(el.innerText)).filter((t) => t.length < 200));
     }
     return [...new Set(bad.filter(Boolean))];
   }
@@ -619,9 +672,9 @@
   // For the fill button and for picking the frame to fill: how strongly
   // this document looks like an application form, 0 for not at all.
   function formHere() {
-    if (!document.body || document.querySelectorAll('input:not([type="hidden"]), textarea, select').length < 3) return { score: 0 };
+    if (!document.body || deep(document, 'input:not([type="hidden"]), textarea, select').length < 3) return { score: 0 };
     const f = findForm();
-    return f ? { score: score(controls(f)), file: !!f.querySelector('input[type="file"]') } : { score: 0 };
+    return f ? { score: score(controls(f)), file: deep(f, 'input[type="file"]').length > 0 } : { score: 0 };
   }
 
   root.oojAts = root.oojAts || {};

@@ -322,9 +322,16 @@ async function waitForOutcome(tabId, atsName, redirectTo) {
 // it drafted go in drafted, for the Submit gate.
 async function planRun(fields, job, ctx, drafted) {
   const plan = oojMatch.planFill(fields, ctx.profile, job);
+  // Required privacy boxes are ticked only when the user said so in their
+  // settings; no other consent, and never by the AI.
+  for (const f of [...plan.missing]) {
+    if (!ctx.settings.consent || !oojMatch.consentBox(f)) continue;
+    plan.missing.splice(plan.missing.indexOf(f), 1);
+    plan.fills.push({ ...f, value: 'Yes' });
+  }
   if (!plan.missing.length || ctx.settings.unknowns !== 'ai') return plan;
   for (const f of [...plan.missing]) {
-    if (f.type === 'file' || oojMatch.isEeo(f)) continue;
+    if (f.type === 'file' || oojMatch.isEeo(f) || f.type === 'checkbox' && !(f.options || []).length && oojMatch.isStatement(f.label)) continue;
     const answer = await answerUnknown(f, job, ctx);
     if (answer === undefined) continue;
     ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer, ...(ctx.wroteIt ? { source: 'ai', approval: 'pending' } : {}) }];
@@ -343,7 +350,8 @@ const sentAnswers = (fills, job, drafted) => fills.filter((f) => f.type !== 'fil
 // Sites a run applies to with the general filler, each checked on live
 // postings with tests/e2e/_ext_coverage.mjs before it goes in here.
 // Workday goes the same way once ats/workday.js has signed in.
-const GENERAL_ATS = new Set(['workday']);
+const GENERAL_ATS = new Set(['workday', 'smartrecruiters', 'bamboohr', 'jazzhr', 'recruitee', 'lever', 'teamtailor', 'pinpoint',
+  'breezy', 'personio', 'comeet']);
 const dedicatedRun = (job) => !!(globalThis.oojAts[job.ats] && globalThis.oojAts[job.ats].read && globalThis.oojAts[job.ats].matches(job.url));
 const generalRun = (job) => GENERAL_ATS.has(job.ats) && !dedicatedRun(job);
 // Whether a run can apply to job at all.
@@ -409,7 +417,6 @@ async function viaGeneral(job, ctx, id, tabId, state) {
   if (!page || page.openUrl || page.frame) return ['failed', READ_ERROR];
   const wall = await inTab(tabId, 'generic', 'wall', [], frameId).catch(() => null);
   if (wall && wall.signIn) return ['failed', 'sign in first'];
-  if (wall && wall.captcha) return ['failed', 'captcha'];
   if (page.error) return ['failed', page.error];
   const drafted = new Set();
   const fills = [];
@@ -425,7 +432,12 @@ async function viaGeneral(job, ctx, id, tabId, state) {
     if (!filled || filled.errors.length) return ['failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form')];
     fills.push(...plan.fills);
     const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId);
-    if (info && info.botCheck) return ['failed', 'human check'];
+    // A CAPTCHA or an invisible human check: the extension never gets round
+    // one. Everything is answered, so the job waits in Needs attention for
+    // the user to open and send, and the credit goes back.
+    if (info && info.botCheck || await inTab(tabId, 'generic', 'wall', [], frameId).then((w) => w && w.captcha, () => false)) {
+      return ['needs_input', 'ready to submit', []];
+    }
     if (info && info.text) break;
     if (step >= 8) return ['failed', 'submit button not found'];
     const before = await inTab(tabId, 'generic', 'next', [], frameId);
@@ -484,9 +496,7 @@ async function applyTo(job, ctx) {
       clicked = state.clicked;
       if (!outcome) return 'failed';
       await settle(id, outcome, why, questions);
-      if (outcome === 'needs_input') return 'skipped';
-      if (outcome === 'failed' && /^captcha/i.test(why)) return 'captcha';
-      return outcome;
+      return outcome === 'needs_input' ? 'skipped' : outcome;
     }
     const [main] = ats.pageData
       ? await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: 'MAIN', func: ats.pageData })

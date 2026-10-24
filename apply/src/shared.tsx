@@ -45,7 +45,9 @@ export function StatusBadge({ status }: { status: Status }) {
   return <Badge variant={s.variant}>{s.label}</Badge>;
 }
 
-export const ATS: Record<string, string> = { greenhouse: "Greenhouse", ashby: "Ashby", workable: "Workable" };
+export const ATS: Record<string, string> = { greenhouse: "Greenhouse", ashby: "Ashby", workable: "Workable", workday: "Workday",
+  smartrecruiters: "SmartRecruiters", bamboohr: "BambooHR", jazzhr: "JazzHR", recruitee: "Recruitee", lever: "Lever", teamtailor: "Teamtailor",
+  pinpoint: "Pinpoint", breezy: "Breezy", personio: "Personio", comeet: "Comeet" };
 
 // A site path (/job/<id>) opens here; anything else is the employer's
 // own page and opens in a new tab.

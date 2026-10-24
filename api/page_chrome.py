@@ -21,6 +21,7 @@ ATS_NAMES = {
     "taleo": "Taleo", "breezy": "Breezy", "jazzhr": "JazzHR", "rippling": "Rippling", "niloosoft": "Niloosoft", "hunter": "Hunter",
     "custom": "the company website", "html": "the company website", "careers": "the company website",
     "experis": "the company website", "nogamy": "the company website", "matrix": "the company website", "adamjobs": "Adam", "gem": "Gem", "hibob": "HiBob", "deel": "the company website",
+    "pinpoint": "Pinpoint", "amazon": "Amazon Jobs", "apple": "Apple Jobs", "google": "Google Careers", "microsoft": "Microsoft Careers", "oracle": "Oracle",
 }
 
 

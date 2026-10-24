@@ -500,9 +500,10 @@ class Attempts:
     def needs(self, user_id: str, queued=frozenset(), rows: list | None = None) -> list[dict]:
         """Jobs waiting on the user: the latest attempt per job is Needs
         input and the job isn't back in the queue already."""
-        latest = {}
+        latest, filled = {}, {}
         for a in self._attempts(user_id) if rows is None else rows:
             if a["state"] == FILLED:
+                filled[a["job_id"]] = max(filled.get(a["job_id"], ""), a["reserved_at"])
                 continue
             if a["job_id"] not in latest or a["reserved_at"] > latest[a["job_id"]]["reserved_at"]:
                 latest[a["job_id"]] = a
@@ -513,8 +514,15 @@ class Attempts:
             qs = list(a.get("questions") or [])
             if not qs and str(a.get("reason") or "").lower().startswith("needs your answer: "):
                 qs = [q.strip() for q in a["reason"].split(":", 1)[1].split(";") if q.strip()]
+            # Filled with every answer, held back by the site's human check:
+            # the user opens it and presses Submit (extension/background.js).
+            ready = not qs and str(a.get("reason") or "").lower().startswith("ready to submit")
+            # The user has since filled it in with the extension, to send it themselves.
+            if ready and filled.get(a["job_id"], "") > (a.get("settled_at") or ""):
+                continue
             out.append({"attempt_id": a["attempt_id"], "job_id": a["job_id"], "title": a.get("title") or "",
-                        "company": a.get("company") or "", "url": a.get("url") or "", "questions": qs, "at": a.get("settled_at")})
+                        "company": a.get("company") or "", "url": a.get("url") or "", "questions": qs, "at": a.get("settled_at"),
+                        **({"ready": True} if ready else {})})
         return sorted(out, key=lambda n: n["at"] or "", reverse=True)
 
     def history(self, user_id: str, now: datetime | None = None) -> list[dict]:

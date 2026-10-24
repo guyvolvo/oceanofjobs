@@ -709,12 +709,6 @@ def lambda_handler(event, context):
         return _response(500, json.dumps({"error": "internal error", "detail": str(e)}))
 
 
-def _and(words) -> str:
-    """"A, B and C"."""
-    words = list(words)
-    return ", ".join(words[:-1]) + " and " + words[-1] if len(words) > 1 else "".join(words)
-
-
 def _history_view(rows: list[dict]) -> list[dict]:
     """History rows matched to board listings by id: the board's title and
     company name and a link to its page, old reason codes in today's words,
@@ -996,8 +990,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             if row is None:
                 return ok(404, {"error": "no job with that id"})
             if row[0] not in apply.FILLABLE_ATS:
-                return ok(422, {"error": f"The extension can't apply through {page_chrome.ats_name(row[0])} yet. "
-                                         f"It fills {_and(page_chrome.ats_name(a) for a in sorted(apply.FILLABLE_ATS))} forms for now."})
+                return ok(422, {"error": f"Auto apply can't apply through {page_chrome.ats_name(row[0])} yet. "
+                                         "Open the job and use Fill application in the extension instead."})
             # A submitted application is final for every caller, the board and
             # AI assistants included, matched by the job itself, not only its id.
             if apply.submitted_already(_alerts_table, user_id, job_id, row[1]):

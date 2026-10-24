@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
-import { Button } from "@cloudflare/kumo/components/button";
+import { Button, LinkButton } from "@cloudflare/kumo/components/button";
 import { InputArea } from "@cloudflare/kumo/components/input";
 import { Banner } from "@cloudflare/kumo/components/banner";
 import { Empty } from "@cloudflare/kumo/components/empty";
@@ -51,6 +51,26 @@ function Questions({ need, reload }: { need: Need; reload: () => void }) {
         <div className="oj-row">
           <Button variant="primary" loading={busy} disabled={!ready} onClick={save}>Save and queue again</Button>
           {!ready ? <span className="oj-note">Answer every question to continue.</span> : null}
+        </div>
+      </div>
+    </LayerCard>
+  );
+}
+
+// Every question answered, but the site checks that a person sends the
+// form, so the extension stopped short of Submit. Filling it in again from
+// the extension takes it off this list.
+function Ready({ need }: { need: Need }) {
+  return (
+    <LayerCard>
+      <div className="oj-card-body">
+        <div>
+          <JobLink title={need.title} link={need.link} />
+          <span className="oj-sub">{need.company}</span>
+        </div>
+        <p className="oj-note">Ready to submit. This site checks that a person sends the form, so the extension stopped before Submit. Open the application, click Fill application in the extension, check the answers, then press the site's Submit button.</p>
+        <div className="oj-row">
+          <LinkButton variant="primary" href={need.link} target="_blank" rel="noopener">Open the application</LinkButton>
         </div>
       </div>
     </LayerCard>
@@ -109,7 +129,7 @@ export function Attention({ needs, history, disputesLeft, reload }: { needs: Nee
         <section className="oj-stack" aria-labelledby="needs-title">
           <h2 className="oj-card-title" id="needs-title">Questions to answer</h2>
           <p className="oj-note">These forms asked something your settings don't cover. Your answers are saved and reused on later applications.</p>
-          {needs.map((n) => <Questions key={n.attempt_id} need={n} reload={reload} />)}
+          {needs.map((n) => (n.ready ? <Ready key={n.attempt_id} need={n} /> : <Questions key={n.attempt_id} need={n} reload={reload} />))}
         </section>
       ) : null}
       {unconfirmed.length ? (

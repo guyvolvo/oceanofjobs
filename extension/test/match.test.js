@@ -304,3 +304,21 @@ test('filledText counts in the singular and plural and leaves out zeros', () => 
   assert.equal(m.filledText({ filled: 5, suggested: 2, missing: ['a', 'b'], errors: [] }),
     'Filled in 5 fields. Suggested 2 answers with AI (outlined in amber). 2 need your input.');
 });
+
+test('consentBox: required privacy and data-processing boxes only', () => {
+  const box = (label, extra = {}) => m.consentBox({ type: 'checkbox', options: [], required: true, label, ...extra });
+  for (const label of [
+    'By submitting this application, I agree that I have read the Privacy Policy and confirm that the company may store my personal details',
+    'Allow us to process your personal information.',
+    "I've read the Privacy Notice below and consent the processing of my data as part of my job application",
+    'I consent to the processing of my personal data (GDPR)',
+  ]) assert.ok(box(label), label);
+  for (const label of [
+    'I would like to join the talent pool and hear about future opportunities',
+    'Keep me informed about other roles and send me the newsletter',
+    'I certify that the information I provided is true and complete',
+    'I agree to receive text messages about my application',
+  ]) assert.ok(!box(label), label);
+  assert.ok(!box('Allow us to process your personal information.', { required: false }), 'optional');
+  assert.ok(!box('Privacy policy', { options: ['Yes', 'No'] }), 'a question with options');
+});

@@ -22,7 +22,7 @@ export type HistoryRow = {
   link: string; status: Status; reason: string; at: string; disputable: boolean;
 };
 export type Need = { attempt_id: string; job_id: string; title: string; company: string; link: string; questions: string[];
-  drafts?: Record<string, string> };
+  drafts?: Record<string, string>; ready?: boolean };
 export type QueueItem = { job_id: string; added_at: string; position: number; title: string; company: string; link: string; ats: string };
 export type Profile = {
   contact: { first_name: string; last_name: string; email: string; phone: string; location: string };
@@ -31,7 +31,7 @@ export type Profile = {
   eeo: Record<"gender" | "race" | "veteran" | "disability", string | null>;
   answers: { question: string; answer: string }[];
   settings: {
-    mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai";
+    mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai"; consent?: boolean;
     guardrails: { min_match: number | null; daily_limit: number | null; blocked_companies: string[]; one_per_company_days: number | null };
   };
 };

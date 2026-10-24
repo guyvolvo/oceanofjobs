@@ -36,8 +36,10 @@ QUEUE = "#queue#"
 LIMITS = {"free": ("month", 10), "basic": ("month", 100), "pro": ("day", 50)}
 # A claim that never got a result stops holding its credit after this.
 CLAIM_HOLD_S = 1800
-# Application sites the extension can fill, one per extension/ats/*.js.
-FILLABLE_ATS = frozenset({"greenhouse", "ashby", "workable"})
+# Application sites an automatic run can apply on: the three with their own
+# extension/ats/*.js, and those in GENERAL_ATS in extension/background.js.
+# Keep frontend/app.js FILLABLE_ATS the same.
+FILLABLE_ATS = frozenset({"greenhouse", "ashby", "workable", "workday", "smartrecruiters", "bamboohr", "jazzhr", "recruitee", "lever", "teamtailor", "pinpoint", "breezy", "personio", "comeet"})
 
 MODES = ("queue", "auto")
 SOURCES = ("board", "matches", "ats_pages", "mcp")
@@ -58,7 +60,7 @@ def empty_profile() -> dict:
         "work": {"authorized_countries": [], "needs_sponsorship": None, "notice_period": "", "salary": ""},
         "eeo": {k: None for k in EEO_FIELDS},
         "answers": [],
-        "settings": {"mode": "queue", "sources": ["board", "matches"], "unknowns": "ai",
+        "settings": {"mode": "queue", "sources": ["board", "matches"], "unknowns": "ai", "consent": False,
                      "guardrails": {"min_match": None, "daily_limit": None, "blocked_companies": [],
                                     "one_per_company_days": None}},
     }
@@ -159,6 +161,9 @@ def clean_profile(body: dict) -> dict:
         st["sources"] = [x for x in SOURCES if x in (s.get("sources") or [])]
     if s.get("unknowns") in UNKNOWNS:
         st["unknowns"] = s["unknowns"]
+    # Runs tick required privacy and data-processing boxes only when this is on.
+    if isinstance(s.get("consent"), bool):
+        st["consent"] = s["consent"]
     g = s.get("guardrails") or {}
     st["guardrails"] = {
         "min_match": _int(g.get("min_match"), 0, 100),

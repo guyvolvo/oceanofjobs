@@ -252,6 +252,18 @@ with mock_aws():
     check("the queue keeps the order the user set, and ignores ids not in it", s == 204 and [r["job_id"] for r in handler.apply.queue(table, "gina")]
           == [job(42)["job_id"], job(40)["job_id"], job(41)["job_id"], job(32)["job_id"]] and not rows("gina", "#queue#ffffffffffffffff"))
 
+    # A site's human check: filled, then handed to the user to send.
+    call("ivy", "POST", "attempts", {"attempt_id": "ivy-000001", **job(50)})
+    s, _ = call("ivy", "POST", "attempts/ivy-000001/settle", {"outcome": "needs_input",
+        "reason": "Ready to submit. This site checks that a person sends the form, so open it and press Submit yourself.", "questions": []})
+    nd = call("ivy", "GET", "needs")[1]["needs"]
+    check("a job held back by a human check is listed as ready to submit, with no questions",
+          s == 200 and len(nd) == 1 and nd[0].get("ready") is True and nd[0]["questions"] == [], repr(nd))
+    s, summ = call("ivy", "GET", "summary")
+    check("and costs nothing", summ["used"] == 0 and summ["in_progress"] == 0, repr(summ))
+    call("ivy", "POST", "filled", {"attempt_id": "ivy-000002", **job(50)})
+    check("once the user fills it in with the extension, it leaves the list", call("ivy", "GET", "needs")[1]["needs"] == [])
+
     # Credits used through the old path count against the new one.
     for n in range(handler.apply.LIMITS["free"][1]):
         handler.apply.claim(table, "hank", {"job_id": f"{100 + n:016x}"})
