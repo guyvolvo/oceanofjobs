@@ -131,13 +131,22 @@
   const OWN = 'select, option, textarea, script, style, button, svg, [aria-hidden="true"], [role="listbox"], [role="option"]';
   function textOf(node) {
     const parts = [];
-    const walk = node.ownerDocument.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-    for (let t = walk.nextNode(); t; t = walk.nextNode()) {
-      const p = t.parentElement;
-      // A hidden asterisk still says the field is required.
-      const star = /^\s*[*✱]\s*$/.test(t.textContent);
-      if (p && (star || !p.closest(OWN)) && shown(p)) parts.push(t.textContent);
-    }
+    // As the page shows it: a web component's shadow root, and in it each
+    // <slot> with the content it shows (SmartRecruiters' question text sits
+    // in <spl-input> and appears through its label's slot).
+    const one = (c) => {
+      if (c.nodeType === 3) {
+        const p = c.parentElement || (c.parentNode && c.parentNode.host);
+        // A hidden asterisk still says the field is required.
+        const star = /^\s*[*✱]\s*$/.test(c.textContent);
+        if (p && (star || !p.closest(OWN)) && shown(p)) parts.push(c.textContent);
+      } else if (c.nodeType === 1) {
+        if (c.tagName === 'SLOT') c.assignedNodes({ flatten: true }).forEach(one);
+        else all(c.shadowRoot || c);
+      }
+    };
+    const all = (n) => n.childNodes.forEach(one);
+    all(node.shadowRoot || node);
     return clean(parts.join(' '));
   }
 
@@ -168,9 +177,13 @@
 
   // The nearest text before el that no other field sits between.
   function textBefore(el, stop) {
-    for (let node = el, depth = 0; node && node !== stop && depth < 5; node = up(node), depth++) {
+    // Eight levels: web components wrap a field deeply (SmartRecruiters puts
+    // the question six levels above its input); a level holding another
+    // field ends the walk, so no other question's text is taken.
+    for (let node = el, depth = 0; node && node !== stop && depth < 8; node = up(node), depth++) {
       for (let s = node.previousSibling; s; s = s.previousSibling) {
-        if (s.nodeType === 1 && (s.matches(CONTROLS) || deep(s, CONTROLS).length)) return '';
+        // Only a field someone can use ends it, not a component's hidden helper input.
+        if (s.nodeType === 1 && (s.matches(CONTROLS) && usable(s) || controls(s).length)) return '';
         const t = s.nodeType === 1 ? textOf(s) : s.nodeType === 3 ? clean(s.textContent) : '';
         if (t) return t.slice(0, 300);
       }
@@ -181,7 +194,8 @@
   const UPLOAD_ONLY = /^(choose|select|browse|attach|upload|drag|drop|choisissez|sélectionnez|déposez|glissez|datei|archivo|selecciona|arrastra|carica|scegli|bestand|kies|העל|בחר)/i;
   // "Choose a file" says nothing about which; "Upload your CV" does, as
   // the planner reads it (lib/match.js, loaded next to this file).
-  const uploadOnly = (t) => UPLOAD_ONLY.test(t) && !(root.oojMatch && root.oojMatch.classify({ label: t, type: 'file', name: '' }));
+  const uploadOnly = (t) => UPLOAD_ONLY.test(t) && /file|fichier|datei|archivo|bestand|קובץ/i.test(t)
+    && !(root.oojMatch && root.oojMatch.classify({ label: t, type: 'file', name: '' }));
 
   // The nearest heading above el, its section's name. Headings may be web
   // components too (SmartRecruiters' <spl-typography-title data-test="section-title">).

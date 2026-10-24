@@ -17,9 +17,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const N = Number(process.env.PER_ATS || 4);
 const SYSTEMS = (process.env.SYSTEMS || "smartrecruiters,bamboohr,jazzhr,recruitee,lever,teamtailor,pinpoint,breezy,personio,comeet").split(",");
 
-// Jobs from our own API, different companies where the list allows.
-const jobs = [];
-for (const ats of SYSTEMS) {
+// Jobs from our own API, different companies where the list allows, or
+// the pages named: ATS=smartrecruiters JOB_URLS="url url" for those alone.
+const jobs = (process.env.JOB_URLS || "").split(/\s+/).filter(Boolean)
+  .map((url, i) => ({ id: (i + 1).toString(16).padStart(16, "0"), url, ats: process.env.ATS, title: "Test job", company_domain: new URL(url).hostname }));
+for (const ats of jobs.length ? [] : SYSTEMS) {
   try {
     const res = await fetch(`https://oceanofjobs.com/api/jobs?ats=${ats}&limit=${N * 5}&count=skip`, { signal: AbortSignal.timeout(30000) });
     const { jobs: list = [] } = await res.json();
@@ -84,6 +86,9 @@ await ctx.route("**/*", (r) => {
     const key = /name="key"\r\n\r\n([^\r]*)/.exec((req.postDataBuffer() || "").toString("latin1"));
     return r.fulfill({ status: 201, contentType: "application/xml", body: `<PostResponse><Key>${key && key[1]}</Key></PostResponse>` });
   }
+  // A site's bot-detection pings (DataDome, Cloudflare's challenge) carry
+  // no application data, and a page whose pings fail refuses to go on.
+  if (/^https:\/\/(api-js\.datadome\.co\/js\/|[^/]+\/cdn-cgi\/challenge-platform\/)/.test(req.url())) return r.continue();
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method())) {
     if (cur) cur.blocked.push(`${req.method()} ${u.hostname}${u.pathname}`.slice(0, 120));
     return r.abort();
