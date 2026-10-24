@@ -59,6 +59,20 @@
   </section>
 
   <section class="card">
+    <h2>Workday accounts</h2>
+    <p class="note">Companies that hire through Workday ask for an account on their own careers site before you can apply. Automatic runs sign in there with your profile's email and this password, and create the account if you don't have one yet. The password stays in this browser.</p>
+    <p class="note" style="margin-top:8px">If you already have Workday accounts, enter the password you use for them. Otherwise, generate a new one. Some companies email you a link to confirm a new account first. Until you click it, that job waits in your history.</p>
+    <label class="field" for="wd-password">Workday password
+      <input class="input" type="password" id="wd-password" autocomplete="new-password" spellcheck="false">
+    </label>
+    <div class="actions row">
+      <button class="btn primary" id="save-wd">Save</button>
+      <button class="btn" id="make-wd">Generate a password</button>
+      <span id="wd-msg" class="note" role="status"></span>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>Fill button</h2>
     <p class="note">By default, the fill button appears on the hiring sites the extension supports, like Greenhouse, Lever and Workday. Enable access to all sites to use it on company career pages and forms embedded from other websites.</p>
     <p class="note" style="margin-top:8px">Pages are checked for forms in your browser. When you click Fill or Submit, the page address and job title are sent to Ocean of Jobs. On Basic and Pro, questions without a saved answer are sent too, so AI can draft them.</p>

@@ -363,11 +363,21 @@
     'already applied': "You've already applied to this job.",
     'tab closed': 'The tab was closed before the site confirmed the application.',
     'not submitted': 'The tab was closed before the application was sent.',
+    'sign in first': 'This site only takes applications from a signed-in account. Open the job to apply yourself.',
+    'no Workday password': "Set a Workday password in the extension's options, so runs can sign in to Workday sites.",
+    'Workday account to verify': 'Workday emailed you a link to confirm your new account. Click it, then add this job to your queue again.',
+    'no email in the profile': 'Add your email under Auto apply settings.',
+    'Workday sign-in form not found': "Couldn't find Workday's sign-in form.",
+    'Workday account form not found': "Couldn't find Workday's form for a new account.",
+    'human check': 'This site checks that a person sends the form. Open the job and press its Submit button yourself.',
+    'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
   };
   const PREFIXES = [
     ['form errors: ', 'The form needs your attention: '],
     ['Ashby will not take this application: ', "Ashby couldn't submit this application: "],
     ['needs answer: ', 'Needs your answer: '],
+    ['Workday sign-in: ', "Couldn't sign in to this company's Workday site: "],
+    ['Workday account: ', "Couldn't create an account on this company's Workday site: "],
   ];
 
   // One reason's own wording, or null when it has none.

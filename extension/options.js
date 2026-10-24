@@ -50,6 +50,34 @@ $('save-ai').addEventListener('click', async () => {
   $('ai-msg').textContent = 'Saved.';
 });
 
+// Workday's usual rules: 8 or more characters with a lower and an upper
+// case letter, a number and a symbol.
+const workdayOk = (p) => p.length >= 8 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p);
+$('make-wd').addEventListener('click', () => {
+  const sets = ['abcdefghijkmnopqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789', '!@#$%&*?'];
+  const pick = (chars) => chars[crypto.getRandomValues(new Uint32Array(1))[0] % chars.length];
+  // Four of each kind, shuffled, so every rule above holds.
+  const p = Array.from({ length: 16 }, (_, i) => pick(sets[i % 4])).sort(() => crypto.getRandomValues(new Int8Array(1))[0]).join('');
+  $('wd-password').type = 'text';
+  $('wd-password').value = p;
+  $('wd-msg').textContent = 'Write it down somewhere safe, then click Save.';
+});
+$('save-wd').addEventListener('click', async () => {
+  const password = $('wd-password').value;
+  if (!password) {
+    await chrome.storage.local.remove('workday');
+    $('wd-msg').textContent = 'Your Workday password was removed.';
+    return;
+  }
+  if (!workdayOk(password)) {
+    $('wd-msg').textContent = 'Use 8 or more characters, with upper and lower case letters, a number and a symbol.';
+    return;
+  }
+  await chrome.storage.local.set({ workday: { password } });
+  $('wd-password').type = 'password';
+  $('wd-msg').textContent = 'Saved.';
+});
+
 // The background registers or drops the fill button for every site when
 // the permission changes (chrome.permissions.onAdded and onRemoved).
 const ALL_SITES = { origins: ['https://*/*'] };
@@ -67,8 +95,9 @@ $('disconnect').addEventListener('click', async () => {
   $('account-now').textContent = 'Disconnected. Connect again from your account page.';
 });
 
-chrome.storage.local.get(['cv', 'ai', 'token']).then(({ cv, ai, token }) => {
+chrome.storage.local.get(['cv', 'ai', 'token', 'workday']).then(({ cv, ai, token, workday }) => {
   showCv(cv);
+  if (workday) $('wd-password').value = workday.password;
   if (ai) {
     $('provider').value = ai.provider;
     $('key').value = ai.key;

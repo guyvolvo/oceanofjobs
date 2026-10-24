@@ -6,7 +6,9 @@
   const onSite = () => true;
   const matches = () => false;
 
-  const CONTROLS = 'input, textarea, select, [role="combobox"]:not(input)';
+  // A button that opens a list of choices (Workday's dropdowns) is a
+  // dropdown too.
+  const CONTROLS = 'input, textarea, select, [role="combobox"]:not(input), button[aria-haspopup="listbox"]';
   const SKIP = new Set(['hidden', 'submit', 'button', 'image', 'reset', 'password', 'search']);
   const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -40,7 +42,11 @@
   // hidden behind a drop zone or an upload menu, so it always counts.
   // A text input the user cannot see (zero opacity, a pixel wide) is a
   // honeypot or the value store behind a custom dropdown, never a question.
+  // A field set out for bots to fill: a person never sees it, and filling
+  // it gets the application dropped. Workday's is "beecatcher".
+  const TRAP = /beecatcher|honeypot|hp_|bot.?trap/i;
   function usable(el) {
+    if (TRAP.test(`${el.name} ${el.id} ${el.getAttribute('data-automation-id') || ''}`)) return false;
     if (el.type === 'file') return !el.disabled;
     if (el.disabled || el.readOnly && el.getAttribute('role') !== 'combobox' || SKIP.has(el.type) && el.tagName === 'INPUT') return false;
     if (el.closest('[aria-hidden="true"]') || el.tabIndex < 0 && el.type !== 'radio' && el.type !== 'checkbox' && el.tagName !== 'SELECT') return false;
@@ -77,6 +83,9 @@
   // The form with the most fields, or the fields outside any form when a
   // page builds its form from divs.
   function findForm() {
+    // A site's script may pin the form's area (ats/workday.js).
+    const pinned = docs().map((d) => d.querySelector('[data-ooj-root]')).find((el) => el && controls(el).length);
+    if (pinned) return pinned;
     let best = null, top = 0;
     for (const doc of docs()) {
       for (const form of doc.querySelectorAll('form')) {
@@ -440,7 +449,7 @@
     '(שלח|שליחה|הגש|הגשת|שליחת)( מועמדות| קורות חיים)?', 'הגשה',
   ].join('|')})$`, 'iu');
   // A button that leads to more questions, not to sending.
-  const STEP = /^(next|continue|weiter|fortfahren|suivant|continuer|siguiente|continuar|volgende|verder|הבא|המשך)/iu;
+  const STEP = /^(next|continue|save and continue|weiter|fortfahren|suivant|continuer|siguiente|continuar|volgende|verder|הבא|המשך)/iu;
   const SOCIAL = /linkedin|indeed|google|facebook|xing|seek|github/i;
   const words = (s) => clean(String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' '));
   const buttonKind = (text) => (STEP.test(words(text)) ? 'step' : FINAL.test(words(text)) ? 'final' : 'other');
@@ -450,13 +459,9 @@
   const captchaIn = (f) => [...f.ownerDocument.querySelectorAll('iframe')].some((x) => /captcha|challenges\.cloudflare/.test(x.src)
     && !/size=invisible/.test(x.src) && x.getBoundingClientRect().width > 50 && shown(x));
 
-  // The form's own button that sends it, or null when that is not clear:
-  // none, two of equal weight, a step button (a wizard has more pages), or
-  // a CAPTCHA the user has to solve. Only buttons inside the form, so never
-  // a cookie banner, a link or "Apply with LinkedIn".
-  function submitButton() {
-    const f = markedForm() || findForm();
-    if (!f || captchaIn(f)) return null;
+  // The buttons that belong to form f, each with its kind. Only buttons
+  // inside the form, so never a cookie banner, a link or "Apply with LinkedIn".
+  function formButtons(f) {
     // A div form's button often sits just outside its fields' box.
     let box = f;
     const n = controls(f).length;
@@ -464,7 +469,16 @@
       && controls(box.parentElement).length === n; i++) box = box.parentElement;
     const buttons = [...box.querySelectorAll('button, input[type="submit"], [role="button"]:not(a)')]
       .filter((b) => !b.disabled && b.getAttribute('aria-disabled') !== 'true' && shown(b) && !SOCIAL.test(b.textContent || b.value));
-    const kinds = buttons.map((b) => buttonKind(b.textContent || b.value || b.getAttribute('aria-label')));
+    return { buttons, kinds: buttons.map((b) => buttonKind(b.textContent || b.value || b.getAttribute('aria-label'))) };
+  }
+
+  // The form's own button that sends it, or null when that is not clear:
+  // none, two of equal weight, a step button (a wizard has more pages), or
+  // a CAPTCHA the user has to solve.
+  function submitButton() {
+    const f = markedForm() || findForm();
+    if (!f || captchaIn(f)) return null;
+    const { buttons, kinds } = formButtons(f);
     if (kinds.includes('step')) return null;
     // A final wording beats a plain submit type ("Save draft", "Upload").
     const weight = buttons.map((b, i) => (kinds[i] === 'final' ? 2 : f.tagName === 'FORM' && b.type === 'submit' && b.form === f ? 1 : 0));
@@ -489,6 +503,53 @@
     const sel = b.tagName.toLowerCase() + (b.id ? '#' + CSS.escape(b.id) : '') + (b.getAttribute('type') ? `[type="${b.getAttribute('type')}"]` : '')
       + [...b.classList].slice(0, 2).map((c) => '.' + CSS.escape(c)).join('');
     return { text: clean(b.textContent || b.value || b.getAttribute('aria-label')).slice(0, 60), selector: sel };
+  }
+
+  // A wizard's way to its next page: the form's one button with step
+  // wording ("Next", "Continue"). Pressed only by next(), and never when the
+  // form also has a final button.
+  function stepButton() {
+    const f = markedForm() || findForm();
+    if (!f || captchaIn(f)) return null;
+    const { buttons, kinds } = formButtons(f);
+    const steps = buttons.filter((b, i) => kinds[i] === 'step');
+    return steps.length === 1 && !kinds.includes('final') ? steps[0] : null;
+  }
+
+  // What the form's page is, for telling whether a step moved on: the
+  // labels of its fields.
+  const pageKey = (f) => controls(f).map((el) => labelOf(el, f)).join('|').slice(0, 2000);
+
+  // Presses the step button; what it returns is what nextOutcome() compares with.
+  function next() {
+    const b = stepButton();
+    if (!b) return null;
+    const f = markedForm() || findForm();
+    const before = { url: f.ownerDocument.defaultView.location.href, page: pageKey(f), errors: fieldErrors(f) };
+    press(b);
+    return before;
+  }
+
+  // After next(): 'moved' once a new page of questions shows (or the page
+  // navigates, which ends this script and leaves the caller with null),
+  // {failed} when the form flags something new, null when ms pass.
+  async function nextOutcome(before, ms = 15000) {
+    for (const until = Date.now() + ms; Date.now() < until;) {
+      await sleep(500);
+      const f = findForm();
+      if (!f) continue;
+      if (f.ownerDocument.defaultView.location.href !== before.url || pageKey(f) !== before.page) return 'moved';
+      const fresh = fieldErrors(f).filter((e) => !(before.errors || []).includes(e));
+      if (fresh.length) return { failed: 'form errors: ' + fresh.slice(0, 3).join(', ') };
+    }
+    return null;
+  }
+
+  // What stops an automatic run before anything is filled: a sign-in or
+  // sign-up wall (a password field on show) or a CAPTCHA to solve.
+  function wall() {
+    const pw = docs().some((d) => [...d.querySelectorAll('input[type="password"]')].some((el) => shown(el) && el.getBoundingClientRect().width > 2));
+    return { signIn: pw, captcha: captcha() };
   }
 
   // A confirmation, in a few languages. Counted, since a posting can say
@@ -527,7 +588,9 @@
   // when ms pass with neither. An error already showing before the click
   // ("Unable to fetch address suggestions") says nothing about the send.
   // After a navigation it runs again on the new page with the same before.
-  async function outcome(before = {}, ms = 20000) {
+  // strict (an automatic run): a form that only went away is not enough,
+  // the site has to say so, so that one comes back as unconfirmed.
+  async function outcome(before = {}, ms = 20000, strict = false) {
     const failed = (errors) => ({ failed: 'form errors: ' + errors.slice(0, 3).join(', ') });
     if (before.held && before.held.length) return failed(before.held);
     const f = markedForm();
@@ -544,7 +607,8 @@
       const there = f && f.isConnected && shown(f);
       if (f && !there) {
         goneSince = goneSince || Date.now();
-        if (Date.now() - goneSince >= 2000) return 'submitted';
+        if (Date.now() - goneSince >= 2000 && !strict) return 'submitted';
+        if (Date.now() - goneSince >= 8000) return { failed: 'unconfirmed: the form closed without a confirmation' };
       } else goneSince = 0;
       const fresh = there ? fieldErrors(f).filter((e) => !(before.errors || []).includes(e)) : [];
       if (fresh.length) return failed(fresh);
@@ -561,6 +625,6 @@
   }
 
   root.oojAts = root.oojAts || {};
-  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo };
+  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo, next, nextOutcome, wall };
   if (typeof module === 'object' && module.exports) module.exports = { buttonKind, sentCount };
 })(globalThis);

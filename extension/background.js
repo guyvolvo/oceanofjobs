@@ -1,4 +1,4 @@
-importScripts('lib/providers.js', 'lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js', 'ats/generic.js');
+importScripts('lib/providers.js', 'lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js', 'ats/generic.js', 'ats/workday.js');
 
 const API = 'https://oceanofjobs.com/api';
 // One job at a time, so a full run is a few minutes; the plan and the
@@ -11,10 +11,14 @@ const ATS_FILES = {
   ashby: ['lib/match.js', 'ats/ashby.js'],
   workable: ['lib/match.js', 'ats/workable.js'],
   generic: ['lib/match.js', 'ats/generic.js'],
+  // Gets into the form and signs in; generic.js reads and fills its pages.
+  workday: ['lib/match.js', 'ats/generic.js', 'ats/workday.js'],
 };
 
+// The filler that reads and fills url. Workday's file only gets into its
+// forms, so on Workday it is the general one.
 function adapterFor(url) {
-  return Object.keys(ATS_FILES).find((n) => n !== 'generic' && globalThis.oojAts[n].onSite(url)) || 'generic';
+  return Object.keys(ATS_FILES).find((n) => n !== 'generic' && globalThis.oojAts[n].read && globalThis.oojAts[n].onSite(url)) || 'generic';
 }
 
 class HttpError extends Error {
@@ -313,11 +317,147 @@ async function waitForOutcome(tabId, atsName, redirectTo) {
   return { failed: 'no confirmation after submitting' };
 }
 
+// What a run fills from the profile, and the AI's answers to required
+// questions nothing answered when the user lets it draft them. The labels
+// it drafted go in drafted, for the Submit gate.
+async function planRun(fields, job, ctx, drafted) {
+  const plan = oojMatch.planFill(fields, ctx.profile, job);
+  if (!plan.missing.length || ctx.settings.unknowns !== 'ai') return plan;
+  for (const f of [...plan.missing]) {
+    if (f.type === 'file' || oojMatch.isEeo(f)) continue;
+    const answer = await answerUnknown(f, job, ctx);
+    if (answer === undefined) continue;
+    ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer, ...(ctx.wroteIt ? { source: 'ai', approval: 'pending' } : {}) }];
+    plan.missing.splice(plan.missing.indexOf(f), 1);
+    plan.fills.push({ ...f, value: answer });
+    if (ctx.wroteIt) drafted.add(f.label);
+  }
+  return plan;
+}
+
+// Every answered question, as filled; the server decides which are the
+// AI's from the saved answers, and only says no to those.
+const sentAnswers = (fills, job, drafted) => fills.filter((f) => f.type !== 'file' && !oojMatch.isEeo(f) && f.label).slice(0, 50)
+  .map((f) => ({ question: f.label, answer: String(f.value), job_id: job.id, ...(drafted.has(f.label) ? { source: 'ai' } : {}) }));
+
+// Sites a run applies to with the general filler, each checked on live
+// postings with tests/e2e/_ext_coverage.mjs before it goes in here.
+// Workday goes the same way once ats/workday.js has signed in.
+const GENERAL_ATS = new Set(['workday']);
+const dedicatedRun = (job) => !!(globalThis.oojAts[job.ats] && globalThis.oojAts[job.ats].read && globalThis.oojAts[job.ats].matches(job.url));
+const generalRun = (job) => GENERAL_ATS.has(job.ats) && !dedicatedRun(job);
+// Whether a run can apply to job at all.
+const canRun = (job) => dedicatedRun(job) || generalRun(job);
+
+// Into a Workday application: Apply, then Apply Manually, then signed in
+// with the profile's email and the Workday password from the extension's
+// options, or a new account made with them. null once on the form's first
+// page, else the reason it stopped.
+async function intoWorkday(tabId, ctx) {
+  const enter = async () => {
+    // The Apply buttons may load a new page, which ends the script unanswered.
+    for (let i = 0; i < 4; i++) {
+      const r = await inTab(tabId, 'workday', 'enter').catch(() => null);
+      if (r) return r;
+      await waitForLoad(tabId);
+    }
+    return { error: 'application form not found' };
+  };
+  let r = await enter();
+  if (r.error) return r.error;
+  if (r.at === 'form') return null;
+  const { workday } = await chrome.storage.local.get('workday');
+  const email = (ctx.profile.contact || {}).email;
+  if (!workday || !workday.password) return 'no Workday password';
+  if (!email) return 'no email in the profile';
+  const signed = await inTab(tabId, 'workday', 'account', [email, workday.password]).catch(() => null);
+  if (signed && signed.verify) return 'Workday account to verify';
+  if (signed && signed.failed) return signed.failed;
+  await waitForLoad(tabId);
+  r = await enter();
+  return r.at === 'form' ? null : r.error || 'Workday sign-in: no answer';
+}
+
+// The general filler's run on a tab that shows job.url: the form found the
+// way "Fill application" finds it (an Apply link followed, a form frame
+// entered), a wizard filled page by page through its Next buttons, then
+// the gate and the click. Counted as Submitted only when the site says so
+// (outcome's strict mode). Returns [outcome, why, questions, at]; outcome
+// null means the gate refused and settled it already. state.clicked is set
+// once past the gate.
+async function viaGeneral(job, ctx, id, tabId, state) {
+  const workday = job.ats === 'workday';
+  if (workday) {
+    const stop = await intoWorkday(tabId, ctx);
+    if (stop) return ['failed', stop];
+  }
+  let frameId = 0, page = null;
+  for (let hop = 0; hop < 3; hop++) {
+    page = await readForm(tabId, 'generic', frameId).catch(() => null);
+    if (page && page.frame) {
+      const f = await frameWithForm(tabId, 10000);
+      if (!f || f.frameId === 0) return ['failed', READ_ERROR];
+      frameId = f.frameId;
+      continue;
+    }
+    if (!page || !page.openUrl) break;
+    await chrome.tabs.update(tabId, { url: page.openUrl });
+    await new Promise((r) => setTimeout(r, 1000));
+    await waitForLoad(tabId);
+    frameId = 0;
+  }
+  if (!page || page.openUrl || page.frame) return ['failed', READ_ERROR];
+  const wall = await inTab(tabId, 'generic', 'wall', [], frameId).catch(() => null);
+  if (wall && wall.signIn) return ['failed', 'sign in first'];
+  if (wall && wall.captcha) return ['failed', 'captcha'];
+  if (page.error) return ['failed', page.error];
+  const drafted = new Set();
+  const fills = [];
+  // A wizard: each page filled, then its Next pressed, until a page has
+  // the button that sends the form.
+  for (let step = 0; ; step++) {
+    const plan = await planRun(page.fields, job, ctx, drafted);
+    if (plan.missing.length) {
+      const questions = plan.missing.map((f) => f.label);
+      return ['needs_input', 'needs answer: ' + questions.join('; '), questions];
+    }
+    const filled = await inTab(tabId, 'generic', 'fill', [plan.fills, ctx.cv], frameId);
+    if (!filled || filled.errors.length) return ['failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form')];
+    fills.push(...plan.fills);
+    const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId);
+    if (info && info.botCheck) return ['failed', 'human check'];
+    if (info && info.text) break;
+    if (step >= 8) return ['failed', 'submit button not found'];
+    const before = await inTab(tabId, 'generic', 'next', [], frameId);
+    if (!before) return ['failed', 'submit button not found'];
+    const moved = await inTab(tabId, 'generic', 'nextOutcome', [before], frameId).catch(() => null);
+    if (moved && moved.failed) return ['failed', moved.failed];
+    await waitForLoad(tabId);
+    page = await readForm(tabId, 'generic', frameId).catch(() => null);
+    if (!page || page.error || page.openUrl || page.frame) return ['failed', READ_ERROR];
+  }
+  const ok = await gate(id, { answers: sentAnswers(fills, job, drafted), mode: 'auto' });
+  if (ok.review) return ['needs_input', 'check AI answers: ' + ok.review.join('; '), ok.review];
+  if (!ok.ok) return [null];
+  state.clicked = true;
+  const before = await inTab(tabId, 'generic', 'submit', [], frameId);
+  if (!before) return ['failed', 'submit button not found'];
+  const until = Date.now() + 30000;
+  let out = null;
+  while (!out && Date.now() < until) {
+    out = await (workday ? inTab(tabId, 'workday', 'outcome', [before, until - Date.now()])
+      : inTab(tabId, 'generic', 'outcome', [before, until - Date.now(), true], frameId)).catch(() => null);
+    if (!out) await new Promise((r) => setTimeout(r, 1000));
+  }
+  return afterClick(out);
+}
+
 // One job, start to finish: 'submitted', 'skipped', 'failed', 'captcha'
 // or 'limit' (the plan has no credits left, nothing was claimed).
 async function applyTo(job, ctx) {
   const ats = globalThis.oojAts[job.ats];
-  if (!ats || !ats.matches(job.url)) {
+  const general = generalRun(job);
+  if (!canRun(job)) {
     await report(job.id, 'skipped', 'unsupported site');
     return 'skipped';
   }
@@ -332,11 +472,21 @@ async function applyTo(job, ctx) {
   if (!held.attemptId) return 'failed';
   const id = held.attemptId;
   let clicked = false;
-  const tab = await chrome.tabs.create({ url: ats.formUrl ? ats.formUrl(job.url) : job.url, active: false });
+  const state = { clicked: false };
+  const tab = await chrome.tabs.create({ url: !general && ats.formUrl ? ats.formUrl(job.url) : job.url, active: false });
   try {
     if (!(await waitForLoad(tab.id))) {
       await settle(id, 'failed', 'page did not load');
       return 'failed';
+    }
+    if (general) {
+      const [outcome, why, questions] = await viaGeneral(job, ctx, id, tab.id, state);
+      clicked = state.clicked;
+      if (!outcome) return 'failed';
+      await settle(id, outcome, why, questions);
+      if (outcome === 'needs_input') return 'skipped';
+      if (outcome === 'failed' && /^captcha/i.test(why)) return 'captcha';
+      return outcome;
     }
     const [main] = ats.pageData
       ? await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: 'MAIN', func: ats.pageData })
@@ -346,19 +496,8 @@ async function applyTo(job, ctx) {
       await settle(id, 'failed', (page && page.error) || 'application form not found');
       return 'failed';
     }
-    const plan = oojMatch.planFill(page.fields, ctx.profile, job);
     const drafted = new Set();
-    if (plan.missing.length && ctx.settings.unknowns === 'ai') {
-      for (const f of [...plan.missing]) {
-        if (f.type === 'file' || oojMatch.isEeo(f)) continue;
-        const answer = await answerUnknown(f, job, ctx);
-        if (answer === undefined) continue;
-        ctx.profile.answers = [...(ctx.profile.answers || []), { question: f.label, answer, ...(ctx.wroteIt ? { source: 'ai', approval: 'pending' } : {}) }];
-        plan.missing.splice(plan.missing.indexOf(f), 1);
-        plan.fills.push({ ...f, value: answer });
-        if (ctx.wroteIt) drafted.add(f.label);
-      }
-    }
+    const plan = await planRun(page.fields, job, ctx, drafted);
     if (plan.missing.length) {
       // Paused until the user answers (R15): the job stays out of runs and
       // shows in Needs attention with its questions.
@@ -371,11 +510,7 @@ async function applyTo(job, ctx) {
       await settle(id, 'failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form'));
       return 'failed';
     }
-    // Every answered question, as filled; the server decides which are the
-    // AI's from the saved answers, and only says no to those.
-    const answers = plan.fills.filter((f) => f.type !== 'file' && !oojMatch.isEeo(f) && f.label).slice(0, 50)
-      .map((f) => ({ question: f.label, answer: String(f.value), job_id: job.id, ...(drafted.has(f.label) ? { source: 'ai' } : {}) }));
-    const ok = await gate(id, { answers, mode: 'auto' });
+    const ok = await gate(id, { answers: sentAnswers(plan.fills, job, drafted), mode: 'auto' });
     if (ok.review) {
       // Paused for the user to check the AI's answers (Needs attention);
       // nothing was clicked, and the credit goes back.
@@ -395,6 +530,7 @@ async function applyTo(job, ctx) {
     return outcome;
   } catch (e) {
     // After the gate the click may have happened: unconfirmed, never retried.
+    clicked = clicked || state.clicked;
     await settle(id, clicked ? 'unconfirmed' : 'failed', String(e.message || e).slice(0, 200));
     return clicked ? 'unconfirmed' : 'failed';
   } finally {
@@ -412,16 +548,16 @@ async function fetchJob(id) {
 }
 
 async function autoCandidates(preferences) {
-  // Only sites with a dedicated filler: the generic one never applies on its own.
-  const dedicated = Object.keys(ATS_FILES).filter((n) => n !== 'generic');
-  const p = new URLSearchParams({ ats: dedicated.join(','), limit: '25', max_age_days: '14', count: 'skip' });
+  // Sites with a filler of their own, and those the general one applies on.
+  const dedicated = Object.keys(ATS_FILES).filter((n) => n !== 'generic' && globalThis.oojAts[n].read);
+  const p = new URLSearchParams({ ats: [...dedicated, ...GENERAL_ATS].join(','), limit: '25', max_age_days: '14', count: 'skip' });
   if (preferences.skills && preferences.skills.length) p.set('skills', preferences.skills.join(','));
   if (preferences.seniority) p.set('seniority', preferences.seniority);
   if (preferences.workplace && preferences.workplace.length) p.set('workplace', preferences.workplace.join(','));
   if (preferences.country && preferences.country.length) p.set('country', preferences.country.join(','));
   if (preferences.city && preferences.city.length) p.set('city', preferences.city.join(','));
   const { jobs = [] } = await api('/jobs?' + p, { auth: false });
-  return jobs.filter((j) => dedicated.includes(j.ats));
+  return jobs.filter(canRun);
 }
 
 let running = false;
@@ -966,7 +1102,7 @@ async function queueView() {
     return {
       id: q.job_id, title: job ? job.title : job === null ? oojMatch.reasonText('job closed') : "Couldn't load this job.",
       company: job ? (job.company_name || job.company_domain) : '',
-      supported: !!(job && globalThis.oojAts[job.ats] && globalThis.oojAts[job.ats].matches(job.url)),
+      supported: !!(job && canRun(job)),
     };
   }));
   return { total: queue.length, items };
@@ -1024,9 +1160,9 @@ async function applyNext() {
   const { queue = [] } = await api('/me/apply/queue');
   for (const item of queue) {
     const job = await fetchJob(item.job_id);
-    const ats = job && globalThis.oojAts[job.ats];
-    if (!ats || !ats.matches(job.url)) continue;
-    const url = ats.formUrl ? ats.formUrl(job.url) : job.url;
+    if (!job || !canRun(job)) continue;
+    const ats = globalThis.oojAts[job.ats];
+    const url = dedicatedRun(job) && ats.formUrl ? ats.formUrl(job.url) : job.url;
     const tab = await chrome.tabs.create({ url, active: true });
     await chrome.storage.session.set({ [`tabjob:${tab.id}`]: { id: job.id, url } });
     if (await waitForLoad(tab.id)) {
