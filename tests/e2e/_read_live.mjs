@@ -6,15 +6,18 @@ import path from "node:path";
 const [url, shot] = process.argv.slice(2);
 const root = path.resolve(import.meta.dirname, "../..");
 const b = await chromium.launch({ channel: "chromium" });
-const page = await b.newPage({ viewport: { width: 1280, height: 900 }, userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" });
+const page = await (await b.newContext({ viewport: { width: 1280, height: 900 }, userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" })).newPage();
 const aborted = [];
 // A site's bot-detection pings (DataDome, Cloudflare's challenge) carry no
 // application data, and a page whose pings fail can refuse to go on.
 const PING = /^https:\/\/(api-js\.datadome\.co\/js\/|[^/]+\/cdn-cgi\/challenge-platform\/)/;
 await page.route("**/*", (r) => (["GET", "HEAD", "OPTIONS"].includes(r.request().method()) || PING.test(r.request().url()) ? r.continue()
   : (aborted.push(`${r.request().method()} ${new URL(r.request().url()).host}${new URL(r.request().url()).pathname}`.slice(0, 120)), r.abort())));
-await page.goto(url, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
+// FAST=1: go on at the load event, as a run does, not once the network is quiet.
+await page.goto(url, { waitUntil: process.env.FAST ? "load" : "networkidle", timeout: 60000 }).catch(() => {});
 for (const f of ["extension/lib/match.js", "extension/ats/generic.js"]) await page.addScriptTag({ path: path.join(root, f) });
+// BG=1: another tab in front, as in a run, which works in a background tab.
+if (process.env.BG) await (await page.context().newPage()).bringToFront();
 const r = await page.evaluate(async () => {
   const g = globalThis.oojAts.generic;
   const res = await g.read();

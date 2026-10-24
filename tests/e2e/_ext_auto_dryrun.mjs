@@ -123,6 +123,8 @@ for (const job of jobs) {
   // so the browser keeps a window to open the next run's tab in.
   for (const tab of ctx.pages()) {
     if (!/^https?:/.test(tab.url())) continue;
+    // PROBE="js expression": what the page itself sees, for a stopped run.
+    if (!row.gate && process.env.PROBE) console.log("   probe:", JSON.stringify(await tab.evaluate(process.env.PROBE).catch((e) => e.message.slice(0, 120))));
     if (!row.gate) await tab.screenshot({ path: path.join(out, `${rows.length}-${job.ats}.png`) }).catch(() => {});
     await tab.close().catch(() => {});
   }

@@ -92,7 +92,7 @@
     if (BY_AUTOCOMPLETE[field.autocomplete]) return BY_AUTOCOMPLETE[field.autocomplete];
     const label = normalise(field.label);
     // Only a file input takes the CV: "Tell us about your resume" is a question.
-    if (field.type === 'file') return /cover letter|motivati|lettre/.test(label) ? 'cover_letter' : /resume|lebenslauf|קורות חיים|קו ?ח/.test(label) ? 'resume' : null;
+    if (field.type === 'file') return /cover letter|motivati|lettre/.test(label) ? 'cover_letter' : /resume|résumé|cv|curr[ií]cul|lebenslauf|קורות חיים|קו ?ח/.test(label) ? 'resume' : null;
     for (const [re, key] of BY_LABEL) if (re.test(label)) return key;
     // An email or phone input labelled in a language the rules above miss.
     if (/refer|recommend|manager|emergency/.test(label)) return null;
