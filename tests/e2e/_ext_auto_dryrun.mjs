@@ -103,6 +103,8 @@ await sw.evaluate(async (data) => {
   await chrome.storage.local.set({ token: "ooj_test.00000000.x", cv: { name: "Test_Person_CV.pdf", type: "application/pdf", size: data.length, data: btoa(data) },
     workday: { password: "Dry-run-0nly!" } });
   await chrome.alarms.clearAll();
+  // Runs close their tab at the end; here it stays for a screenshot.
+  chrome.tabs.remove = async () => {};
 }, pdf);
 
 const rows = [];
@@ -117,7 +119,15 @@ for (const job of jobs) {
   const row = { ats: job.ats, url: job.url, outcome, gate: cur.gate, answered: cur.answers.length, drafts: cur.drafts.length,
     settled: last.outcome || "", reason: (last.reason || "").slice(0, 160), questions: last.questions || [], secs: Math.round((Date.now() - t0) / 1000), blocked: cur.blocked.length };
   rows.push(row);
-  console.log(`${row.gate ? "GATE " : "stop "} ${job.ats.padEnd(15)} ${String(row.secs).padStart(3)}s ${row.gate ? `${row.answered} answers, ${row.drafts} by AI` : `${row.settled}: ${row.reason}`}  ${job.url.slice(0, 90)}`);
+  // The run's tab, kept for its screenshot, then closed; a blank one stays
+  // so the browser keeps a window to open the next run's tab in.
+  for (const tab of ctx.pages()) {
+    if (!/^https?:/.test(tab.url())) continue;
+    if (!row.gate) await tab.screenshot({ path: path.join(out, `${rows.length}-${job.ats}.png`) }).catch(() => {});
+    await tab.close().catch(() => {});
+  }
+  if (!ctx.pages().length) await ctx.newPage();
+  console.log(`${row.gate ? "GATE " : "stop "} ${job.ats.padEnd(15)} ${String(row.secs).padStart(3)}s ${row.gate ? `${row.answered} answers, ${row.drafts} by AI` : row.settled ? `${row.settled}: ${row.reason}` : `(${outcome})`}  ${job.url.slice(0, 90)}`);
   await sleep(3000);
 }
 fs.writeFileSync(path.join(out, "dryrun.json"), JSON.stringify(rows, null, 1));

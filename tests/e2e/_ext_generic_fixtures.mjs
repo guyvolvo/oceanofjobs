@@ -469,6 +469,17 @@ await check("SmartRecruiters' localised I'm interested link leads to the form", 
   assert.equal((await page.evaluate(() => globalThis.oojAts.generic.read())).openUrl, "https://jobs.smartrecruiters.com/oneclick-ui/company/X/publication/1");
 });
 
+await check("a searchable dropdown's short list is read; a city search box is not", async () => {
+  const combo = (id, label, opts) => `<div><label for="${id}">${label} *</label>
+    <input id="${id}" role="combobox" aria-controls="${id}-l" aria-autocomplete="list" onmousedown="document.getElementById('${id}-l').hidden = false">
+    <ul id="${id}-l" role="listbox" hidden>${opts.map((o) => `<li role="option">${o}</li>`).join("")}</ul></div>`;
+  await serve(`<form>${FIELDS}${combo("rtw", "What is your right-to-work status?", ["British citizen", "Settled status", "Valid visa"])}
+    ${combo("city", "City", ["London", "Leeds", "Bristol"])}<button>Submit</button></form>`);
+  const r = await page.evaluate(async () => Object.fromEntries((await globalThis.oojAts.generic.read()).fields.map((f) => [f.label, f.options])));
+  assert.deepEqual(r["What is your right-to-work status?"], ["British citizen", "Settled status", "Valid visa"]);
+  assert.deepEqual(r.City, []);
+});
+
 // detect.js on a posting page, with chrome.runtime stubbed: the button
 // shows before the form exists, and not on a list of jobs.
 async function detectOn(html, at) {

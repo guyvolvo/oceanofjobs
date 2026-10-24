@@ -58,13 +58,15 @@
     [/\bdisability\b/, 'disability'],
     // Contact fields by label alone, for forms whose field names mean nothing.
     // Anchored, so a custom question that mentions an email is left alone.
-    [/^(legal )?(first|given) name$|^forename$|^(vorname|voornaam|prénom|prenom)$/, 'first_name'],
-    [/^(legal )?(last|family) name$|^surname$|^(nachname|achternaam|apellidos?)$/, 'last_name'],
-    [/^(your |full |full legal |legal )?name$|^name surname$|^first and last name$|^(volledige naam|vollständiger name|nom complet|nombre completo|nome completo)$/, 'full_name'],
-    [/^(your )?e ?mail( address| adresse| adres)?$|^e ?mailadres$/, 'email'],
-    [/^(your )?(mobile |cell |contact )?(phone|telephone|mobile|telefon|telefonnummer|handynummer|telefoonnummer|téléphone|teléfono)( number)?$/, 'phone'],
-    [/^(current )?(location|city)( city)?$|^where are you (currently )?(based|located)$/, 'location'],
-    [/^country( of residence)?$/, 'country'],
+    // Also in French, Spanish, Italian, Portuguese, German, Dutch, Polish
+    // and the Nordic languages, as SmartRecruiters and Breezy forms come.
+    [/^(legal )?(first|given) name$|^forename$|^(vorname|voornaam|prénom|prenom|nombre|nome|imię|förnamn|fornavn|etunimi)$/, 'first_name'],
+    [/^(legal )?(last|family) name$|^surname$|^(nachname|achternaam|apellidos?|nom( de famille)?|cognome|sobrenome|nazwisko|efternamn|efternavn|sukunimi)$/, 'last_name'],
+    [/^(your |full |full legal |legal )?name$|^name surname$|^first and last name$|^(volledige naam|vollständiger name|vor und nachname|nom complet|nom et prénom|nombre completo|nombre y apellidos?|nome completo|nome e cognome|imię i nazwisko)$/, 'full_name'],
+    [/^(your |votre |confirm (your )?|confirmez (votre )?)?e ?mail( address| adresse| adres)?$|^e ?mailadres$|^(adresse|endereço de|indirizzo) e ?mail$|^(correo|correo electrónico|courriel)$/, 'email'],
+    [/^(your )?(mobile |cell |contact )?(phone|telephone|mobile|telefon|telefonnummer|handynummer|telefoonnummer|téléphone|teléfono|telefone|telefono|cellulare|celular|móvil|portable)( number)?$|^(numéro de téléphone|número de teléfono|número de telefone|numero di telefono|numer telefonu)$/, 'phone'],
+    [/^(current )?(location|city)( city)?$|^where are you (currently )?(based|located)$|^(ville|ciudad|città|cidade|stadt|wohnort|plaats|woonplaats|localisation|ubicación|miasto)$/, 'location'],
+    [/^country( of residence)?$|^(pays|país|paese|land|kraj)$/, 'country'],
     // Hebrew forms (Experis, Comeet and Israeli career sites).
     [/^שם פרטי$/, 'first_name'],
     [/^שם משפחה$/, 'last_name'],

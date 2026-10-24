@@ -429,8 +429,10 @@ async function viaGeneral(job, ctx, id, tabId, state) {
       return ['needs_input', 'needs answer: ' + questions.join('; '), questions];
     }
     const filled = await inTab(tabId, 'generic', 'fill', [plan.fills, ctx.cv], frameId);
-    if (!filled || filled.errors.length) return ['failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form')];
-    fills.push(...plan.fills);
+    // An optional question it couldn't answer is left as it is; a required one stops the run.
+    const hard = filled ? filled.errors.filter((e) => plan.fills.some((f) => f.required && e.startsWith(f.label + ':'))) : ['the form'];
+    if (hard.length) return ['failed', 'could not fill ' + hard.join('; ')];
+    fills.push(...plan.fills.filter((f) => !filled.errors.some((e) => e.startsWith(f.label + ':'))));
     const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId);
     // A CAPTCHA or an invisible human check: the extension never gets round
     // one. Everything is answered, so the job waits in Needs attention for

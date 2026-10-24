@@ -322,3 +322,13 @@ test('consentBox: required privacy and data-processing boxes only', () => {
   assert.ok(!box('Allow us to process your personal information.', { required: false }), 'optional');
   assert.ok(!box('Privacy policy', { options: ['Yes', 'No'] }), 'a question with options');
 });
+
+test('contact labels in the languages SmartRecruiters and Breezy forms come in', () => {
+  const want = {
+    Prénom: 'first_name', Nom: 'last_name', 'Nom de famille': 'last_name', 'E-mail': 'email', 'Confirmez votre e-mail': 'email', Ville: 'location',
+    'Numéro de téléphone': 'phone', Pays: 'country', 'Nombre completo': 'full_name', 'Correo electrónico': 'email', Ciudad: 'location',
+    'Número de teléfono': 'phone', Cognome: 'last_name', 'Nome e cognome': 'full_name', Wohnort: 'location', Nazwisko: 'last_name',
+  };
+  for (const [label, key] of Object.entries(want)) assert.equal(m.classify({ label, type: 'text', name: '' }), key, label);
+  assert.equal(m.classify({ label: 'Nom du poste actuel', type: 'text', name: '' }), null, 'a longer question is left alone');
+});

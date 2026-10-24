@@ -368,8 +368,17 @@
     // Each call injects this file again and starts with no form, so the page keeps it.
     for (const doc of docs()) for (const old of doc.querySelectorAll('[data-ooj-form]')) old.removeAttribute('data-ooj-form');
     form.setAttribute('data-ooj-form', '');
-    const fields = fieldsOf(form);
-    for (const f of fields) if (f.type === 'combobox') f.options = await peekOptions(find(f.name)[0]);
+    // Web components can draw a label a moment after its field: read until
+    // two reads agree.
+    let fields = fieldsOf(form);
+    for (let i = 0; i < 4; i++) {
+      await sleep(700);
+      const again = fieldsOf(form);
+      const same = again.length === fields.length && again.every((f, j) => f.label === fields[j].label);
+      fields = again;
+      if (same) break;
+    }
+    for (const f of fields) if (f.type === 'combobox') f.options = await peekOptions(find(f.name)[0], f);
     return { fields };
   }
 
@@ -439,16 +448,20 @@
   }
 
   // A dropdown you cannot type in lists every choice when opened, so read
-  // them for the planner and close it again. A typeahead's first list is
-  // only a sample, so it is left alone.
-  async function peekOptions(el) {
-    if (typeable(el)) return [];
+  // them for the planner and close it again. One you can type in may show
+  // only a sample (the first 20 of a thousand schools), so its list counts
+  // only when it is short, like a question's answers (SmartRecruiters'
+  // searchable dropdowns), and never for a place, which is looked up as typed.
+  const PLACE = new Set(['location', 'country', 'phone_country']);
+  async function peekOptions(el, field) {
+    const search = typeable(el);
+    if (search && root.oojMatch && PLACE.has(root.oojMatch.classify(field))) return [];
     press(el);
     const opts = await waitFor(() => listOf(el), 800);
     const texts = opts ? opts.map((o) => clean(o.textContent)).filter(Boolean) : [];
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
     leave(el);
-    return texts;
+    return search && !(texts.length >= 2 && texts.length <= 25) ? [] : texts;
   }
 
   // Typeahead and custom dropdowns: type, then pick from what the list shows.
@@ -457,8 +470,10 @@
     const listed = () => listOf(el);
     press(el);
     el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
-    let opts = await waitFor(listed, 1000);
-    if (input && typeable(input) && (!opts || root.oojMatch.pickOption(opts.map((o) => o.textContent), value) < 0)) {
+    // "decline" is picked from the list ("Prefer not to say"), never typed
+    // into it: typed, it filters every choice away.
+    let opts = await waitFor(listed, value === 'decline' ? 3000 : 1000);
+    if (input && typeable(input) && value !== 'decline' && (!opts || root.oojMatch.pickOption(opts.map((o) => o.textContent), value) < 0)) {
       setValue(input, key === 'location' ? value.split(',')[0] : value);
       opts = await waitFor(listed, 5000);
     }
