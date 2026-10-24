@@ -59,6 +59,17 @@ const GITHUB_OAUTH_CLIENT_ID = "Ov23lii8kIqDUL9aLhxh";
 const GOOGLE_CONFIGURED = true;
 const AUTH_TOKENS_KEY = "iljobs_auth_tokens";
 const PKCE_VERIFIER_KEY = "iljobs_pkce_verifier"; // sessionStorage: only needs to survive the redirect round-trip
+// The page a Google or GitHub sign-in started on, so it lands back there
+// rather than on /board: /apply?connect=1 connects the extension after it.
+const RETURN_KEY = "ooj_signin_return";
+function rememberPage() {
+  sessionStorage.setItem(RETURN_KEY, location.pathname + location.search + location.hash);
+}
+function returnToPage() {
+  const to = sessionStorage.getItem(RETURN_KEY);
+  sessionStorage.removeItem(RETURN_KEY);
+  if (to && to.startsWith("/") && !to.startsWith("//") && to !== location.pathname + location.search + location.hash) location.replace(to);
+}
 
 function getAuthTokens() {
   try {
@@ -215,6 +226,7 @@ async function startGoogleSignIn() {
   }
   const verifier = randomUrlSafe(64);
   sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+  rememberPage();
   const challenge = await base64UrlDigest(verifier);
   // Still /, not /board: it has to match the callback Cognito has
   // registered (infra/cognito.tf). The edge forwards /?code= to /board.
@@ -241,6 +253,7 @@ function startGithubSignIn() {
     redirect_uri: `${location.origin}/api/auth/github/callback`,
     scope: "read:user user:email",
   })}`;
+  rememberPage();
   location.href = url;
 }
 
@@ -371,6 +384,7 @@ async function handleAuthRedirect() {
     });
     if (window.ojCount) window.ojCount("signin");
     history.replaceState(null, "", location.pathname + location.search);
+    returnToPage();
     return;
   }
   if (hash.get("auth_error")) {
@@ -398,6 +412,7 @@ async function handleAuthRedirect() {
     history.replaceState(null, "", location.pathname); // strip ?code= before the async exchange, not after -- a reload mid-flight must not resubmit a single-use code
     try {
       await exchangeGoogleCode(code);
+      returnToPage();
     } catch (err) {
       console.error("Google sign-in failed:", err);
     }

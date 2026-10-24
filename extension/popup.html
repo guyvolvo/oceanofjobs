@@ -28,6 +28,8 @@
     .links a:hover { color: var(--text); }
     .connect h1 { margin: 0 0 6px; font: 500 14px/1.4 "Geist", sans-serif; }
     .connect p { margin-bottom: 14px; }
+    .connect .login-instead { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.4; text-align: center; }
+    .ver { margin-left: -4px; color: var(--muted); font-size: 12px; font-weight: 400; }
     .queue { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
     .queue summary { padding: 10px 12px; cursor: pointer; font-size: 13px; font-weight: 500; }
     .queue .muted { color: var(--muted); font-weight: 400; }
@@ -45,12 +47,13 @@
   </style>
 </head>
 <body>
-  <header class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs <span class="chip" id="plan" hidden>free</span></header>
+  <header class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs <span class="ver" id="ver"></span><span class="chip" id="plan" hidden>free</span></header>
 
   <section id="out" class="card connect" hidden>
     <h1>Connect Ocean of Jobs</h1>
     <p id="out-text">Connect the extension to your Ocean of Jobs account to start applying for jobs.</p>
     <button class="btn primary full" id="connect">Connect account</button>
+    <p class="login-instead">Already use Ocean of Jobs on another device? <a href="#" id="login">Log in instead</a></p>
   </section>
 
   <section id="in" hidden>

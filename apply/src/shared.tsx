@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Badge } from "@cloudflare/kumo/components/badge";
 import { Button, LinkButton } from "@cloudflare/kumo/components/button";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
@@ -87,16 +87,24 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
   const toasts = useKumoToastManager();
   const [busy, setBusy] = useState(false);
   const [connectError, setConnectError] = useState(false);
+  const connect = async () => {
+    setBusy(true);
+    setConnectError(false);
+    try { await connectExtension(); } catch { setConnectError(true); } finally { setBusy(false); }
+  };
+  // The extension's "Log in instead" opens /apply?connect=1: once the reader
+  // has logged in on this device, connect it without another click. The URL
+  // is read here, not at render, so the flag is spent once.
+  useEffect(() => {
+    if (ext.checking || !ext.installed || ext.connected || !new URLSearchParams(location.search).has("connect")) return;
+    history.replaceState(null, "", location.pathname + location.hash);
+    connect();
+  }, [ext.checking, ext.installed, ext.connected]);
   if (ext.checking && !ext.installed) return <span className="oj-row oj-note"><Loader size="sm" /> Looking for the extension</span>;
   if (!ext.installed) {
     return <p className="oj-note">Install the Ocean of Jobs extension to apply from here. It isn't in the Chrome Web Store yet.</p>;
   }
   if (!ext.connected) {
-    const connect = async () => {
-      setBusy(true);
-      setConnectError(false);
-      try { await connectExtension(); } catch { setConnectError(true); } finally { setBusy(false); }
-    };
     return (
       <div className="oj-row">
         <Button variant="primary" loading={busy} onClick={connect}>Connect the extension</Button>

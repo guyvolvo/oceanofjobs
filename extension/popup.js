@@ -5,7 +5,11 @@ const { plural, reasonText, filledText } = oojMatch;
 for (const a of document.querySelectorAll('.open-options')) {
   a.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
 }
+$('ver').textContent = 'v' + chrome.runtime.getManifest().version;
 $('connect').addEventListener('click', () => chrome.tabs.create({ url: ACCOUNT }));
+// The dashboard connects the extension by itself once the reader has
+// logged in, so a second device picks up the same queue in one step.
+$('login').addEventListener('click', (e) => { e.preventDefault(); chrome.tabs.create({ url: ACCOUNT + '?connect=1' }); });
 
 // On a site outside our host permissions, the first click also asks for
 // access to every site. Asked once: after a no, only Settings asks again.
