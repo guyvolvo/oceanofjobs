@@ -200,6 +200,9 @@ body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit
    scrolls sideways itself on a phone. */
 .oj-tabs .kumo-tabs-list { flex-shrink: 0; }
 .oj-tabs [data-kumo-part="overflow-control"] { display: none; }
+/* Card radios (the bordered ones): the dot in the middle of its card, so a
+   card with a long description doesn't leave it up by the title. */
+[data-kumo-part="item-label"].border-b { align-items: center; }
 
 /* Danger options (Send without review, Apply automatically): a red check
    when chosen, on top of Kumo's red border for the "error" variant. */

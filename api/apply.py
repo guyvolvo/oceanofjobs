@@ -58,7 +58,7 @@ def empty_profile() -> dict:
         "work": {"authorized_countries": [], "needs_sponsorship": None, "notice_period": "", "salary": ""},
         "eeo": {k: None for k in EEO_FIELDS},
         "answers": [],
-        "settings": {"mode": "queue", "sources": ["board", "matches"], "unknowns": "skip",
+        "settings": {"mode": "queue", "sources": ["board", "matches"], "unknowns": "ai",
                      "guardrails": {"min_match": None, "daily_limit": None, "blocked_companies": [],
                                     "one_per_company_days": None}},
     }
