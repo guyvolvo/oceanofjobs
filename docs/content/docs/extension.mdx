@@ -4,14 +4,12 @@ icon: extension
 description: The Ocean of Jobs extension fills in job applications and can submit them for you. You can start from the job board, queue jobs through your AI agent, or fill out applications directly on company career pages.
 ---
 
-The extension isn't available on the Chrome Web Store yet. The instructions below describe how it will work once it's published.
-
 It runs in Chrome and Brave and fills out forms in your browser using your CV and saved answers.
 
 ## Install and connect
 
-1. Install Ocean of Jobs from the Chrome Web Store once it's available.
-2. Click the extension icon and select **Connect account**. Follow the prompt to connect your Ocean of Jobs account.
+1. Install [Ocean of Jobs from the Chrome Web Store](https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi).
+2. Click the extension icon and select **Connect account**. Follow the prompt to connect your Ocean of Jobs account. If you signed up on another device, select **Log in instead**.
 3. Add your CV in the extension's settings and your contact details in the **Auto apply** settings on your account page. The extension uses these details when filling out applications.
 
 ## Apply from the job board
@@ -22,13 +20,29 @@ Every 15 minutes, the extension checks the queue, opens queued jobs in backgroun
 
 Once an application is submitted, the board marks it as **Applied** and shows the application time.
 
-Automatic applications are available for jobs hosted on Greenhouse, Ashby and Workable. The board only shows the **Auto apply** button for supported jobs.
+Automatic applications work on jobs hosted on Greenhouse, Ashby, Workable, Workday, SmartRecruiters, Lever, BambooHR, JazzHR, Recruitee, Teamtailor, Pinpoint, Breezy, Personio and Comeet. The board only shows the **Auto apply** button for these jobs.
+
+To apply without queueing each job, select **Apply automatically** under **Mode** in your Auto apply settings. The extension then applies to jobs that match your preferences, within your plan's limit and any limits you set.
+
+### Sites that check for a person
+
+Some sites check that a person sends the form, with a CAPTCHA or a similar step. On those, the extension fills the application and stops before Submit. The job shows as **Ready to submit** under **Needs attention** on your Auto apply page, and doesn't count toward your plan. Open the application, click **Fill application** in the extension, check the answers and press the site's Submit button.
+
+### Workday
+
+Companies that hire through Workday ask you to create an account on their careers site before you apply. Set a Workday password under **Workday accounts** in the extension's settings, or generate one there. The extension signs in with your profile's email and that password, and creates the account if you don't have one yet. The password stays in your browser.
+
+Some companies email you a link to confirm a new account. Until you click it, that job waits in your history.
+
+### Privacy boxes
+
+Many forms can't be sent until you agree to the company's privacy policy or to processing your application data. To have automatic runs tick those required boxes, enable **Accept required privacy and data-processing boxes for me** in your Auto apply settings. The extension never ticks marketing, newsletter or talent pool boxes.
 
 ## When the extension needs an answer
 
 Some applications ask questions your CV doesn't cover, such as your notice period or visa requirements.
 
-If you've selected **Draft an answer with AI** in your Auto apply settings, the extension asks AI to draft an answer using your profile. This feature is available on Basic and Pro, or on any plan when using your own AI key.
+With **Draft an answer with AI** selected in your Auto apply settings, which is the default, the extension asks AI to draft an answer using your profile. Each plan includes monthly AI answers: 50 on Free, 300 on Basic and 3,000 on Pro. After that, the extension uses your own AI key if you added one in its settings.
 
 If the AI can't answer, or you've selected **Skip the job**, the application moves to **Questions you need to answer** in the extension's popup. Questions are grouped by job. Answer them there and the job returns to the queue.
 
@@ -42,7 +56,7 @@ When you visit a job posting, the extension can offer a lighthouse button in the
 
 Click the button and select **Fill application**. The extension fills in the fields it can match to your saved details. Review the form and click **Submit application** when you're ready.
 
-Some sites require a CAPTCHA or another human verification step. The extension can fill in the form, but you'll need to complete the verification and submit the application yourself.
+If the site asks for a CAPTCHA or another human check, complete it and submit the application yourself.
 
 To show the fill button on every company's career page, enable **Show the fill button on every careers page** in the extension's settings.
 
