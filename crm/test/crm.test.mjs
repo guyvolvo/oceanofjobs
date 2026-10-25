@@ -300,3 +300,47 @@ test("the inbox: mail is forwarded and saved, replies thread and need sending on
   assert.equal(after.find((m) => m.dir === "in").read, true);
   globalThis.fetch = realFetch;
 });
+
+test("the waitlist: listed from the members' rows, changed only through the signed server route", async () => {
+  _resetKeys();
+  dropCache();
+  const state = {
+    users: [user("u1", "owner@example.com"), user("u2", "a@example.com"), user("u3", "b@example.com")],
+    alerts: [row("u2", "#waitlist#pro", { plan: { S: "pro" }, joined_at: { S: "2026-10-25T10:00:00Z" } }),
+      row("u3", "#waitlist#basic", { plan: { S: "basic" }, joined_at: { S: "2026-10-24T10:00:00Z" }, status: { S: "approved" } }),
+      row("#waitlist", "#count#pro", { n: { N: "1" }, cap: { N: "100" } })],
+    crm: [], sent: [],
+  };
+  const box = [];
+  const aws = fakeAws(state);
+  globalThis.fetch = async (url, init) => {
+    if (String(url).startsWith("https://box.oceanofjobs.com/")) {
+      box.push({ url: String(url), headers: init.headers, body: JSON.parse(init.body) });
+      return new Response(JSON.stringify({ ok: true, counts: { pro: { cap: 100, taken: 1 } } }));
+    }
+    return aws(url, init);
+  };
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm",
+    UNSUBSCRIBE_SECRET: "s3cret", ORIGIN_KEY: "ok-key" };
+  const tok = await jwt(good());
+  const H = { "Cf-Access-Jwt-Assertion": tok, "X-CRM": "1", "Content-Type": "application/json" };
+  const call = (path, init = {}) => worker.fetch(new Request("https://crm.oceanofjobs.com" + path, { ...init, headers: { ...H, ...(init.headers || {}) } }), env);
+  const list = await (await call("/api/waitlist")).json();
+  assert.deepEqual(list.counts, { pro: { cap: 100, taken: 1 } });
+  assert.deepEqual(list.people.map((p) => [p.email, p.waitlist, p.status]), [["b@example.com", "basic", "approved"], ["a@example.com", "pro", "waiting"]], "oldest first");
+  let r = await call("/api/waitlist", { method: "POST", body: JSON.stringify({ op: "delete-everything", user_id: "u2" }) });
+  assert.equal(r.status, 400, "only the known changes");
+  r = await call("/api/waitlist", { method: "POST", body: JSON.stringify({ op: "remove", user_id: "u2", plan: "pro" }) });
+  assert.equal(r.status, 200);
+  const sent = box.at(-1);
+  const { signature } = await import("../lib/admin.mjs");
+  assert.equal(sent.headers["x-otj-origin-key"], "ok-key");
+  assert.equal(sent.headers["X-OOJ-Sig"], await signature("s3cret", Number(sent.headers["X-OOJ-Time"]), JSON.stringify(sent.body)));
+  r = await call("/api/waitlist/approve", { method: "POST", body: JSON.stringify({ people: [{ id: "u2", plan: "pro" }], until: "2026-12-31" }) });
+  assert.deepEqual((await r.json()).approved, ["u2"]);
+  const grant = state.alerts.find((i) => i.user_id.S === "u2" && i.alert_id.S === "#grant");
+  assert.equal(grant.plan.S, "pro");
+  assert.equal(grant.until.S, "2026-12-31");
+  assert.deepEqual(box.at(-1).body, { op: "mark", user_id: "u2", plan: "pro", status: "approved" });
+  globalThis.fetch = realFetch;
+});

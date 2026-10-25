@@ -14,9 +14,10 @@ import { Contacts } from "./Contacts";
 import { Emails } from "./Emails";
 import { Changelog } from "./Changelog";
 import { Inbox } from "./Inbox";
+import { Waitlist } from "./Waitlist";
 
 const TABS = [
-  { value: "overview", label: "Overview" }, { value: "inbox", label: "Inbox" }, { value: "contacts", label: "Users" }, { value: "segments", label: "Groups" },
+  { value: "overview", label: "Overview" }, { value: "inbox", label: "Inbox" }, { value: "contacts", label: "Users" }, { value: "waitlist", label: "Waitlist" }, { value: "segments", label: "Groups" },
   { value: "emails", label: "Emails" }, { value: "changelog", label: "Changelog" }, { value: "activity", label: "Activity" },
 ];
 
@@ -188,6 +189,7 @@ export function App() {
       {tab === "overview" ? <Overview sending={!!me?.sending} /> : null}
       {tab === "inbox" ? <Inbox sending={!!me?.sending} onUnread={setUnread} /> : null}
       {tab === "contacts" ? <Contacts sending={!!me?.sending} onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
+      {tab === "waitlist" ? <Waitlist onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
       {tab === "segments" ? <Segments /> : null}
       {tab === "emails" ? <Emails sending={!!me?.sending} initial={draft} onOpened={() => setDraft(null)} /> : null}
       {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}

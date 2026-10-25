@@ -11,6 +11,7 @@ import { owner } from "./lib/access.mjs";
 import { sesSend } from "./lib/aws.mjs";
 import { message, reply } from "./lib/mail.mjs";
 import { address, decodeWords, readMessage } from "./lib/mime.mjs";
+import { waitlistChange } from "./lib/admin.mjs";
 import * as S from "./lib/store.mjs";
 
 const SECURITY = {
@@ -268,6 +269,43 @@ async function api(request, env, who, path) {
         body: `${entry.body}\n\n[See every change](https://oceanofjobs.com/docs/changelog)` });
       await S.audit(env, who, "changelog to email", { entry: sub, campaign: c.sk });
       return json(200, { campaign: c });
+    }
+  }
+
+  if (area === "waitlist") {
+    if (!sub && method === "GET") {
+      const [{ contacts }, counts] = await Promise.all([S.contacts(env, { fresh: q.fresh === "1" }), S.waitlistCounts(env)]);
+      const people = contacts.flatMap((c) => Object.entries(c.waiting || {}).map(([plan, w]) => ({
+        id: c.id, email: c.email, waitlist: plan, joined_at: w.joined_at, status: w.status,
+        newsletter: c.newsletter, plan: c.plan, license: c.license })))
+        .sort((a, b) => (a.joined_at || "").localeCompare(b.joined_at || ""));
+      return json(200, { counts, people });
+    }
+    if (!sub && method === "POST") {
+      const b = await body(request);
+      if (!["remove", "move", "cap"].includes(b.op)) return fail(400, "Unknown change.");
+      const out = await waitlistChange(env, { op: b.op, user_id: String(b.user_id || ""), plan: String(b.plan || ""),
+        ...(b.op === "cap" ? { cap: Number(b.cap) } : {}) });
+      S.dropCache();
+      await S.audit(env, who, "waitlist " + b.op, { contact: b.user_id || "", plan: b.plan || "", cap: b.cap ?? "" });
+      return json(200, out);
+    }
+    if (sub === "approve" && method === "POST") {
+      // Gives each their waitlist's plan as a license until the date, then
+      // marks them approved. Ten at a time: two subrequests each.
+      const b = await body(request);
+      const people = (Array.isArray(b.people) ? b.people : []).slice(0, 10);
+      const until = String(b.until || "");
+      if (!people.length) return fail(400, "Pick someone to approve.");
+      const done = [];
+      for (const p of people) {
+        const plan = p.plan === "basic" ? "basic" : "pro";
+        await S.setLicense(env, String(p.id), { plan, until, note: "Waitlist" }, who);
+        await waitlistChange(env, { op: "mark", user_id: String(p.id), plan, status: "approved" });
+        done.push(p.id);
+      }
+      await S.audit(env, who, "waitlist approve", { people: done, until });
+      return json(200, { approved: done });
     }
   }
 

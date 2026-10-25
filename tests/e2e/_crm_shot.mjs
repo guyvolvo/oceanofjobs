@@ -31,6 +31,11 @@ const API = {
     { sk: ago(0.02) + "#3", dir: "in", email: "noa@example.org", name: "Noa", subject: "Re: Try Ocean of Jobs Pro free", text: "Yes please, count me in.\n\nNoa", read: false, contact: "u2" },
     { sk: ago(0.5) + "#2", dir: "out", email: "omer.k@example.com", name: "Omer", subject: "Question about Workday", text: "Hi Omer, yes, Workday works. Add your Workday password in the extension's settings.", read: true, contact: "u1" },
     { sk: ago(0.6) + "#1", dir: "in", email: "omer.k@example.com", name: "Omer", subject: "Question about Workday", text: "Does the extension work on Workday sites?", read: true, contact: "u1", attachments: 1 }] },
+  "/api/waitlist": { counts: { pro: { cap: 100, taken: 3 } }, people: [
+    { id: "u1", email: "omer.k@example.com", waitlist: "pro", joined_at: ago(6), status: "approved", newsletter: true, plan: "pro", license: { plan: "pro", until: "2026-12-31" } },
+    { id: "u4", email: "amit@example.net", waitlist: "pro", joined_at: ago(2), status: "waiting", newsletter: true, plan: "free", license: null },
+    { id: "u2", email: "noa@example.org", waitlist: "basic", joined_at: ago(1), status: "waiting", newsletter: true, plan: "free", license: null },
+    { id: "u5", email: "lior@example.com", waitlist: "pro", joined_at: ago(0.3), status: "waiting", newsletter: false, plan: "free", license: null }] },
   "/api/audit": { entries: [{ sk: ago(0) + "#a", who: "guyvoloshin@gmail.com", action: "export", detail: { count: 7 } },
     { sk: ago(0.1) + "#b", who: "guyvoloshin@gmail.com", action: "test email", detail: { campaign: "c1" } }] },
   "/api/contacts/u2": { contact: contacts[2], activity: { alerts: 3, active_alerts: 2, saved: 12, applications: 5 },
@@ -57,7 +62,7 @@ for (const mode of ["dark", "light"]) {
   await ctx.addInitScript((m) => localStorage.setItem("crm_theme", m), mode);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
-  for (const tab of ["overview", "inbox", "contacts", "segments", "emails", "changelog", "activity"]) {
+  for (const tab of ["overview", "inbox", "contacts", "waitlist", "segments", "emails", "changelog", "activity"]) {
     await page.goto(`http://crm.local/#${tab}`);
     await page.reload();
     await page.waitForTimeout(700);

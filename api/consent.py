@@ -138,11 +138,8 @@ def join_waitlist(table, user_id: str, plan: str, email=None, now=None) -> dict:
         except table.meta.client.exceptions.ConditionalCheckFailedException:
             pass  # already waiting: joining twice keeps the first date
     else:
-        count = {"TableName": table.name, "Key": COUNTER, "UpdateExpression": "SET n = if_not_exists(n, :z) + :one",
-                 "ConditionExpression": "attribute_not_exists(n) OR n < :cap",
-                 "ExpressionAttributeValues": {":z": 0, ":one": 1, ":cap": CAPS[plan]}}
         try:
-            table.meta.client.transact_write_items(TransactItems=[{"Put": put}, {"Update": count}])
+            table.meta.client.transact_write_items(TransactItems=[{"Put": put}, {"Update": _take(table)}])
         except table.meta.client.exceptions.TransactionCanceledException as e:
             reasons = [r.get("Code") for r in e.response.get("CancellationReasons") or []]
             if reasons and reasons[0] == "ConditionalCheckFailed":
@@ -155,22 +152,100 @@ def join_waitlist(table, user_id: str, plan: str, email=None, now=None) -> dict:
     return state(table, user_id)
 
 
+def _take(table) -> dict:
+    """Counts one more Pro place, refused at the cap: the owner's own cap
+    on the counter row (set_cap) when there is one, else CAPS."""
+    return {"TableName": table.name, "Key": COUNTER, "UpdateExpression": "SET n = if_not_exists(n, :z) + :one",
+            "ConditionExpression": "attribute_not_exists(n) OR (attribute_not_exists(cap) AND n < :cap) OR n < cap",
+            "ExpressionAttributeValues": {":z": 0, ":one": 1, ":cap": CAPS["pro"]}}
+
+
+def _give_back(table) -> dict:
+    return {"TableName": table.name, "Key": COUNTER, "UpdateExpression": "SET n = n - :one", "ConditionExpression": "n > :z",
+            "ExpressionAttributeValues": {":one": 1, ":z": 0}}
+
+
 def counts(table) -> dict:
     """Places taken on each capped waitlist, for the website's counter."""
-    n = int((table.get_item(Key=COUNTER).get("Item") or {}).get("n", 0))
-    return {plan: {"cap": cap, "taken": n if cap else None} for plan, cap in CAPS.items()}
+    row = table.get_item(Key=COUNTER).get("Item") or {}
+    out = {plan: {"cap": cap, "taken": None} for plan, cap in CAPS.items()}
+    out["pro"] = {"cap": int(row.get("cap", CAPS["pro"])), "taken": int(row.get("n", 0))}
+    return out
+
+
+# The owner's changes, from the CRM through the signed /admin/waitlist
+# route (api/handler.py): the CRM can't write members' rows itself.
+
+def _tx(table, items: list) -> list | None:
+    """Runs the writes; on a failed condition, each item's cancellation code."""
+    try:
+        table.meta.client.transact_write_items(TransactItems=items)
+        return None
+    except table.meta.client.exceptions.TransactionCanceledException as e:
+        return [r.get("Code") for r in e.response.get("CancellationReasons") or []]
+
+
+def remove_from_waitlist(table, user_id: str, plan: str) -> None:
+    if plan not in PLANS:
+        raise ValueError("Pick the Basic or Pro plan.")
+    key = {"user_id": user_id, "alert_id": WAITLIST + plan}
+    if CAPS[plan] is None:
+        table.delete_item(Key=key)
+        return
+    # Not on it: nothing to delete, nothing to give back.
+    _tx(table, [{"Delete": {"TableName": table.name, "Key": key, "ConditionExpression": "attribute_exists(alert_id)"}},
+                {"Update": _give_back(table)}])
+
+
+def move_waitlist(table, user_id: str, to: str, now=None) -> None:
+    """Moves a member between the two waitlists, keeping their join date;
+    onto Pro only while there is a place."""
+    if to not in PLANS:
+        raise ValueError("Pick the Basic or Pro plan.")
+    frm = "basic" if to == "pro" else "pro"
+    old = table.get_item(Key={"user_id": user_id, "alert_id": WAITLIST + frm}).get("Item")
+    if not old:
+        raise ValueError(f"They aren't on the {frm.title()} waitlist.")
+    new = {**old, "alert_id": WAITLIST + to, "plan": to, "moved_at": _now(now)}
+    gone = {"Delete": {"TableName": table.name, "Key": {"user_id": user_id, "alert_id": WAITLIST + frm},
+                       "ConditionExpression": "attribute_exists(alert_id)"}}
+    if to == "pro":
+        reasons = _tx(table, [{"Put": {"TableName": table.name, "Item": new, "ConditionExpression": "attribute_not_exists(alert_id)"}},
+                              {"Update": _take(table)}, gone])
+        if reasons and reasons[0] == "ConditionalCheckFailed":
+            raise ValueError("They're already on the Pro waitlist.")
+        if reasons and len(reasons) > 1 and reasons[1] == "ConditionalCheckFailed":
+            raise WaitlistFull("The Pro waitlist is full.")
+    else:
+        reasons = _tx(table, [{"Put": {"TableName": table.name, "Item": new}}, {"Update": _give_back(table)}, gone])
+    if reasons and "ConditionalCheckFailed" not in reasons:
+        raise RuntimeError(f"moving the waitlist failed: {reasons}")
+
+
+STATUSES = ("waiting", "approved")
+
+
+def mark_waitlist(table, user_id: str, plan: str, status: str, now=None) -> None:
+    if plan not in PLANS or status not in STATUSES:
+        raise ValueError("Unknown plan or status.")
+    try:
+        table.update_item(Key={"user_id": user_id, "alert_id": WAITLIST + plan}, UpdateExpression="SET #s = :s, status_at = :t",
+                          ConditionExpression="attribute_exists(alert_id)", ExpressionAttributeNames={"#s": "status"},
+                          ExpressionAttributeValues={":s": status, ":t": _now(now)})
+    except table.meta.client.exceptions.ConditionalCheckFailedException:
+        raise ValueError(f"They aren't on the {plan.title()} waitlist.") from None
+
+
+def set_cap(table, cap) -> None:
+    if not isinstance(cap, int) or isinstance(cap, bool) or not 0 <= cap <= 100000:
+        raise ValueError("The limit must be a whole number from 0.")
+    table.update_item(Key=COUNTER, UpdateExpression="SET cap = :c", ExpressionAttributeValues={":c": cap})
 
 
 def forget(table, user_id: str) -> None:
     """Deleting the account: the agreement, the newsletter choice and the
     waitlists go with everything else, and a Pro place is given back."""
-    gone = table.delete_item(Key={"user_id": user_id, "alert_id": WAITLIST + "pro"}, ReturnValues="ALL_OLD").get("Attributes")
-    if gone:
-        try:
-            table.update_item(Key=COUNTER, UpdateExpression="SET n = n - :one", ConditionExpression="n > :z",
-                              ExpressionAttributeValues={":one": 1, ":z": 0})
-        except table.meta.client.exceptions.ConditionalCheckFailedException:
-            pass
+    remove_from_waitlist(table, user_id, "pro")
     keys = [CONSENT, EMAIL] + [WAITLIST + plan for plan in PLANS]
     with table.batch_writer() as batch:
         for key in keys:

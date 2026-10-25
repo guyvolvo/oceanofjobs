@@ -75,6 +75,8 @@ export async function contacts(env, { fresh = false } = {}) {
       plan: planOf(own["#plan"], own["#grant"]),
       license: own["#grant"] && own["#grant"].plan !== "free" ? { plan: own["#grant"].plan, until: own["#grant"].until || "" } : null,
       waitlist: ["basic", "pro"].filter((p) => own["#waitlist#" + p]),
+      waiting: Object.fromEntries(["basic", "pro"].filter((p) => own["#waitlist#" + p])
+        .map((p) => [p, { joined_at: own["#waitlist#" + p].joined_at || null, status: own["#waitlist#" + p].status || "waiting" }])),
       tags: tags[sub] || [],
     };
   });
@@ -160,6 +162,13 @@ export async function resetCredits(env, uid, key, charged, who) {
     if (e.type && e.type.includes("ConditionalCheckFailed")) throw Object.assign(new Error("The credits changed since you opened this. Reload and try again."), { status: 409 });
     throw e;
   }
+}
+
+// The Pro waitlist's places: the counter api/consent.py keeps.
+export async function waitlistCounts(env) {
+  const r = await ddb(env, "GetItem", { TableName: env.ALERTS_TABLE, Key: item({ user_id: "#waitlist", alert_id: "#count#pro" }) });
+  const row = plain(r.Item);
+  return { pro: { cap: Number(row.cap ?? 100), taken: Number(row.n || 0) } };
 }
 
 // The CRM table.

@@ -76,3 +76,9 @@ body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-
 .crm-msg { padding: 12px 14px; border-radius: 10px; background: var(--color-kumo-recessed); }
 .crm-msg.out { margin-left: 32px; background: var(--color-kumo-tint); }
 .crm-msg-text { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.crm-stat b small { color: var(--text-color-kumo-subtle); font-size: 16px; font-weight: 500; }
+.wl-meter { display: block; height: 4px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: var(--color-kumo-fill); }
+.wl-meter i { display: block; height: 100%; border-radius: inherit; background: var(--color-kumo-brand); }
+.crm-chip.ok { background: color-mix(in srgb, var(--color-kumo-brand) 22%, transparent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.crm-num { width: 120px; }

@@ -140,6 +140,41 @@ with mock_aws():
     check("and someone else can take it", s == 200 and row("p4", "#waitlist#pro"))
     consent.CAPS["pro"] = 100
 
+    # The CRM's changes: only with its signature, and the cap still holds.
+    import hashlib, hmac, time  # noqa: E401
+    def admin(payload, sig=None, ts=None):
+        body = json.dumps(payload)
+        ts = int(time.time()) if ts is None else ts
+        key = hmac.new(b"s3cret", b"ooj-crm-admin-v1", hashlib.sha256).digest()
+        good = hmac.new(key, f"{ts}\n{body}".encode(), hashlib.sha256).hexdigest()
+        event = {"rawPath": "/api/admin/waitlist", "rawQueryString": "", "body": body,
+                 "headers": {"X-OOJ-Time": str(ts), "X-OOJ-Sig": good if sig is None else sig},
+                 "requestContext": {"http": {"method": "POST"}, "authorizer": {"jwt": {"claims": {}}}}}
+        r = handler.lambda_handler(event, None)
+        return r["statusCode"], json.loads(r["body"] or "null")
+    check("unsigned admin requests are not found", admin({"op": "cap", "cap": 5}, sig="0" * 64)[0] == 404)
+    check("old signatures are not accepted", admin({"op": "cap", "cap": 5}, ts=int(time.time()) - 600)[0] == 404)
+    taken = consent.counts(table)["pro"]["taken"]
+    s, out = admin({"op": "cap", "cap": taken})
+    check("the owner can change the Pro limit", s == 200 and out["counts"]["pro"] == {"cap": taken, "taken": taken}, out)
+    s, out = admin({"op": "move", "user_id": "p4", "plan": "pro"})
+    check("moving to a full Pro waitlist is refused", s in (400, 409), (s, out))
+    s, out = admin({"op": "move", "user_id": "p1", "plan": "basic"})
+    check("moving Pro to Basic gives the place back, keeping the join date",
+          s == 200 and out["counts"]["pro"]["taken"] == taken - 1 and not row("p1", "#waitlist#pro")
+          and row("p1", "#waitlist#basic").get("joined_at"), out)
+    s, out = admin({"op": "move", "user_id": "p1", "plan": "pro"})
+    check("and back again takes it", s == 200 and out["counts"]["pro"]["taken"] == taken and row("p1", "#waitlist#pro"), out)
+    s, _ = admin({"op": "mark", "user_id": "p1", "plan": "pro", "status": "approved"})
+    check("approving marks the row", s == 200 and row("p1", "#waitlist#pro").get("status") == "approved")
+    s, _ = admin({"op": "mark", "user_id": "nobody", "plan": "pro", "status": "approved"})
+    check("but not someone who isn't waiting", s == 400 and not row("nobody", "#waitlist#pro"))
+    s, out = admin({"op": "remove", "user_id": "p1", "plan": "pro"})
+    check("removing frees the place", s == 200 and out["counts"]["pro"]["taken"] == taken - 1 and not row("p1", "#waitlist#pro"), out)
+    s, out = admin({"op": "remove", "user_id": "p1", "plan": "pro"})
+    check("removing twice frees it once", out["counts"]["pro"]["taken"] == taken - 1, out)
+    admin({"op": "cap", "cap": 100})
+
     # Deleting the account takes these rows too.
     s, _ = call("cy", "DELETE", "/me/consent")
     left = [i["alert_id"] for i in table.scan()["Items"] if i["user_id"] == "cy"]

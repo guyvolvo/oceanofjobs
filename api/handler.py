@@ -16,6 +16,8 @@ project's original "no accounts" framing minus the few features that
 genuinely needed one -- see PRODUCT.md.
 """
 
+import hashlib
+import hmac
 import json
 from collections import Counter
 import sqlite3
@@ -50,6 +52,7 @@ import apply
 import agent
 import attempts
 import consent
+import unsubscribe_token
 import user_files
 import paddle
 import tokens
@@ -672,6 +675,31 @@ def lambda_handler(event, context):
                                        email=claims.get("email") if email_is_verified(claims) else None)
                 return _response(200, json.dumps(consent.state(_alerts_table, claims["sub"])))
             return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/admin/waitlist" and method == "POST":
+            # The CRM's waitlist changes, signed with a key only it and
+            # this server can make (_admin_signed); everything else 404s.
+            if not _admin_signed(event):
+                return _response(404, json.dumps({"error": "not found"}))
+            body = json.loads(event.get("body") or "{}")
+            op, uid, plan = body.get("op"), str(body.get("user_id") or ""), str(body.get("plan") or "")
+            try:
+                if op == "remove":
+                    consent.remove_from_waitlist(_alerts_table, uid, plan)
+                elif op == "move":
+                    consent.move_waitlist(_alerts_table, uid, plan)
+                elif op == "mark":
+                    consent.mark_waitlist(_alerts_table, uid, plan, str(body.get("status") or ""))
+                elif op == "cap":
+                    consent.set_cap(_alerts_table, body.get("cap"))
+                else:
+                    return _response(400, json.dumps({"error": "unknown op"}))
+            except consent.WaitlistFull as e:
+                return _response(409, json.dumps({"error": str(e), "code": "waitlist_full"}))
+            except ValueError as e:
+                return _response(400, json.dumps({"error": str(e)}))
+            resp = _response(200, json.dumps({"ok": True, "counts": consent.counts(_alerts_table)}))
+            resp["headers"]["Cache-Control"] = "no-store"
+            return resp
         if path == "/me/waitlist":
             # A paid plan's waitlist, from the pricing page.
             claims = _authenticated_claims(event)
@@ -1132,6 +1160,24 @@ def _query_params(event) -> dict:
     raw = event.get("rawQueryString") or ""
     parsed = parse_qs(raw, keep_blank_values=True)
     return {k: v[-1] for k, v in parsed.items()}
+
+
+def _admin_signed(event) -> bool:
+    """A request from the CRM (crm/lib/admin.mjs): X-OOJ-Sig is an HMAC of
+    "<X-OOJ-Time>\n<body>" under a key derived from the unsubscribe secret
+    both already hold, and the time is within five minutes."""
+    if not unsubscribe_token.SECRET:
+        return False
+    h = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+    try:
+        ts = int(h.get("x-ooj-time") or "")
+    except ValueError:
+        return False
+    if abs(time.time() - ts) > 300:
+        return False
+    key = hmac.new(unsubscribe_token.SECRET.encode(), b"ooj-crm-admin-v1", hashlib.sha256).digest()
+    want = hmac.new(key, f"{ts}\n{event.get('body') or ''}".encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(want, str(h.get("x-ooj-sig") or ""))
 
 
 def _response(status: int, body: str, cache_seconds: int | None = None, edge: str | None = None):
