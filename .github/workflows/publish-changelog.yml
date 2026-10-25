@@ -1,0 +1,60 @@
+name: publish-changelog
+
+# A changelog entry from the CRM (crm/worker.mjs): added to the docs'
+# changelog page, committed to main, and the site deployed. The CRM's
+# token can only start workflows (Actions: write), never push code; this
+# workflow's own token does the commit. The inputs reach the script only
+# through the environment, never spliced into a shell line.
+
+on:
+  workflow_dispatch:
+    inputs:
+      id: { description: "The CRM's entry id", required: true, type: string }
+      date: { description: "YYYY-MM-DD", required: true, type: string }
+      title: { description: "Title", required: true, type: string }
+      body: { description: "What changed (Markdown)", required: true, type: string }
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: publish-changelog
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Add the entry
+        env:
+          ID: ${{ inputs.id }}
+          DATE: ${{ inputs.date }}
+          TITLE: ${{ inputs.title }}
+          BODY: ${{ inputs.body }}
+        run: python3 scripts/add_changelog_entry.py
+
+      - name: Commit
+        id: commit
+        env:
+          TITLE: ${{ inputs.title }}
+        run: |
+          git config user.name "ooj-crm"
+          git config user.email "info@oceanofjobs.com"
+          git add docs/content/docs/changelog.mdx
+          if git diff --cached --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git commit -m "Changelog: ${TITLE:0:100}"
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # A push made with this workflow's own token starts no other workflow,
+      # so the site deploy is started by name.
+      - name: Deploy the site
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-frontend.yml --ref main

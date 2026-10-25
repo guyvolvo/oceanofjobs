@@ -54,3 +54,4 @@ bench-result.json
 
 # Claude Design sync output, rebuilt by .design-sync/build.mjs
 ds-bundle/
+crm/dist/
