@@ -9,6 +9,7 @@ import { Table } from "@cloudflare/kumo/components/table";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Checkbox } from "@cloudflare/kumo/components/checkbox";
+import { Switch } from "@cloudflare/kumo/components/switch";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus } from "@phosphor-icons/react";
 import { ApiError, api, send } from "../api";
@@ -216,6 +217,38 @@ function Tokens() {
   );
 }
 
+// The newsletter: product updates and new features, opt-in (api/consent.py).
+// Every newsletter email links here. A server without the route hides it.
+function Newsletter() {
+  const toasts = useKumoToastManager();
+  const [on, setOn] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api<{ newsletter: boolean }>("/me/consent").then((s) => setOn(!!s.newsletter), () => setOn(null));
+  }, []);
+  if (on === null) return null;
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      const s = await api<{ newsletter: boolean }>("/me/email", send("PUT", { newsletter: !on }));
+      setOn(!!s.newsletter);
+      toasts.add({ variant: "success", title: s.newsletter ? "Subscribed to product updates" : "Unsubscribed from product updates" });
+    } catch {
+      toasts.add({ variant: "error", title: "Couldn't change that. Try again." });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="oj-row oj-row-between" id="newsletter">
+      <span className="oj-pref-text"><span className="oj-pref-label">Product updates</span>
+        <span className="oj-note">Emails about new features and product updates. Job alerts are set separately.</span></span>
+      <Switch size="sm" checked={on} disabled={busy} label={on ? "On" : "Off"}
+        aria-label={on ? "Product update emails on. Turn them off" : "Product update emails off. Turn them on"} onClick={toggle} />
+    </div>
+  );
+}
+
 // Everything the account holds, one request at a time, then the profile
 // emptied (an empty profile is the same shape as never having had one).
 async function deleteEverything() {
@@ -256,6 +289,7 @@ export function Settings({ email, logOut }: { email: string; logOut: () => void 
     <div className="oj-stack">
       <Card>
         <div className="oj-row oj-row-between"><span className="oj-pref-text"><span className="oj-pref-label">Email</span><span className="oj-note oj-wrap">{email}</span></span></div>
+        <Newsletter />
         <div className="oj-row oj-row-between">
           <span className="oj-pref-label">Theme</span>
           {/* Clicks the header's own theme button, which owns the switch and the storage key. */}

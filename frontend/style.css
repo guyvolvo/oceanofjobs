@@ -3570,6 +3570,24 @@ body.explore-busy .explore-metric { color: var(--green-text); }
 .signin-provider { height: 40px; border: 1px solid var(--panel-line); background: transparent; color: var(--black); }
 .signin-provider:hover, .signin-back:hover, .signin-close:hover { background: var(--hover-bg); }
 .signin-foot { margin: 20px 0 0; text-align: center; font-size: 13px; color: var(--grey); }
+/* The terms box (required) and the newsletter box (optional), above the
+   ways in, so both apply to email, Google and GitHub alike. */
+.signin-consent { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.signin-consent[hidden] { display: none; }
+.signin-check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.4; color: var(--black); cursor: pointer; }
+.signin-check input { flex: none; width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--green); }
+.signin-dialog .signin-check a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.signin-consent + .auth-error { margin: -8px 0 12px; }
+/* An account that hasn't agreed to the current terms (hero_account.js). */
+.consent-banner { position: fixed; left: 50%; bottom: 16px; z-index: 60; translate: -50% 0; display: flex; align-items: center; gap: 12px;
+  width: max-content; max-width: calc(100vw - 32px); padding: 10px 10px 10px 16px; border: 1px solid var(--grey-line); border-radius: 12px;
+  background: var(--white); color: var(--black); font-size: 14px; line-height: 1.4; }
+.consent-banner-go { flex: none; height: 34px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--black); color: var(--white);
+  font: 500 13px var(--font); cursor: pointer; }
+.consent-banner-x { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 999px; background: none;
+  color: var(--grey); cursor: pointer; }
+.consent-banner-x:hover { background: var(--hover-bg); color: var(--black); }
+@media (max-width: 560px) { .consent-banner { flex-wrap: wrap; } }
 .signin-back { align-self: center; padding: 6px 10px; border: 0; background: none; color: var(--black); font-size: 14px; }
 .signin-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border: 0; background: none; color: var(--grey); }
 .signin-close:hover { color: var(--black); }
@@ -4410,6 +4428,9 @@ a.hero-account-btn { text-decoration: none; }
   transition: background-color 150ms ease;
 }
 .home-soft:hover { background: var(--h-soft-hover); }
+/* The waitlist buttons are buttons, not links. */
+button.home-pill, button.home-soft { border: 0; cursor: pointer; }
+button.home-pill:disabled, button.home-soft:disabled { cursor: default; opacity: 0.7; }
 .home-soft-sm { height: 42px; padding: 0 18px; font-size: 14px; }
 .home-pill-md { gap: 10px; height: 46px; padding: 0 22px; font-size: 15px; }
 .home-soft-md { height: 46px; padding: 0 20px; font-size: 15px; }

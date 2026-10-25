@@ -25,6 +25,10 @@ function openSignIn() {
         <h2 id="signin-title">${EMAIL_TITLE}</h2>
         <p id="signin-sub">${EMAIL_SUB}</p>
       </div>
+      <div class="signin-consent" id="signin-consent">
+        <label class="signin-check"><input type="checkbox" id="signin-terms"> <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></span></label>
+        <label class="signin-check"><input type="checkbox" id="signin-news"> <span>Email me about new features and product updates</span></label>
+      </div>
       <form class="signin-form" id="signin-email-form">
         <label for="signin-email-input">Email</label>
         <input type="email" id="signin-email-input" name="email" placeholder="you@example.com" required autocomplete="email" spellcheck="false" autocapitalize="off" />
@@ -72,11 +76,30 @@ function openSignIn() {
   };
   setAuthErrorSink(showError);
   const clear = () => { err.hidden = true; };
+  // The terms box: asked once per browser and policy version. Its choices
+  // wait in localStorage for the first page that loads signed in, which
+  // also covers Google and GitHub, whose sign-in leaves this page.
+  const consent = $("signin-consent");
+  consent.hidden = consentAgreedHere();
+  const agreed = () => {
+    if (consent.hidden) return true;
+    if ($("signin-terms").checked) {
+      rememberConsent($("signin-news").checked);
+      return true;
+    }
+    consent.after(err);
+    err.textContent = "Agree to the Terms of Service and Privacy Policy to continue.";
+    err.hidden = false;
+    $("signin-terms").focus();
+    return false;
+  };
+  $("signin-terms").addEventListener("change", () => { if ($("signin-terms").checked) clear(); });
   const step = (code) => {
     clear();
     emailForm.hidden = code;
     otpForm.hidden = !code;
     $("signin-other").hidden = code;
+    consent.hidden = code || consentAgreedHere();
     $("signin-back").hidden = !code;
     const sub = $("signin-sub");
     if (code) {
@@ -98,11 +121,12 @@ function openSignIn() {
   wrap.addEventListener("click", (e) => { if (e.target === wrap) close(); });
   $("signin-close").addEventListener("click", close);
   $("signin-back").addEventListener("click", () => step(false));
-  $("signin-google").addEventListener("click", () => { clear(); startGoogleSignIn(); });
-  $("signin-github").addEventListener("click", () => { clear(); startGithubSignIn(); });
+  $("signin-google").addEventListener("click", () => { clear(); if (agreed()) startGoogleSignIn(); });
+  $("signin-github").addEventListener("click", () => { clear(); if (agreed()) startGithubSignIn(); });
   emailForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     clear();
+    if (!agreed()) return;
     const btn = emailForm.querySelector("button");
     btn.disabled = true;
     try {

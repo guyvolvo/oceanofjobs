@@ -16,3 +16,5 @@ declare let authRenderSink: () => void;
 declare function handleAuthRedirect(): Promise<void>;
 declare function signOut(): void;
 declare function getAuthTokens(): { id_token: string; access_token: string; refresh_token: string } | null;
+declare function consentAgreedHere(): boolean;
+declare function rememberConsent(newsletter: boolean): void;

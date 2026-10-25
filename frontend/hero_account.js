@@ -38,6 +38,7 @@
     chat: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M2.5 3h11v8h-6l-3 2.5V11h-2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
     sun: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9L13 13M13 3l-1.1 1.1M4.1 11.9L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     moon: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M13.5 9.5A5.6 5.6 0 0 1 6.5 2.5a5.6 5.6 0 1 0 7 7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    close: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
     out: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M6 2.5H3v11h3M10 5l3 3-3 3M13 8H6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   };
 
@@ -55,6 +56,7 @@
       document.getElementById("hero-signin").addEventListener("click", () => window.openSignIn());
       return;
     }
+    checkConsent();
     // Their Google photo when they signed in that way, the first letter
     // of the address otherwise. avatarHtml in auth.js decides which.
     const avatar = avatarHtml(who, t.id_token);
@@ -106,6 +108,93 @@
   if (themeBtn) {
     themeBtn.addEventListener("click", () => { toggleTheme(); paintThemeBtn(); });
     paintThemeBtn();
+  }
+
+  // The terms. The sign-in window's choices go to the account here, on the
+  // first page that loads signed in; a member who signed up before it asked
+  // gets a banner, and once api/consent.py's lock date passes, a window that
+  // stays until they agree or log out (their account can't start anything
+  // new until then). Once per page load.
+  let consentChecked = false;
+  async function checkConsent() {
+    if (consentChecked) return;
+    consentChecked = true;
+    try {
+      const state = await syncConsent();
+      if (state && !state.agreed) askConsent(state);
+    } catch {}
+  }
+  function lockDate(state) {
+    const d = new Date(state.lock_from + "T00:00:00Z");
+    return d.getUTCFullYear() > 3000 ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  }
+  function askConsent(state) {
+    const locked = new Date().toISOString().slice(0, 10) >= state.lock_from;
+    if (locked) return openConsent(state, true);
+    if (document.getElementById("consent-banner")) return;
+    const by = lockDate(state);
+    const banner = document.createElement("div");
+    banner.id = "consent-banner";
+    banner.className = "consent-banner";
+    banner.setAttribute("role", "region");
+    banner.setAttribute("aria-label", "Updated terms");
+    banner.innerHTML = `<span>We've updated our Terms of Service and Privacy Policy.${by ? ` Agree by ${esc(by)} to keep using your account.` : ""}</span>
+      <button type="button" class="consent-banner-go">Review and agree</button>
+      <button type="button" class="consent-banner-x" aria-label="Hide until the next page">${icons.close}</button>`;
+    document.body.appendChild(banner);
+    banner.querySelector(".consent-banner-go").addEventListener("click", () => openConsent(state, false));
+    banner.querySelector(".consent-banner-x").addEventListener("click", () => banner.remove());
+  }
+  function openConsent(state, locked) {
+    if (document.getElementById("consent-scrim")) return;
+    const wrap = document.createElement("div");
+    wrap.id = "consent-scrim";
+    wrap.className = "signin-scrim";
+    wrap.innerHTML = `
+      <div class="signin-dialog" role="dialog" aria-modal="true" aria-labelledby="consent-title" aria-describedby="consent-sub">
+        <img class="signin-mark" src="/favicon.svg?v=3" width="44" height="44" alt="" />
+        <div class="signin-head">
+          <h2 id="consent-title">We've updated our terms</h2>
+          <p id="consent-sub">Agree to the updated Terms of Service and Privacy Policy to keep using your account.</p>
+        </div>
+        <div class="signin-consent">
+          <label class="signin-check"><input type="checkbox" id="consent-terms"> <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></span></label>
+          <label class="signin-check"><input type="checkbox" id="consent-news"${state.newsletter ? " checked" : ""}> <span>Email me about new features and product updates</span></label>
+        </div>
+        <p class="auth-error" id="consent-error" role="alert" hidden></p>
+        <button class="signin-primary" type="button" id="consent-go">Continue</button>
+        <button class="signin-back" type="button" id="consent-out">Log out</button>
+        ${locked ? "" : `<button type="button" class="signin-close" id="consent-close" aria-label="Close">${icons.close}</button>`}
+      </div>`;
+    document.body.appendChild(wrap);
+    const $ = (id) => document.getElementById(id);
+    const close = () => { wrap.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape" && !locked) close(); };
+    document.addEventListener("keydown", onKey);
+    if (!locked) $("consent-close").addEventListener("click", close);
+    $("consent-out").addEventListener("click", () => { close(); signOut(); });
+    $("consent-terms").addEventListener("change", () => { if ($("consent-terms").checked) $("consent-error").hidden = true; });
+    $("consent-go").addEventListener("click", async () => {
+      const err = $("consent-error");
+      if (!$("consent-terms").checked) {
+        err.textContent = "Agree to the Terms of Service and Privacy Policy to continue.";
+        err.hidden = false;
+        $("consent-terms").focus();
+        return;
+      }
+      $("consent-go").disabled = true;
+      try {
+        await authedFetch("/me/consent", { method: "POST", body: JSON.stringify({ newsletter: $("consent-news").checked, via: "prompt" }) });
+        try { localStorage.setItem(CONSENT_AGREED_KEY, CONSENT_VERSION); } catch {}
+        document.getElementById("consent-banner")?.remove();
+        close();
+      } catch {
+        err.textContent = "Couldn't save that. Try again.";
+        err.hidden = false;
+        $("consent-go").disabled = false;
+      }
+    });
+    $("consent-terms").focus();
   }
 
   setAuthRenderSink(render);

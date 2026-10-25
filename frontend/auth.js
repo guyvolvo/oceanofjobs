@@ -145,6 +145,9 @@ function forgetLocalReaderData() {
   try {
     localStorage.removeItem("iljobs_starred");
     localStorage.removeItem("iljobs_saved_merged");
+    // The next person to sign in here is asked for the terms themselves.
+    localStorage.removeItem("ooj_terms_agreed");
+    localStorage.removeItem("ooj_consent_pending");
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith("iljobs_jobs_cache")) localStorage.removeItem(key);
     }
@@ -419,6 +422,37 @@ async function handleAuthRedirect() {
       console.error("Google sign-in failed:", err);
     }
   }
+}
+
+// The terms and privacy policy version members agree to (api/consent.py
+// VERSION), what the sign-in window remembers once this browser agreed,
+// and the choices it hands to the first page that loads signed in.
+const CONSENT_VERSION = "2026-10-25";
+const CONSENT_AGREED_KEY = "ooj_terms_agreed";
+const CONSENT_PENDING_KEY = "ooj_consent_pending";
+
+function consentAgreedHere() {
+  try { return localStorage.getItem(CONSENT_AGREED_KEY) === CONSENT_VERSION; } catch { return false; }
+}
+function rememberConsent(newsletter) {
+  try { localStorage.setItem(CONSENT_PENDING_KEY, JSON.stringify({ version: CONSENT_VERSION, newsletter: !!newsletter })); } catch {}
+}
+// After sign-in: the choices from the sign-in window go to the account. A
+// member who signed in before the window asked gets asked here
+// (hero_account.js shows the prompt). Resolves to the server's state, or
+// null when it is already known to be agreed.
+async function syncConsent() {
+  let pending = null;
+  try { pending = JSON.parse(localStorage.getItem(CONSENT_PENDING_KEY) || "null"); } catch {}
+  if (pending && pending.version === CONSENT_VERSION) {
+    const state = await authedFetch("/me/consent", { method: "POST", body: JSON.stringify({ newsletter: pending.newsletter, via: "signin" }) });
+    try { localStorage.removeItem(CONSENT_PENDING_KEY); localStorage.setItem(CONSENT_AGREED_KEY, CONSENT_VERSION); } catch {}
+    return state;
+  }
+  if (consentAgreedHere()) return null;
+  const state = await authedFetch("/me/consent");
+  if (state.agreed) try { localStorage.setItem(CONSENT_AGREED_KEY, CONSENT_VERSION); } catch {}
+  return state;
 }
 
 // A signed-in request to /api, refreshing the id_token first when it is

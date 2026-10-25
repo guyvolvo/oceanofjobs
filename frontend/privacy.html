@@ -119,6 +119,10 @@
         <h3>Personal access tokens</h3>
         <p>You can create personal access tokens for the MCP server, and connecting the extension creates one. For each token we store its name, its last four characters, when it was created and last used, and a one-way hash of it. The token itself is shown to you once and is not stored. Revoking a token deletes its record.</p>
 
+        <h3>Terms, newsletter and waitlists</h3>
+        <p>When you agree to our Terms of Service and Privacy Policy, we record the date and the version you agreed to.</p>
+        <p>If you tick the newsletter box when you sign up, turn the newsletter on in your account settings, or join a paid plan's waitlist, we store your email address and that choice, and we may email you about new features and product updates. Joining a plan's waitlist subscribes you to the newsletter. Every email has a link to unsubscribe, and you can turn the newsletter off in your account settings at any time. Unsubscribing keeps you on the waitlist, so we can still tell you when that plan launches.</p>
+
         <h3>Browser extension and automatic applications</h3>
         <p>If you use automatic applications, your account also stores your application profile: contact details, links, work authorization, salary expectations, the answers you save for application questions, and, only if you choose to fill them in, demographic answers such as gender or veteran status. It is kept so the extension can use it on any computer you sign in on, and you can edit or delete it on your account page.</p>
         <p>By default, your resume file, Workday password and any AI provider key stay in the extension on your device, in local storage, and are never sent to us. If you choose cloud storage in the extension's settings, or upload your resume in your Auto apply settings, they are saved to your account instead, so the extension can use them on any computer you sign in on. The resume file is stored in Amazon S3 and the password and key in our database, all encrypted with a key held in AWS Key Management Service. Only the extension can read the password and key back; our website only shows that they are saved. Switching back to local storage deletes them from our servers. Separately, your resume's text is saved if you add it to your AI agent (see "Your resume for your AI agent" above). When the extension applies to a job, it sends your details and resume only to that employer's application form. If you add an AI provider key, the extension sends application questions and relevant profile details to that provider using your key. We record which jobs you applied to and how many applications you have used, so you can see your history and your plan's monthly limit can be counted. When you send a form with the extension's button on a site it has no dedicated filler for, the history keeps that page's title and address.</p>
@@ -206,5 +210,6 @@
   <script src="hero_nav.js"></script>
   <script src="mobile_nav.js"></script>
   <script src="upstream.js"></script>
+  <script src="waitlist.js"></script>
 </body>
 </html>

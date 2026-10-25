@@ -5,6 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNod
 import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Button, LinkButton } from "@cloudflare/kumo/components/button";
 import { Input } from "@cloudflare/kumo/components/input";
+import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { ArrowLeft, ArrowRight, Bell, GithubLogo, UploadSimple } from "@phosphor-icons/react";
@@ -59,8 +60,21 @@ function SignIn() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // The same two boxes as the site's sign-in window (signin_dialog.js):
+  // asked once per browser and policy version, kept for after sign-in.
+  const [asked] = useState(() => !consentAgreedHere());
+  const [terms, setTerms] = useState(false);
+  const [news, setNews] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+  const agreed = () => {
+    if (!asked) return true;
+    if (!terms) { setTermsError(true); return false; }
+    rememberConsent(news);
+    return true;
+  };
   useEffect(() => { setAuthErrorSink(setError); }, []);
   const sendCode = async () => {
+    if (!agreed()) return;
     setError(""); setBusy(true);
     try { await startEmailSignIn(email.trim()); setStep("code"); } catch { setError(SEND_CODE_FAILED); } finally { setBusy(false); }
   };
@@ -85,6 +99,14 @@ function SignIn() {
         </div>
         {step === "email" ? (
           <>
+            {asked ? (
+              <div className="oj-signin-consent">
+                <Checkbox checked={terms} onCheckedChange={(c) => { setTerms(c === true); if (c === true) setTermsError(false); }}
+                  label={<span>I agree to the <a className="oj-link" href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a className="oj-link" href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></span>} />
+                <Checkbox checked={news} onCheckedChange={(c) => setNews(c === true)} label="Email me about new features and product updates" />
+                {termsError ? <p className="oj-error" role="alert">Agree to the Terms of Service and Privacy Policy to continue.</p> : null}
+              </div>
+            ) : null}
             <form className="oj-signin-form" onSubmit={(e) => { e.preventDefault(); sendCode(); }}>
               <Input label="Email" type="email" name="email" placeholder="you@example.com" required autoComplete="email"
                 spellCheck={false} autoCapitalize="off" value={email} onChange={(e) => setEmail(e.target.value)} error={error || undefined} />
@@ -92,8 +114,8 @@ function SignIn() {
             </form>
             <div className="oj-divider"><span>or</span></div>
             <div className="oj-signin-providers">
-              <Button variant="secondary" icon={GOOGLE} aria-label="Continue with Google" onClick={() => { setError(""); startGoogleSignIn(); }}>Google</Button>
-              <Button variant="secondary" icon={<GithubLogo weight="fill" />} aria-label="Continue with GitHub" onClick={() => { setError(""); startGithubSignIn(); }}>GitHub</Button>
+              <Button variant="secondary" icon={GOOGLE} aria-label="Continue with Google" onClick={() => { setError(""); if (agreed()) startGoogleSignIn(); }}>Google</Button>
+              <Button variant="secondary" icon={<GithubLogo weight="fill" />} aria-label="Continue with GitHub" onClick={() => { setError(""); if (agreed()) startGithubSignIn(); }}>GitHub</Button>
             </div>
             <p className="oj-signin-foot">New here? Logging in creates your account.</p>
           </>
