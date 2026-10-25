@@ -249,3 +249,54 @@ test("a message has a text part and the sender", async () => {
   assert.ok(m.Content.Simple.Body.Text.Data.includes("Hello site (https://oceanofjobs.com)"));
   assert.ok(m.Content.Simple.Body.Text.Data.includes("Unsubscribe: https://oceanofjobs.com/api/alerts/unsubscribe?u=u&a=%23email&t="));
 });
+
+test("mail to info@: text from multipart, base64 and quoted-printable, encoded headers", async () => {
+  const { readMessage, address, decodeWords } = await import("../lib/mime.mjs");
+  const qpMsg = "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nCaf=C3=A9 is =\r\nfine";
+  assert.equal(readMessage(qpMsg).text, "Café is fine");
+  const b = "Content-Type: multipart/mixed; boundary=\"xx\"\r\n\r\n--xx\r\nContent-Type: multipart/alternative; boundary=yy\r\n\r\n--yy\r\n"
+    + "Content-Type: text/html\r\n\r\n<p>html</p>\r\n--yy\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+    + Buffer.from("Yes, count me in").toString("base64") + "\r\n--yy--\r\n--xx\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment\r\n\r\nJVBE\r\n--xx--";
+  assert.deepEqual(readMessage(b), { text: "Yes, count me in", attachments: 1 });
+  assert.equal(readMessage("Content-Type: text/html\r\n\r\n<div>Hi<br>there &amp; <script>x</script></div>").text, "Hi\nthere &");
+  assert.equal(decodeWords("=?UTF-8?B?16nXnNeV150=?= there"), "שלום there");
+  assert.deepEqual(address('"Dana Levi" <Dana@Example.com>'), { name: "Dana Levi", email: "dana@example.com" });
+});
+
+test("the inbox: mail is forwarded and saved, replies thread and need sending on", async () => {
+  _resetKeys();
+  dropCache();
+  const state = { users: [user("u1", "owner@example.com"), user("u2", "a@example.com")], alerts: [], crm: [], sent: [] };
+  globalThis.fetch = fakeAws(state);
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm",
+    UNSUBSCRIBE_SECRET: "s3cret", FORWARD_TO: "owner@example.com", SENDING: "on" };
+  const raw = "From: A <a@example.com>\r\nSubject: Re: beta\r\nContent-Type: text/plain\r\n\r\nI'm in";
+  const forwarded = [];
+  const msg = { from: "a@example.com", to: "info@oceanofjobs.com", forward: async (t) => forwarded.push(t),
+    headers: new Headers({ from: "A <a@example.com>", subject: "Re: beta", "message-id": "<m1@mail>" }),
+    raw: new Response(raw).body };
+  await worker.email(msg, env);
+  assert.deepEqual(forwarded, ["owner@example.com"], "a copy goes to the owner first");
+  const tok = await jwt(good());
+  const H = { "Cf-Access-Jwt-Assertion": tok, "X-CRM": "1", "Content-Type": "application/json" };
+  const call = (path, init = {}, e = env) => worker.fetch(new Request("https://crm.oceanofjobs.com" + path, { ...init, headers: { ...H, ...(init.headers || {}) } }), e);
+  assert.equal((await worker.fetch(new Request("https://crm.oceanofjobs.com/api/inbox"), env)).status, 403, "the inbox is behind Access too");
+  const { messages } = await (await call("/api/inbox")).json();
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].text, "I'm in");
+  assert.equal(messages[0].contact, "u2", "matched to the member");
+  assert.equal(messages[0].read, false);
+  let r = await call("/api/inbox/reply", { method: "POST", body: JSON.stringify({ sk: messages[0].sk, body: "Great, done." }) }, { ...env, SENDING: "off" });
+  assert.equal(r.status, 403);
+  r = await call("/api/inbox/reply", { method: "POST", body: JSON.stringify({ sk: messages[0].sk, body: "Great, done." }) });
+  assert.equal(r.status, 200);
+  const sent = state.sent.at(-1);
+  assert.equal(sent.Destination.ToAddresses[0], "a@example.com");
+  assert.equal(sent.Content.Simple.Subject.Data, "Re: beta", "no Re: Re:");
+  assert.deepEqual(sent.Content.Simple.Headers.map((h) => h.Name), ["In-Reply-To", "References"]);
+  await call("/api/inbox/read", { method: "POST", body: JSON.stringify({ sk: [messages[0].sk] }) });
+  const after = (await (await call("/api/inbox")).json()).messages;
+  assert.equal(after.length, 2);
+  assert.equal(after.find((m) => m.dir === "in").read, true);
+  globalThis.fetch = realFetch;
+});

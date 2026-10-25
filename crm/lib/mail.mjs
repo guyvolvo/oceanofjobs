@@ -77,6 +77,25 @@ You're getting this because you subscribed to product updates from Ocean of Jobs
 </td></tr></table></body></html>`;
 }
 
+// A reply to a message someone sent to info@: a plain conversational
+// email, no newsletter card or unsubscribe footer, threaded under theirs.
+export function reply(env, { to, subject, md, inReplyTo = "", references = "" }) {
+  const thread = inReplyTo ? [{ Name: "In-Reply-To", Value: inReplyTo }, { Name: "References", Value: `${references} ${inReplyTo}`.trim().slice(-900) }] : [];
+  return {
+    FromEmailAddress: env.MAIL_FROM || "Ocean of Jobs <info@oceanofjobs.com>",
+    Destination: { ToAddresses: [to] },
+    ConfigurationSetName: env.SES_CONFIGURATION_SET || undefined,
+    Content: { Simple: {
+      Subject: { Data: /^re:/i.test(subject) ? subject : `Re: ${subject || "your message"}`, Charset: "UTF-8" },
+      Body: {
+        Html: { Data: `<div style="font:400 15px/1.55 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#2b3328">${markdown(md)}</div>`, Charset: "UTF-8" },
+        Text: { Data: text(md), Charset: "UTF-8" },
+      },
+      ...(thread.length ? { Headers: thread } : {}),
+    } },
+  };
+}
+
 // One SES v2 message for one member.
 export async function message(env, { to, userId, subject, md }) {
   const unsubscribe = await unsubscribeUrl(env, userId);

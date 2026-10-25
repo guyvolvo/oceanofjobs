@@ -7,8 +7,8 @@ IAM user that can do only what the CRM needs.
 - DynamoDB table ooj-crm (pk, sk), on demand, point-in-time recovery on.
 - SES configuration set ooj-marketing: bounces and complaints go to the
   account's suppression list, so a bounced address is never sent to again.
-- IAM user ooj-crm: read the user pool and the alerts table, read and write
-  ooj-crm, and send email only from info@oceanofjobs.com through that set.
+- IAM user ooj-crm: read the user pool and the alerts table, write licenses
+  and credit resets there (see LicensesAndCredits), read and write ooj-crm, and send email only from info@oceanofjobs.com through that set.
   Its access key is written to .env (CRM_AWS_ACCESS_KEY_ID and
   CRM_AWS_SECRET_ACCESS_KEY), never printed; scripts/deploy_crm.py hands it
   to the Worker as secrets.
@@ -36,6 +36,13 @@ POLICY = {"Version": "2012-10-17", "Statement": [
     {"Sid": "Members", "Effect": "Allow", "Action": ["cognito-idp:ListUsers"], "Resource": f"arn:aws:cognito-idp:{REGION}:{ACCOUNT}:userpool/{POOL}"},
     {"Sid": "ReadAlerts", "Effect": "Allow", "Action": ["dynamodb:Scan", "dynamodb:Query", "dynamodb:GetItem"],
      "Resource": f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/iljobs-alerts"},
+    # Licenses (#grant rows) and credit resets (#ledger# rows). IAM can't
+    # limit a write to those sort keys, so it limits the attribute names:
+    # a write can carry only these, and nothing can be deleted.
+    {"Sid": "LicensesAndCredits", "Effect": "Allow", "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem"],
+     "Resource": f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/iljobs-alerts",
+     "Condition": {"ForAllValues:StringEquals": {"dynamodb:Attributes": [
+         "user_id", "alert_id", "plan", "until", "note", "by", "at", "held", "charged", "reset_at", "reset_by"]}}},
     {"Sid": "CrmTable", "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:UpdateItem"],
      "Resource": f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/{TABLE}"},
     {"Sid": "SendAsInfo", "Effect": "Allow", "Action": ["ses:SendEmail"],

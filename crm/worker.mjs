@@ -9,7 +9,8 @@
 import ASSETS from "./assets.mjs";
 import { owner } from "./lib/access.mjs";
 import { sesSend } from "./lib/aws.mjs";
-import { message } from "./lib/mail.mjs";
+import { message, reply } from "./lib/mail.mjs";
+import { address, decodeWords, readMessage } from "./lib/mime.mjs";
 import * as S from "./lib/store.mjs";
 
 const SECURITY = {
@@ -270,11 +271,71 @@ async function api(request, env, who, path) {
     }
   }
 
+  if (area === "inbox") {
+    if (!sub && method === "GET") return json(200, { messages: await S.list(env, "inbox", { limit: 500 }) });
+    if (sub === "read" && method === "POST") {
+      const sks = ((await body(request)).sk || []).slice(0, 100).map(String);
+      for (const sk of sks) {
+        const m = await S.get(env, "inbox", sk);
+        if (m && !m.read) await S.put(env, { ...m, read: true });
+      }
+      return json(200, { ok: true });
+    }
+    if (sub === "reply" && method === "POST") {
+      if (env.SENDING !== "on") return fail(403, "Sending is turned off.");
+      const b = await body(request);
+      const m = await S.get(env, "inbox", String(b.sk || ""));
+      if (!m || m.dir !== "in") return fail(404, "No message to reply to.");
+      const md = String(b.body || "").slice(0, 50000);
+      if (!md.trim()) return fail(400, "Write a reply first.");
+      await sesSend(env, reply(env, { to: m.email, subject: m.subject, md, inReplyTo: m.message_id, references: m.references }));
+      const out = { pk: "inbox", sk: S.now() + "#" + S.id(), dir: "out", email: m.email, name: m.name, subject: m.subject,
+        text: md, contact: m.contact, read: true, reply_to: m.sk, by: who };
+      await S.put(env, out);
+      await S.audit(env, who, "reply", { to: m.email, contact: m.contact });
+      return json(200, { message: out });
+    }
+  }
+
   if (area === "audit" && method === "GET") return json(200, { entries: await S.list(env, "audit", { limit: 200 }) });
   return fail(404, "No such route.");
 }
 
+// The message as a binary string, one char per byte, read up to `max`.
+async function rawText(stream, max = 2_000_000) {
+  const reader = stream.getReader();
+  let out = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done || out.length > max) break;
+    for (let i = 0; i < value.length; i += 0x8000) out += String.fromCharCode(...value.subarray(i, i + 0x8000));
+  }
+  return out;
+}
+
+// Mail to info@ (Cloudflare Email Routing sends it here): forwarded to the
+// owner's own inbox first, so nothing is lost if saving it fails, then
+// saved for the Inbox tab, matched to a member by address.
+export async function receive(msg, env) {
+  if (env.FORWARD_TO) {
+    try { await msg.forward(env.FORWARD_TO); } catch (e) { console.log("forward failed", e && e.message); }
+  }
+  try {
+    const from = address(msg.headers.get("from") || msg.from);
+    const { text, attachments } = readMessage(await rawText(msg.raw));
+    const { contacts } = await S.contacts(env);
+    const c = contacts.find((x) => x.email === from.email);
+    await S.put(env, { pk: "inbox", sk: S.now() + "#" + S.id(), dir: "in", email: from.email, name: from.name.slice(0, 200),
+      subject: decodeWords(msg.headers.get("subject") || "").slice(0, 300), text: text.slice(0, 30000), attachments,
+      message_id: (msg.headers.get("message-id") || "").slice(0, 500), references: (msg.headers.get("references") || "").slice(0, 2000),
+      to: String(msg.to || "").slice(0, 200), contact: c ? c.id : "", read: false });
+  } catch (e) {
+    console.log("saving mail failed", e && e.message);
+  }
+}
+
 export default {
+  email: (msg, env) => receive(msg, env),
   async fetch(request, env) {
     const url = new URL(request.url);
     const who = await owner(request, env);

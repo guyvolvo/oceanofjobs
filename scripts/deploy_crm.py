@@ -35,7 +35,11 @@ PATTERN = HOST + "/*"
 OWNER = "guyvoloshin@gmail.com"
 VARS = {"OWNER_EMAIL": OWNER, "USER_POOL_ID": "il-central-1_0vIcqqXyg", "ALERTS_TABLE": "iljobs-alerts", "CRM_TABLE": "ooj-crm",
         "AWS_REGION": "il-central-1", "MAIL_FROM": "Ocean of Jobs <info@oceanofjobs.com>", "SES_CONFIGURATION_SET": "ooj-marketing",
-        "DAILY_CAP": "500"}
+        "DAILY_CAP": "500",
+        # Where the member page's Paddle link goes; the live dashboard once Paddle is out of sandbox.
+        "BILLING_URL": "https://sandbox-vendors.paddle.com",
+        # Mail to info@ is forwarded here before the Inbox saves it (a verified Email Routing destination).
+        "FORWARD_TO": OWNER}
 SECRETS = {"AWS_ACCESS_KEY_ID": "CRM_AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY": "CRM_AWS_SECRET_ACCESS_KEY",
            "UNSUBSCRIBE_SECRET": "ALERTS_UNSUBSCRIBE_SECRET", "GITHUB_TOKEN": "CRM_GITHUB_TOKEN"}
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".svg": "image/svg+xml"}

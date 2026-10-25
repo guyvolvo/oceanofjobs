@@ -50,3 +50,13 @@ body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-
 .crm-mail { border-radius: 10px; overflow: hidden; }
 .crm-mail table { border-collapse: separate; }
 .crm-mail ul { list-style: disc; }
+.crm-inbox { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .crm-inbox { grid-template-columns: 1fr; } }
+.crm-threads { display: flex; flex-direction: column; gap: 6px; }
+.crm-thread { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.crm-thread:hover, .crm-thread.on { background: var(--color-kumo-tint); }
+.crm-thread.unread b::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--color-kumo-brand); vertical-align: middle; }
+.crm-snippet { overflow: hidden; color: var(--text-color-kumo-subtle); font-size: 13px; white-space: nowrap; text-overflow: ellipsis; }
+.crm-msg { padding: 12px 14px; border-radius: 10px; background: var(--color-kumo-recessed); }
+.crm-msg.out { margin-left: 32px; background: var(--color-kumo-tint); }
+.crm-msg-text { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }

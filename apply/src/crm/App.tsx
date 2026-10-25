@@ -14,9 +14,10 @@ import { crm, day, describe, plural, type Campaign, type Filter, type Segment } 
 import { Contacts } from "./Contacts";
 import { Emails } from "./Emails";
 import { Changelog } from "./Changelog";
+import { Inbox } from "./Inbox";
 
 const TABS = [
-  { value: "overview", label: "Overview" }, { value: "contacts", label: "Contacts" }, { value: "segments", label: "Segments" },
+  { value: "overview", label: "Overview" }, { value: "inbox", label: "Inbox" }, { value: "contacts", label: "Contacts" }, { value: "segments", label: "Segments" },
   { value: "emails", label: "Emails" }, { value: "changelog", label: "Changelog" }, { value: "activity", label: "Activity" },
 ];
 
@@ -159,6 +160,9 @@ export function App() {
   const { data: me } = useLoad<{ email: string; sending: boolean }>("/me");
   const [light, setLight] = useState(document.documentElement.dataset.mode === "light");
   const [draft, setDraft] = useState<Campaign | null>(null);
+  const [unread, setUnread] = useState(0);
+  useEffect(() => { crm<{ messages: { dir: string; read: boolean }[] }>("/inbox").then((r) => setUnread(r.messages.filter((m) => m.dir === "in" && !m.read).length), () => {}); }, []);
+  const tabs = TABS.map((t) => (t.value === "inbox" && unread ? { ...t, label: `Inbox (${unread})` } : t));
   const go = (v: string) => { setTab(v); history.replaceState(null, "", "#" + v); };
   const theme = () => {
     const next = !light;
@@ -173,8 +177,9 @@ export function App() {
         <span className="crm-who">{me ? me.email : ""}</span>
         <Button variant="secondary" size="sm" onClick={theme}>{light ? "Dark" : "Light"}</Button>
       </div>
-      <div className="crm-tabs"><Tabs variant="segmented" tabs={TABS} value={tab} onValueChange={go} /></div>
+      <div className="crm-tabs"><Tabs variant="segmented" tabs={tabs} value={tab} onValueChange={go} /></div>
       {tab === "overview" ? <Overview sending={!!me?.sending} /> : null}
+      {tab === "inbox" ? <Inbox sending={!!me?.sending} onUnread={setUnread} /> : null}
       {tab === "contacts" ? <Contacts sending={!!me?.sending} onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
       {tab === "segments" ? <Segments /> : null}
       {tab === "emails" ? <Emails sending={!!me?.sending} initial={draft} onOpened={() => setDraft(null)} /> : null}
