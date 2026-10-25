@@ -48,7 +48,8 @@
   </style>
 </head>
 <body>
-  <header class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs <span class="ver" id="ver"></span><span class="chip" id="plan" hidden>free</span></header>
+  <header class="brand" id="head"><img src="icons/icon-32.png" alt=""> Ocean of Jobs <span class="ver" id="ver"></span>
+    <span class="head-end"><span class="chip" id="plan" hidden>free</span><button type="button" class="icon-btn" id="gear" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></span></header>
 
   <section id="out" class="card connect" hidden>
     <h1>Connect your account</h1>
@@ -58,7 +59,14 @@
   </section>
 
   <section id="in" hidden>
-    <p id="no-cv" class="card error" hidden>Add your CV in <a href="#" class="open-options">Settings</a> before applying.</p>
+    <div id="move" class="banner move" hidden>
+      <b>Move your settings to cloud storage</b>
+      <p class="note">Your resume, Workday password and AI key are saved only on this computer. On your account, you can use them on other computers too.</p>
+      <label class="check"><input type="checkbox" id="move-agree"> <span>I agree to the <a href="https://oceanofjobs.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>. My resume, Workday password and AI key are saved to my account, encrypted.</span></label>
+      <div class="row"><button type="button" class="btn sm primary" id="move-yes" disabled>Move to cloud storage</button><button type="button" class="btn sm" id="move-no">Keep it local</button></div>
+      <p class="note error" id="move-msg" role="status" hidden></p>
+    </div>
+    <p id="no-cv" class="card error" hidden>Add your resume in <a href="#" class="open-options">Settings</a> before applying.</p>
     <div class="stats">
       <div class="stat"><b id="left">…</b><span id="left-label">applications left this month</span></div>
       <div class="stat"><b id="today">…</b><span id="today-label">applications submitted today</span></div>
@@ -77,12 +85,16 @@
     </details>
     <div class="actions">
       <button class="btn" id="pause">Pause</button>
-      <span class="links row"><a href="https://oceanofjobs.com/apply#settings" target="_blank" rel="noopener">Auto apply</a><a href="https://oceanofjobs.com/apply#history" target="_blank" rel="noopener">History</a><a href="#" class="open-options">Settings</a></span>
+      <span class="links row"><a href="https://oceanofjobs.com/apply#settings" target="_blank" rel="noopener">Auto apply</a><a href="https://oceanofjobs.com/apply#history" target="_blank" rel="noopener">History</a></span>
     </div>
     <p id="state" class="note" style="margin-top:12px"></p>
   </section>
 
+  <section id="settings-view" hidden></section>
+
   <script src="lib/match.js"></script>
+  <script src="lib/providers.js"></script>
+  <script src="settings.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

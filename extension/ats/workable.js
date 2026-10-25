@@ -216,7 +216,7 @@
   async function fillOne(f, cv) {
     const box = form().querySelector(`[data-ui="${CSS.escape(f.name)}"]`);
     if (!box) return 'not on the page';
-    if (f.kind === 'file') return f.key === 'resume' ? attachCv(box, cv) : 'only the CV can be attached';
+    if (f.kind === 'file') return f.key === 'resume' ? attachCv(box, cv) : 'only the resume can be attached';
     if (f.kind === 'group') return 'sections like this one are not filled';
     if (f.kind === 'phone') return fillPhone(box, f.value);
     if (f.kind === 'date') return fillDate(box, f.value);

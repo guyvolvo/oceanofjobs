@@ -6,89 +6,20 @@
   <title>Ocean of Jobs settings</title>
   <link rel="stylesheet" href="ui.css">
   <style>
-    main { max-width: 620px; margin: 0 auto; padding: 40px 20px 64px; }
-    h1 { margin: 22px 0 8px; font: 500 34px/1.1 "Geist", sans-serif; letter-spacing: -0.03em; }
-    .lede { color: var(--muted); font-size: 15px; }
-    .card { margin-top: 20px; padding: 22px; }
-    h2 { margin: 0 0 6px; font: 500 17px/1.3 "Geist", sans-serif; letter-spacing: -0.01em; }
-    .file { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
-    .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-    .file input:focus-visible + label { outline: 2px solid var(--good); outline-offset: 2px; }
-    .actions { margin-top: 18px; }
-    .toggle { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; font-weight: 500; cursor: pointer; }
-    .toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--good); }
+    /* The popup's settings view (settings.js) in a tab, for when a file
+       picker would close the popup. */
+    main { max-width: 420px; margin: 0 auto; padding: 40px 20px 64px; }
+    h1 { margin: 22px 0 14px; font: 500 28px/1.1 "Geist", sans-serif; letter-spacing: -0.02em; }
   </style>
 </head>
 <body>
 <main>
   <div class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs</div>
   <h1>Settings</h1>
-  <p class="lede">Your CV and AI key are stored in this browser. Your CV is sent to the employer when you apply. Your AI key is used only with the provider you choose. Neither is sent to Ocean of Jobs.</p>
-
-  <section class="card">
-    <h2>Your CV</h2>
-    <p id="cv-now" class="note">No CV saved yet.</p>
-    <div class="file">
-      <input type="file" id="cv" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-      <label for="cv" class="btn primary">Choose CV</label>
-      <span class="note">PDF or DOCX, up to 5 MB.</span>
-    </div>
-    <p id="cv-msg" class="note" role="status" style="margin-top:10px"></p>
-  </section>
-
-  <section class="card">
-    <h2>Your own AI key</h2>
-    <p class="note">Each plan includes AI answers each month: 50 on Free, 300 on Basic, and 3,000 on Pro. Those answers are used first, even if you add your own key, because they follow your AI agent's rules. Your own key is used after your plan's answers run out.</p>
-    <p class="note" style="margin-top:8px">If you've enabled AI answers, the extension drafts answers to required questions and saves them to your answers. When you fill in a page yourself, AI suggestions are outlined in amber and aren't saved automatically.</p>
-    <p class="note" style="margin-top:8px">If there's no saved answer and AI can't provide one, you'll need to answer the question yourself.</p>
-    <label class="field" for="provider">Provider
-      <select class="input" id="provider">
-        <option value="">None</option>
-      </select>
-    </label>
-    <label class="field" for="key">API key
-      <input class="input" type="password" id="key" autocomplete="off" spellcheck="false">
-    </label>
-    <label class="field" for="model">Model
-      <input class="input" type="text" id="model" spellcheck="false" placeholder="Enter the model name used by your provider">
-    </label>
-    <div class="actions row">
-      <button class="btn primary" id="save-ai">Save</button>
-      <span id="ai-msg" class="note" role="status"></span>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Workday accounts</h2>
-    <p class="note">Workday companies require an account on their careers site. During automatic runs, the extension signs in with the email address on your profile and this password. If you don't have an account yet, it creates one. Your password stays in this browser.</p>
-    <p class="note" style="margin-top:8px">If you already have a Workday account, enter the password you use for it. Otherwise, generate a new password. Some companies send an email to verify new accounts. Until you confirm the account, the job will wait in your history.</p>
-    <label class="field" for="wd-password">Workday password
-      <input class="input" type="password" id="wd-password" autocomplete="new-password" spellcheck="false">
-    </label>
-    <div class="actions row">
-      <button class="btn primary" id="save-wd">Save</button>
-      <button class="btn" id="make-wd">Generate password</button>
-      <span id="wd-msg" class="note" role="status"></span>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Fill button</h2>
-    <p class="note">By default, the Fill button appears on hiring sites the extension supports, such as Greenhouse, Lever, and Workday. Allow access to all sites to use it on other company careers pages and forms embedded in other websites.</p>
-    <p class="note" style="margin-top:8px">The extension checks pages for application forms in your browser. When you click Fill or Submit, it sends the page address and job title to Ocean of Jobs. On Basic and Pro, it also sends questions that don't have saved answers so AI can draft replies.</p>
-    <label class="toggle" for="all-sites"><input type="checkbox" id="all-sites"> Show the Fill button on every careers page</label>
-    <p id="all-sites-msg" class="note" role="status" style="margin-top:10px"></p>
-  </section>
-
-  <section class="card">
-    <h2>Account</h2>
-    <p id="account-now" class="note">Not connected to an Ocean of Jobs account.</p>
-    <div class="actions row">
-      <button class="btn" id="disconnect">Disconnect account</button>
-    </div>
-  </section>
+  <div id="settings"></div>
 </main>
 <script src="lib/providers.js"></script>
+<script src="settings.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

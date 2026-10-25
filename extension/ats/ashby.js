@@ -209,7 +209,7 @@
   async function fillOne(f, cv) {
     const box = entry(f.name);
     if (!box) return 'not on the page';
-    if (f.type === 'file') return f.key === 'resume' ? attachCv(box, cv) : 'only the CV can be uploaded';
+    if (f.type === 'file') return f.key === 'resume' ? attachCv(box, cv) : 'only the resume can be uploaded';
     if (f.type === 'boolean') return chooseYesNo(box, f.value);
     if (f.type === 'date') return typeDate(box, f.value);
     if (f.type === 'select' || f.type === 'multiselect' || f.type === 'location') {

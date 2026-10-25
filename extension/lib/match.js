@@ -369,7 +369,7 @@
     'no file input': "Couldn't find the file upload field.",
     'needs a date': 'Enter the required date yourself.',
     'sections like this one are not filled': 'Fill in this section yourself.',
-    'no CV saved in the extension': 'Add your CV in Settings, then try again.',
+    'no CV saved in the extension': 'Add your resume in Settings, then try again.',
     captcha: 'This site asked you to complete a CAPTCHA.',
     'no confirmation after submitting': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     'no confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",

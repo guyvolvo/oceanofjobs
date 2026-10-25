@@ -593,10 +593,115 @@ async function autoCandidates(preferences) {
 
 let running = false;
 
+// Where the CV, the Workday password and the own AI key live: in this
+// browser (chrome.storage.local), or on the account (api/user_files.py)
+// when the member chose "Save my settings to: Account". Everything that
+// uses them keeps reading chrome.storage.local; with the account chosen
+// that is a copy, refreshed from the account here (syncStorage), and
+// every change made in Settings goes to both.
+async function storageState() {
+  const local = await chrome.storage.local.get(['token', 'authError', 'cv', 'cvSavedAt', 'workday', 'ai', 'storageMode']);
+  let view = null;
+  if (local.token && !local.authError) view = await api('/me/storage').catch((e) => ({ error: e.status || 0 }));
+  return {
+    connected: !!local.token && !local.authError,
+    mode: view && !view.error ? view.mode : local.storageMode || 'local',
+    ready: !!(view && view.ready),
+    cv: local.cv ? { name: local.cv.name, type: local.cv.type, size: local.cv.size, savedAt: local.cvSavedAt || null } : null,
+    workday: !!(local.workday && local.workday.password),
+    ai: local.ai ? { provider: local.ai.provider, model: local.ai.model || '' } : null,
+  };
+}
+
+async function syncStorage() {
+  const view = await api('/me/storage');
+  const { storageMode: before } = await chrome.storage.local.get('storageMode');
+  await chrome.storage.local.set({ storageMode: view.mode });
+  if (view.mode !== 'account') return view;
+  if (before !== 'account') {
+    // Chosen elsewhere (a CV uploaded on the website, another computer):
+    // what this browser kept goes up before the account's copy comes down,
+    // so nothing saved here is lost.
+    const local = await chrome.storage.local.get(['workday', 'ai']);
+    const up = {};
+    if (!view.workday && local.workday && local.workday.password) up.workday = local.workday.password;
+    if (!view.ai && local.ai && local.ai.key) up.ai = local.ai;
+    if (Object.keys(up).length) await api('/me/storage/secrets', { method: 'PUT', body: up });
+  }
+  const local = await chrome.storage.local.get(['cv', 'cvSavedAt']);
+  if (!view.cv) {
+    if (local.cv) await chrome.storage.local.remove(['cv', 'cvSavedAt']);
+  } else if (!local.cv || local.cvSavedAt !== view.cv.uploaded_at) {
+    const file = await api('/me/cv');
+    await chrome.storage.local.set({ cv: { name: file.name, type: file.type, size: file.size, data: file.data }, cvSavedAt: file.uploaded_at });
+  }
+  const secrets = await api('/me/storage/secrets');
+  if (secrets.workday) await chrome.storage.local.set({ workday: { password: secrets.workday } });
+  else await chrome.storage.local.remove('workday');
+  if (secrets.ai) await chrome.storage.local.set({ ai: secrets.ai });
+  else await chrome.storage.local.remove('ai');
+  return view;
+}
+
+// To the account: the member ticked the privacy box. What this browser
+// holds goes up, then the account is the copy every browser reads.
+// To this computer: the account's copy comes down first, then the
+// account deletes it.
+async function setStorageMode(mode, consent) {
+  if (mode === 'account') {
+    await api('/me/storage', { method: 'PUT', body: { mode: 'account', consent: consent === true } });
+    const local = await chrome.storage.local.get(['cv', 'workday', 'ai']);
+    if (local.cv) {
+      const saved = await api('/me/cv', { method: 'PUT', body: { name: local.cv.name, type: local.cv.type, data: local.cv.data, consent: true } });
+      await chrome.storage.local.set({ cvSavedAt: saved.cv.uploaded_at });
+    }
+    await api('/me/storage/secrets', { method: 'PUT', body: {
+      workday: local.workday && local.workday.password ? local.workday.password : null,
+      ai: local.ai && local.ai.key ? local.ai : null,
+    } });
+  } else {
+    await syncStorage();
+    await api('/me/storage', { method: 'PUT', body: { mode: 'local' } });
+  }
+  await chrome.storage.local.set({ storageMode: mode });
+  return storageState();
+}
+
+async function saveCv(cv) {
+  const { storageMode } = await chrome.storage.local.get('storageMode');
+  if (!cv) {
+    if (storageMode === 'account') await api('/me/cv', { method: 'DELETE' });
+    await chrome.storage.local.remove(['cv', 'cvSavedAt']);
+    return storageState();
+  }
+  let savedAt = new Date().toISOString();
+  if (storageMode === 'account') savedAt = (await api('/me/cv', { method: 'PUT', body: { ...cv, consent: true } })).cv.uploaded_at;
+  await chrome.storage.local.set({ cv, cvSavedAt: savedAt });
+  return storageState();
+}
+
+// {workday: string|null} and/or {ai: {provider, key, model}|null}; a field
+// left out stays as it is, null removes it.
+async function saveSecrets(change) {
+  const { storageMode } = await chrome.storage.local.get('storageMode');
+  if (storageMode === 'account') await api('/me/storage/secrets', { method: 'PUT', body: change });
+  if ('workday' in change) {
+    if (change.workday) await chrome.storage.local.set({ workday: { password: change.workday } });
+    else await chrome.storage.local.remove('workday');
+  }
+  if ('ai' in change) {
+    if (change.ai) await chrome.storage.local.set({ ai: change.ai });
+    else await chrome.storage.local.remove('ai');
+  }
+  return storageState();
+}
+
 async function run() {
   if (running) return;
   running = true;
   try {
+    // With the settings on the account, another computer may have changed them.
+    if ((await chrome.storage.local.get('token')).token) await syncStorage().catch(() => {});
     const st = await chrome.storage.local.get(['token', 'paused', 'cv', 'ai']);
     if (!st.token) return;
     await flushOutbox();
@@ -686,7 +791,7 @@ async function account() {
 const ACCOUNT_URL = 'https://oceanofjobs.com/apply';
 const NOT_CONNECTED = 'Connect your Ocean of Jobs account to fill in this application.';
 const EXPIRED = 'Your connection has expired. Connect again to continue.';
-const NO_CV = 'Add your CV in Settings before applying.';
+const NO_CV = 'Add your resume in Settings before applying.';
 const ALREADY = "You've already applied to this job with Ocean of Jobs.";
 const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
 const READ_ERROR = "Couldn't read the application form on this page.";
@@ -699,7 +804,7 @@ async function offerHere(url) {
   }
   // No dedicated filler: fill only, which needs no account check.
   if (!globalThis.oojAts[adapterFor(url)].matches(url)) {
-    return st.cv ? { show: true, assist: true } : { show: true, assist: true, blocked: NO_CV, action: { label: 'Add CV', options: true } };
+    return st.cv ? { show: true, assist: true } : { show: true, assist: true, blocked: NO_CV, action: { label: 'Add resume', options: true } };
   }
   let a;
   try {
@@ -711,7 +816,7 @@ async function offerHere(url) {
   if (!((a.profile.settings || {}).sources || []).includes('ats_pages')) {
     return { show: true, blocked: 'Turn on "Jobs I open on supported hiring sites" under Auto apply on your account, then reload this page.', action: { label: 'Open Auto apply', url: ACCOUNT_URL } };
   }
-  if (!st.cv) return { show: true, blocked: NO_CV, action: { label: 'Add CV', options: true } };
+  if (!st.cv) return { show: true, blocked: NO_CV, action: { label: 'Add resume', options: true } };
   const id = await pageJobId(url);
   if (a.history.some((h) => h.job_id === id && (h.status === 'submitted' || h.status === 'unconfirmed'))) return { show: true, blocked: ALREADY };
   return { show: true, remaining: a.usage.remaining };
@@ -1363,6 +1468,13 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     return true;
   }
   if (msg.type === 'openOptions') { chrome.runtime.openOptionsPage(); reply({ ok: true }); return false; }
+  // The settings view (settings.js), in the popup or its tab.
+  const storageCall = { storageState: () => storageState(), storageSync: () => syncStorage().then(storageState, storageState),
+    storageMode: () => setStorageMode(msg.mode, msg.consent), storageCv: () => saveCv(msg.cv), storageSecrets: () => saveSecrets(msg.change) }[msg.type];
+  if (storageCall) {
+    storageCall().then(reply, (e) => reply({ error: (e.body && e.body.error) || (e.status === 401 ? EXPIRED : UNEXPECTED) }));
+    return true;
+  }
   if (msg.type === 'formBelow') {
     // Ask the page itself to show the button; a page we have no access to
     // runs no detect.js, so the frame shows it.

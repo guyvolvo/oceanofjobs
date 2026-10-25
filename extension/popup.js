@@ -2,9 +2,44 @@ const $ = (id) => document.getElementById(id);
 const ACCOUNT = 'https://oceanofjobs.com/apply';
 const { plural, reasonText, filledText } = oojMatch;
 
-for (const a of document.querySelectorAll('.open-options')) {
-  a.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
+// Settings open in the popup itself, in place of the main view.
+let settingsMounted = false;
+function showSettings() {
+  for (const id of ['head', 'out', 'in']) $(id).hidden = true;
+  $('settings-view').hidden = false;
+  if (!settingsMounted) oojSettings.mount($('settings-view'), { inPopup: true, onBack: hideSettings });
+  settingsMounted = true;
 }
+function hideSettings() {
+  $('settings-view').hidden = true;
+  $('head').hidden = false;
+  chrome.runtime.sendMessage({ type: 'status' }).then(render);
+}
+$('gear').addEventListener('click', showSettings);
+for (const a of document.querySelectorAll('.open-options')) {
+  a.addEventListener('click', (e) => { e.preventDefault(); showSettings(); });
+}
+
+// Once, for people whose settings an older version kept in this browser:
+// the offer to move them to the account. Keep it local hides it for good;
+// the switch in Settings still works.
+async function offerMove() {
+  const [{ moveDismissed }, st] = await Promise.all([chrome.storage.local.get('moveDismissed'), chrome.runtime.sendMessage({ type: 'storageState' })]);
+  $('move').hidden = !(st && !st.error && st.connected && st.ready && st.mode === 'local' && st.cv && !moveDismissed);
+}
+$('move-agree').addEventListener('change', (e) => { $('move-yes').disabled = !e.target.checked; });
+$('move-no').addEventListener('click', () => { chrome.storage.local.set({ moveDismissed: true }); $('move').hidden = true; });
+$('move-yes').addEventListener('click', async () => {
+  $('move-yes').disabled = true;
+  const r = await chrome.runtime.sendMessage({ type: 'storageMode', mode: 'account', consent: true });
+  if (r && r.error) {
+    $('move-msg').textContent = r.error;
+    $('move-msg').hidden = false;
+    $('move-yes').disabled = false;
+    return;
+  }
+  $('move').hidden = true;
+});
 $('ver').textContent = 'v' + chrome.runtime.getManifest().version;
 $('connect').addEventListener('click', () => chrome.tabs.create({ url: ACCOUNT }));
 // The dashboard connects the extension by itself once the reader has
@@ -224,5 +259,6 @@ chrome.runtime.sendMessage({ type: 'status' }).then((s) => {
   if (s.connected) {
     renderQueue();
     detect();
+    offerMove();
   }
 });
