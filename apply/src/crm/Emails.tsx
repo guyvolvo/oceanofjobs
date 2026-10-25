@@ -93,7 +93,7 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
       <div className="crm-split">
         <div className="crm-stack">
           <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!draft} maxLength={150} />
-          {c.to?.length ? <p className="crm-note">Goes to the {plural(c.to.length, "member")} you picked in Contacts, if they're subscribed to product updates.</p> : (
+          {c.to?.length ? <p className="crm-note">Goes to the {plural(c.to.length, "user")} you picked in Users, if they're subscribed to product updates.</p> : (
           <Select label="Send to" value={segment} onValueChange={(v) => setSegment(String(v ?? ""))} disabled={!draft}
             items={{ "": "Everyone subscribed to product updates", ...Object.fromEntries(segments.map((s) => [s.sk, s.name])) }} />)}
           <InputArea label="Message" description="Markdown: # headings, **bold**, [links](https://…) and - lists" className="crm-md"
@@ -112,7 +112,7 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
             const r = await crm<{ sent_to: string }>(`/campaigns/${saved.sk}/test`, "POST");
             toasts.add({ variant: "success", title: `Test sent to ${r.sent_to}` });
           })}>Send a test to me</Button>
-          <Button variant="primary" disabled={!sending || !subject || !body} title={sending ? undefined : "Sending to members is off"}
+          <Button variant="primary" disabled={!sending || !subject || !body} title={sending ? undefined : "Sending to users is off"}
             onClick={run("send", async () => { setSendOpen(await save()); })}>Send…</Button>
         </div>
       ) : <p className="crm-note">Sent to {plural(c.sent || 0, "person", "people")} {c.sent_at ? `on ${day(c.sent_at)}` : ""}.</p>}
@@ -131,7 +131,7 @@ export function Emails({ sending, initial, onOpened }: { sending: boolean; initi
   return (
     <LayerCard><div className="crm-card crm-stack">
       <div className="crm-row between">
-        <div><h2>Emails</h2><p className="crm-note">Product updates for members who subscribed. {sending ? "" : "Sending to members is off; tests to you work."}</p></div>
+        <div><h2>Emails</h2><p className="crm-note">Product updates for users who subscribed. {sending ? "" : "Sending to users is off; tests to you work."}</p></div>
         <Button variant="primary" onClick={() => setEditing({})}>New email</Button>
       </div>
       {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.campaigns.length ? <p className="crm-note">No emails yet.</p> : (

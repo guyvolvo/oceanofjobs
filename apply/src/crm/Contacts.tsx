@@ -62,7 +62,7 @@ function BillingSection({ id, d, setBilling }: { id: string; d: Detail; setBilli
 
       <h3 className="crm-h3">License</h3>
       <p className="crm-note">{b.license ? `${PLAN[b.license.plan]} ${b.license.until ? `through ${day(b.license.until + "T12:00:00")}` : "with no end date"}, given ${day(b.license.at)}${b.license.note ? `: ${b.license.note}` : ""}.`
-        : "A plan you give by hand, without payment. The member gets the higher of this and their paid plan."}</p>
+        : "A plan you give by hand, without payment. The user gets the higher of this and their paid plan."}</p>
       <div className="crm-row">
         <Select label="Plan" value={plan} onValueChange={(v) => setPlan(String(v))} items={{ basic: "Basic", pro: "Pro" }} />
         <Input label="Ends on" type="date" value={until} onChange={(e) => setUntil(e.target.value)} />
@@ -106,14 +106,14 @@ function EmailSection({ id, d, sending, onSent }: { id: string; d: Detail; sendi
   return (
     <div className="crm-stack">
       <h3 className="crm-h3">Email {d.contact.email}</h3>
-      <p className="crm-note">For messages about this member's account. It goes even if they haven't subscribed to product updates, so don't use it for promotions.</p>
+      <p className="crm-note">For messages about this user's account. It goes even if they haven't subscribed to product updates, so don't use it for promotions.</p>
       <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={150} />
       <InputArea label="Message" className="crm-md crm-md-short" value={body} onChange={(e) => setBody(e.target.value)} />
       {body.trim() ? <MailPreview subject={subject} body={body} /> : null}
       <div className="crm-row">
         <Button variant="secondary" loading={busy === "test"} disabled={!subject.trim() || !body.trim()} onClick={send(true)}>Send a test to me</Button>
         <Button variant="primary" loading={busy === "send"} disabled={!sending || !subject.trim() || !body.trim()} onClick={send(false)}>Send</Button>
-        {!sending ? <span className="crm-note">Sending to members is off.</span> : null}
+        {!sending ? <span className="crm-note">Sending to users is off.</span> : null}
       </div>
       {d.emails.length ? (
         <div className="crm-notes">
@@ -154,7 +154,7 @@ function Member({ id, sending, onClose, onChange }: { id: string; sending: boole
   return (
     <Dialog.Root open onOpenChange={(o) => { if (!o) onClose(); }}>
       <Dialog className="crm-dialog">
-        <Dialog.Title className="crm-card-title">{c ? c.email : "Member"}</Dialog.Title>
+        <Dialog.Title className="crm-card-title">{c ? c.email : "User"}</Dialog.Title>
         {error ? <p className="crm-error">{error}</p> : !d || !c ? <p className="crm-note"><Loader /> Loading</p> : (
           <div className="crm-stack">
             <dl className="crm-dl">
@@ -224,12 +224,12 @@ export function Contacts({ sending, onEmail }: { sending: boolean; onEmail: (c: 
       <LayerCard><div className="crm-card crm-stack">
         <FilterFields filter={filter} set={setFilter} />
         <div className="crm-row between">
-          <span className="crm-note">{data ? `${plural(shown.length, "member")} of ${data.contacts.length.toLocaleString()}` : ""}
+          <span className="crm-note">{data ? `${plural(shown.length, "user")} of ${data.contacts.length.toLocaleString()}` : ""}
             {picked.size ? ` · ${picked.size} picked, ${subscribed} subscribed to product updates` : ""}</span>
           <div className="crm-row">
             {picked.size ? <Button variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button> : null}
             <Button variant="primary" disabled={!subscribed} title={picked.size && !subscribed ? "None of them subscribed to product updates" : undefined}
-              onClick={emailPicked}>{picked.size ? `Email ${plural(subscribed, "subscriber")}` : "Email picked members"}</Button>
+              onClick={emailPicked}>{picked.size ? `Email ${plural(subscribed, "subscriber")}` : "Email picked users"}</Button>
             <a href={`/api/contacts.csv?${query(filter)}`} download><Button variant="secondary">Export CSV</Button></a>
           </div>
         </div>
@@ -238,9 +238,9 @@ export function Contacts({ sending, onEmail }: { sending: boolean; onEmail: (c: 
         {!data ? <p className="crm-note"><Loader /> Loading</p> : (
           <div className="crm-table"><Table>
             <Table.Header><Table.Row>
-              <Table.Head><Checkbox aria-label="Pick every member shown" checked={allOn}
+              <Table.Head><Checkbox aria-label="Pick every user shown" checked={allOn}
                 onCheckedChange={(on) => setPicked((p) => { const n = new Set(p); for (const c of shown) { if (on === true) n.add(c.id); else n.delete(c.id); } return n; })} /></Table.Head>
-              <Table.Head>Member</Table.Head><Table.Head>Joined</Table.Head><Table.Head>Plan</Table.Head>
+              <Table.Head>User</Table.Head><Table.Head>Joined</Table.Head><Table.Head>Plan</Table.Head>
               <Table.Head>Product updates</Table.Head><Table.Head>Waitlist</Table.Head><Table.Head>Tags</Table.Head></Table.Row></Table.Header>
             <Table.Body>
               {shown.slice(0, 500).map((c) => (

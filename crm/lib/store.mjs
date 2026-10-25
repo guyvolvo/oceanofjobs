@@ -197,7 +197,7 @@ export const deleteNote = (env, contact, sk) => del(env, "note#" + contact, sk);
 const FILTER_KEYS = ["newsletter", "waitlist", "plan", "tag", "signed_up_after", "search"];
 export async function saveSegment(env, body) {
   const name = String(body.name || "").trim().slice(0, 80);
-  if (!name) throw Object.assign(new Error("Name the segment."), { status: 400 });
+  if (!name) throw Object.assign(new Error("Name the group."), { status: 400 });
   const filter = Object.fromEntries(FILTER_KEYS.filter((k) => body.filter && body.filter[k] !== undefined && body.filter[k] !== "").map((k) => [k, body.filter[k]]));
   const seg = { pk: "segment", sk: body.id || id(), name, filter, updated: now() };
   await put(env, seg);

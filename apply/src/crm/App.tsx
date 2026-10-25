@@ -1,7 +1,6 @@
 // The CRM's shell: the bar, the tabs and the small pages (overview,
 // segments, activity). Contacts, emails and the changelog have their own files.
 import { useCallback, useEffect, useState } from "react";
-import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Input } from "@cloudflare/kumo/components/input";
 import { Select } from "@cloudflare/kumo/components/select";
@@ -17,7 +16,7 @@ import { Changelog } from "./Changelog";
 import { Inbox } from "./Inbox";
 
 const TABS = [
-  { value: "overview", label: "Overview" }, { value: "inbox", label: "Inbox" }, { value: "contacts", label: "Contacts" }, { value: "segments", label: "Segments" },
+  { value: "overview", label: "Overview" }, { value: "inbox", label: "Inbox" }, { value: "contacts", label: "Users" }, { value: "segments", label: "Groups" },
   { value: "emails", label: "Emails" }, { value: "changelog", label: "Changelog" }, { value: "activity", label: "Activity" },
 ];
 
@@ -45,23 +44,23 @@ function Overview({ sending }: { sending: boolean }) {
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
   const max = Math.max(1, ...data.by_day.map(([, n]) => n));
   const stats: [number, string][] = [
-    [data.members, "members"], [data.new_7, "joined in the last 7 days"], [data.new_30, "joined in the last 30 days"],
+    [data.members, "users"], [data.new_7, "joined in the last 7 days"], [data.new_30, "joined in the last 30 days"],
     [data.newsletter, "subscribed to product updates"], [data.waitlist.basic, "on the Basic waitlist"], [data.waitlist.pro, "on the Pro waitlist"],
     [data.agreed, "agreed to the current terms"],
   ];
   return (
     <div className="crm-stack">
-      {!sending ? <Banner variant="default" title="Sending to members is off"
-        description="Test emails to you work. To send to members, set SENDING to on in the Worker's settings." /> : null}
-      {!data.complete ? <Banner variant="default" title="Some members aren't counted" description="The member list is longer than one read covers." /> : null}
+      {!sending ? <Banner variant="default" title="Sending to users is off"
+        description="Test emails to you work. To send to users, set SENDING to on in the Worker's settings." /> : null}
+      {!data.complete ? <Banner variant="default" title="Some users aren't counted" description="The user list is longer than one read covers." /> : null}
       <div className="crm-stats">
         {stats.map(([n, label]) => <LayerCard key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span></div></LayerCard>)}
       </div>
       <LayerCard>
         <div className="crm-card">
-          <h2>New members, last 30 days</h2>
-          <p className="crm-note">{Object.entries(data.plans).map(([p, n]) => `${plural(n, "member")} on ${p}`).join(" · ")}</p>
-          <div className="crm-bars" role="img" aria-label="New members per day">
+          <h2>New users, last 30 days</h2>
+          <p className="crm-note">{Object.entries(data.plans).map(([p, n]) => `${plural(n, "user")} on ${p}`).join(" · ")}</p>
+          <div className="crm-bars" role="img" aria-label="New users per day">
             {data.by_day.map(([d, n]) => <i key={d} title={`${day(d)}: ${n}`} style={{ height: `${(n / max) * 100}%` }} />)}
           </div>
         </div>
@@ -97,7 +96,7 @@ function Segments() {
     try {
       await crm("/segments", "POST", { name, filter });
       setName(""); setFilter({});
-      toasts.add({ variant: "success", title: "Segment saved" });
+      toasts.add({ variant: "success", title: "Group saved" });
       load();
     } catch (e) {
       toasts.add({ variant: "error", title: (e as Error).message });
@@ -110,14 +109,14 @@ function Segments() {
   return (
     <div className="crm-stack">
       <LayerCard><div className="crm-card crm-stack">
-        <div><h2>New segment</h2><p className="crm-note">A saved filter for emails. Only members subscribed to product updates are ever emailed, whatever the segment says.</p></div>
+        <div><h2>New group</h2><p className="crm-note">A saved filter for emails. Only users subscribed to product updates are ever emailed, whatever the group says.</p></div>
         <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Pro waitlist" />
         <FilterFields filter={filter} set={setFilter} />
-        <div><Button variant="primary" loading={busy} disabled={!name.trim()} onClick={save}>Save segment</Button></div>
+        <div><Button variant="primary" loading={busy} disabled={!name.trim()} onClick={save}>Save group</Button></div>
       </div></LayerCard>
       <LayerCard><div className="crm-card">
-        <h2>Segments</h2>
-        {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.segments.length ? <p className="crm-note">No segments yet.</p> : (
+        <h2>Groups</h2>
+        {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.segments.length ? <p className="crm-note">No groups yet.</p> : (
           <div className="crm-table"><Table><Table.Body>
             {data.segments.map((s) => (
               <Table.Row key={s.sk}>
@@ -139,7 +138,7 @@ function Activity() {
   return (
     <LayerCard><div className="crm-card">
       <h2>Activity</h2>
-      <p className="crm-note">Everything done in the CRM: views of a member, exports, edits and every email sent.</p>
+      <p className="crm-note">Everything done in the CRM: views of a user, exports, edits and every email sent.</p>
       {!data ? <p className="crm-note"><Loader /> Loading</p> : (
         <div className="crm-table"><Table><Table.Body>
           {data.entries.map((a) => (
@@ -162,7 +161,6 @@ export function App() {
   const [draft, setDraft] = useState<Campaign | null>(null);
   const [unread, setUnread] = useState(0);
   useEffect(() => { crm<{ messages: { dir: string; read: boolean }[] }>("/inbox").then((r) => setUnread(r.messages.filter((m) => m.dir === "in" && !m.read).length), () => {}); }, []);
-  const tabs = TABS.map((t) => (t.value === "inbox" && unread ? { ...t, label: `Inbox (${unread})` } : t));
   const go = (v: string) => { setTab(v); history.replaceState(null, "", "#" + v); };
   const theme = () => {
     const next = !light;
@@ -172,12 +170,21 @@ export function App() {
   };
   return (
     <div className="crm">
-      <div className="crm-bar">
+      <aside className="crm-side">
         <span className="crm-brand">Ocean of Jobs <small>CRM</small></span>
-        <span className="crm-who">{me ? me.email : ""}</span>
-        <Button variant="secondary" size="sm" onClick={theme}>{light ? "Dark" : "Light"}</Button>
-      </div>
-      <div className="crm-tabs"><Tabs variant="segmented" tabs={tabs} value={tab} onValueChange={go} /></div>
+        <nav className="crm-nav" aria-label="CRM">
+          {TABS.map((t) => (
+            <button key={t.value} type="button" className="crm-nav-item" aria-current={tab === t.value ? "page" : undefined} onClick={() => go(t.value)}>
+              {t.label}{t.value === "inbox" && unread ? <span className="crm-count" aria-label={`${unread} unread`}>{unread}</span> : null}
+            </button>
+          ))}
+        </nav>
+        <div className="crm-side-foot">
+          <span className="crm-who">{me ? me.email : ""}</span>
+          <Button variant="secondary" size="sm" onClick={theme}>{light ? "Dark theme" : "Light theme"}</Button>
+        </div>
+      </aside>
+      <main className="crm-main">
       {tab === "overview" ? <Overview sending={!!me?.sending} /> : null}
       {tab === "inbox" ? <Inbox sending={!!me?.sending} onUnread={setUnread} /> : null}
       {tab === "contacts" ? <Contacts sending={!!me?.sending} onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
@@ -185,6 +192,7 @@ export function App() {
       {tab === "emails" ? <Emails sending={!!me?.sending} initial={draft} onOpened={() => setDraft(null)} /> : null}
       {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}
       {tab === "activity" ? <Activity /> : null}
+      </main>
     </div>
   );
 }

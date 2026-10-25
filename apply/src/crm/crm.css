@@ -4,12 +4,28 @@
 @font-face { font-family: "Geist"; src: url("../../../frontend/fonts/Geist-500-latin.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
 
 body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-kumo-default); font: 400 14px/1.5 var(--font-sans); }
-.crm { max-width: 1200px; margin: 0 auto; padding: 20px 24px 64px; }
-.crm-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.crm { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+.crm-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 20px; height: 100vh; padding: 20px 14px; border-right: 1px solid var(--color-kumo-line); box-sizing: border-box; }
+.crm-nav { display: flex; flex-direction: column; gap: 2px; }
+.crm-nav-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--text-color-kumo-subtle); font: 500 14px var(--font-sans); text-align: left; cursor: pointer; }
+.crm-nav-item:hover { background: var(--color-kumo-tint); color: var(--text-color-kumo-default); }
+.crm-nav-item[aria-current="page"] { background: var(--color-kumo-fill); color: var(--text-color-kumo-default); }
+.crm-count { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--color-kumo-brand); color: #fff; font-size: 12px; text-align: center; box-sizing: border-box; }
+.crm-side-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: auto; }
+.crm-side-foot .crm-who { overflow-wrap: anywhere; }
+.crm-main { min-width: 0; max-width: 1200px; padding: 24px 28px 64px; }
+@media (max-width: 760px) {
+  .crm { grid-template-columns: 1fr; }
+  .crm-side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--color-kumo-line); }
+  .crm-nav { flex-direction: row; order: 3; width: 100%; overflow-x: auto; }
+  .crm-nav-item { flex: none; }
+  .crm-side-foot { flex-direction: row; align-items: center; margin: 0 0 0 auto; }
+  .crm-side-foot .crm-who { display: none; }
+  .crm-main { padding: 16px 16px 48px; }
+}
 .crm-brand { display: flex; align-items: center; gap: 10px; font: 500 16px var(--font-sans); }
 .crm-brand small { padding: 2px 8px; border-radius: 999px; background: var(--color-kumo-fill); color: var(--text-color-kumo-subtle); font-size: 12px; }
-.crm-who { margin-left: auto; color: var(--text-color-kumo-subtle); font-size: 13px; }
-.crm-tabs { margin-bottom: 18px; overflow-x: auto; }
+.crm-who { color: var(--text-color-kumo-subtle); font-size: 13px; }
 .crm-stack { display: flex; flex-direction: column; gap: 16px; }
 .crm-card { padding: 18px 20px; }
 .crm-card h2 { margin: 0 0 4px; font: 500 16px var(--font-sans); }

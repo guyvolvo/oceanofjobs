@@ -114,7 +114,7 @@ async function api(request, env, who, path) {
     if (sub && !more && method === "GET") {
       const { contacts } = await S.contacts(env);
       const c = contacts.find((x) => x.id === sub);
-      if (!c) return fail(404, "No member with that id.");
+      if (!c) return fail(404, "No user with that id.");
       const [activity, notes, billing, emails] = await Promise.all([S.activity(env, sub), S.list(env, "note#" + sub),
         S.billing(env, sub), S.list(env, "direct#" + sub, { limit: 20 })]);
       await S.audit(env, who, "view contact", { contact: sub });
@@ -140,14 +140,14 @@ async function api(request, env, who, path) {
       if (!subject || !md.trim()) return fail(400, "Write a subject and a message first.");
       const { contacts } = await S.contacts(env);
       const c = contacts.find((x) => x.id === sub);
-      if (!c || !c.email) return fail(404, "No member with that id.");
+      if (!c || !c.email) return fail(404, "No user with that id.");
       if (b.test) {
         const me = contacts.find((x) => x.email === who);
         await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + subject, md }));
         await S.audit(env, who, "test email", { contact: sub });
         return json(200, { sent_to: who });
       }
-      if (env.SENDING !== "on") return fail(403, "Sending to members is turned off. Only test emails go out.");
+      if (env.SENDING !== "on") return fail(403, "Sending to users is turned off. Only test emails go out.");
       await sesSend(env, await message(env, { to: c.email, userId: c.id, subject, md }));
       const rec = { pk: "direct#" + sub, sk: S.now() + "#" + S.id(), subject, body: md, to: c.email };
       await S.put(env, rec);
@@ -213,7 +213,7 @@ async function api(request, env, who, path) {
       return json(200, { sent_to: who });
     }
     if (sub && more === "send" && method === "POST") {
-      if (env.SENDING !== "on") return fail(403, "Sending to members is turned off. Only test emails go out.");
+      if (env.SENDING !== "on") return fail(403, "Sending to users is turned off. Only test emails go out.");
       if (!c.subject || !c.body) return fail(400, "Write a subject and a message first.");
       const b = await body(request);
       const list = await recipients(env, c);

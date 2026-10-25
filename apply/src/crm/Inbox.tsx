@@ -65,7 +65,7 @@ export function Inbox({ sending, onUnread }: { sending: boolean; onUnread: (n: n
         {!thread ? <p className="crm-note">Pick a conversation.</p> : <>
           <div>
             <h2>{thread.list[0].name || thread.email}</h2>
-            <p className="crm-note">{thread.email}{thread.list.some((m) => m.contact) ? " · member" : " · not a member"} · {plural(thread.list.length, "message")}</p>
+            <p className="crm-note">{thread.email}{thread.list.some((m) => m.contact) ? " · user" : " · not a user"} · {plural(thread.list.length, "message")}</p>
           </div>
           {thread.list.map((m) => (
             <div key={m.sk} className={`crm-msg ${m.dir}`}>
