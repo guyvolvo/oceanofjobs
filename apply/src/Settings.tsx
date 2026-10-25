@@ -24,7 +24,7 @@ type Form = {
   linkedin: string; github: string; website: string;
   countries: string; sponsorship: "yes" | "no" | "skip"; notice: string; salary: string;
   eeo: Record<EeoKey, { pick: "skip" | "decline" | "answer"; text: string }>;
-  mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai"; consent: boolean;
+  mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai";
   min_match: string; daily: string; per_company: string; blocked: string;
   answers: { id: number; question: string; answer: string; job_id?: string }[];
 };
@@ -43,7 +43,7 @@ function toForm(p: Profile): Form {
       const v = p.eeo[k];
       return [k, { pick: v === null ? "skip" : v === "decline" ? "decline" : "answer", text: v && v !== "decline" ? v : "" }];
     })) as Form["eeo"],
-    mode: p.settings.mode, sources: p.settings.sources, unknowns: p.settings.unknowns, consent: !!p.settings.consent,
+    mode: p.settings.mode, sources: p.settings.sources, unknowns: p.settings.unknowns,
     min_match: str(g.min_match), daily: str(g.daily_limit), per_company: str(g.one_per_company_days),
     blocked: g.blocked_companies.join("\n"),
     answers: p.answers.map((a) => ({ id: nextId++, ...a })),
@@ -68,7 +68,7 @@ function fromForm(f: Form): Profile {
     answers: f.answers.map((a) => ({ question: a.question.trim(), answer: a.answer.trim(), ...(a.job_id ? { job_id: a.job_id } : {}) }))
       .filter((a) => a.question && a.answer),
     settings: {
-      mode: f.mode, sources: f.sources, unknowns: f.unknowns, consent: f.consent,
+      mode: f.mode, sources: f.sources, unknowns: f.unknowns,
       guardrails: {
         min_match: num(f.min_match), daily_limit: num(f.daily), one_per_company_days: num(f.per_company),
         blocked_companies: f.blocked.split(/\s+/).filter(Boolean),
@@ -229,10 +229,6 @@ export function Settings({ ext }: { ext: Ext }) {
             <Radio.Item value="ai" label="Draft an answer with AI" description={<>AI drafts an answer from my details and saves it. A new AI answer waits in Needs attention for me to check, unless I change that in <a className="oj-link" href="#agent">AI agent</a>. Uses your monthly AI answers: 50 on Free, 300 on Basic, 3,000 on Pro. After that, the extension uses your own AI key if you added one in its options.</>} />
             <Radio.Item value="skip" label="Skip the job" description="Leave it for me to review." />
           </Radio.Group>
-          <Checkbox.Group legend="Privacy boxes" value={form.consent ? ["consent"] : []} onValueChange={(v) => set("consent", (v as string[]).includes("consent"))}
-            description="Many forms can't be sent until you agree to the company's privacy policy or to processing your application data. With this on, automatic runs tick those required boxes. They never tick marketing, newsletter or talent pool boxes. With it off, Draft an answer with AI answers them like any other question, and Skip the job leaves them for you.">
-            <Checkbox.Item value="consent" label="Accept required privacy and data-processing boxes for me" />
-          </Checkbox.Group>
         </Card>
       </section>
 

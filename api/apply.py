@@ -60,7 +60,7 @@ def empty_profile() -> dict:
         "work": {"authorized_countries": [], "needs_sponsorship": None, "notice_period": "", "salary": ""},
         "eeo": {k: None for k in EEO_FIELDS},
         "answers": [],
-        "settings": {"mode": "queue", "sources": ["board", "matches"], "unknowns": "ai", "consent": False,
+        "settings": {"mode": "queue", "sources": ["board", "matches"], "unknowns": "ai", "consent": True,
                      "guardrails": {"min_match": None, "daily_limit": None, "blocked_companies": [],
                                     "one_per_company_days": None}},
     }
@@ -161,9 +161,9 @@ def clean_profile(body: dict) -> dict:
         st["sources"] = [x for x in SOURCES if x in (s.get("sources") or [])]
     if s.get("unknowns") in UNKNOWNS:
         st["unknowns"] = s["unknowns"]
-    # Runs tick required privacy and data-processing boxes only when this is on.
-    if isinstance(s.get("consent"), bool):
-        st["consent"] = s["consent"]
+    # Extension 1.9.10 ticks required privacy boxes in runs only with this
+    # on; later versions answer every required box, so it is always on.
+    st["consent"] = True
     g = s.get("guardrails") or {}
     st["guardrails"] = {
         "min_match": _int(g.get("min_match"), 0, 100),

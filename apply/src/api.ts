@@ -31,7 +31,7 @@ export type Profile = {
   eeo: Record<"gender" | "race" | "veteran" | "disability", string | null>;
   answers: { question: string; answer: string }[];
   settings: {
-    mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai"; consent?: boolean;
+    mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai";
     guardrails: { min_match: number | null; daily_limit: number | null; blocked_companies: string[]; one_per_company_days: number | null };
   };
 };

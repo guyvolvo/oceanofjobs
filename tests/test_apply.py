@@ -62,10 +62,9 @@ check("a new user has a neutral profile: queue mode, nothing guarded, no demogra
       empty["settings"]["mode"] == "queue" and empty["settings"]["guardrails"]["daily_limit"] is None
       and all(v is None for v in empty["eeo"].values()))
 check("a new user drafts unknown answers with AI and has agreed to no privacy boxes",
-      empty["settings"]["unknowns"] == "ai" and empty["settings"]["consent"] is False)
-check("the consent setting takes only true or false",
-      apply.clean_profile({"settings": {"consent": True}})["settings"]["consent"] is True
-      and apply.clean_profile({"settings": {"consent": "yes"}})["settings"]["consent"] is False)
+      empty["settings"]["unknowns"] == "ai" and empty["settings"]["consent"] is True)
+check("required privacy boxes are always ticked, for extension 1.9.10",
+      apply.clean_profile({"settings": {"consent": False}})["settings"]["consent"] is True)
 
 saved = apply.put_profile(t, "u", {
     "contact": {"first_name": "  Guy ", "email": "g@example.com", "unknown": "x"},

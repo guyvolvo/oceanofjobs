@@ -116,7 +116,7 @@ await check("a lone checkbox is ticked only for a yes", async () => {
 
 // A box that only says "Yes" under the question it answers (Comeet's
 // privacy policy, NaturalInt, 2026-10-25): the label is the question.
-await check("a lone Yes box takes the question above it, and counts as a privacy box", async () => {
+await check("a lone Yes box takes the question above it", async () => {
   await load(`<form><label>Full name <input name="a"></label><label>Email <input type="email" name="b"></label>
     <label>Phone <input type="tel" name="c"></label><label>Resume <input type="file" name="cv"></label>
     <div class="q"><h4>I hereby agree and consent to NI's Privacy Policy *</h4><div>Required</div>
@@ -127,7 +127,7 @@ await check("a lone Yes box takes the question above it, and counts as a privacy
   assert.ok(got.fields, JSON.stringify(got));
   const pp = got.fields.find((f) => f.type === "checkbox" && f.required);
   assert.ok(pp && /privacy policy/i.test(pp.label) && /Yes$/.test(pp.label), JSON.stringify(got.fields));
-  assert.ok(match.consentBox(pp));
+  assert.equal(match.mustAnswer(pp), "Yes");
 });
 
 // Comeet's questionnaire as its AngularJS app renders it (Fetcherr,

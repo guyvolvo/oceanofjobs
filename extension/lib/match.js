@@ -236,15 +236,20 @@
   // Consent, terms and privacy wording, in English and Hebrew.
   const isStatement = (text) => /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that|מדיניות|פרטיות|מאשר|מסכים|תנאי/i.test(text);
 
-  // A required box agreeing to the site's privacy policy or to processing
-  // the application's data: what the "accept required privacy boxes" setting
-  // lets a run tick. Never an opt-in to marketing, a talent pool or being
-  // kept for other roles, and never a statement about the applicant
-  // ("I certify that the information is true").
-  const DATA_CONSENT = /privacy|personal (data|information)|data (protection|processing)|process(ing)? (of )?(my|your) (personal |application )?(data|information)|gdpr|consent|מדיניות|פרטיות/i;
+  // What a required box or agreement gets so the form can be sent, or
+  // undefined. A lone box, or a group of one ("I agree"), is ticked: the
+  // form won't go without it. A required yes/no agreement is answered Yes,
+  // except an opt-in to marketing or a talent pool, which is answered No:
+  // either answer lets it through.
   const OPT_IN = /newsletter|marketing|talent (pool|community|network)|future (opportunit|role|position|vacanc|job)|other (role|position|opportunit|job)|keep (me|my|your)|job alerts?|updates|promotional|text messages|sms/i;
-  const consentBox = (field) => field.type === 'checkbox' && !(field.options || []).length && !!field.required
-    && DATA_CONSENT.test(field.label) && !OPT_IN.test(field.label) && !/certif|attest|true and (correct|complete)|accurate/i.test(field.label);
+  function mustAnswer(field) {
+    const options = field.options || [];
+    if (!field.required || isEeo(field)) return undefined;
+    if (field.type === 'checkbox' && options.length <= 1) return options[0] || 'Yes';
+    const yesNo = options.length === 2 && pickOption(options, 'Yes') >= 0 && pickOption(options, 'No') >= 0;
+    if (yesNo && isStatement(field.label)) return OPT_IN.test(field.label) ? 'No' : 'Yes';
+    return undefined;
+  }
 
   // The questions an AI may suggest an answer for, on a form the user
   // checks before it is sent: the required ones nothing answered, and an
@@ -436,7 +441,7 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, consentBox, suggestable,
+    notJobSite, jobish, pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, mustAnswer, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf, plural, reasonText, filledText,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
