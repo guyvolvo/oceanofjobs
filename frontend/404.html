@@ -53,6 +53,15 @@
     <div class="hero-bar-right" id="hero-bar-right">
       <button type="button" class="hero-theme" id="hero-theme">Dark</button>
       <div class="hero-account" id="hero-account"><a class="hero-bar-name" href="/account">Log in</a></div>
+      <script>
+        // Signed in: say so before hero_account.js loads, so a reload doesn't flash Log in.
+        try {
+          if ((JSON.parse(localStorage.getItem("iljobs_auth_tokens") || "null") || {}).id_token) {
+            document.querySelector("#hero-account .hero-bar-name").textContent = "My account";
+            document.getElementById("hero-theme").hidden = true;
+          }
+        } catch (e) {}
+      </script>
     </div>
   </header>
 </div><!-- /site-header -->
