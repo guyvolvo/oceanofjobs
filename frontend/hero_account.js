@@ -68,7 +68,6 @@
         <a role="menuitem" href="/board?starred=1">${icons.bookmark}Saved jobs</a>
         <a role="menuitem" href="/apply">${icons.send}Auto apply</a>
         <a role="menuitem" href="/account#alerts">${icons.bell}Alerts</a>
-        <a role="menuitem" href="/stats">${icons.chart}Statistics</a>
         <a role="menuitem" href="/contact">${icons.chat}Contact</a>
         <button type="button" role="menuitem" id="hero-menu-theme">${isDark() ? icons.sun : icons.moon}<span>${isDark() ? "Light mode" : "Dark mode"}</span></button>
         <button type="button" role="menuitem" class="hero-menu-out" id="hero-logout">${icons.out}Log out</button>

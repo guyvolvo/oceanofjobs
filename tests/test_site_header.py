@@ -24,9 +24,10 @@ def check(name, ok, detail=""):
 
 hrefs = [h for _, _, t in site_header.SECTIONS for h in ([t] if isinstance(t, str) else [x[1] for x in t])]
 bar = site_header.header()
-check("the header links every section", all(f'href="{h.replace("&", "&amp;")}"' in bar for h in hrefs))
-check("the header marks the current section", 'site-menu is-current" data-menu="apply"' in site_header.header("apply")
-      and 'aria-current="page">Pricing' in site_header.header("pricing"))
+check("the header links every section, and no longer Auto apply or About", "Auto apply" not in bar and ">About<" not in bar and all(f'href="{h.replace("&", "&amp;")}"' in bar for h in hrefs))
+check("the header marks the current section", 'site-menu is-current" data-menu="docs"' in site_header.header("docs")
+      and 'aria-current="page">Pricing' in site_header.header("pricing")
+      and 'aria-current="page">Contact' in site_header.header("contact"))
 
 pages = build_pages.MARKED + [build_pages.FRONT / f"{n}.html" for n in ("pricing", *build_pages.LEGAL)]
 for path in pages:

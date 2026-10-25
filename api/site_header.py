@@ -36,10 +36,9 @@ SECTIONS = [
     ("jobs", "Jobs", [("All jobs", "/board?roles=all"), ("Tech jobs", "/board?roles=tech"), ("Remote jobs", "/board?roles=all&workplace=remote"),
                       ("Jobs by role", "/jobs"), ("Saved jobs", "/board?starred=1")]),
     ("companies", "Companies", [("Directory", "/companies"), ("A to Z", "/companies/a"), ("Statistics", "/stats")]),
-    ("apply", "Auto apply", [("Dashboard", "/apply"), ("Queue", "/apply#queue"), ("History", "/apply#history"), ("Settings", "/apply#settings")]),
     ("docs", "Docs", [("API", "/docs/api"), ("MCP", "/docs/mcp"), ("Extension", "/docs/extension")]),
     ("pricing", "Pricing", "/pricing"),
-    ("about", "About", "/contact"),
+    ("contact", "Contact", "/contact"),
 ]
 
 # The sidebar on the board and companies pages: the same sections, one

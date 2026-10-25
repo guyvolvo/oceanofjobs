@@ -9,7 +9,7 @@ const LINKS = [
   ['Statistics', '/stats'],
   ['Auto apply', '/apply'],
   ['Pricing', '/pricing'],
-  ['About', '/contact'],
+  ['Contact', '/contact'],
 ] as const;
 
 export function SiteLinks() {

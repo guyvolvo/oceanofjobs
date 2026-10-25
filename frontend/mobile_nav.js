@@ -126,7 +126,7 @@
       panel.innerHTML = '<div class="hero-nav-list">' + rows.join("") + "</div>";
       return;
     }
-    // The desktop header's menus, in its order: Jobs, Companies, Docs, Pricing.
+    // The desktop header's menus, in its order: Jobs, Companies, Docs, Pricing, then Contact below.
     if (!onBoard()) rows.push(`<a class="hero-nav-item" href="/board">${icons.board}Jobs</a>`);
     if (location.pathname !== "/companies") rows.push(`<a class="hero-nav-item" href="/companies">${icons.building}Companies</a>`);
     rows.push(`<a class="hero-nav-item" href="/docs">${icons.book}Docs</a>`);
@@ -136,7 +136,6 @@
       rows.push(`<a class="hero-nav-item" href="/board?starred=1">${icons.bookmark}Saved jobs</a>`);
       rows.push(`<a class="hero-nav-item" href="/apply">${icons.send}Auto apply</a>`);
       rows.push(`<a class="hero-nav-item" href="/account#alerts">${icons.bell}Alerts</a>`);
-      rows.push(`<a class="hero-nav-item" href="/stats">${icons.chart}Statistics</a>`);
     }
     rows.push(`<a class="hero-nav-item" href="/contact">${icons.chat}Contact</a>`);
     rows.push(`<a class="hero-nav-item" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener">${icons.github}GitHub</a>`);
