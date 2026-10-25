@@ -49,6 +49,7 @@ import ai_answers
 import apply
 import agent
 import attempts
+import consent
 import paddle
 import tokens
 from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
@@ -591,6 +592,49 @@ def lambda_handler(event, context):
             resp = _response(200, json.dumps(route_geo(event)))
             resp["headers"]["Cache-Control"] = "no-store"
             return resp
+        if path.startswith("/me/"):
+            # An account that hasn't agreed to the current terms can read,
+            # delete and leave, but after consent.LOCK_FROM can't start
+            # anything new (consent.BLOCKED).
+            who = (event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}) or {}).get("sub")
+            if who and consent.blocked(_alerts_table, who, method, path):
+                return _response(403, json.dumps({"error": consent.REQUIRED, "code": "consent_required", "retryable": False}))
+        if path == "/me/consent":
+            # Agreeing to the terms (the sign-in window or the prompt), and
+            # what the website needs to know about it.
+            claims = _authenticated_claims(event)
+            if method == "GET":
+                return _response(200, json.dumps(consent.state(_alerts_table, claims["sub"])))
+            if method == "POST":
+                body = json.loads(event.get("body") or "{}")
+                out = consent.agree(_alerts_table, claims["sub"], newsletter=body.get("newsletter") is True,
+                                    via=str(body.get("via") or "signin"),
+                                    email=claims.get("email") if email_is_verified(claims) else None)
+                return _response(200, json.dumps(out))
+            if method == "DELETE":
+                consent.forget(_alerts_table, claims["sub"])  # deleting the account
+                return _response(204, "")
+            return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/me/email":
+            # The newsletter switch in account settings.
+            claims = _authenticated_claims(event)
+            if method == "PUT":
+                body = json.loads(event.get("body") or "{}")
+                if not isinstance(body.get("newsletter"), bool):
+                    return _response(400, json.dumps({"error": "newsletter must be true or false"}))
+                consent.set_newsletter(_alerts_table, claims["sub"], body["newsletter"], source="settings",
+                                       email=claims.get("email") if email_is_verified(claims) else None)
+                return _response(200, json.dumps(consent.state(_alerts_table, claims["sub"])))
+            return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/me/waitlist":
+            # A paid plan's waitlist, from the pricing page.
+            claims = _authenticated_claims(event)
+            if method == "POST":
+                body = json.loads(event.get("body") or "{}")
+                out = consent.join_waitlist(_alerts_table, claims["sub"], str(body.get("plan") or ""),
+                                            email=claims.get("email") if email_is_verified(claims) else None)
+                return _response(200, json.dumps(out))
+            return _response(405, json.dumps({"error": "method not allowed"}))
         if path == "/me/profile":
             claims = _authenticated_claims(event)
             if method == "GET":
@@ -2256,6 +2300,11 @@ def route_unsubscribe(user_id, alert_id, token) -> tuple[int, dict]:
         return 400, {"error": "missing parameters"}
     if not _hmac.compare_digest(str(token), _unsub.unsubscribe_token(user_id, alert_id)):
         return 403, {"error": "bad token"}
+    if alert_id == consent.EMAIL:
+        # The newsletter's link: its key is the #email row, so the same
+        # signature that guards an alert guards this.
+        consent.set_newsletter(_alerts_table, user_id, False, source="link")
+        return 200, {"unsubscribed": True, "newsletter": True}
     try:
         _alerts_table.update_item(
             Key={"user_id": user_id, "alert_id": alert_id},
@@ -2289,6 +2338,11 @@ def unsubscribe_page(user_id, alert_id, token) -> str:
     from urllib.parse import urlencode as _urlencode
 
     action = "/api/alerts/unsubscribe?" + _urlencode({"u": user_id or "", "a": alert_id or "", "t": token or ""})
+    if alert_id == consent.EMAIL:
+        return _unsubscribe_html("Unsubscribe from product updates?", (
+            "<p>You'll stop getting our emails about new features and product updates. Job alerts you set up stay as they are. "
+            'You can subscribe again from <a href="/account#settings">your account settings</a>.</p>'
+            f'<form method="post" action="{_html.escape(action)}"><button type="submit" class="pg-btn pg-btn-fill">Unsubscribe</button></form>'))
     return _unsubscribe_html("Unsubscribe from this alert?", (
         '<p>You\'ll stop getting email for this alert. Your other alerts stay as they are, and you can turn '
         'this one back on from <a href="/account">your account</a>.</p>'
@@ -2297,6 +2351,9 @@ def unsubscribe_page(user_id, alert_id, token) -> str:
 
 def unsubscribed_page(status: int, body: dict) -> str:
     """What the person sees after the button: route_unsubscribe's answer."""
+    if status == 200 and body.get("newsletter"):
+        return _unsubscribe_html("Unsubscribed", "<p>You won't get any more product update emails. You can subscribe again from "
+                                 '<a href="/account#settings">your account settings</a>.</p>')
     if status == 200:
         return _unsubscribe_html("Unsubscribed", '<p>You\'re unsubscribed from this alert. You can turn it back on from '
                                  '<a href="/account">your account</a>.</p>')

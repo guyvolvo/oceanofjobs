@@ -6401,51 +6401,8 @@ function wireAuth() {
 // direct cognitoRequest() calls), so a signed-in tab doesn't silently
 // start failing an hour in.
 
-async function ensureFreshTokens() {
-  const tokens = getAuthTokens();
-  if (!tokens) return null;
-  const payload = JSON.parse(atob(tokens.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-  if (payload.exp * 1000 - Date.now() > 60_000) return tokens; // still good for at least another minute
-  try {
-    const result = await cognitoRequest("InitiateAuth", {
-      ClientId: COGNITO_CLIENT_ID,
-      AuthFlow: "REFRESH_TOKEN_AUTH",
-      AuthParameters: { REFRESH_TOKEN: tokens.refresh_token },
-    });
-    const t = result.AuthenticationResult;
-    const refreshed = { id_token: t.IdToken, access_token: t.AccessToken, refresh_token: tokens.refresh_token };
-    setAuthTokens(refreshed);
-    return refreshed;
-  } catch (err) {
-    // Only a refresh token Cognito refuses is a dead session, and the
-    // reader has to sign in again. Anything else (a timeout, a dropped
-    // connection, a throttle, a Cognito 5xx, a full localStorage) is not,
-    // and signing out would revoke a session that was still good. Fail
-    // this one request instead and leave the tokens where they are.
-    if (!String((err && err.code) || "").endsWith("NotAuthorizedException")) {
-      throw new Error("Could not reach the sign-in service");
-    }
-    signOut();
-    return null;
-  }
-}
-
-async function authedFetch(path, options = {}) {
-  const tokens = await ensureFreshTokens();
-  if (!tokens) throw new Error("Signed out");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    // Same reason as the refresh above. 20s is far longer than any of
-    // these routes takes (they are one DynamoDB query) and still finite.
-    signal: options.signal || abortAfter(20000),
-    headers: { "Content-Type": "application/json", ...(options.headers || {}), Authorization: `Bearer ${tokens.id_token}` },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw Object.assign(new Error(body.error || `HTTP ${res.status}`), { status: res.status });
-  }
-  return res.status === 204 ? null : res.json();
-}
+// ensureFreshTokens() and authedFetch() live in auth.js, which every page
+// loads, so the header can check the terms agreement on any page.
 
 async function loadMyAlerts() {
   try {
