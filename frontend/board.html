@@ -70,6 +70,15 @@
         document.documentElement.classList.add("stats-collapsed");
       }
     } catch (e) {}
+    // A Google or GitHub sign-in lands here, and auth.js sends it back to
+    // the page it started on. Hide the board until then so it doesn't flash.
+    try {
+      var back = sessionStorage.getItem("ooj_signin_return") || "";
+      if (back[0] === "/" && back[1] !== "/" && back.split(/[?#]/)[0] !== location.pathname
+          && /[?&]code=|#id_token=/.test(location.search + location.hash)) {
+        document.documentElement.style.visibility = "hidden";
+      }
+    } catch (e) {}
   </script>
 </head>
 <body class="board-page">

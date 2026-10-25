@@ -69,6 +69,7 @@ function returnToPage() {
   const to = sessionStorage.getItem(RETURN_KEY);
   sessionStorage.removeItem(RETURN_KEY);
   if (to && to.startsWith("/") && !to.startsWith("//") && to !== location.pathname + location.search + location.hash) location.replace(to);
+  else document.documentElement.style.visibility = "";
 }
 
 function getAuthTokens() {
@@ -414,6 +415,7 @@ async function handleAuthRedirect() {
       await exchangeGoogleCode(code);
       returnToPage();
     } catch (err) {
+      document.documentElement.style.visibility = "";
       console.error("Google sign-in failed:", err);
     }
   }
