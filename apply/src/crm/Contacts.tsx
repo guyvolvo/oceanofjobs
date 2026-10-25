@@ -215,6 +215,33 @@ export function Contacts({ sending, onEmail }: { sending: boolean; onEmail: (c: 
   const toggle = (id: string, on: boolean) => setPicked((p) => { const n = new Set(p); if (on) n.add(id); else n.delete(id); return n; });
   const allOn = shown.length > 0 && shown.every((c) => picked.has(c.id));
   const subscribed = data ? data.contacts.filter((c) => picked.has(c.id) && c.newsletter).length : 0;
+  const [op, setOp] = useState("tag_add");
+  const [tag, setTag] = useState("");
+  const [plan, setPlan] = useState("pro");
+  const [until, setUntil] = useState("2026-12-31");
+  const [busy, setBusy] = useState(false);
+  const apply = async () => {
+    setBusy(true);
+    const ids = [...picked];
+    let changed = 0;
+    try {
+      for (let i = 0; i < ids.length; i += 10) {
+        changed += (await crm<{ changed: number }>("/contacts/bulk", "POST", { ids: ids.slice(i, i + 10), op, tag, plan: op === "waitlist_remove" ? (plan === "any" ? "" : plan) : plan, until })).changed;
+      }
+      toasts.add({ variant: "success", title: `${plural(changed, "user")} changed`, description: changed < ids.length ? `${ids.length - changed} already matched` : undefined });
+      load();
+    } catch (e) { toasts.add({ variant: "error", title: (e as Error).message }); } finally { setBusy(false); }
+  };
+  const exportPicked = () => {
+    const rows = (data?.contacts || []).filter((c) => picked.has(c.id));
+    const cell = (v: string) => `"${(/^[=+\-@]/.test(v) ? "'" + v : v).replace(/"/g, '""')}"`;
+    const csv = [["email", "joined", "plan", "product_updates", "waitlist", "tags"],
+      ...rows.map((c) => [c.email, c.created || "", c.plan, c.newsletter ? "yes" : "no", c.waitlist.join(" "), c.tags.join(" ")])]
+      .map((r) => r.map(cell).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    Object.assign(document.createElement("a"), { href: url, download: `ocean-of-jobs-users-${new Date().toISOString().slice(0, 10)}.csv` }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
   const emailPicked = async () => {
     try {
       const r = await crm<{ campaign: Campaign }>("/campaigns", "POST", { subject: "", body: "", to: [...picked] });
@@ -233,9 +260,23 @@ export function Contacts({ sending, onEmail }: { sending: boolean; onEmail: (c: 
             {picked.size ? <Button variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button> : null}
             <Button variant="primary" disabled={!subscribed} title={picked.size && !subscribed ? "None of them subscribed to product updates" : undefined}
               onClick={emailPicked}>{picked.size ? `Email ${plural(subscribed, "subscriber")}` : "Email picked users"}</Button>
-            <a href={`/api/contacts.csv?${query(filter)}`} download><Button variant="secondary">Export CSV</Button></a>
+            {picked.size ? <Button variant="secondary" onClick={exportPicked}>Export picked</Button>
+              : <a href={`/api/contacts.csv?${query(filter)}`} download><Button variant="secondary">Export CSV</Button></a>}
           </div>
         </div>
+        {picked.size ? (
+          <div className="crm-row crm-bulk">
+            <Select label={`Change ${plural(picked.size, "picked user")}`} value={op} onValueChange={(v) => setOp(String(v))}
+              items={{ tag_add: "Add a tag", tag_remove: "Remove a tag", license: "Give a license", license_remove: "Remove the license", waitlist_remove: "Remove from the waitlist" }} />
+            {op.startsWith("tag_") ? <Input label="Tag" value={tag} onChange={(e) => setTag(e.target.value.trim().toLowerCase())} placeholder="beta" /> : null}
+            {op === "license" ? <>
+              <Select label="Plan" value={plan === "any" ? "pro" : plan} onValueChange={(v) => setPlan(String(v))} items={{ pro: "Pro", basic: "Basic" }} />
+              <Input label="Until" type="date" value={until} onChange={(e) => setUntil(e.target.value)} description="Empty means no end" />
+            </> : null}
+            {op === "waitlist_remove" ? <Select label="Waitlist" value={plan} onValueChange={(v) => setPlan(String(v))} items={{ any: "Both", pro: "Pro", basic: "Basic" }} /> : null}
+            <Button variant="primary" loading={busy} disabled={op.startsWith("tag_") && !tag} onClick={apply}>Apply</Button>
+          </div>
+        ) : null}
       </div></LayerCard>
       <LayerCard><div className="crm-card">
         {!data ? <p className="crm-note"><Loader /> Loading</p> : (

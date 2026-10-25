@@ -107,6 +107,44 @@ async function api(request, env, who, path) {
       "Content-Disposition": `attachment; filename="ocean-of-jobs-contacts-${new Date().toISOString().slice(0, 10)}.csv"` } });
   }
 
+  if (area === "contacts" && sub === "bulk" && method === "POST") {
+    // One change for many users at once, ten per call (the page loops).
+    const b = await body(request);
+    const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).slice(0, 10);
+    const ops = ["tag_add", "tag_remove", "license", "license_remove", "waitlist_remove"];
+    if (!ids.length || !ops.includes(b.op)) return fail(400, "Pick users and a change.");
+    const tag = String(b.tag || "").trim().toLowerCase().slice(0, 40);
+    if (b.op.startsWith("tag_") && !tag) return fail(400, "Name the tag.");
+    const { contacts } = await S.contacts(env);
+    const flows = b.op === "tag_add" ? await A.flowsFor(env, "tag_added") : [];
+    let changed = 0;
+    for (const id of ids) {
+      const c = contacts.find((x) => x.id === id);
+      if (!c) continue;
+      if (b.op === "tag_add" || b.op === "tag_remove") {
+        const tags = new Set(c.tags);
+        const had = tags.has(tag);
+        b.op === "tag_add" ? tags.add(tag) : tags.delete(tag);
+        if (had === (b.op === "tag_add")) continue;
+        c.tags = await S.setTags(env, id, [...tags]);
+        if (b.op === "tag_add" && flows.length) await A.fire(env, "tag_added", c, { tag }, { flows });
+      } else if (b.op === "license") {
+        await S.setLicense(env, id, { plan: b.plan === "basic" ? "basic" : "pro", until: String(b.until || ""), note: "Bulk" }, who);
+      } else if (b.op === "license_remove") {
+        if (!c.license) continue;
+        await S.setLicense(env, id, { plan: "free" }, who);
+      } else {
+        const plans = Object.keys(c.waiting || {}).filter((p) => !b.plan || p === b.plan);
+        if (!plans.length) continue;
+        for (const p of plans) await waitlistChange(env, { op: "remove", user_id: id, plan: p });
+      }
+      changed++;
+    }
+    S.dropCache();
+    await S.audit(env, who, "bulk " + b.op, { people: ids, tag, plan: b.plan || "", until: b.until || "", changed });
+    return json(200, { changed });
+  }
+
   if (area === "contacts") {
     if (!sub && method === "GET") {
       const { contacts, complete } = await S.contacts(env, { fresh: q.fresh === "1" });

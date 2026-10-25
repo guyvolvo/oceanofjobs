@@ -103,3 +103,4 @@ body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-
 .crm-pick > button:first-child:hover { border-color: var(--color-kumo-line); }
 .crm-pick.on > button:first-child:hover { border-color: var(--color-kumo-brand); }
 .crm-pick-x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border: 0; border-radius: 50%; background: rgb(0 0 0 / 0.6); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; }
+.crm-bulk { padding-top: 12px; border-top: 1px solid var(--color-kumo-line); }

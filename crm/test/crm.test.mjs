@@ -420,3 +420,29 @@ test("flows: a baseline first, then each new match once; steps, waits, events an
   assert.deepEqual(posts.at(-1), { text: "Mail from Zed <z@example.com>: Hello" });
   globalThis.fetch = realFetch;
 });
+
+test("bulk changes: tags, licenses and waitlists for many users at once", async () => {
+  _resetKeys();
+  dropCache();
+  const state = {
+    users: [user("u1", "owner@example.com"), user("u2", "a@example.com"), user("u3", "b@example.com")],
+    alerts: [row("u3", "#waitlist#pro", { plan: { S: "pro" }, joined_at: { S: "2026-10-25T10:00:00Z" } })], crm: [], sent: [],
+  };
+  const aws = fakeAws(state);
+  const box = [];
+  globalThis.fetch = async (url, init) => (String(url).startsWith("https://box.oceanofjobs.com/")
+    ? (box.push(JSON.parse(init.body)), new Response(JSON.stringify({ ok: true }))) : aws(url, init));
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm", UNSUBSCRIBE_SECRET: "s3cret" };
+  const tok = await jwt(good());
+  const call = (b) => worker.fetch(new Request("https://crm.oceanofjobs.com/api/contacts/bulk", { method: "POST", body: JSON.stringify(b),
+    headers: { "Cf-Access-Jwt-Assertion": tok, "X-CRM": "1", "Content-Type": "application/json" } }), env).then((r) => r.json());
+  assert.equal((await call({ ids: ["u2", "u3"], op: "tag_add", tag: "Beta" })).changed, 2);
+  assert.equal((await call({ ids: ["u2", "u3"], op: "tag_add", tag: "beta" })).changed, 0, "already tagged");
+  assert.equal((await call({ ids: ["u2"], op: "tag_remove", tag: "beta" })).changed, 1);
+  assert.equal((await call({ ids: ["u2", "u3"], op: "license", plan: "pro", until: "2026-12-31" })).changed, 2);
+  assert.equal(state.alerts.filter((i) => i.alert_id.S === "#grant" && i.plan.S === "pro").length, 2);
+  assert.equal((await call({ ids: ["u2", "u3"], op: "waitlist_remove" })).changed, 1, "only those on a waitlist");
+  assert.deepEqual(box.at(-1), { op: "remove", user_id: "u3", plan: "pro" });
+  assert.equal((await call({ ids: ["u2"], op: "delete" })).error, "Pick users and a change.");
+  globalThis.fetch = realFetch;
+});
