@@ -1,5 +1,5 @@
 // 1.8.91's fill button: what it says before a click (pageState), a fill,
-// then "Review filled fields" stepping through what needs attention
+// then "Review answers" stepping through what needs attention
 // (reviewFields), and the popup's labels for each. Local pages only, our
 // API stubbed, nothing leaves the browser and nothing is submitted.
 // Run from the repo root: node tests/e2e/_ext_fill_states.mjs
@@ -112,13 +112,13 @@ check("the popup offers Fill application on the form", (await popup.textContent(
 check("the status line has no 15-minute sentence", !/15 minutes/.test(await popup.textContent("#state")), await popup.textContent("#state"));
 await popup.click("#fill");
 await popup.waitForFunction(() => !["Filling application…", "Fill application"].includes(document.getElementById("fill").textContent), null, { timeout: 30000 });
-check("after the fill it offers Review filled fields", (await popup.textContent("#fill")) === "Review filled fields", await popup.textContent("#fill"));
+check("after the fill it offers Review answers", (await popup.textContent("#fill")) === "Review answers", await popup.textContent("#fill"));
 await popup.click("#fill");
 await popup.waitForTimeout(500);
-check("review says what the field is", /to check\./.test(await popup.textContent("#fill-result")), await popup.textContent("#fill-result"));
+check("review says what the field is", /to review\./.test(await popup.textContent("#fill-result")), await popup.textContent("#fill-result"));
 await popup.reload();
 await popup.waitForFunction(() => document.getElementById("fill").textContent !== "Checking this page…", null, { timeout: 15000 });
-check("reopening the popup remembers the fill", (await popup.textContent("#fill")) === "Review filled fields", await popup.textContent("#fill"));
+check("reopening the popup remembers the fill", (await popup.textContent("#fill")) === "Review answers", await popup.textContent("#fill"));
 
 await ctx.close();
 console.log(failures.length ? `\n${failures.length} failed` : "\nall passed");

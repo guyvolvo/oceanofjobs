@@ -1,6 +1,6 @@
 // Acceptance pass for 1.8.91's fill button on live application forms.
 // Each job is driven through the popup itself: open it (the page check),
-// Fill application, close and reopen it, then Review filled fields. Our API
+// Fill application, close and reopen it, then Review answers. Our API
 // is stubbed, every write that would leave the browser is aborted and
 // logged, and nothing ever submits a form.
 // Run from the repo root: node tests/e2e/_ext_fill_states_live.mjs [url ...]
@@ -142,13 +142,13 @@ for (const job of jobs) {
       label = await popup.textContent("#fill");
     }
     console.log(`  fill: ${(await popup.textContent("#fill-result")).slice(0, 160)}`);
-    check("after the fill: Review filled fields or Application filled", ["Review filled fields", "Application filled"].includes(label), label);
+    check("after the fill: Review answers or Ready to review", ["Review answers", "Ready to review"].includes(label), label);
 
     await popup.close();
     popup = await popupFor(tabId);
     check("reopening the popup keeps the review", (await popup.textContent("#fill")) === label, await popup.textContent("#fill"));
 
-    if (label === "Review filled fields") {
+    if (label === "Review answers") {
       const seen = [];
       for (let i = 0; i < 4; i++) {
         await popup.click("#fill");

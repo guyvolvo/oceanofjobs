@@ -361,7 +361,7 @@
     'job not found': "Couldn't find this job listing.",
     'page did not load': "The application page didn't load.",
     'submit button not found': "Couldn't find the Submit button. Submit the form yourself.",
-    'no options to pick from': 'The list had no options to choose from.',
+    'no options to pick from': 'There are no options in this list.',
     'no dropdown on the page': "Couldn't find the dropdown for this question.",
     'no input to type into': "Couldn't find the field for this answer.",
     'no phone box on the page': "Couldn't find the phone number field.",
@@ -369,30 +369,30 @@
     'no file input': "Couldn't find the file upload field.",
     'needs a date': 'Enter the required date yourself.',
     'sections like this one are not filled': 'Fill in this section yourself.',
-    'no CV saved in the extension': 'Add your CV in extension settings, then try again.',
-    captcha: 'The site asked for a CAPTCHA.',
-    'no confirmation after submitting': "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
-    'no confirmation': "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
-    'Greenhouse asked for an email security code': 'Greenhouse sent an email security code. Enter it on the page to continue.',
-    'unsupported site': "Can't apply automatically on this site. Open the job to fill it in yourself.",
+    'no CV saved in the extension': 'Add your CV in Settings, then try again.',
+    captcha: 'This site asked you to complete a CAPTCHA.',
+    'no confirmation after submitting': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
+    'no confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
+    'Greenhouse asked for an email security code': 'Greenhouse sent you a security code by email. Enter it on the page to continue.',
+    'unsupported site': "This site doesn't support automatic applications. Open the job to fill in the form yourself.",
     'blocked company': 'This company is on your Never apply to list.',
     'applied to this company recently': 'You applied to this company recently.',
     'already applied': "You've already applied to this job.",
-    'tab closed': 'The tab was closed before the site confirmed the application.',
-    'not submitted': 'The tab was closed before the application was sent.',
-    'sign in first': 'This site only takes applications from a signed-in account. Open the job to apply yourself.',
-    'no Workday password': "Set a Workday password in the extension's options, so runs can sign in to Workday sites.",
-    'Workday account to verify': 'Workday emailed you a link to confirm your new account. Click it, then add this job to your queue again.',
+    'tab closed': 'The tab closed before the site confirmed the application.',
+    'not submitted': 'The tab closed before the application was submitted.',
+    'sign in first': 'You need to sign in on this site to apply. Open the job and apply yourself.',
+    'no Workday password': 'Add a Workday password in Settings so the extension can sign in during automatic runs.',
+    'Workday account to verify': 'Workday emailed you a link to confirm your new account. Click the link, then add the job to your queue again.',
     'no email in the profile': 'Add your email under Auto apply settings.',
-    'Workday sign-in form not found': "Couldn't find Workday's sign-in form.",
-    'Workday account form not found': "Couldn't find Workday's form for a new account.",
-    'ready to submit': 'Ready to submit. This site checks that a person sends the form, so open it and press Submit yourself.',
-    'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
+    'Workday sign-in form not found': "Couldn't find the Workday sign-in form.",
+    'Workday account form not found': "Couldn't find the form to create a Workday account.",
+    'ready to submit': 'Ready to submit. This site requires you to submit the form yourself. Open it and click Submit.',
+    'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
   };
   const PREFIXES = [
     ['form errors: ', 'The form needs your attention: '],
     ['Ashby will not take this application: ', "Ashby couldn't submit this application: "],
-    ['needs answer: ', 'Needs your answer: '],
+    ['needs answer: ', 'Please answer: '],
     ['Workday sign-in: ', "Couldn't sign in to this company's Workday site: "],
     ['Workday account: ', "Couldn't create an account on this company's Workday site: "],
   ];
@@ -420,11 +420,11 @@
 
   // What a fill did, for the popup and the card. Counts of zero are left out.
   function filledText(r) {
-    const s = [`Filled in ${r.filled} ${plural(r.filled, 'field')}.`];
-    if (r.suggested) s.push(`Suggested ${r.suggested} ${plural(r.suggested, 'answer')} with AI (outlined in amber).`);
+    const s = [`Filled ${r.filled} ${plural(r.filled, 'field')}.`];
+    if (r.suggested) s.push(`AI suggested ${r.suggested} ${plural(r.suggested, 'answer')}. Check ${plural(r.suggested, 'the one', 'the ones')} outlined in amber.`);
     const missing = (r.missing || []).length, errors = (r.errors || []).length;
-    if (missing) s.push(`${missing} ${plural(missing, 'needs', 'need')} your input.`);
-    if (errors) s.push(`${errors} couldn't be filled.`);
+    if (missing) s.push(`${missing} ${plural(missing, 'needs', 'need')} your attention.`);
+    if (errors) s.push(`Couldn't fill ${errors} ${plural(errors, 'field')}.`);
     return s.join(' ');
   }
 

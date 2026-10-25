@@ -277,19 +277,19 @@ test('plural picks the word for a count', () => {
 });
 
 test('reasonText: internal reasons as the user reads them', () => {
-  assert.equal(m.reasonText('captcha'), 'The site asked for a CAPTCHA.');
-  assert.equal(m.reasonText('needs answer: Why us?; Salary?'), 'Needs your answer: Why us?; Salary?');
+  assert.equal(m.reasonText('captcha'), 'This site asked you to complete a CAPTCHA.');
+  assert.equal(m.reasonText('needs answer: Why us?; Salary?'), 'Please answer: Why us?; Salary?');
   assert.equal(m.reasonText('form errors: Email, Phone'), 'The form needs your attention: Email, Phone');
   assert.equal(m.reasonText('Ashby will not take this application: closed'), "Ashby couldn't submit this application: closed");
-  assert.equal(m.reasonText('Country: no options to pick from'), 'Country: The list had no options to choose from.');
+  assert.equal(m.reasonText('Country: no options to pick from'), 'Country: There are no options in this list.');
   assert.equal(m.reasonText('Country: no option matches "Israel"'), 'Country: None of the options match "Israel".');
   assert.equal(m.reasonText('Visa: not on the page'), "Visa: This field isn't on the page.");
   assert.equal(m.reasonText('blocked company'), 'This company is on your Never apply to list.');
-  assert.equal(m.reasonText('tab closed'), 'The tab was closed before the site confirmed the application.');
+  assert.equal(m.reasonText('tab closed'), 'The tab closed before the site confirmed the application.');
   assert.equal(m.reasonText('could not fill Phone: no phone box on the page; CV: no file input'),
     "Couldn't fill in Phone: Couldn't find the phone number field.; CV: Couldn't find the file upload field.");
-  assert.equal(m.reasonText('no confirmation after submitting'), "The form was sent, but the site didn't confirm it. Look for a confirmation email.");
-  assert.equal(m.reasonText('unsupported site'), "Can't apply automatically on this site. Open the job to fill it in yourself.");
+  assert.equal(m.reasonText('no confirmation after submitting'), "The form was sent, but the site didn't confirm it. Check for a confirmation email.");
+  assert.equal(m.reasonText('unsupported site'), "This site doesn't support automatic applications. Open the job to fill in the form yourself.");
   // Already user-facing, or with no wording of its own: unchanged.
   assert.equal(m.reasonText('below your minimum match'), 'below your minimum match');
   assert.equal(m.reasonText("Couldn't find the application form."), "Couldn't find the application form.");
@@ -298,11 +298,11 @@ test('reasonText: internal reasons as the user reads them', () => {
 });
 
 test('filledText counts in the singular and plural and leaves out zeros', () => {
-  assert.equal(m.filledText({ filled: 1, suggested: 0, missing: [], errors: [] }), 'Filled in 1 field.');
+  assert.equal(m.filledText({ filled: 1, suggested: 0, missing: [], errors: [] }), 'Filled 1 field.');
   assert.equal(m.filledText({ filled: 3, suggested: 1, missing: ['a'], errors: ['x', 'y'] }),
-    "Filled in 3 fields. Suggested 1 answer with AI (outlined in amber). 1 needs your input. 2 couldn't be filled.");
+    "Filled 3 fields. AI suggested 1 answer. Check the one outlined in amber. 1 needs your attention. Couldn't fill 2 fields.");
   assert.equal(m.filledText({ filled: 5, suggested: 2, missing: ['a', 'b'], errors: [] }),
-    'Filled in 5 fields. Suggested 2 answers with AI (outlined in amber). 2 need your input.');
+    'Filled 5 fields. AI suggested 2 answers. Check the ones outlined in amber. 2 need your attention.');
 });
 
 test('mustAnswer: every required box is ticked, a required agreement is a yes', () => {

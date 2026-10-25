@@ -22,6 +22,7 @@
     .answer-row input { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
     .answer-row .btn { height: 32px; padding: 0 12px; font-size: 13px; }
     #needs-list li + li { margin-top: 6px; }
+    .answer-error { display: block; margin-top: 6px; color: var(--warn); font-size: 12px; }
     .actions { margin-top: 14px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
     .links a { font-size: 13px; color: var(--muted); text-decoration: none; padding: 0 4px; }
     .links { flex-wrap: nowrap; gap: 4px; }
@@ -50,25 +51,25 @@
   <header class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs <span class="ver" id="ver"></span><span class="chip" id="plan" hidden>free</span></header>
 
   <section id="out" class="card connect" hidden>
-    <h1>Connect Ocean of Jobs</h1>
-    <p id="out-text">Connect the extension to your Ocean of Jobs account to start applying for jobs.</p>
+    <h1>Connect your account</h1>
+    <p id="out-text">Connect your Ocean of Jobs account to start applying.</p>
     <button class="btn primary full" id="connect">Connect account</button>
-    <p class="login-instead">Already use Ocean of Jobs on another device? <a href="#" id="login">Log in instead</a></p>
+    <p class="login-instead">Already use Ocean of Jobs on another device? <a href="#" id="login">Log in instead</a>.</p>
   </section>
 
   <section id="in" hidden>
-    <p id="no-cv" class="card error" hidden>Add your CV in <a href="#" class="open-options">settings</a> before applying.</p>
+    <p id="no-cv" class="card error" hidden>Add your CV in <a href="#" class="open-options">Settings</a> before applying.</p>
     <div class="stats">
       <div class="stat"><b id="left">…</b><span id="left-label">applications left this month</span></div>
-      <div class="stat"><b id="today">…</b><span>applied today</span></div>
-      <div class="stat"><b id="needs">0</b><span id="needs-label">need your input</span></div>
+      <div class="stat"><b id="today">…</b><span id="today-label">applications submitted today</span></div>
+      <div class="stat"><b id="needs">0</b><span id="needs-label">need your attention</span></div>
     </div>
     <button class="btn primary full" id="fill" disabled>Checking this page…</button>
-    <p id="fill-why" class="note" hidden>Clicking Fill asks Chrome for access to all sites, so the fill button can show on any careers page. You can say no and still fill this page.</p>
+    <p id="fill-why" class="note" hidden>To show the Fill button on any careers site, Chrome needs permission to access all sites. You can decline and still fill in this page.</p>
     <p id="fill-result" class="note" hidden></p>
-    <p id="needs-head" class="note" hidden style="margin-top:12px">Questions you need to answer:</p>
+    <p id="needs-head" class="note" hidden style="margin-top:12px">Questions to answer</p>
     <ul id="needs-list" hidden></ul>
-    <p id="needs-help" class="note" hidden style="margin-top:8px">Answer them here to add the job back to your queue. Answers saved on your account page are used next time.</p>
+    <p id="needs-help" class="note" hidden style="margin-top:8px">Answer these questions to put the job back in your queue. Answers you save on your account page will be used next time.</p>
     <details id="queue-box" class="queue">
       <summary>Queue <span id="queue-n" class="muted"></span></summary>
       <ul id="queue-list"></ul>
@@ -76,7 +77,7 @@
     </details>
     <div class="actions">
       <button class="btn" id="pause">Pause</button>
-      <span class="links row"><a href="https://oceanofjobs.com/apply#settings" target="_blank" rel="noopener">Apply settings</a><a href="https://oceanofjobs.com/apply#history" target="_blank" rel="noopener">Application history</a><a href="#" class="open-options">Settings</a></span>
+      <span class="links row"><a href="https://oceanofjobs.com/apply#settings" target="_blank" rel="noopener">Auto apply</a><a href="https://oceanofjobs.com/apply#history" target="_blank" rel="noopener">History</a><a href="#" class="open-options">Settings</a></span>
     </div>
     <p id="state" class="note" style="margin-top:12px"></p>
   </section>

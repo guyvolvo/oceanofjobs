@@ -51,14 +51,15 @@ a, b, c, d = rows
 check("a board job takes the board's title and company name", a["title"] == "Kubernetes Researcher" and a["company"] == "PointFive", repr(a))
 check("and links to its board page", a["link"] == "/job/aaaaaaaaaaaaaaaa", repr(a))
 check("no confirmation is unconfirmed, not failed, in today's words",
-      a["status"] == "unconfirmed" and a["reason"] == "The form was sent, but the site didn't confirm it. Look for a confirmation email.", repr(a))
+      a["status"] == "unconfirmed" and a["reason"] == "The form was sent, but the site didn't confirm it. Check for a confirmation email.", repr(a))
 check("a company with no stored name keeps its domain", b["company"] == "wayve.ai", repr(b))
-check("field reasons keep the field name", b["reason"] == "Couldn't fill in Location: The list had no options to choose from.", b["reason"])
+check("field reasons keep the field name", b["reason"] == "Couldn't fill in Location: There are no options in this list.", b["reason"])
 check("a page not on the board keeps its own title and links to that page",
       c["title"] == "System Architect" and c["link"] == "https://www.fetcherr.io/careers/1", repr(c))
-check("a skipped send reads as a closed tab", c["reason"] == "The tab was closed before the application was sent.", c["reason"])
+check("a skipped send reads as a closed tab", c["reason"] == "The tab closed before the application was submitted.", c["reason"])
 check("form errors keep the site's message", d["reason"] == "The form needs your attention: Resume/CV is required." and d["status"] == "failed", repr(d))
-check("an already worded reason passes through", apply.reason_text("Needs your answer: X") == "Needs your answer: X")
+check("an already worded reason passes through", apply.reason_text("The form needs your attention: X") == "The form needs your attention: X")
+check("1.9.10's wording reads as today's", apply.reason_text("Needs your answer: X") == "Please answer: X")
 check("a field's option mismatch keeps the value",
       apply.reason_text('Country: no option matches "Israel"') == 'Country: None of the options match "Israel".',
       apply.reason_text('Country: no option matches "Israel"'))

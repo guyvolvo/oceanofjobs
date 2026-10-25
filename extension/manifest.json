@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Ocean of Jobs",
   "version": "1.9.10",
-  "description": "Fills job applications from your Ocean of Jobs profile, and applies for you on Workday, Greenhouse, Lever and 11 more hiring sites.",
+  "description": "Fill out job applications with your Ocean of Jobs profile, then apply on Workday, Greenhouse, Lever, and 11 other hiring sites.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",

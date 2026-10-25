@@ -15,8 +15,8 @@ $('cv').addEventListener('change', async () => {
   const file = $('cv').files[0];
   if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!CV_TYPES[ext]) { $('cv-msg').textContent = 'Please choose a PDF or DOCX file.'; return; }
-  if (file.size > MAX_CV) { $('cv-msg').textContent = 'This file exceeds the 5 MB limit.'; return; }
+  if (!CV_TYPES[ext]) { $('cv-msg').textContent = 'Choose a PDF or DOCX file.'; return; }
+  if (file.size > MAX_CV) { $('cv-msg').textContent = 'This file is larger than 5 MB.'; return; }
   const bytes = new Uint8Array(await file.arrayBuffer());
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -40,12 +40,12 @@ $('save-ai').addEventListener('click', async () => {
     $('ai-msg').textContent = 'Your AI key was removed.';
     return;
   }
-  if (!key) { $('ai-msg').textContent = 'Enter your API key first.'; return; }
+  if (!key) { $('ai-msg').textContent = 'Enter your API key.'; return; }
   const model = $('model').value.trim() || PROVIDERS[provider].model;
   if (!model) { $('ai-msg').textContent = 'Enter a model name.'; return; }
   // Asked here, on a click, because Chrome only grants host access from a user gesture.
   const granted = await chrome.permissions.request({ origins: [PROVIDERS[provider].origin] });
-  if (!granted) { $('ai-msg').textContent = "Chrome access to the provider was declined, so nothing was saved. Click Save and allow it."; return; }
+  if (!granted) { $('ai-msg').textContent = "Chrome denied access to the provider, so your key wasn't saved. Click Save and allow access."; return; }
   await chrome.storage.local.set({ ai: { provider, key, model } });
   $('ai-msg').textContent = 'Saved.';
 });
@@ -60,7 +60,7 @@ $('make-wd').addEventListener('click', () => {
   const p = Array.from({ length: 16 }, (_, i) => pick(sets[i % 4])).sort(() => crypto.getRandomValues(new Int8Array(1))[0]).join('');
   $('wd-password').type = 'text';
   $('wd-password').value = p;
-  $('wd-msg').textContent = 'Write it down somewhere safe, then click Save.';
+  $('wd-msg').textContent = 'Save this password somewhere safe, then click Save.';
 });
 $('save-wd').addEventListener('click', async () => {
   const password = $('wd-password').value;
@@ -70,7 +70,7 @@ $('save-wd').addEventListener('click', async () => {
     return;
   }
   if (!workdayOk(password)) {
-    $('wd-msg').textContent = 'Use 8 or more characters, with upper and lower case letters, a number and a symbol.';
+    $('wd-msg').textContent = 'Use at least 8 characters, including uppercase and lowercase letters, a number, and a symbol.';
     return;
   }
   await chrome.storage.local.set({ workday: { password } });
@@ -85,14 +85,14 @@ $('all-sites').addEventListener('change', async () => {
   const on = $('all-sites').checked;
   const ok = on ? await chrome.permissions.request(ALL_SITES) : await chrome.permissions.remove(ALL_SITES);
   $('all-sites').checked = await chrome.permissions.contains(ALL_SITES);
-  $('all-sites-msg').textContent = !ok ? "Chrome couldn't update site access."
-    : on ? 'Enabled. Reload a careers page to show the button.' : 'Disabled. The button will only appear on the hiring sites the extension supports, like Greenhouse, Lever and Workday.';
+  $('all-sites-msg').textContent = !ok ? "Chrome couldn't change site access."
+    : on ? 'Enabled. Reload a careers page to show the button.' : 'Disabled. The button will appear only on supported hiring sites, such as Greenhouse, Lever, and Workday.';
 });
 chrome.permissions.contains(ALL_SITES).then((on) => { $('all-sites').checked = on; });
 
 $('disconnect').addEventListener('click', async () => {
   await chrome.storage.local.remove(['token', 'authError', 'needs']);
-  $('account-now').textContent = 'Disconnected. Connect again from your account page.';
+  $('account-now').textContent = 'Disconnected. You can connect again from your account page.';
 });
 
 chrome.storage.local.get(['cv', 'ai', 'token', 'workday']).then(({ cv, ai, token, workday }) => {

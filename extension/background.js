@@ -55,7 +55,7 @@ const report = (job_id, status, reason) =>
 // so a lost response can never reserve, charge or refund twice. A retry
 // after a network error repeats the API call, never the submission.
 const newAttemptId = () => crypto.randomUUID().replace(/-/g, '');
-const SERVER_GONE = "Couldn't reach Ocean of Jobs, so nothing was submitted. Try again in a minute.";
+const SERVER_GONE = "Couldn't connect to Ocean of Jobs, so nothing was submitted. Try again in a minute.";
 
 // One attempt call: {data} on success, {refused: code, error} when the
 // server said no (final), {transient: true} when it couldn't be reached or
@@ -165,7 +165,7 @@ async function gate(attemptId, sent = {}) {
   if (r.refused === 'needs_review') return { review: r.questions.length ? r.questions : ['an AI answer'] };
   if (r.refused === 'expired') {
     await track(attemptId, null);
-    return { error: 'This application took too long to prepare, so it was not submitted. Try again.' };
+    return { error: "This application took too long to prepare, so it wasn't submitted. Try again." };
   }
   await settle(attemptId, 'failed', r.transient ? SERVER_GONE : (r.error || 'Not submitted.'));
   return { error: r.transient ? SERVER_GONE : (r.error || 'Not submitted.') };
@@ -684,9 +684,9 @@ async function account() {
 // Whether to offer filling this page, and if not, why: the card always
 // says what stands in the way rather than staying silent.
 const ACCOUNT_URL = 'https://oceanofjobs.com/apply';
-const NOT_CONNECTED = 'Connect Ocean of Jobs to fill in this application.';
+const NOT_CONNECTED = 'Connect your Ocean of Jobs account to fill in this application.';
 const EXPIRED = 'Your connection has expired. Connect again to continue.';
-const NO_CV = 'Add your CV in extension settings before applying.';
+const NO_CV = 'Add your CV in Settings before applying.';
 const ALREADY = "You've already applied to this job with Ocean of Jobs.";
 const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
 const READ_ERROR = "Couldn't read the application form on this page.";
@@ -709,7 +709,7 @@ async function offerHere(url) {
     return { show: true, blocked: UNREACHABLE };
   }
   if (!((a.profile.settings || {}).sources || []).includes('ats_pages')) {
-    return { show: true, blocked: 'Turn on "Jobs I open on Greenhouse, Ashby or Workable" under Auto apply on your account, then reload this page.', action: { label: 'Open Auto apply', url: ACCOUNT_URL } };
+    return { show: true, blocked: 'Turn on "Jobs I open on supported hiring sites" under Auto apply on your account, then reload this page.', action: { label: 'Open Auto apply', url: ACCOUNT_URL } };
   }
   if (!st.cv) return { show: true, blocked: NO_CV, action: { label: 'Add CV', options: true } };
   const id = await pageJobId(url);
@@ -1008,7 +1008,7 @@ async function fillTab(tabId) {
     }
     moved = true;
   }
-  if (!page || page.openUrl) return { error: 'Application form opened. Click "Fill application" again to continue.' };
+  if (!page || page.openUrl) return { error: 'Application page opened. Click Fill application again to continue.' };
   return assist(tabId, frameId, name, page, tab.url, tab.title);
 }
 
@@ -1056,7 +1056,7 @@ async function pageState(tabId) {
   return (await frameWithForm(tabId, 0)) ? 'form' : 'none';
 }
 
-// "Review filled fields": moves to the next field the last fill marked,
+// "Review answers": moves to the next field the last fill marked,
 // required ones still empty first, then answers AI suggested. Each click
 // goes one further; {left: 0} once nothing needs attention.
 async function reviewFields(tabId, frameId) {
@@ -1222,7 +1222,7 @@ async function settleHere(tabId, result) {
   delete pendingHere[tabId];
   await chrome.storage.local.set({ pendingHere });
   accountCache = null;
-  const [outcome, why] = result === 'closed' ? ['unconfirmed', 'The tab was closed before the site confirmed the application.'] : afterClick(result);
+  const [outcome, why] = result === 'closed' ? ['unconfirmed', 'The tab closed before the site confirmed the application.'] : afterClick(result);
   await settle(p.attemptId, outcome, why);
   if (p.jobId && outcome !== 'failed') await api(`/me/apply/queue/${p.jobId}`, { method: 'DELETE' }).catch(() => {});
 }
@@ -1279,7 +1279,7 @@ async function applyNext() {
     }
     return { ok: true, job_id: job.id };
   }
-  return { error: 'No job in your queue can be filled in yet.' };
+  return { error: 'None of the jobs in your queue are ready to fill in.' };
 }
 
 function schedule() {

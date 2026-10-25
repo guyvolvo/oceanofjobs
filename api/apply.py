@@ -414,19 +414,19 @@ def result(table, user_id: str, body: dict, now: datetime | None = None) -> None
 _REASONS = {
     "no application form on this page.": "No application form found on this page.",
     "a captcha stands in front of the form. solve it, then try again.": "Complete the CAPTCHA, then try again.",
-    "no confirmation after submitting": "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
-    "no confirmation": "The form was sent, but the site didn't confirm it. Look for a confirmation email.",
-    "not submitted": "The tab was closed before the application was sent.",
-    "tab closed": "The tab was closed before the site confirmed the application.",
-    "captcha": "The site asked for a CAPTCHA.",
-    "unsupported site": "Can't apply automatically on this site. Open the job to fill it in yourself.",
+    "no confirmation after submitting": "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
+    "no confirmation": "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
+    "not submitted": "The tab closed before the application was submitted.",
+    "tab closed": "The tab closed before the site confirmed the application.",
+    "captcha": "This site asked you to complete a CAPTCHA.",
+    "unsupported site": "This site doesn't support automatic applications. Open the job to fill in the form yourself.",
     "job closed": "This job is no longer accepting applications.",
     "job not found": "Couldn't find this job listing.",
     "application form not found": "Couldn't find the application form.",
     "not on the page": "This field isn't on the page.",
     "page did not load": "The application page didn't load.",
     "submit button not found": "Couldn't find the Submit button. Submit the form yourself.",
-    "no options to pick from": "The list had no options to choose from.",
+    "no options to pick from": "There are no options in this list.",
     "no dropdown on the page": "Couldn't find the dropdown for this question.",
     "no input to type into": "Couldn't find the field for this answer.",
     "no phone box on the page": "Couldn't find the phone number field.",
@@ -434,18 +434,20 @@ _REASONS = {
     "no file input": "Couldn't find the file upload field.",
     "needs a date": "Enter the required date yourself.",
     "sections like this one are not filled": "Fill in this section yourself.",
-    "no cv saved in the extension": "Add your CV in extension settings, then try again.",
-    "greenhouse asked for an email security code": "Greenhouse sent an email security code. Enter it on the page to continue.",
+    "no cv saved in the extension": "Add your CV in Settings, then try again.",
+    "greenhouse asked for an email security code": "Greenhouse sent you a security code by email. Enter it on the page to continue.",
     "blocked company": "This company is on your Never apply to list.",
     "applied to this company recently": "You applied to this company recently.",
     "already applied": "You've already applied to this job.",
 }
-_PREFIXES = (("form errors: ", "The form needs your attention: "), ("needs answer: ", "Needs your answer: "),
+# Extension 1.9.10 and older wrote "Needs your answer: ".
+_PREFIXES = (("form errors: ", "The form needs your attention: "), ("needs answer: ", "Please answer: "), ("needs your answer: ", "Please answer: "),
              ("ashby will not take this application: ", "Ashby couldn't submit this application: "))
 # The codes, and the words the extension sends in their place since it
 # began reporting reasonText() instead of the code.
 UNCONFIRMED = {"no confirmation after submitting", "no confirmation",
                "we couldn't confirm that the application was submitted. check the page.",
+               "the form was sent, but the site didn't confirm it. look for a confirmation email.",
                _REASONS["no confirmation"].lower()}
 
 

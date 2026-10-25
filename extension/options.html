@@ -22,15 +22,15 @@
 <body>
 <main>
   <div class="brand"><img src="icons/icon-32.png" alt=""> Ocean of Jobs</div>
-  <h1>Extension settings</h1>
-  <p class="lede">Your CV and AI key stay in this browser. Your CV is sent only to the employer you're applying to, and your AI key is used only with the provider you select. Neither is sent to Ocean of Jobs.</p>
+  <h1>Settings</h1>
+  <p class="lede">Your CV and AI key are stored in this browser. Your CV is sent to the employer when you apply. Your AI key is used only with the provider you choose. Neither is sent to Ocean of Jobs.</p>
 
   <section class="card">
     <h2>Your CV</h2>
     <p id="cv-now" class="note">No CV saved yet.</p>
     <div class="file">
       <input type="file" id="cv" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-      <label for="cv" class="btn primary">Choose a CV</label>
+      <label for="cv" class="btn primary">Choose CV</label>
       <span class="note">PDF or DOCX, up to 5 MB.</span>
     </div>
     <p id="cv-msg" class="note" role="status" style="margin-top:10px"></p>
@@ -38,9 +38,9 @@
 
   <section class="card">
     <h2>Your own AI key</h2>
-    <p class="note">Every plan includes AI answers each month: 50 on Free, 300 on Basic and 3,000 on Pro. Those are used first, even if you add a key here, because they follow your AI agent's rules. Your own key takes over once they run out.</p>
-    <p class="note" style="margin-top:8px">In automatic runs, if you chose to have AI draft answers, the extension drafts answers to required questions and adds them to your saved answers. When you fill a page yourself, it suggests answers, outlined in amber, and doesn't save them.</p>
-    <p class="note" style="margin-top:8px">Without an available AI answer or a saved answer, the application will be marked as needing your input.</p>
+    <p class="note">Each plan includes AI answers each month: 50 on Free, 300 on Basic, and 3,000 on Pro. Those answers are used first, even if you add your own key, because they follow your AI agent's rules. Your own key is used after your plan's answers run out.</p>
+    <p class="note" style="margin-top:8px">If you've enabled AI answers, the extension drafts answers to required questions and saves them to your answers. When you fill in a page yourself, AI suggestions are outlined in amber and aren't saved automatically.</p>
+    <p class="note" style="margin-top:8px">If there's no saved answer and AI can't provide one, you'll need to answer the question yourself.</p>
     <label class="field" for="provider">Provider
       <select class="input" id="provider">
         <option value="">None</option>
@@ -50,7 +50,7 @@
       <input class="input" type="password" id="key" autocomplete="off" spellcheck="false">
     </label>
     <label class="field" for="model">Model
-      <input class="input" type="text" id="model" spellcheck="false" placeholder="The model's name, as your provider lists it">
+      <input class="input" type="text" id="model" spellcheck="false" placeholder="Enter the model name used by your provider">
     </label>
     <div class="actions row">
       <button class="btn primary" id="save-ai">Save</button>
@@ -60,23 +60,23 @@
 
   <section class="card">
     <h2>Workday accounts</h2>
-    <p class="note">Companies that hire through Workday ask for an account on their own careers site before you can apply. Automatic runs sign in there with your profile's email and this password, and create the account if you don't have one yet. The password stays in this browser.</p>
-    <p class="note" style="margin-top:8px">If you already have Workday accounts, enter the password you use for them. Otherwise, generate a new one. Some companies email you a link to confirm a new account first. Until you click it, that job waits in your history.</p>
+    <p class="note">Workday companies require an account on their careers site. During automatic runs, the extension signs in with the email address on your profile and this password. If you don't have an account yet, it creates one. Your password stays in this browser.</p>
+    <p class="note" style="margin-top:8px">If you already have a Workday account, enter the password you use for it. Otherwise, generate a new password. Some companies send an email to verify new accounts. Until you confirm the account, the job will wait in your history.</p>
     <label class="field" for="wd-password">Workday password
       <input class="input" type="password" id="wd-password" autocomplete="new-password" spellcheck="false">
     </label>
     <div class="actions row">
       <button class="btn primary" id="save-wd">Save</button>
-      <button class="btn" id="make-wd">Generate a password</button>
+      <button class="btn" id="make-wd">Generate password</button>
       <span id="wd-msg" class="note" role="status"></span>
     </div>
   </section>
 
   <section class="card">
     <h2>Fill button</h2>
-    <p class="note">By default, the fill button appears on the hiring sites the extension supports, like Greenhouse, Lever and Workday. Enable access to all sites to use it on company career pages and forms embedded from other websites.</p>
-    <p class="note" style="margin-top:8px">Pages are checked for forms in your browser. When you click Fill or Submit, the page address and job title are sent to Ocean of Jobs. On Basic and Pro, questions without a saved answer are sent too, so AI can draft them.</p>
-    <label class="toggle" for="all-sites"><input type="checkbox" id="all-sites"> Show the fill button on every careers page</label>
+    <p class="note">By default, the Fill button appears on hiring sites the extension supports, such as Greenhouse, Lever, and Workday. Allow access to all sites to use it on other company careers pages and forms embedded in other websites.</p>
+    <p class="note" style="margin-top:8px">The extension checks pages for application forms in your browser. When you click Fill or Submit, it sends the page address and job title to Ocean of Jobs. On Basic and Pro, it also sends questions that don't have saved answers so AI can draft replies.</p>
+    <label class="toggle" for="all-sites"><input type="checkbox" id="all-sites"> Show the Fill button on every careers page</label>
     <p id="all-sites-msg" class="note" role="status" style="margin-top:10px"></p>
   </section>
 

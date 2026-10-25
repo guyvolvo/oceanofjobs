@@ -546,7 +546,8 @@ class Attempts:
             if a["state"] != NEEDS_INPUT or a["job_id"] in queued:
                 continue
             qs = list(a.get("questions") or [])
-            if not qs and str(a.get("reason") or "").lower().startswith("needs your answer: "):
+            # "Needs your answer: " from extension 1.9.10 and older.
+            if not qs and str(a.get("reason") or "").lower().startswith(("please answer: ", "needs your answer: ")):
                 qs = [q.strip() for q in a["reason"].split(":", 1)[1].split(";") if q.strip()]
             # Filled with every answer, held back by the site's human check:
             # the user opens it and presses Submit (extension/background.js).

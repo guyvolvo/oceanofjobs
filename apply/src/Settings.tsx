@@ -222,7 +222,7 @@ export function Settings({ ext }: { ext: Ext }) {
             description={<>Your preferences are on your <a className="oj-link" href="/account#preferences">account page</a>.</>}>
             <Checkbox.Item value="board" label="Jobs I add to my queue on Ocean of Jobs" />
             <Checkbox.Item value="matches" label="Jobs matching my preferences" />
-            <Checkbox.Item value="ats_pages" label="Jobs I open on Greenhouse, Ashby or Workable" />
+            <Checkbox.Item value="ats_pages" label="Jobs I open on supported hiring sites" />
             <Checkbox.Item value="mcp" label="Jobs queued by my AI assistant through MCP" />
           </Checkbox.Group>
           <Radio.Group legend="If a form asks a question I haven't answered" appearance="card" value={form.unknowns} onValueChange={(v) => set("unknowns", v as Form["unknowns"])}>

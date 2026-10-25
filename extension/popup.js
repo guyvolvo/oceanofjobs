@@ -27,12 +27,12 @@ chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
 // click; nothing is filled until the click.
 const FILL = {
   checking: ['Checking this page…', true],
-  none: ['No application detected', true],
+  none: ['No application found', true],
   form: ['Fill application', false],
   unsupported: ["This site isn't supported", true],
   filling: ['Filling application…', true],
-  review: ['Review filled fields', false],
-  done: ['Application filled', true],
+  review: ['Review answers', false],
+  done: ['Ready to review', true],
 };
 let fillState = 'checking';
 function setFill(state) {
@@ -42,7 +42,7 @@ function setFill(state) {
 }
 const activeTab = () => chrome.tabs.query({ active: true, currentWindow: true }).then(([t]) => t);
 // The popup closes when the user clicks into the page, so a fill is
-// remembered per tab (and address) for "Review filled fields" next time.
+// remembered per tab (and address) for "Review answers" next time.
 const filledKey = (tab) => `filled:${tab.id}`;
 
 async function detect() {
@@ -64,11 +64,11 @@ async function review() {
   if (!r || !r.left) {
     await chrome.storage.session.set({ [filledKey(tab)]: { ...filled, review: false } });
     setFill('done');
-    out.textContent = 'Nothing left to check. Look over the form, then submit it.';
+    out.textContent = "You're all caught up. Review the form, then submit it.";
     return;
   }
-  const what = r.kind === 'required' ? 'Required field, still empty.' : 'Answer suggested by AI. Check it before you submit.';
-  out.textContent = `${what} ${r.index} of ${r.left} to check.`;
+  const what = r.kind === 'required' ? 'This required field is still empty.' : 'AI suggested this answer. Check it before submitting.';
+  out.textContent = `${what} ${r.index} of ${r.left} to review.`;
 }
 
 $('fill').addEventListener('click', async () => {
@@ -108,8 +108,8 @@ function render(s) {
   $('in').hidden = !s.connected;
   if (!s.connected) {
     $('out-text').textContent = s.authError
-      ? 'Your connection has expired. Connect your account again to continue.'
-      : 'Connect the extension to your Ocean of Jobs account to start applying for jobs.';
+      ? 'Your connection has expired. Your account and saved information are still there. Connect again to keep using the extension.'
+      : 'Connect your Ocean of Jobs account to start applying.';
     return;
   }
   paused = s.paused;
@@ -121,8 +121,9 @@ function render(s) {
     $('left').textContent = String(s.usage.remaining);
   }
   $('today').textContent = s.appliedToday == null ? '…' : String(s.appliedToday);
+  $('today-label').textContent = `${plural(s.appliedToday || 0, 'application')} submitted today`;
   $('needs').textContent = String(s.needs.length);
-  $('needs-label').textContent = `${plural(s.needs.length, 'needs', 'need')} your input`;
+  $('needs-label').textContent = `${plural(s.needs.length, 'needs', 'need')} your attention`;
   const list = $('needs-list');
   // Grouped by the job that asked, answered right here: the answer goes to
   // the account's saved answers, and a job with nothing left to answer is
@@ -158,7 +159,7 @@ function render(s) {
     input.setAttribute('aria-label', `Answer: ${n.question}`);
     const save = document.createElement('button');
     save.className = 'btn';
-    save.textContent = 'Save';
+    save.textContent = 'Save answer';
     row.append(input, save);
     row.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -167,7 +168,9 @@ function render(s) {
       const r = await chrome.runtime.sendMessage({ type: 'answer', question: n.question, answer: input.value.trim(), job_id: n.job_id });
       if (r && r.ok) return render(await chrome.runtime.sendMessage({ type: 'status' }));
       save.disabled = false;
-      save.textContent = 'Try again';
+      const err = li.querySelector('.answer-error') || li.appendChild(document.createElement('span'));
+      err.className = 'answer-error';
+      err.textContent = "Couldn't save your answer. Try again.";
     });
     li.append(q, row);
     return li;
@@ -175,7 +178,7 @@ function render(s) {
   list.hidden = $('needs-head').hidden = $('needs-help').hidden = !s.needs.length;
   $('pause').textContent = paused ? 'Resume' : 'Pause';
   $('state').textContent = paused
-    ? "Auto apply is paused. The extension won't apply on its own until you resume."
+    ? "Auto apply is paused. The extension won't apply to jobs automatically until you resume it."
     : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not checked yet';
 }
 
@@ -185,7 +188,7 @@ async function renderQueue() {
   const note = $('queue-note');
   if (!q || q.error) {
     $('queue-n').textContent = '';
-    note.textContent = "Couldn't load the queue.";
+    note.textContent = "Couldn't load your queue. Try again.";
     note.hidden = false;
     return;
   }
@@ -213,7 +216,7 @@ async function renderQueue() {
     return li;
   }));
   note.hidden = q.total > 0 && q.total <= q.items.length;
-  note.textContent = q.total ? `Showing the first ${q.items.length} ${plural(q.items.length, 'job')}.` : 'No jobs in your queue. Add jobs on Ocean of Jobs or through your AI assistant.';
+  note.textContent = q.total ? `Showing the first ${q.items.length} ${plural(q.items.length, 'job')}.` : 'Your queue is empty. Add jobs on Ocean of Jobs or through your AI assistant.';
 }
 
 chrome.runtime.sendMessage({ type: 'status' }).then((s) => {

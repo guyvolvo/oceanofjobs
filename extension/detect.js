@@ -1,7 +1,7 @@
 // The fill button, top right on a page with an application form. On a
 // form a dedicated filler knows (Greenhouse, Ashby, Workable) the card
 // fills it, then submits it from the card; the credit counts only once
-// sent, and only when the account has "Jobs I open on Greenhouse, Ashby or Workable"
+// sent, and only when the account has "Jobs I open on supported hiring sites"
 // turned on. On any other form the card fills, and submits too when the
 // form has one clear submit button; that credit counts only when the site
 // confirms. On those sites a job posting whose Apply button opens the
@@ -14,7 +14,7 @@
   const { reasonText, filledText, plural } = globalThis.oojMatch;
   const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
   const SUBMITTED = 'Application submitted. You can find it in your application history.';
-  const UNCONFIRMED_TEXT = "We couldn't confirm the site received it, so it counts as one application for now. If it wasn't sent, dispute it on your Auto apply page.";
+  const UNCONFIRMED_TEXT = "We couldn't confirm that the site received your application, so it counts as one application for now. If it wasn't submitted, you can dispute it on your Auto apply page.";
   const send = (msg) => chrome.runtime.sendMessage(msg).catch(() => null);
   const site = Object.keys(all).find((n) => n !== 'generic' && all[n].onSite(location.href));
 
@@ -146,7 +146,7 @@
       <div class="h"><img src="${icon}" alt=""><span class="t">${name}</span><button class="x" aria-label="Close">×</button></div>
       <p class="msg"></p>
       <button class="go">Fill application</button>
-      <p class="frame" hidden>To show this card at the top of career pages, enable access to all sites in <button class="link">Settings</button>.</p>
+      <p class="frame" hidden>To show this card at the top of careers pages, allow access to all sites in <button class="link">Settings</button>.</p>
       <button class="hide">Hide on this site until Chrome restarts</button>
     </div>`;
     document.documentElement.appendChild(host);
@@ -191,7 +191,7 @@
     }
     const title = String((document.querySelector('h1') || {}).textContent || document.title).trim().slice(0, 300);
     if (offer.assist) {
-      msg.textContent = 'Fill in this application using your profile. Review your answers before submitting.';
+      msg.textContent = 'Fill in this application with your profile. Review your answers before submitting.';
       go.addEventListener('click', async () => {
         go.disabled = true;
         go.textContent = 'Filling application…';
@@ -222,7 +222,7 @@
     msg.className = 'msg ok';
     msg.textContent = filledText(r) + ' '
       + (r.submit ? 'Review your answers, then submit the application here.'
-        : r.botCheck ? "This site requires you to submit the form yourself. Review your answers and use the site's Submit button."
+        : r.botCheck ? "Review your answers, then use the site's Submit button."
           : 'Review your answers, then submit the application on the page.');
     go.hidden = !r.submit;
     go.disabled = false;
@@ -246,7 +246,7 @@
         go.hidden = true;
         return;
       }
-      msg.textContent = s && s.failed ? `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This doesn't count toward your applications. Fix the issue on the form, then try again.`
+      msg.textContent = s && s.failed ? `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This attempt doesn't count toward your application limit. Fix the issue on the form, then try again.`
         : reasonText((s && s.error) || UNEXPECTED);
       go.disabled = false;
       go.textContent = 'Submit application';
@@ -256,7 +256,7 @@
   function dedicatedCard(root, offer, title, msg, go) {
     const ats = dedicated;
     go.textContent = 'Fill application';
-    msg.textContent = 'Fill in the application using your profile, review your answers, then submit it here.'
+    msg.textContent = 'Fill in the application with your profile, review your answers, then submit it here.'
       + (offer.remaining != null ? ` ${offer.remaining} ${plural(offer.remaining, 'application')} left on your plan.` : '');
     let submitting = false;
     go.addEventListener('click', async () => {
