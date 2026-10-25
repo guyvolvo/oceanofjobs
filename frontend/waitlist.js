@@ -51,6 +51,8 @@
     if (plan) join(plan);
   }
 
+  // The homepage line says "Sign up" signed out and "Join" signed in.
+  if (signedIn()) for (const el of document.querySelectorAll(".home-beta [data-signed-out]")) el.textContent = "Join";
   if (signedIn()) {
     if (wanted()) finish();
     else authedFetch("/me/consent").then((s) => mark(s.waitlist || []), () => {});

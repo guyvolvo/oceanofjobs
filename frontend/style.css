@@ -4478,10 +4478,13 @@ button.home-pill:disabled, button.home-soft:disabled { cursor: default; opacity:
 .home-promo-badge { display: block; padding: 0 6px; border-radius: 10px; background: #fff; line-height: 0; }
 .home-promo-badge img { display: block; width: auto; height: 48px; }
 /* The Pro waitlist line inside the extension card (frontend/waitlist.js); --promo comes from the card. */
-.home-beta { display: block; width: 100%; margin-top: 16px; padding: 14px 20px; border: 1px solid color-mix(in srgb, var(--promo) 45%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--promo) 14%, var(--h-bg)); color: var(--h-text); font: 500 15px/20px "Geist", var(--font); text-align: left; cursor: pointer; transition: background-color 150ms ease; }
+.home-beta { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; contain: inline-size; margin-top: 16px; padding: 14px 20px; border: 1px solid color-mix(in srgb, var(--promo) 45%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--promo) 14%, var(--h-bg)); color: var(--h-text); font: 500 15px/20px "Geist", var(--font); text-align: left; cursor: pointer; transition: background-color 150ms ease; }
 .home-beta:hover:not(:disabled) { background: color-mix(in srgb, var(--promo) 22%, var(--h-bg)); }
 .home-beta:focus-visible { outline: 2px solid var(--promo); outline-offset: 2px; }
 .home-beta:disabled { cursor: default; color: var(--h-muted); }
+.home-beta-cta { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: var(--h-text); color: var(--h-bg); font-size: 14px; line-height: 1; }
+.home-beta-cta svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+.home-beta:hover .home-beta-cta svg { transform: translateX(3px); }
 .home-promo-link { display: inline-flex; align-items: center; gap: 6px; color: var(--h-text); font: 500 14px/1 "Geist", var(--font); }
 .home-promo-link svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
 .home-promo-link:hover svg { transform: translateX(3px); }
