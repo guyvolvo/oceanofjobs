@@ -832,7 +832,7 @@ function activeFilterSummary() {
   if (state.country.length) parts.push(state.country.map(countryLabel).join(", "));
   if (state.city.length) parts.push(state.city.map(cityName).join(", "));
   if (state.workplace.length) parts.push(state.workplace.map((w) => WORKPLACE_LABELS[w] || w).join(", "));
-  if (state.skills.length) parts.push(`${state.skills.length} CV skill${state.skills.length === 1 ? "" : "s"}`);
+  if (state.skills.length) parts.push(`${state.skills.length} resume skill${state.skills.length === 1 ? "" : "s"}`);
   if (state.max_age_days) parts.push(`posted in the last ${state.max_age_days} days`);
   return parts;
 }
@@ -1276,8 +1276,8 @@ function renderMatchPanel() {
     + `<button type="button" class="match-panel-toggle" aria-expanded="${open}" aria-controls="match-skills">`
     + `My skills <span class="match-panel-count">${state.skills.length}</span>${MS_CHEVRON_SVG}</button>`
     + `<span class="match-panel-label"`
-    + ` title="Jobs that share at least one of your CV skills, ordered by how many. Newer jobs count higher, and every two weeks since posting counts as one skill fewer.">`
-    + `Ranked by CV skills</span>`
+    + ` title="Jobs that share at least one of your resume skills, ordered by how many. Newer jobs count higher, and every two weeks since posting counts as one skill fewer.">`
+    + `Ranked by resume skills</span>`
     + `<a class="link match-panel-edit" href="/account#cv">Edit skills</a>`
     + `</div>`
     + `<div class="match-skills-wrap${open ? " open" : ""}" id="match-skills"><div class="match-skills">`
@@ -1296,10 +1296,10 @@ function showMatchesPrompt() {
   const panel = document.getElementById("match-panel");
   panel.hidden = false;
   panel.innerHTML = getAuthTokens()
-    ? `<span class="match-panel-label">Best matches orders jobs by the skills on your CV.</span>`
-      + ` <a class="link match-panel-edit" href="/account#cv">Add your CV</a>`
-    : `<span class="match-panel-label">Best matches orders jobs by the skills on your CV.`
-      + ` <button type="button" class="link-inline" data-open-signin>Log in</button>, then add your CV on your account page.</span>`;
+    ? `<span class="match-panel-label">Best matches orders jobs by the skills on your resume.</span>`
+      + ` <a class="link match-panel-edit" href="/account#cv">Add your resume</a>`
+    : `<span class="match-panel-label">Best matches orders jobs by the skills on your resume.`
+      + ` <button type="button" class="link-inline" data-open-signin>Log in</button>, then add your resume on your account page.</span>`;
   panel.querySelector("[data-open-signin]")?.addEventListener("click", () => window.openSignIn());
 }
 
@@ -2298,7 +2298,7 @@ let matchedSkills = new Set();
 // CV matches. activeFilterSummary is the list the sidebar's scope line
 // names, so the two never disagree about whether a filter is on.
 function resultNoun() {
-  if (currentView() === "matches") return "jobs matching your CV";
+  if (currentView() === "matches") return "jobs matching your resume";
   return state.roles === "tech" && !state.starred_only ? "tech jobs" : "jobs";
 }
 

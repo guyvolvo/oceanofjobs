@@ -207,10 +207,10 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
       {ready && !matches.length && !editing ? (
         <Card title="Get matched to jobs">
           <p className="oj-note">{skills.length
-            ? `Your ${skills.length} skill${skills.length === 1 ? "" : "s"} don't match any open jobs yet. Add skills from a newer CV or widen your locations to see matches and salary estimates.`
-            : "Add your skills from a CV, or widen your locations, to see matches and salary estimates."}</p>
+            ? `Your ${skills.length} skill${skills.length === 1 ? "" : "s"} don't match any open jobs yet. Add skills from a newer resume or widen your locations to see matches and salary estimates.`
+            : "Add your skills from a resume, or widen your locations, to see matches and salary estimates."}</p>
           <div className="oj-row">
-            <LinkButton variant="secondary" href="#skills" icon={<UploadSimple />}>Add skills from a CV</LinkButton>
+            <LinkButton variant="secondary" href="#skills" icon={<UploadSimple />}>Add skills from a resume</LinkButton>
             <LinkButton variant="ghost" href="#preferences">Edit locations</LinkButton>
           </div>
         </Card>

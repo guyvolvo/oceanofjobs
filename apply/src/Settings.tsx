@@ -13,7 +13,8 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { ApiError, apply, send, type Profile } from "./api";
-import { ConfirmDanger, ExtensionSettingsButton, NeedsResume } from "./shared";
+import { ConfirmDanger, NeedsResume } from "./shared";
+import { ResumeStorage } from "./Storage";
 import { useUnsaved } from "./unsaved";
 import type { Ext } from "./ext";
 
@@ -163,9 +164,7 @@ export function Settings({ ext }: { ext: Ext }) {
 
   return (
     <form className="oj-stack" noValidate onSubmit={(e) => { e.preventDefault(); save(); }}>
-      <Card title="Extension settings" note="Your CV, your own AI key and where the fill button shows are set in the extension, and stay in your browser.">
-        <div className="oj-row"><ExtensionSettingsButton ext={ext} /></div>
-      </Card>
+      <ResumeStorage ext={ext} />
       <Card title="Personal details" note="Used to fill in application forms. Your details are saved to your account so you can use them on any computer.">
         <div className="oj-form">
           {text("first_name", "First name", "")}

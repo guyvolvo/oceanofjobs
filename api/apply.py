@@ -434,7 +434,7 @@ _REASONS = {
     "no file input": "Couldn't find the file upload field.",
     "needs a date": "Enter the required date yourself.",
     "sections like this one are not filled": "Fill in this section yourself.",
-    "no cv saved in the extension": "Add your CV in Settings, then try again.",
+    "no cv saved in the extension": "Add your resume in Settings, then try again.",
     "greenhouse asked for an email security code": "Greenhouse sent you a security code by email. Enter it on the page to continue.",
     "blocked company": "This company is on your Never apply to list.",
     "applied to this company recently": "You applied to this company recently.",

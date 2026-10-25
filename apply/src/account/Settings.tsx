@@ -11,7 +11,7 @@ import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus } from "@phosphor-icons/react";
-import { api, send } from "../api";
+import { ApiError, api, send } from "../api";
 import { useDark } from "../theme";
 import { ConfirmDanger } from "../shared";
 import { EMPTY_PROFILE, type Access, type Alert, type SavedRow, type Token } from "./data";
@@ -226,6 +226,12 @@ async function deleteEverything() {
   // Every token too: one left behind would keep working for an account
   // its owner believes is gone.
   for (const t of (await api<{ tokens: Token[] }>("/me/tokens")).tokens || []) await api(`/me/tokens/${t.id}`, { method: "DELETE" });
+  // The resume, Workday password and AI key saved to cloud storage, and the
+  // terms, newsletter and waitlist choices. A server from before these
+  // routes answers 404, which means there is nothing there to delete.
+  for (const path of ["/me/storage", "/me/consent"]) {
+    await api(path, { method: "DELETE" }).catch((e) => { if (!(e instanceof ApiError && e.status === 404)) throw e; });
+  }
   await api("/me/profile", send("PUT", EMPTY_PROFILE));
 }
 
@@ -263,10 +269,10 @@ export function Settings({ email, logOut }: { email: string; logOut: () => void 
       </Card>
       <Tokens />
       <Card title="Delete account" className="oj-danger-card"
-        note="Deletes your alerts, saved jobs, skill profile, auto apply details and history, and access tokens. It doesn't cancel a paid plan, so cancel that through Paddle first. This can't be undone.">
+        note="Deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens. It doesn't cancel a paid plan, so cancel that through Paddle first. This can't be undone.">
         <div><Button variant="secondary" className="oj-danger-ghost" loading={deleting} onClick={() => setAsking(true)}>Delete account</Button></div>
         <ConfirmDanger open={asking} title="Delete your account?" confirm="Delete my account" onConfirm={del} onCancel={() => setAsking(false)}>
-          This deletes your alerts, saved jobs, skill profile, auto apply details and history, and access tokens. This can't be undone.
+          This deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens. This can't be undone.
         </ConfirmDanger>
       </Card>
     </div>

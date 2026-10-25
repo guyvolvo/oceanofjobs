@@ -50,8 +50,8 @@ FAQ = """
             <p>No. The extension fills in forms using your profile and saved answers. Basic and Pro include AI answers to new questions. On Free, you can add your own API key from an AI provider, and any usage fees are charged by that provider.</p>
           </div>
           <div class="home-feature">
-            <h3>Where is my CV stored?</h3>
-            <p>Your CV file stays in the browser extension on your device and is sent to the employer when you apply. If you add your resume to your AI agent, its text (not the file) is saved to your account so the AI can answer from it, and you can remove it at any time. Your profile and saved answers are stored in your Ocean of Jobs account, so you can access them from another computer.</p>
+            <h3>Where is my resume stored?</h3>
+            <p>Your resume file stays in the browser extension on your device and is sent to the employer when you apply. If you add your resume to your AI agent, its text (not the file) is saved to your account so the AI can answer from it, and you can remove it at any time. Your profile and saved answers are stored in your Ocean of Jobs account, so you can access them from another computer.</p>
           </div>
           <div class="home-feature">
             <h3>Can I cancel or get a refund?</h3>

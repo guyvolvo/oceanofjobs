@@ -18,7 +18,7 @@ export function Skills({ skills, setSkills, onPick, onFile, fileName, cvStatus, 
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
           onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer?.files?.[0]; if (f) onFile(f); }}>
-          <p className="oj-card-title">Drop a CV here</p>
+          <p className="oj-card-title">Drop a resume here</p>
           <p className="oj-note">PDF or plain text. Read in your browser. Only the skills you save are stored.</p>
           <div className="oj-row">
             <Button variant="secondary" onClick={onPick}>Choose a file</Button>

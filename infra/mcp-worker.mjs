@@ -339,7 +339,7 @@ const TOOLS = [
     name: "queue_for_auto_apply",
     title: "Queue a job for auto apply",
     description:
-      "Queue a job for the Ocean of Jobs Chrome extension to apply to with the user's profile and CV. " +
+      "Queue a job for the Ocean of Jobs Chrome extension to apply to with the user's profile and resume. " +
       "The extension applies to queued jobs on its next check, every 15 minutes, so the user needs " +
       "the extension installed and connected. The user must also turn on \"Jobs queued by my AI " +
       "assistant through MCP\" in their auto apply settings. For now the extension fills Greenhouse " +

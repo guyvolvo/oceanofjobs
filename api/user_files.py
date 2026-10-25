@@ -117,7 +117,7 @@ def _decoded_cv(body: dict) -> tuple[str, str, bytes]:
     if not data.startswith(magic):
         raise ValueError("Choose a PDF or DOCX file.")
     if not name.lower().endswith(ext):
-        name = (name or "CV") + ext
+        name = (name or "Resume") + ext
     return name, ctype, data
 
 

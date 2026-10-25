@@ -406,7 +406,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   ].filter(Boolean).join(" · ");
   const head: Partial<Record<Section, { status?: string; action?: ReactNode }>> = {
     skills: { status: skills.length ? `${plural(skills.length, "skill")} matched against every listing` : "No skills yet",
-      action: <Button variant="secondary" icon={<UploadSimple />} onClick={pickCv}>Scan a CV</Button> },
+      action: <Button variant="secondary" icon={<UploadSimple />} onClick={pickCv}>Scan a resume</Button> },
     alerts: { status: alerts?.length ? plural(alerts.length, "alert") : "No alerts yet" },
     saved: { status: savedCount ? plural(savedCount, "saved job") : "Nothing saved yet", action: <LinkButton variant="ghost" href="/board">Open the board</LinkButton> },
     preferences: { status: profile ? prefsLine : "" },
@@ -416,7 +416,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
 
   return (
     <>
-      <input ref={fileRef} type="file" accept=".pdf,.txt,.md,application/pdf,text/plain" hidden aria-label="Choose a CV file"
+      <input ref={fileRef} type="file" accept=".pdf,.txt,.md,application/pdf,text/plain" hidden aria-label="Choose a resume file"
         onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { if (section !== "skills") go("skills"); await takeCv(f); } }} />
       <header className="oj-head oj-hero">
         <div className="oj-row oj-hero-id">
@@ -427,7 +427,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           </div>
         </div>
         <div className="oj-row oj-hero-actions">
-          <Button variant="secondary" icon={<UploadSimple />} onClick={() => { go("skills"); pickCv(); }}>Add skills from a CV</Button>
+          <Button variant="secondary" icon={<UploadSimple />} onClick={() => { go("skills"); pickCv(); }}>Add skills from a resume</Button>
           <Button variant="secondary" icon={<Bell />} onClick={newAlert}>New alert</Button>
           <LinkButton variant="primary" href={openHref}>See best matches <ArrowRight /></LinkButton>
         </div>

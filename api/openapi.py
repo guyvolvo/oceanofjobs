@@ -361,7 +361,7 @@ def _paths():
                     "profile": _ref("Profile"),
                     "options": {"type": "object"},
                     "skill_spec": {"type": "object",
-                                   "description": "The terms the in-browser CV reader matches on."},
+                                   "description": "The terms the in-browser resume reader matches on."},
                 }}), **_errors(401, 500)},
             },
             "put": {

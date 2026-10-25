@@ -631,7 +631,7 @@ def lambda_handler(event, context):
                     if method == "GET":
                         cv = user_files.get_cv(_alerts_table, uid)
                         if not cv:
-                            return _response(404, json.dumps({"error": "No CV on your account."}))
+                            return _response(404, json.dumps({"error": "No resume on your account."}))
                         resp = _response(200, json.dumps(cv))
                         resp["headers"]["Cache-Control"] = "no-store"
                         return resp
