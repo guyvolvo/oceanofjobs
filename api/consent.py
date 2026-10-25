@@ -8,6 +8,11 @@ jobs, so deleting an account (one Query, one BatchWrite) takes them too:
   #email             newsletter, newsletter_at, newsletter_source, unsubscribed_at, email
   #waitlist#<plan>   plan, joined_at, email
 
+and one shared row, user_id "#waitlist", alert_id "#count#pro": how many
+of the Pro waitlist's CAPS["pro"] places are taken. A Pro join adds its
+row and counts it in one transaction, so the cap holds however many join
+at once; deleting an account gives its place back.
+
 None of them carries `active`, so the alert evaluator, which scans for
 that attribute, never sees them.
 
@@ -34,6 +39,13 @@ LOCK_FROM = os.environ.get("OOJ_CONSENT_LOCK_FROM", "9999-12-31")
 PLANS = ("basic", "pro")
 CONSENT, EMAIL = "#consent", "#email"
 WAITLIST = "#waitlist#"
+# Places on each plan's waitlist (None: no limit). Pro's are the beta licenses.
+CAPS = {"basic": None, "pro": 100}
+COUNTER = {"user_id": "#waitlist", "alert_id": "#count#pro"}
+
+
+class WaitlistFull(Exception):
+    pass
 REQUIRED = "Agree to the updated Terms of Service and Privacy Policy on oceanofjobs.com to keep using this."
 
 # (method, path prefix): what an account that hasn't agreed can't start.
@@ -119,17 +131,46 @@ def join_waitlist(table, user_id: str, plan: str, email=None, now=None) -> dict:
     mail = _email(email)
     if mail:
         item["email"] = mail
-    try:
-        table.put_item(Item=item, ConditionExpression="attribute_not_exists(alert_id)")
-    except table.meta.client.exceptions.ConditionalCheckFailedException:
-        pass  # already waiting: joining twice keeps the first date
+    put = {"TableName": table.name, "Item": item, "ConditionExpression": "attribute_not_exists(alert_id)"}
+    if CAPS[plan] is None:
+        try:
+            table.put_item(**{k: v for k, v in put.items() if k != "TableName"})
+        except table.meta.client.exceptions.ConditionalCheckFailedException:
+            pass  # already waiting: joining twice keeps the first date
+    else:
+        count = {"TableName": table.name, "Key": COUNTER, "UpdateExpression": "SET n = if_not_exists(n, :z) + :one",
+                 "ConditionExpression": "attribute_not_exists(n) OR n < :cap",
+                 "ExpressionAttributeValues": {":z": 0, ":one": 1, ":cap": CAPS[plan]}}
+        try:
+            table.meta.client.transact_write_items(TransactItems=[{"Put": put}, {"Update": count}])
+        except table.meta.client.exceptions.TransactionCanceledException as e:
+            reasons = [r.get("Code") for r in e.response.get("CancellationReasons") or []]
+            if reasons and reasons[0] == "ConditionalCheckFailed":
+                pass  # already waiting: not counted twice
+            elif len(reasons) > 1 and reasons[1] == "ConditionalCheckFailed":
+                raise WaitlistFull(f"The {plan.title()} waitlist is full.") from None
+            else:
+                raise
     set_newsletter(table, user_id, True, source="waitlist", email=email, now=now)
     return state(table, user_id)
 
 
+def counts(table) -> dict:
+    """Places taken on each capped waitlist, for the website's counter."""
+    n = int((table.get_item(Key=COUNTER).get("Item") or {}).get("n", 0))
+    return {plan: {"cap": cap, "taken": n if cap else None} for plan, cap in CAPS.items()}
+
+
 def forget(table, user_id: str) -> None:
     """Deleting the account: the agreement, the newsletter choice and the
-    waitlists go with everything else."""
+    waitlists go with everything else, and a Pro place is given back."""
+    gone = table.delete_item(Key={"user_id": user_id, "alert_id": WAITLIST + "pro"}, ReturnValues="ALL_OLD").get("Attributes")
+    if gone:
+        try:
+            table.update_item(Key=COUNTER, UpdateExpression="SET n = n - :one", ConditionExpression="n > :z",
+                              ExpressionAttributeValues={":one": 1, ":z": 0})
+        except table.meta.client.exceptions.ConditionalCheckFailedException:
+            pass
     keys = [CONSENT, EMAIL] + [WAITLIST + plan for plan in PLANS]
     with table.batch_writer() as batch:
         for key in keys:

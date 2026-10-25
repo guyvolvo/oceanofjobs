@@ -584,6 +584,9 @@ def lambda_handler(event, context):
             resp = _response(204, "")
             resp["headers"]["Cache-Control"] = "no-store"
             return resp
+        if path == "/waitlist":
+            # Places left on the capped waitlists: numbers only, for the pricing counter.
+            return _response(200, json.dumps(consent.counts(_alerts_table)), cache_seconds=30)
         if path == "/pipeline-status":
             return _response(200, json.dumps(route_pipeline_status(), default=str))
         if path == "/geo":
@@ -674,8 +677,11 @@ def lambda_handler(event, context):
             claims = _authenticated_claims(event)
             if method == "POST":
                 body = json.loads(event.get("body") or "{}")
-                out = consent.join_waitlist(_alerts_table, claims["sub"], str(body.get("plan") or ""),
-                                            email=claims.get("email") if email_is_verified(claims) else None)
+                try:
+                    out = consent.join_waitlist(_alerts_table, claims["sub"], str(body.get("plan") or ""),
+                                                email=claims.get("email") if email_is_verified(claims) else None)
+                except consent.WaitlistFull as e:
+                    return _response(409, json.dumps({"error": str(e), "code": "waitlist_full"}))
                 return _response(200, json.dumps(out))
             return _response(405, json.dumps({"error": "method not allowed"}))
         if path == "/me/profile":

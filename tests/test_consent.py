@@ -119,6 +119,27 @@ with mock_aws():
     check("an account that agreed is never blocked", not B("ann", "POST", "/me/apply/attempts", "2026-12-01"))
     check("nor one that agreed a moment ago", (call("old", "POST", "/me/consent", {}), not B("old", "POST", "/me/apply/attempts", "2026-12-01"))[1])
 
+    # The Pro waitlist's cap: counted in the same transaction as the join.
+    consent.CAPS["pro"] = 3
+    table.delete_item(Key=consent.COUNTER)
+    for u in ("p1", "p2"):
+        call(u, "POST", "/me/waitlist", {"plan": "pro"})
+    s, out = call(None, "GET", "/waitlist")
+    check("the public count shows places taken, numbers only", s == 200 and out["pro"] == {"cap": 3, "taken": 2} and out["basic"]["cap"] is None, out)
+    call("p1", "POST", "/me/waitlist", {"plan": "pro"})
+    check("joining twice counts once", consent.counts(table)["pro"]["taken"] == 2)
+    s, _ = call("p3", "POST", "/me/waitlist", {"plan": "pro"})
+    s, out = call("p4", "POST", "/me/waitlist", {"plan": "pro"})
+    check("the place after the cap is refused", s == 409 and out.get("code") == "waitlist_full", (s, out))
+    check("and leaves no row behind", not row("p4", "#waitlist#pro") and consent.counts(table)["pro"]["taken"] == 3)
+    s, _ = call("p4", "POST", "/me/waitlist", {"plan": "basic"})
+    check("Basic has no cap", s == 200 and row("p4", "#waitlist#basic"))
+    call("p2", "DELETE", "/me/consent")
+    check("deleting an account gives its Pro place back", consent.counts(table)["pro"]["taken"] == 2)
+    s, _ = call("p4", "POST", "/me/waitlist", {"plan": "pro"})
+    check("and someone else can take it", s == 200 and row("p4", "#waitlist#pro"))
+    consent.CAPS["pro"] = 100
+
     # Deleting the account takes these rows too.
     s, _ = call("cy", "DELETE", "/me/consent")
     left = [i["alert_id"] for i in table.scan()["Items"] if i["user_id"] == "cy"]
