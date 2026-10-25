@@ -320,16 +320,22 @@ async function waitForOutcome(tabId, atsName, redirectTo) {
 // What a run fills from the profile, and the AI's answers to required
 // questions nothing answered when the user lets it draft them. The labels
 // it drafted go in drafted, for the Submit gate.
-async function planRun(fields, job, ctx, drafted) {
-  const plan = oojMatch.planFill(fields, ctx.profile, job);
-  // Required privacy boxes are ticked when the user said so in their
-  // settings. Without it, in AI mode the AI answers them like any other
-  // required question, as runs always have.
+// Required privacy boxes, ticked in runs and in Fill application when the
+// user said so in their settings.
+function tickConsent(plan, settings) {
+  if (!settings || !settings.consent) return;
   for (const f of [...plan.missing]) {
-    if (!ctx.settings.consent || !oojMatch.consentBox(f)) continue;
+    if (!oojMatch.consentBox(f)) continue;
     plan.missing.splice(plan.missing.indexOf(f), 1);
     plan.fills.push({ ...f, value: 'Yes' });
   }
+}
+
+async function planRun(fields, job, ctx, drafted) {
+  const plan = oojMatch.planFill(fields, ctx.profile, job);
+  // Without the setting, in AI mode the AI answers privacy boxes like any
+  // other required question, as runs always have.
+  tickConsent(plan, ctx.settings);
   if (!plan.missing.length || ctx.settings.unknowns !== 'ai') return plan;
   for (const f of [...plan.missing]) {
     if (f.type === 'file' || oojMatch.isEeo(f)) continue;
@@ -866,6 +872,7 @@ async function readForm(tabId, name, frameId) {
 // saved answer gets the AI's best suggestion, outlined for review.
 async function planWithSuggestions(page, job, ctx) {
   const plan = oojMatch.planFill(page.fields, ctx.profile, job);
+  tickConsent(plan, ctx.settings);
   const suggested = [];
   for (const f of oojMatch.suggestable(page.fields, plan)) {
     const answer = await suggestAnswer(f, job, ctx);

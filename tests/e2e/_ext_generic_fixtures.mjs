@@ -114,6 +114,22 @@ await check("a lone checkbox is ticked only for a yes", async () => {
   assert.equal(await page.isChecked("#consent"), true);
 });
 
+// A box that only says "Yes" under the question it answers (Comeet's
+// privacy policy, NaturalInt, 2026-10-25): the label is the question.
+await check("a lone Yes box takes the question above it, and counts as a privacy box", async () => {
+  await load(`<form><label>Full name <input name="a"></label><label>Email <input type="email" name="b"></label>
+    <label>Phone <input type="tel" name="c"></label><label>Resume <input type="file" name="cv"></label>
+    <div class="q"><h4>I hereby agree and consent to NI's Privacy Policy *</h4><div>Required</div>
+      <label><input type="checkbox" id="pp" required> Yes</label></div>
+    <div class="q"><label><input type="checkbox" id="news"> Yes</label></div>
+    <button type="submit">Submit</button></form>`);
+  const got = await page.evaluate(() => globalThis.oojAts.generic.read());
+  assert.ok(got.fields, JSON.stringify(got));
+  const pp = got.fields.find((f) => f.type === "checkbox" && f.required);
+  assert.ok(pp && /privacy policy/i.test(pp.label) && /Yes$/.test(pp.label), JSON.stringify(got.fields));
+  assert.ok(match.consentBox(pp));
+});
+
 // Comeet's questionnaire as its AngularJS app renders it (Fetcherr,
 // 2026-10-20): the input is zero wide and transparent, its label[for]
 // draws the circle and says "Yes", the question is the fieldset's legend

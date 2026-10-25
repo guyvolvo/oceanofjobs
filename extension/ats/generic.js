@@ -175,6 +175,7 @@
     return host ? clean(host.getAttribute('label') || host.getAttribute('aria-label')) : '';
   }
 
+  const MARKER_ONLY = /^(\*|required|optional|this field is required|obligatoire|pflichtfeld|erforderlich|obligatorio|requerido|obbligatorio|verplicht|חובה|שדה חובה)[.:]?$/i;
   // The nearest text before el that no other field sits between.
   function textBefore(el, stop) {
     // Eight levels: web components wrap a field deeply (SmartRecruiters puts
@@ -185,7 +186,8 @@
         // Only a field someone can use ends it, not a component's hidden helper input.
         if (s.nodeType === 1 && (s.matches(CONTROLS) && usable(s) || controls(s).length)) return '';
         const t = s.nodeType === 1 ? textOf(s) : s.nodeType === 3 ? clean(s.textContent) : '';
-        if (t) return t.slice(0, 300);
+        // "Required" under a question (Comeet) names nothing; the question is further up.
+        if (t && !MARKER_ONLY.test(t)) return t.slice(0, 300);
       }
     }
     return '';
@@ -266,6 +268,7 @@
   }
 
   let form = null;
+  const BARE_YES = /^(yes|i agree|agree|i accept|accept|i understand|i confirm|confirm|ok|ja|oui|sí|si|כן|מסכים|מסכימה|אני מסכים|אני מסכימה|מאשר|מאשרת|אני מאשר|אני מאשרת)[.!]?\s*\*?$/i;
 
   function fieldsOf(container) {
     for (const old of deep(container, '[data-ooj], [data-ooj-box]')) { old.removeAttribute('data-ooj'); old.removeAttribute('data-ooj-box'); }
@@ -294,7 +297,9 @@
       const required = x.some((m) => m.required || m.getAttribute('aria-required') === 'true')
         || (box.closest('[aria-required="true"]') !== null);
       if (type === 'checkbox' && x.length === 1) {
-        const raw = ownLabel(x[0]) || textBefore(x[0], container);
+        // A box that only says "Yes" or "I agree" answers the question above it.
+        const own = ownLabel(x[0]);
+        const raw = own && !BARE_YES.test(tidy(own)) ? own : [textBefore(x[0], container), own].filter(Boolean).join(' ');
         return { name, label: tidy(raw), type, options: [], required: required || STAR.test(raw) };
       }
       const raw = groupLabel(x, box, container);
@@ -740,7 +745,9 @@
       const until = Date.now() + 30000;
       const tick = () => {
         const u = new URL(location.href);
-        if ((location.href !== before.url && SENT_URL.test(u.pathname + u.hash)) || sentCount(text()) > before.sent) {
+        // Ashby's and Workable's own thank-you panels count as well.
+        if ((location.href !== before.url && SENT_URL.test(u.pathname + u.hash)) || sentCount(text()) > before.sent
+          || document.querySelector('.ashby-application-form-success-container, [data-ui="successful-submit"]')) {
           note({ type: 'sentPage' });
         } else if (Date.now() < until) setTimeout(tick, 1000);
       };
