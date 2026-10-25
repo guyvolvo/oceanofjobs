@@ -47,6 +47,9 @@ for (const mode of ["dark", "light"]) {
     try { r.fulfill({ body: await readFile(file), contentType: TYPES[extname(file)] || "application/octet-stream" }); }
     catch { r.fulfill({ status: 404, body: "" }); }
   });
+  // The email header isn't served from the site until it deploys; use the repo's copy.
+  await ctx.route("https://oceanofjobs.com/img/email-header.jpg", async (r) =>
+    r.fulfill({ body: await readFile(resolve(import.meta.dirname, "../../frontend/img/email-header.jpg")), contentType: "image/jpeg" }));
   await ctx.addInitScript((m) => localStorage.setItem("crm_theme", m), mode);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));

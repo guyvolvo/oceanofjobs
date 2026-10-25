@@ -26,6 +26,7 @@ const TYPES: Record<string, string> = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
 const MAX = 5 * 1024 * 1024;
+const CLOUD_STORAGE = false;
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 
@@ -56,6 +57,9 @@ export function ResumeStorage({ ext }: { ext: Ext }) {
   const input = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
+    // shortcut: the extension in the store can't read cloud storage yet, so the page shows the
+    // in-browser card; delete this line once 1.9.12 is published.
+    if (!CLOUD_STORAGE) return setView(null);
     api<View>("/me/storage").then(setView, () => setView(null));
   }, []);
   useEffect(load, [load]);

@@ -11,9 +11,9 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Table } from "@cloudflare/kumo/components/table";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { markdown } from "../../../crm/lib/mail.mjs";
 import { crm, day, plural, type Billing, type Campaign, type Contact, type DirectEmail, type Filter } from "./api";
 import { Failed, FilterFields, useLoad } from "./App";
+import { MailPreview } from "./Emails";
 
 type Detail = { contact: Contact; activity: { alerts: number; active_alerts: number; saved: number; applications: number };
   notes: { sk: string; text: string }[]; billing: Billing; emails: DirectEmail[]; billing_url: string };
@@ -109,7 +109,7 @@ function EmailSection({ id, d, sending, onSent }: { id: string; d: Detail; sendi
       <p className="crm-note">For messages about this member's account. It goes even if they haven't subscribed to product updates, so don't use it for promotions.</p>
       <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={150} />
       <InputArea label="Message" className="crm-md crm-md-short" value={body} onChange={(e) => setBody(e.target.value)} />
-      {body.trim() ? <div className="crm-preview" dangerouslySetInnerHTML={{ __html: markdown(body) }} /> : null}
+      {body.trim() ? <MailPreview subject={subject} body={body} /> : null}
       <div className="crm-row">
         <Button variant="secondary" loading={busy === "test"} disabled={!subject.trim() || !body.trim()} onClick={send(true)}>Send a test to me</Button>
         <Button variant="primary" loading={busy === "send"} disabled={!sending || !subject.trim() || !body.trim()} onClick={send(false)}>Send</Button>

@@ -11,9 +11,15 @@ import { Badge } from "@cloudflare/kumo/components/badge";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Table } from "@cloudflare/kumo/components/table";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { markdown } from "../../../crm/lib/mail.mjs";
+import { markdown, page } from "../../../crm/lib/mail.mjs";
 import { crm, day, plural, type Campaign, type Segment } from "./api";
 import { Failed, useLoad } from "./App";
+
+// The email as members get it: the same template the Worker sends (the
+// card, the painting, the footer), with Markdown escaped by mail.mjs.
+export function MailPreview({ subject, body }: { subject: string; body: string }) {
+  return <div className="crm-mail" dangerouslySetInnerHTML={{ __html: page(subject, markdown(body), "#") }} />;
+}
 
 function SendDialog({ c, onClose, onDone }: { c: Campaign; onClose: () => void; onDone: () => void }) {
   const [count, setCount] = useState<number | null>(null);
@@ -95,8 +101,7 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
         </div>
         <div className="crm-stack">
           <span className="crm-note">Preview</span>
-          <div className="crm-preview" dangerouslySetInnerHTML={{ __html: markdown(body) }} />
-          <span className="crm-note">Every email ends with an unsubscribe link and a link to account settings.</span>
+          <MailPreview subject={subject} body={body} />
         </div>
       </div>
       {draft ? (

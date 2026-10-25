@@ -47,3 +47,6 @@ body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-
 .crm-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .crm-md-short { min-height: 140px; }
 .crm-dl code { font-size: 12px; }
+.crm-mail { border-radius: 10px; overflow: hidden; }
+.crm-mail table { border-collapse: separate; }
+.crm-mail ul { list-style: disc; }
