@@ -344,18 +344,37 @@ def _job_page_sidebar(conn, job) -> dict:
                 if _has_company_column(conn, "logo_url") else "NULL AS logo_url")
     out = {"company_open": 0, "company_jobs": [], "similar": [], "company_category": job.get("category")}
     try:
-        # Per company: the open count and its four newest rows, so the
-        # current listing can be left out and three remain.
+        # Per company: the open count, how many arrived this week, its
+        # seven newest rows (the current listing left out, six remain),
+        # and where its open jobs are, in which fields, how many remote.
+        # Index walks and seven row reads, once per company per ten minutes.
         def company_part():
             n = conn.execute(
                 "SELECT COUNT(*) FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)).fetchone()[0]
+            week = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat(timespec="seconds")
+            new_7d = conn.execute(
+                "SELECT COUNT(*) FROM jobs WHERE company_domain = ? AND closed_at IS NULL AND first_seen >= ?", (domain, week)).fetchone()[0]
             rows = [dict(r) for r in conn.execute(
                 f"SELECT {pick}, {name_sel}, {logo_sel} FROM jobs WHERE company_domain = ? AND closed_at IS NULL "
-                "ORDER BY first_seen DESC LIMIT 4", (domain,)).fetchall()]
-            return n, rows
-        n, rows = _sidebar_cached(("company", domain), company_part)
+                "ORDER BY first_seen DESC LIMIT 7", (domain,)).fetchall()]
+            # Counted from idx_jobs_open_facets alone (company, city,
+            # category and workplace are all in it): no row reads.
+            hint = ("INDEXED BY idx_jobs_open_facets" if conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_jobs_open_facets'").fetchone() else "")
+            def top(col):
+                c = Counter()
+                for v, k in conn.execute(f"SELECT {col}, COUNT(*) FROM jobs {hint} WHERE company_domain = ? AND closed_at IS NULL "
+                                         f"AND {col} IS NOT NULL AND {col} != '' GROUP BY {col} ORDER BY 2 DESC LIMIT 12", (domain,)):
+                    c[v.split(",")[0].strip()] += k
+                return [x for x in c.most_common(3) if x[0]]
+            remote = conn.execute(f"SELECT COUNT(*) FROM jobs {hint} WHERE company_domain = ? AND closed_at IS NULL "
+                                  "AND workplace_type = 'remote'", (domain,)).fetchone()[0]
+            snapshot = {"open": n, "new_7d": new_7d, "cities": top("city"), "teams": top("category"), "remote": remote}
+            return n, rows, snapshot
+        n, rows, snapshot = _sidebar_cached(("company", domain), company_part)
         out["company_open"] = n
-        out["company_jobs"] = [r for r in rows if r["id"] != job["id"]][:3]
+        out["company_jobs"] = [r for r in rows if r["id"] != job["id"]][:6]
+        out["company_snapshot"] = snapshot
 
         category = job.get("category")
         country = (job.get("country") or "").split(",")[0]
@@ -377,7 +396,7 @@ def _job_page_sidebar(conn, job) -> dict:
                     "ORDER BY posted_at DESC LIMIT 12",
                     (category, role, since, f"%,{country},%")).fetchall()]
             pool = _sidebar_cached(("similar", category, role, country), similar_part)
-            out["similar"] = [r for r in pool if r["company_domain"] != domain][:3]
+            out["similar"] = [r for r in pool if r["company_domain"] != domain][:6]
     except Exception as e:  # noqa: BLE001 - the sidebar is a nicety; the page is not
         print(f"job page sidebar: {e!r}")
     return out

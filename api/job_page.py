@@ -207,6 +207,25 @@ def deadline(job, now=None):
     return deadline_from(job.get("description") or "", now, country=(job.get("country") or "").split(",")[0], posted=posted)
 
 
+# The employment types a title states outright ("Nurse | Part-time",
+# "Data Engineer (Contract)"): only these, since the title is on the page
+# and Google wants every value in the markup to be visible there.
+_EMPLOYMENT = [
+    (re.compile(r"\bpart[- ]?time\b|\bdeeltijd\b|\bteilzeit\b", re.I), "PART_TIME"),
+    (re.compile(r"\bfull[- ]?time\b|\bvoltijd\b|\bvollzeit\b", re.I), "FULL_TIME"),
+    (re.compile(r"\bcontract(or)?\b|\bfreelance(r)?\b|\bfreiberufl", re.I), "CONTRACTOR"),
+    (re.compile(r"\btemporary\b|\bfixed[- ]term\b|\bbefristet\b", re.I), "TEMPORARY"),
+]
+
+
+def employment_types(job) -> list[str]:
+    title = job.get("title") or ""
+    found = [kind for rx, kind in _EMPLOYMENT if rx.search(title)]
+    if job.get("seniority") == "intern":
+        found.append("INTERN")
+    return found
+
+
 def json_ld(job, now=None) -> dict:
     """schema.org JobPosting for an open listing. Every value here is
     also visible on the page, which is Google's rule for this markup.
@@ -230,7 +249,9 @@ def json_ld(job, now=None) -> dict:
         "@context": "https://schema.org",
         "@type": "JobPosting",
         "title": job.get("title", ""),
-        "description": job.get("description") or job.get("title", ""),
+        # HTML, as Google asks: it lays out the job details panel from it, and
+        # plain text arrives there as one unbroken block.
+        "description": description_html(job.get("description") or "") or html.escape(job.get("title", "")),
         "datePosted": posted.date().isoformat() if posted else None,
         "hiringOrganization": org,
         "url": canonical_url(job["id"]),
@@ -256,8 +277,9 @@ def json_ld(job, now=None) -> dict:
         data["identifier"] = {"@type": "PropertyValue", "name": job.get("ats") or "ats", "value": str(job["external_id"])}
     if job.get("department"):
         data["occupationalCategory"] = job["department"]
-    if job.get("seniority") == "intern":
-        data["employmentType"] = "INTERN"
+    kinds = employment_types(job)
+    if kinds:
+        data["employmentType"] = kinds[0] if len(kinds) == 1 else kinds
     salary = base_salary(job)
     if salary:
         data["baseSalary"] = salary
@@ -416,14 +438,31 @@ def render(job, now=None, extra=None) -> str:
 
     more = ""
     if extra.get("company_jobs"):
-        rows = "".join(_role_row(j, now, with_company=True) for j in extra["company_jobs"][:3])
+        rows = "".join(_role_row(j, now, with_company=True) for j in extra["company_jobs"][:6])
         all_n = f'<a class="pg-side-all" href="/company/{esc(domain)}">All {fmt_int(n_open)}</a>' if n_open else ""
         more = f'<section class="pg-card"><div class="pg-card-head"><span class="pg-card-title">More at {esc(company)}</span>{all_n}</div>{rows}</section>'
     similar = ""
     if extra.get("similar"):
-        rows = "".join(_role_row(j, now, with_company=True) for j in extra["similar"][:3])
+        rows = "".join(_role_row(j, now, with_company=True) for j in extra["similar"][:6])
         similar = (f'<section class="pg-card"><div class="pg-card-title">Similar jobs</div>{rows}'
                    f'<button type="button" class="pg-btn pg-btn-wide" data-alert-like><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me about jobs like this</button></section>')
+
+    # What the board knows about the company's hiring, which the
+    # employer's own posting doesn't say: the page's own content beside
+    # the text it shares with the source.
+    snapshot = ""
+    snap = extra.get("company_snapshot") or {}
+    if open_ and snap.get("open"):
+        lines = [f"{esc(company)} has {fmt_int(snap['open'])} open {plural(snap['open'], 'job')} on Ocean of Jobs"
+                 + (f", {fmt_int(snap['new_7d'])} of them added in the last 7 days." if snap.get("new_7d") else ".")]
+        if snap.get("cities"):
+            lines.append("Most of its open jobs are in " + _and([esc(c) for c, _ in snap["cities"]]) + ".")
+        if snap.get("teams"):
+            lines.append("It's hiring most in " + _and([esc(t) for t, _ in snap["teams"]]) + ".")
+        if snap.get("remote"):
+            lines.append(f"{fmt_int(snap['remote'])} of them {'is' if snap['remote'] == 1 else 'are'} remote.")
+        snapshot = (f'<section class="pg-about"><h2 class="pg-about-title">Hiring at {esc(company)}</h2>'
+                    f'<p>{" ".join(lines)}</p><a href="/company/{esc(domain)}">See every open job at {esc(company)}</a></section>')
 
     browse = ""
     if extra.get("role_links"):
@@ -443,6 +482,7 @@ def render(job, now=None, extra=None) -> str:
         <div class="pg-tags">{"".join(tags)}</div>
         <div class="pg-desc job-page-description">{description}</div>
         {ready}
+        {snapshot}
       </article>
       <aside class="pg-side">
         <section class="pg-card pg-card-main">
@@ -483,6 +523,10 @@ def render(job, now=None, extra=None) -> str:
   </script>
 {FOOT}"""
     return head + body
+
+
+def _and(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
 def _json_js(obj) -> str:

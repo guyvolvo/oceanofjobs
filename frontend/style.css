@@ -8469,6 +8469,10 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .pg-desc a { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
 .pg-desc a:hover { color: var(--green-text); }
 .pg-ready { display: flex; align-items: center; gap: 16px; max-width: 68ch; margin-top: 32px; padding: 18px 20px; border: 1px solid var(--panel-line); border-radius: 10px; }
+/* What the board knows about the company's hiring (api/job_page.py). */
+.pg-about { max-width: 68ch; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--panel-line); }
+.pg-about-title { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.pg-about p { margin: 0 0 8px; color: var(--grey); line-height: 1.55; }
 .pg-ready > div { flex: 1; min-width: 0; }
 .pg-ready-title { font: 700 15px var(--font-ui); }
 .pg-ready .pg-muted { font: 400 13px var(--font-ui); }

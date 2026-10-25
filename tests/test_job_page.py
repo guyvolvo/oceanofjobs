@@ -185,7 +185,17 @@ check("the gone page is noindex and says why", 'content="noindex"' in g and "Thi
 s = job_page.render(job(title="C++ <Senior> Engineer", description='Close </script><b>x</b> early'), NOW)
 check("angle brackets in the title are escaped in HTML", "C++ &lt;Senior&gt; Engineer" in s and "<Senior>" not in s.split("<script")[0])
 check("a description cannot end the JSON-LD script early",
-      "</script><b>" not in s and ld_of(s)["description"].startswith("Close </script>"))
+      "</script><b>" not in s and "Close &lt;/script&gt;" in ld_of(s)["description"])
+check("the markup's description is HTML, for Google's job details panel",
+      ld_of(job_page.render(job(), NOW))["description"].startswith("<p>Build things.</p>"))
+check("a title that says part-time says so in the markup",
+      ld_of(job_page.render(job(title="Nurse | Part-time"), NOW))["employmentType"] == "PART_TIME")
+check("no stated type, no employmentType", "employmentType" not in ld_of(job_page.render(job(title="Engineer"), NOW)))
+snap = job_page.render(job(), NOW, extra={"company_snapshot": {"open": 12, "new_7d": 3,
+                                                              "cities": [("Tel Aviv", 8), ("Haifa", 2)], "teams": [("R&D", 9)], "remote": 2}})
+check("the hiring snapshot reads as sentences, escaped",
+      "has 12 open jobs on Ocean of Jobs, 3 of them added in the last 7 days." in snap
+      and "Most of its open jobs are in Tel Aviv and Haifa." in snap and "hiring most in R&amp;D." in snap and "2 of them are remote." in snap)
 
 # Meta description is bounded and readable.
 long = job_page.render(job(description="word " * 100), NOW)
