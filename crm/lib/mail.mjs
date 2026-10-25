@@ -68,6 +68,7 @@ export function page(subject, bodyHtml, unsubscribe, footerAddress = "") {
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f2f0ef"><tr><td align="center" style="padding:28px 12px">
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px">
 <tr><td style="padding:24px 28px 8px;font:600 16px -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#2b3328">Ocean of Jobs</td></tr>
+<tr><td style="padding:8px 28px 4px"><img src="${SITE}/img/email-header.jpg" width="544" alt="" style="display:block;width:100%;max-width:544px;height:auto;border:0;border-radius:10px"></td></tr>
 <tr><td style="padding:8px 28px 20px;font:400 15px/1.55 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#2b3328">${bodyHtml}</td></tr>
 </table>
 <p style="max-width:600px;margin:16px auto 0;font:400 12px/1.5 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#6b7266">
