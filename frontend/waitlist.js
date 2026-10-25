@@ -12,7 +12,7 @@
   function mark(plans) {
     for (const b of buttons) {
       if (!plans.includes(b.dataset.waitlist)) continue;
-      b.textContent = "You've joined the waitlist";
+      b.textContent = `You've joined the ${b.dataset.waitlist === "pro" ? "Pro" : "Basic"} waitlist`;
       b.disabled = true;
     }
   }
