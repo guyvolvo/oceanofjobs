@@ -127,7 +127,8 @@ function Editor({ start, data, onDone }: { start: Flow; data: Data; onDone: () =
         {trig?.help ? <p className="crm-note">{trig.help}</p> : null}
         <h3 className="crm-h3">Only for users who match</h3>
         <FilterFields filter={f.conditions} set={(c) => setF({ ...f, conditions: c })} />
-        <p className="crm-note">Leave these empty for everyone. Now: {describe(f.conditions)}.</p>
+        <p className="crm-note">The flow runs for the one user the trigger is about, never for everyone at once. These narrow it further: {Object.keys(f.conditions || {}).length
+          ? `only when that user is ${describe(f.conditions)}` : "empty means any user it happens to"}.</p>
       </div></LayerCard>
       {f.actions.map((s, i) => {
         const spec = data.actions[s.type];
