@@ -6043,6 +6043,9 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   flex-direction: column;
   gap: 18px;
 }
+/* The pane scrolls; nothing in it shrinks. The facts box clips its own
+   corners, which let a long description squeeze it to its 2px border. */
+.pane-body > * { flex-shrink: 0; }
 .pane-close {
   width: 32px;
   height: 32px;
