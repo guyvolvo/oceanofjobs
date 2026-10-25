@@ -45,6 +45,8 @@ POLICY = {"Version": "2012-10-17", "Statement": [
          "user_id", "alert_id", "plan", "until", "note", "by", "at", "held", "charged", "reset_at", "reset_by"]}}},
     {"Sid": "CrmTable", "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:UpdateItem"],
      "Resource": f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/{TABLE}"},
+    {"Sid": "EmailImages", "Effect": "Allow", "Action": ["s3:PutObject"],
+     "Resource": "arn:aws:s3:::iljobs-frontend-876913698688/mail/*"},
     {"Sid": "SendAsInfo", "Effect": "Allow", "Action": ["ses:SendEmail"],
      "Resource": [f"arn:aws:ses:{REGION}:{ACCOUNT}:identity/oceanofjobs.com", f"arn:aws:ses:{REGION}:{ACCOUNT}:configuration-set/{CONFIG_SET}"],
      "Condition": {"StringEquals": {"ses:FromAddress": SENDER}}},

@@ -14,6 +14,7 @@ import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { crm, day, plural, type Billing, type Campaign, type Contact, type DirectEmail, type Filter } from "./api";
 import { Failed, FilterFields, useLoad } from "./App";
 import { MailPreview } from "./Emails";
+import { ImagePicker } from "./ImagePicker";
 
 type Detail = { contact: Contact; activity: { alerts: number; active_alerts: number; saved: number; applications: number };
   notes: { sk: string; text: string }[]; billing: Billing; emails: DirectEmail[]; billing_url: string };
@@ -94,11 +95,12 @@ function EmailSection({ id, d, sending, onSent }: { id: string; d: Detail; sendi
   const toasts = useKumoToastManager();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [image, setImage] = useState("");
   const [busy, setBusy] = useState("");
   const send = (test: boolean) => async () => {
     setBusy(test ? "test" : "send");
     try {
-      await crm(`/contacts/${id}/email`, "POST", { subject, body, test });
+      await crm(`/contacts/${id}/email`, "POST", { subject, body, test, image });
       toasts.add({ variant: "success", title: test ? "Test sent to you" : `Sent to ${d.contact.email}` });
       if (!test) { setSubject(""); setBody(""); onSent(); }
     } catch (e) { toasts.add({ variant: "error", title: (e as Error).message }); } finally { setBusy(""); }
@@ -109,7 +111,8 @@ function EmailSection({ id, d, sending, onSent }: { id: string; d: Detail; sendi
       <p className="crm-note">For messages about this user's account. It goes even if they haven't subscribed to product updates, so don't use it for promotions.</p>
       <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={150} />
       <InputArea label="Message" className="crm-md crm-md-short" value={body} onChange={(e) => setBody(e.target.value)} />
-      {body.trim() ? <MailPreview subject={subject} body={body} /> : null}
+      <ImagePicker value={image} onChange={setImage} />
+      {body.trim() ? <MailPreview subject={subject} body={body} kind="account" image={image} /> : null}
       <div className="crm-row">
         <Button variant="secondary" loading={busy === "test"} disabled={!subject.trim() || !body.trim()} onClick={send(true)}>Send a test to me</Button>
         <Button variant="primary" loading={busy === "send"} disabled={!sending || !subject.trim() || !body.trim()} onClick={send(false)}>Send</Button>

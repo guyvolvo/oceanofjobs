@@ -8,7 +8,7 @@
 // only test emails to the owner go out.
 import ASSETS from "./assets.mjs";
 import { owner } from "./lib/access.mjs";
-import { sesSend } from "./lib/aws.mjs";
+import { s3Put, sesSend } from "./lib/aws.mjs";
 import { message, reply } from "./lib/mail.mjs";
 import { address, decodeWords, readMessage } from "./lib/mime.mjs";
 import { waitlistChange } from "./lib/admin.mjs";
@@ -139,18 +139,19 @@ async function api(request, env, who, path) {
       const b = await body(request);
       const subject = String(b.subject || "").trim().slice(0, 150);
       const md = String(b.body || "").slice(0, 50000);
+      const image = typeof b.image === "string" ? b.image.slice(0, 300) : "";
       if (!subject || !md.trim()) return fail(400, "Write a subject and a message first.");
       const { contacts } = await S.contacts(env);
       const c = contacts.find((x) => x.id === sub);
       if (!c || !c.email) return fail(404, "No user with that id.");
       if (b.test) {
         const me = contacts.find((x) => x.email === who);
-        await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + subject, md }));
+        await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + subject, md, image }));
         await S.audit(env, who, "test email", { contact: sub });
         return json(200, { sent_to: who });
       }
       if (env.SENDING !== "on") return fail(403, "Sending to users is turned off. Only test emails go out.");
-      await sesSend(env, await message(env, { to: c.email, userId: c.id, subject, md }));
+      await sesSend(env, await message(env, { to: c.email, userId: c.id, subject, md, kind: "account", image }));
       const rec = { pk: "direct#" + sub, sk: S.now() + "#" + S.id(), subject, body: md, to: c.email };
       await S.put(env, rec);
       await S.audit(env, who, "email member", { contact: sub, subject });
@@ -214,7 +215,7 @@ async function api(request, env, who, path) {
       if (!c.subject || !c.body) return fail(400, "Write a subject and a message first.");
       const { contacts } = await S.contacts(env);
       const me = contacts.find((x) => x.email === who);
-      await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + c.subject, md: c.body }));
+      await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + c.subject, md: c.body, image: c.image }));
       await S.audit(env, who, "test email", { campaign: sub });
       return json(200, { sent_to: who });
     }
@@ -241,7 +242,7 @@ async function api(request, env, who, path) {
           if (e.type && e.type.includes("ConditionalCheckFailed")) continue;
           throw e;
         }
-        await sesSend(env, await message(env, { to: r.email, userId: r.id, subject: c.subject, md: c.body }));
+        await sesSend(env, await message(env, { to: r.email, userId: r.id, subject: c.subject, md: c.body, image: c.image }));
         sent++;
       }
       day.count += sent;
@@ -275,6 +276,19 @@ async function api(request, env, who, path) {
       await S.audit(env, who, "changelog to email", { entry: sub, campaign: c.sk });
       return json(200, { campaign: c });
     }
+  }
+
+  if (area === "images" && method === "POST") {
+    // A cropped header image (the page crops it to 1104x280, twice the
+    // email's 552x140), stored on the site so mail clients can load it.
+    const b = await body(request);
+    let bytes;
+    try { bytes = Uint8Array.from(atob(String(b.data || "")), (ch) => ch.charCodeAt(0)); } catch { return fail(400, "That isn't an image."); }
+    if (bytes.length < 100 || bytes.length > 1_500_000 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return fail(400, "Send a JPEG under 1.5 MB.");
+    const key = `mail/${S.id()}${S.id()}.jpg`;
+    await s3Put(env, key, bytes, "image/jpeg");
+    await S.audit(env, who, "image", { key });
+    return json(200, { url: `https://oceanofjobs.com/${key}` });
   }
 
   if (area === "flows") {

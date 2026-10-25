@@ -71,8 +71,8 @@ export const byId = Object.fromEntries(TRIGGERS.map((t) => [t.id, t]));
 
 // What a step needs, for the editor and for checking what's saved.
 export const ACTIONS = {
-  email: { name: "Send the user an email", group: "Email", fields: ["subject", "body", "subscribers"] },
-  notify: { name: "Email me", group: "Email", fields: ["subject", "body"] },
+  email: { name: "Send the user an email", group: "Email", fields: ["subject", "body", "image", "subscribers"] },
+  notify: { name: "Email me", group: "Email", fields: ["subject", "body", "image"] },
   slack: { name: "Post to Slack", group: "Connectors", fields: ["url", "text"] },
   discord: { name: "Post to Discord", group: "Connectors", fields: ["url", "text"] },
   webhook: { name: "Call a webhook", group: "Connectors", fields: ["url"] },
@@ -96,6 +96,7 @@ export function clean(b) {
     const out = { type: a.type };
     for (const f of spec.fields) {
       if (f === "subscribers") out[f] = !!a[f];
+      else if (f === "image") out[f] = typeof a[f] === "string" && (a[f] === "none" || a[f].startsWith("https://oceanofjobs.com/mail/")) ? a[f] : "";
       else if (f === "days") out[f] = Math.max(0, Math.min(3650, Number(a[f]) || 0));
       else if (f === "plan") out[f] = a[f] === "basic" ? "basic" : "pro";
       else out[f] = String(a[f] ?? "").slice(0, f === "body" || f === "text" ? 50000 : 500).trim();
@@ -142,9 +143,10 @@ async function step(env, a, { contact: c, vars: v, flow, test }) {
   if (a.type === "email") {
     if (!c || !c.email || (a.subscribers && !c.newsletter)) return "skipped";
     await sesSend(env, await message(env, { to: test ? env.OWNER_EMAIL : c.email, userId: c.id || "x", subject: (test ? "[Test] " : "") + fill(a.subject, v),
-      md: fill(a.body, v), kind: a.subscribers ? "newsletter" : "account" }));
+      md: fill(a.body, v), kind: a.subscribers ? "newsletter" : "account", image: a.image }));
   } else if (a.type === "notify") {
-    await sesSend(env, await message(env, { to: env.OWNER_EMAIL, userId: "owner", subject: (test ? "[Test] " : "") + fill(a.subject, v), md: fill(a.body, v), kind: "account" }));
+    await sesSend(env, await message(env, { to: env.OWNER_EMAIL, userId: "owner", subject: (test ? "[Test] " : "") + fill(a.subject, v), md: fill(a.body, v),
+      kind: "account", image: a.image }));
   } else if (a.type === "slack") await post(a.url, { text: plainText(a.text) });
   else if (a.type === "discord") await post(a.url, { content: plainText(a.text).slice(0, 2000) });
   else if (a.type === "webhook") {

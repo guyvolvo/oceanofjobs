@@ -13,8 +13,9 @@ import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { crm, day, describe, plural, type Filter } from "./api";
 import { Failed, FilterFields, useLoad } from "./App";
 import { MailPreview } from "./Emails";
+import { ImagePicker } from "./ImagePicker";
 
-type Step = { type: string; subject?: string; body?: string; subscribers?: boolean; url?: string; text?: string; tag?: string; plan?: string; days?: number };
+type Step = { type: string; subject?: string; body?: string; image?: string; subscribers?: boolean; url?: string; text?: string; tag?: string; plan?: string; days?: number };
 type Flow = { id?: string; name: string; trigger: string; enabled: boolean; days?: number; tag?: string; conditions: Filter; actions: Step[];
   runs?: number; last_run_at?: string; last_error?: string; baseline_at?: string };
 type Trigger = { id: string; group: string; name: string; help: string; days: number | null; event: boolean };
@@ -50,9 +51,10 @@ function StepEditor({ s, spec, set }: { s: Step; spec: { name: string; fields: s
       {f.has("body") ? (
         <div className="crm-split">
           <InputArea label="Message" description="Markdown" className="crm-md crm-md-short" value={s.body || ""} onChange={(e) => up("body", e.target.value)} />
-          <MailPreview subject={s.subject || ""} body={s.body || ""} kind={s.subscribers ? "newsletter" : "account"} />
+          <MailPreview subject={s.subject || ""} body={s.body || ""} kind={s.subscribers ? "newsletter" : "account"} image={s.image} />
         </div>
       ) : null}
+      {f.has("image") ? <ImagePicker value={s.image || ""} onChange={(v) => up("image", v)} /> : null}
       {f.has("subscribers") ? <Checkbox label="Only if they get product updates (for nudges and promotions)" checked={!!s.subscribers}
         onCheckedChange={(c) => up("subscribers", c === true)} /> : null}
       {f.has("url") ? <Input label={s.type === "slack" ? "Slack webhook address" : s.type === "discord" ? "Discord webhook address" : "Webhook address"}

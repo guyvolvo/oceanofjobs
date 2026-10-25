@@ -52,12 +52,14 @@ API["/api/flows"] = { sending: true, actions: ACTIONS,
     actions: [{ type: "email", subject: "You're on the Pro waitlist", body: "Hi {{email}}" }, { type: "tag_add", tag: "pro-waitlist" }, { type: "slack", url: "https://hooks.slack.com/x", text: "{{email}} joined" }] },
     { id: "f2", name: "Connect the extension", trigger: "no_extension", days: 3, enabled: false, conditions: { newsletter: true }, runs: 0,
       actions: [{ type: "wait", days: 1 }, { type: "email", subscribers: true }] }] };
+let cropped = null;
 const b = await chromium.launch();
 const errors = [];
 for (const mode of ["dark", "light"]) {
   const ctx = await b.newContext({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1.25 });
   await ctx.route("http://crm.local/**", async (r) => {
     const p = new URL(r.request().url()).pathname;
+    if (p === "/api/images") { cropped = Buffer.from(JSON.parse(r.request().postData()).data, "base64"); return r.fulfill({ json: { url: "https://oceanofjobs.com/mail/picked.jpg" } }); }
     if (p.startsWith("/api/")) return r.fulfill({ json: API[p] ?? {} });
     const file = join(root, p === "/" ? "crm.html" : p);
     try { r.fulfill({ body: await readFile(file), contentType: TYPES[extname(file)] || "application/octet-stream" }); }
@@ -66,6 +68,7 @@ for (const mode of ["dark", "light"]) {
   // The email header isn't served from the site until it deploys; use the repo's copy.
   await ctx.route("https://oceanofjobs.com/img/email-header.jpg", async (r) =>
     r.fulfill({ body: await readFile(resolve(import.meta.dirname, "../../frontend/img/email-header.jpg")), contentType: "image/jpeg" }));
+  await ctx.route("https://oceanofjobs.com/mail/picked.jpg", (r) => r.fulfill({ body: cropped || Buffer.alloc(0), contentType: "image/jpeg" }));
   await ctx.addInitScript((m) => localStorage.setItem("crm_theme", m), mode);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
@@ -98,6 +101,15 @@ for (const mode of ["dark", "light"]) {
   await page.getByText("Cloud storage for your resume").click();
   await page.waitForTimeout(600);
   await page.screenshot({ path: join(out, `crm-editor-${mode}.png`), fullPage: true });
+  if (mode === "dark") {
+    await page.locator('input[type=file][accept="image/*"]').setInputFiles(resolve(import.meta.dirname, "../../frontend/img/image-dithered.png"));
+    await page.waitForTimeout(800);
+    await page.mouse.move(700, 400);
+    await page.screenshot({ path: join(out, "crm-crop.png") });
+    await page.getByText("Use this crop").click();
+    await page.waitForTimeout(900);
+    await page.screenshot({ path: join(out, "crm-editor-picked.png"), fullPage: true });
+  }
   await ctx.close();
 }
 await b.close();

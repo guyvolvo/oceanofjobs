@@ -105,6 +105,7 @@ jobs:
           # the list the day it was added, for the same reason.
           aws s3 sync frontend/ "s3://${{ vars.FRONTEND_BUCKET }}/" --delete \
             --exclude "bootstrap.json" \
+            --exclude "mail/*" \
             --exclude "bootstrap-il.json" \
             --exclude "sitemap.xml" \
             --exclude "sitemap-*.xml" \

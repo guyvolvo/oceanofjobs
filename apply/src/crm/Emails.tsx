@@ -13,12 +13,13 @@ import { Table } from "@cloudflare/kumo/components/table";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { markdown, page } from "../../../crm/lib/mail.mjs";
 import { crm, day, plural, type Campaign, type Segment } from "./api";
+import { ImagePicker } from "./ImagePicker";
 import { Failed, useLoad } from "./App";
 
 // The email as members get it: the same template the Worker sends (the
 // card, the painting, the footer), with Markdown escaped by mail.mjs.
-export function MailPreview({ subject, body, kind = "newsletter" }: { subject: string; body: string; kind?: "newsletter" | "account" }) {
-  return <div className="crm-mail" dangerouslySetInnerHTML={{ __html: page(subject, markdown(body), "#", "", kind) }} />;
+export function MailPreview({ subject, body, kind = "newsletter", image = "" }: { subject: string; body: string; kind?: "newsletter" | "account"; image?: string }) {
+  return <div className="crm-mail" dangerouslySetInnerHTML={{ __html: page(subject, markdown(body), "#", "", kind, image) }} />;
 }
 
 function SendDialog({ c, onClose, onDone }: { c: Campaign; onClose: () => void; onDone: () => void }) {
@@ -75,11 +76,12 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
   const [subject, setSubject] = useState(c.subject || "");
   const [body, setBody] = useState(c.body || "");
   const [segment, setSegment] = useState(c.segment || "");
+  const [image, setImage] = useState(c.image || "");
   const [busy, setBusy] = useState("");
   const [sendOpen, setSendOpen] = useState<Campaign | null>(null);
   const draft = c.status === undefined || c.status === "draft";
   const save = async () => {
-    const r = await crm<{ campaign: Campaign }>("/campaigns", "POST", { id: c.sk, subject, body, segment, changelog: c.changelog });
+    const r = await crm<{ campaign: Campaign }>("/campaigns", "POST", { id: c.sk, subject, body, segment, image, changelog: c.changelog });
     onSaved(r.campaign);
     return r.campaign;
   };
@@ -98,10 +100,11 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
             items={{ "": "Everyone subscribed to product updates", ...Object.fromEntries(segments.map((s) => [s.sk, s.name])) }} />)}
           <InputArea label="Message" description="Markdown: # headings, **bold**, [links](https://…) and - lists" className="crm-md"
             value={body} onChange={(e) => setBody(e.target.value)} disabled={!draft} />
+          <ImagePicker value={image} onChange={setImage} disabled={!draft} />
         </div>
         <div className="crm-stack">
           <span className="crm-note">Preview</span>
-          <MailPreview subject={subject} body={body} />
+          <MailPreview subject={subject} body={body} image={image} />
         </div>
       </div>
       {draft ? (

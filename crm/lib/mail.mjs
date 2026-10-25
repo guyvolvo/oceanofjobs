@@ -62,14 +62,21 @@ export async function unsubscribeUrl(env, userId) {
   return `${SITE}/api/alerts/unsubscribe?u=${encodeURIComponent(userId)}&a=${encodeURIComponent("#email")}&t=${t}`;
 }
 
-export function page(subject, bodyHtml, unsubscribe, footerAddress = "", kind = "newsletter") {
+// image: "" or undefined for the default painting, "none" for no image, or
+// an image the owner picked and cropped (on the site, under /mail/).
+export function headerImage(image) {
+  if (image === "none") return "";
+  const src = typeof image === "string" && image.startsWith(SITE + "/mail/") ? image : `${SITE}/img/email-header.jpg`;
+  return `<tr><td style="padding:8px 28px 4px"><img src="${esc(src)}" width="544" alt="" style="display:block;width:100%;max-width:544px;height:auto;border:0;border-radius:10px"></td></tr>\n`;
+}
+
+export function page(subject, bodyHtml, unsubscribe, footerAddress = "", kind = "newsletter", image = "") {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(subject)}</title></head>
 <body style="margin:0;padding:0;background:#f2f0ef">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f2f0ef"><tr><td align="center" style="padding:28px 12px">
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px">
 <tr><td style="padding:24px 28px 8px;font:600 16px -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#2b3328">Ocean of Jobs</td></tr>
-<tr><td style="padding:8px 28px 4px"><img src="${SITE}/img/email-header.jpg" width="544" alt="" style="display:block;width:100%;max-width:544px;height:auto;border:0;border-radius:10px"></td></tr>
-<tr><td style="padding:8px 28px 20px;font:400 15px/1.55 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#2b3328">${bodyHtml}</td></tr>
+${headerImage(image)}<tr><td style="padding:8px 28px 20px;font:400 15px/1.55 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#2b3328">${bodyHtml}</td></tr>
 </table>
 <p style="max-width:600px;margin:16px auto 0;font:400 12px/1.5 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#6b7266">
 ${kind === "account" ? `You're getting this because of your Ocean of Jobs account. Manage your emails in your <a href="${SITE}/account#settings" style="color:#6b7266">account settings</a>.`
@@ -100,7 +107,7 @@ export function reply(env, { to, subject, md, inReplyTo = "", references = "" })
 // One SES v2 message for one member.
 // kind "account": about the member's own account, so no unsubscribe from
 // product updates (it would unsubscribe them from something else).
-export async function message(env, { to, userId, subject, md, kind = "newsletter" }) {
+export async function message(env, { to, userId, subject, md, kind = "newsletter", image = "" }) {
   if (kind === "account") {
     return {
       FromEmailAddress: env.MAIL_FROM || "Ocean of Jobs <info@oceanofjobs.com>",
@@ -109,7 +116,7 @@ export async function message(env, { to, userId, subject, md, kind = "newsletter
       Content: { Simple: {
         Subject: { Data: subject, Charset: "UTF-8" },
         Body: {
-          Html: { Data: page(subject, markdown(md), "", env.MAIL_FOOTER_ADDRESS, "account"), Charset: "UTF-8" },
+          Html: { Data: page(subject, markdown(md), "", env.MAIL_FOOTER_ADDRESS, "account", image), Charset: "UTF-8" },
           Text: { Data: `${text(md)}\n\nAccount settings: ${SITE}/account#settings`, Charset: "UTF-8" },
         },
       } },
@@ -123,7 +130,7 @@ export async function message(env, { to, userId, subject, md, kind = "newsletter
     Content: { Simple: {
       Subject: { Data: subject, Charset: "UTF-8" },
       Body: {
-        Html: { Data: page(subject, markdown(md), unsubscribe, env.MAIL_FOOTER_ADDRESS), Charset: "UTF-8" },
+        Html: { Data: page(subject, markdown(md), unsubscribe, env.MAIL_FOOTER_ADDRESS, "newsletter", image), Charset: "UTF-8" },
         Text: { Data: `${text(md)}\n\nUnsubscribe: ${unsubscribe}\nAccount settings: ${SITE}/account#settings`, Charset: "UTF-8" },
       },
       Headers: [

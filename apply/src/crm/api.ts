@@ -35,7 +35,7 @@ export type DirectEmail = { sk: string; subject: string; body: string; to: strin
 export type Filter = { newsletter?: boolean; waitlist?: string; plan?: string; tag?: string; signed_up_after?: string; search?: string };
 export type Segment = { sk: string; name: string; filter: Filter; updated: string };
 export type Campaign = { sk: string; subject: string; body: string; segment: string; status: "draft" | "sending" | "sent";
-  created: string; updated: string; sent: number; sent_at?: string; changelog?: string; to?: string[] };
+  created: string; updated: string; sent: number; sent_at?: string; changelog?: string; to?: string[]; image?: string };
 export type Entry = { sk: string; date: string; title: string; body: string; created: string; published_at: string };
 
 export const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");

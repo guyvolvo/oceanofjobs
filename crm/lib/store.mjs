@@ -244,6 +244,7 @@ export async function saveCampaign(env, body) {
     subject: String(body.subject || "").trim().slice(0, 150),
     body: String(body.body || "").slice(0, 50000),
     segment: body.segment ? String(body.segment) : "",
+    image: typeof body.image === "string" ? body.image.slice(0, 300) : (old && old.image) || "",
     // Members picked by hand in Contacts; when set, it replaces the segment.
     to: Array.isArray(body.to) ? [...new Set(body.to.map(String))].slice(0, 5000) : (old && old.to) || [],
     created: old ? old.created : now(), updated: now(), sent: old ? old.sent : 0, changelog: body.changelog || (old && old.changelog) || "",

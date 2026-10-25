@@ -29,7 +29,8 @@ export async function signedFetch(env, { service, host, method = "POST", path = 
   const auth = `AWS4-HMAC-SHA256 Credential=${env.AWS_ACCESS_KEY_ID}/${scope}, SignedHeaders=${names.join(";")}, Signature=${signature}`;
   const res = await fetch(`https://${host}${path}`, { method, headers: { ...all, Authorization: auth }, body: method === "GET" ? undefined : body });
   const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text.slice(0, 300) }; } // S3 answers in XML
   if (!res.ok) throw Object.assign(new Error(data.message || data.Message || data.__type || `AWS ${res.status}`), { status: res.status, type: data.__type });
   return data;
 }
@@ -83,6 +84,12 @@ export async function all(env, op, payload, max = 20) {
 export const cognito = (env, op, payload) =>
   signedFetch(env, { service: "cognito-idp", host: `cognito-idp.${region(env)}.amazonaws.com`, body: JSON.stringify(payload),
     headers: { "content-type": "application/x-amz-json-1.1", "x-amz-target": `AWSCognitoIdentityProviderService.${op}` } });
+
+// S3: one email header image into the site's bucket, under mail/ (the
+// only prefix the CRM's key may write, and one the site's deploy keeps).
+export const s3Put = (env, key, bytes, type) =>
+  signedFetch(env, { service: "s3", host: `${env.SITE_BUCKET}.s3.${region(env)}.amazonaws.com`, method: "PUT", path: "/" + key, body: bytes,
+    headers: { "content-type": type, "cache-control": "public, max-age=31536000, immutable" } });
 
 // SES v2: one email.
 export const sesSend = (env, payload) =>
