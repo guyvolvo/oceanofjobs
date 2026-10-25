@@ -226,6 +226,11 @@ with mock_aws():
     s1, b1 = call("gina", "POST", "filled", {"attempt_id": "gina-00005", **job(34)})
     s2, b2 = call("gina", "POST", "filled", {"attempt_id": "gina-00005", **job(34)})
     check("a Filled entry is recorded, and recording it again changes nothing", s1 == s2 == 200 and b1 == b2 and b1["attempt"]["state"] == "filled")
+    call("sender", "POST", "filled", {"attempt_id": "sender-0001", **job(34)})
+    s, b = call("sender", "POST", "attempts/sender-0001/sent", {"how": "request"})
+    s2, b2 = call("bob", "POST", "attempts/sender-0001/sent", {"how": "request"})
+    check("the user's own send of a filled form is recorded, and not by another user", s == 200 and b["attempt"]["state"] == "sent"
+          and s2 == 404, repr((s, b, s2)))
     call("gina", "POST", "claim", {"job_id": job(35)["job_id"], "url": job(35)["url"]})
     call("gina", "POST", "result", {"job_id": job(35)["job_id"], "status": "submitted"})  # one through the old path
     s, summ = call("gina", "GET", "summary")

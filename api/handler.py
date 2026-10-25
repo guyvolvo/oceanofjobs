@@ -781,6 +781,9 @@ def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict
                                                     questions=questions)})
             if action == "dispute":
                 return ok(200, {"attempt": A.dispute(user_id, attempt_id, tz=body.get("tz"))})
+            if action == "sent":
+                how = body.get("how") if body.get("how") in ("request", "page") else "page"
+                return ok(200, {"attempt": A.sent(user_id, attempt_id, how)})
         return ok(404, {"error": "no such route", "code": "not_found", "retryable": False})
     except tuple(e for e, _, _ in _ATTEMPT_REFUSALS) as e:
         status, code = next((s, c) for cls, s, c in _ATTEMPT_REFUSALS if isinstance(e, cls))

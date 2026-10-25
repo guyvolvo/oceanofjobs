@@ -727,6 +727,41 @@
     }
   }
 
+  // After a fill the user sends the form with the site's own button. Tell
+  // the extension when they press it, and when this page then confirms it.
+  function watchSend() {
+    if (root.oojWatchingSend) return true;
+    root.oojWatchingSend = true;
+    const note = (msg) => chrome.runtime.sendMessage(msg).catch(() => null);
+    const text = () => (document.body ? document.body.innerText : '');
+    const pressed = () => {
+      const before = { url: location.href, sent: sentCount(text()) };
+      note({ type: 'sendClick' });
+      const until = Date.now() + 30000;
+      const tick = () => {
+        const u = new URL(location.href);
+        if ((location.href !== before.url && SENT_URL.test(u.pathname + u.hash)) || sentCount(text()) > before.sent) {
+          note({ type: 'sentPage' });
+        } else if (Date.now() < until) setTimeout(tick, 1000);
+      };
+      setTimeout(tick, 1000);
+    };
+    document.addEventListener('click', (e) => {
+      const b = e.composedPath().find((el) => el instanceof Element && el.matches('button, input[type="submit"], [role="button"]'));
+      if (b && buttonKind(caption(b)) === 'final') pressed();
+    }, true);
+    // Enter in a field sends a form with no button pressed.
+    document.addEventListener('submit', (e) => { if (!e.submitter) pressed(); }, true);
+    return true;
+  }
+
+  // On the page a send led to: whether it says the application went through.
+  function sentHere(fromUrl) {
+    const u = new URL(location.href);
+    if (location.href.split('#')[0] === String(fromUrl || '').split('#')[0]) return false;
+    return (SENT_URL.test(u.pathname + u.hash) || sentCount(document.body ? document.body.innerText : '') > 0) && formHere().score === 0;
+  }
+
   // For the fill button and for picking the frame to fill: how strongly
   // this document looks like an application form, 0 for not at all.
   function formHere() {
@@ -736,6 +771,6 @@
   }
 
   root.oojAts = root.oojAts || {};
-  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo, next, nextOutcome, wall };
+  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo, next, nextOutcome, wall, watchSend, sentHere };
   if (typeof module === 'object' && module.exports) module.exports = { buttonKind, sentCount };
 })(globalThis);

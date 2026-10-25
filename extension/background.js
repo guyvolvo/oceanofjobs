@@ -744,10 +744,81 @@ async function pageCompany(tabId) {
 }
 
 // A fill the user will check and send: in History as Filled, no credit.
-async function recordFilled(job) {
-  await sendDurable('/me/apply/filled', { attempt_id: newAttemptId(), job_id: job.id, url: job.url, title: job.title,
+// Then the tab is watched for the user sending it (watchSend).
+async function recordFilled(job, tabId, frameId, email) {
+  const attemptId = newAttemptId();
+  await sendDurable('/me/apply/filled', { attempt_id: attemptId, job_id: job.id, url: job.url, title: job.title,
     company: job.company_name || job.company_domain });
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab) return;
+  await setWatch(tabId, { attemptId, email: String(email || '').trim().toLowerCase(), url: tab.url, until: Date.now() + WATCH_FOR, clickAt: 0 });
+  await inTab(tabId, 'generic', 'watchSend', [], frameId).catch(() => null);
 }
+
+// A filled form the user sends with the site's own button shows as Filled
+// until the extension sees it go. The strongest sign is the form's own
+// POST: it carries the applicant's email, the site accepts it, and it
+// comes within a minute of a press on the form's send button. The other
+// is a confirmation on the page (generic.watchSend, sentHere). Either
+// marks the Filled entry sent: Applied on the board, still no credit.
+const WATCH_FOR = 2 * 60 * 60 * 1000;
+const SEND_WINDOW = 60 * 1000;
+
+async function watches() {
+  return (await chrome.storage.session.get('sendWatch')).sendWatch || {};
+}
+async function setWatch(tabId, w) {
+  const all = await watches();
+  if (w) all[tabId] = w;
+  else delete all[tabId];
+  await chrome.storage.session.set({ sendWatch: all });
+}
+async function watchFor(tabId) {
+  const w = (await watches())[tabId];
+  return w && w.until > Date.now() ? w : null;
+}
+async function markSent(tabId, how) {
+  const w = await watchFor(tabId);
+  if (!w) return;
+  await setWatch(tabId, null);
+  await sendDurable(`/me/apply/attempts/${w.attemptId}/sent`, { how });
+}
+
+// Whether a request body has the applicant's email in it, as typed or URL-encoded.
+function carries(body, email) {
+  if (!email || !body) return false;
+  const want = [email, encodeURIComponent(email).toLowerCase()];
+  const parts = body.formData ? Object.values(body.formData).flat().map(String)
+    : (body.raw || []).filter((r) => r.bytes).map((r) => new TextDecoder().decode(r.bytes));
+  return parts.some((p) => want.some((e) => p.toLowerCase().includes(e)));
+}
+
+// requestId -> whether that POST carried the email, for onCompleted.
+const sendPosts = new Map();
+const SEND_FILTER = { urls: ['https://*/*'], types: ['main_frame', 'sub_frame', 'xmlhttprequest', 'other'] };
+chrome.webRequest.onBeforeRequest.addListener((d) => {
+  if (d.method !== 'POST' || d.tabId < 0) return;
+  sendPosts.set(d.requestId, watchFor(d.tabId).then((w) => !!w && carries(d.requestBody, w.email)));
+}, SEND_FILTER, ['requestBody']);
+chrome.webRequest.onCompleted.addListener(async (d) => {
+  const carried = sendPosts.get(d.requestId);
+  if (!carried) return;
+  sendPosts.delete(d.requestId);
+  if (!(await carried) || d.statusCode >= 400) return;
+  const w = await watchFor(d.tabId);
+  if (w && w.clickAt && Date.now() - w.clickAt < SEND_WINDOW) await markSent(d.tabId, 'request');
+}, SEND_FILTER);
+chrome.webRequest.onErrorOccurred.addListener((d) => { sendPosts.delete(d.requestId); }, SEND_FILTER);
+
+// A send that loads another page: look there for a confirmation, and
+// watch again if it's the form back with errors.
+chrome.tabs.onUpdated.addListener(async (tabId, info) => {
+  if (info.status !== 'complete') return;
+  const w = await watchFor(tabId);
+  if (!w || !w.clickAt || Date.now() - w.clickAt > 3 * 60 * 1000) return;
+  if (await inTab(tabId, 'generic', 'sentHere', [w.url]).catch(() => false)) await markSent(tabId, 'page');
+  else await inTab(tabId, 'generic', 'watchSend').catch(() => null);
+});
 
 async function fillHere(msg, tabId, frameId) {
   const st = await chrome.storage.local.get(['cv', 'ai']);
@@ -765,13 +836,14 @@ async function fillHere(msg, tabId, frameId) {
   // Filling costs nothing (R8); a credit is reserved only when the user
   // presses Submit on the card (startSubmit).
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
-  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company));
+  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email);
   return result;
 }
 
 // "Submit application" on the card: reserve a credit and pass the gate
 // before the card presses the site's button. {ok} or {error}.
 async function startSubmit(msg, tabId) {
+  await setWatch(tabId, null); // the card's own attempt records this send
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
@@ -952,7 +1024,7 @@ async function assist(tabId, frameId, name, page, url, title) {
     serverAi: true };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
-  await recordFilled(job);
+  await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email);
   return { ...result, ats: name, frameId, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
 }
 
@@ -1058,6 +1130,7 @@ async function assistHere(msg, sender) {
 // The credit counts only when one shows; otherwise it is given back.
 async function submitHere(msg, sender) {
   const tabId = sender.tab.id;
+  await setWatch(tabId, null); // the card's own attempt records this send
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   if (info && info.botCheck) return { error: BOT_CHECK };
@@ -1151,6 +1224,7 @@ async function settleHere(tabId, result) {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   settleHere(tabId, 'closed');
+  setWatch(tabId, null);
   chrome.storage.session.remove([`tabjob:${tabId}`, `cardai:${tabId}`]);
 });
 
@@ -1333,6 +1407,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     startSubmit(msg, sender.tab.id).catch(() => ({ error: SERVER_GONE })).then(reply);
     return true;
   }
+  if (msg.type === 'sendClick') {
+    watchFor(sender.tab.id).then((w) => w && setWatch(sender.tab.id, { ...w, clickAt: Date.now() })).then(() => reply({ ok: true }));
+    return true;
+  }
+  if (msg.type === 'sentPage') { markSent(sender.tab.id, 'page').then(() => reply({ ok: true })); return true; }
   if (msg.type === 'settleHere') { settleHere(sender.tab.id, msg.result).then(() => reply({ ok: true })); return true; }
   return false;
 });

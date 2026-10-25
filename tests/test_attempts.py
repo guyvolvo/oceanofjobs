@@ -283,6 +283,24 @@ with mock_aws():
     A.filled("u", "fil-000006", job(4), NOW)
     check("a fill the user sends themselves counts too", A.summary("u", NOW)["filled_today"] == 2)
 
+    # A fill the user then sent with the site's button, seen by the extension.
+    t, A = fresh_table()
+    A.filled("u", "snt-000001", job(5), NOW)
+    a = A.sent("u", "snt-000001", "request", NOW)
+    again = A.sent("u", "snt-000001", "page", NOW)
+    row = next(r for r in A.history("u", NOW) if r["attempt_id"] == "snt-000001")
+    s = A.summary("u", NOW)
+    check("a sent fill shows as submitted, costs nothing and reports the same twice",
+          a["state"] == at.SENT and again["state"] == at.SENT and row["status"] == "submitted" and not row["disputable"]
+          and s["used"] == 0 and s["in_progress"] == 0 and s["filled_today"] == 1, repr((a, row, s)))
+    check("and the job can't be applied to again", raises(lambda: A.reserve("u", "snt-000002", job(5), NOW), at.JobTaken))
+    A.reserve("u", "snt-000003", job(6), NOW)                     # a run holds the job
+    A.filled("u", "snt-000004", job(6), NOW)
+    check("a send still counts while another attempt holds the job", A.sent("u", "snt-000004", "page", NOW)["state"] == at.SENT)
+    A.reserve("u", "snt-000005", job(7), NOW)
+    check("only a filled attempt can be marked sent", raises(lambda: A.sent("u", "snt-000005", "page", NOW), at.Conflict))
+    check("an unknown attempt is not found", raises(lambda: A.sent("u", "snt-xxxxxx", "page", NOW), at.NotFound))
+
     # Applications submitted through the old path are respected.
     t, A = fresh_table()
     t.put_item(Item={"user_id": "u", "alert_id": apply.APPLIED + job(9)["job_id"], "job_id": job(9)["job_id"], "url": job(9)["url"],

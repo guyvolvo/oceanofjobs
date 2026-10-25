@@ -48,6 +48,8 @@ RESERVED, STARTED = "reserved", "submission_started"
 SUBMITTED, UNCONFIRMED = "submitted", "unconfirmed"
 FAILED, SKIPPED, NEEDS_INPUT, ABANDONED, DISPUTED = "failed", "skipped", "needs_input", "abandoned", "not_sent_disputed"
 FILLED = "filled"
+# Filled, then sent by the user with the site's own button: no credit.
+SENT = "sent"
 OPEN = (RESERVED, STARTED)
 CHARGED = (SUBMITTED, UNCONFIRMED)
 
@@ -497,6 +499,38 @@ class Attempts:
             return self.view(existing)
         return self.view(row)
 
+    def sent(self, user_id: str, attempt_id: str, how: str, now: datetime | None = None) -> dict:
+        """A filled form the user then sent with the site's own button, seen
+        by the extension (how: "request", the form's POST came back accepted,
+        or "page", a confirmation). In History as submitted, still no credit,
+        and the job is locked like a submitted one."""
+        now = _utc(now)
+        a = self._get(user_id, ATTEMPT + attempt_id)
+        if not a:
+            raise NotFound("no such attempt")
+        if a["state"] == SENT:
+            return self.view(a)
+        if a["state"] != FILLED:
+            raise Conflict(f"an attempt that is {a['state']} can't become {SENT}")
+        upd = {"Update": {"TableName": self.name, "Key": self._key(user_id, ATTEMPT + attempt_id),
+                          "UpdateExpression": "SET #s = :to, reason = :r, settled_at = :t, audit = list_append(audit, :ev)",
+                          "ConditionExpression": "#s = :from", "ExpressionAttributeNames": {"#s": "state"},
+                          "ExpressionAttributeValues": {":to": SENT, ":from": FILLED, ":r": "Sent by you", ":t": now.isoformat(),
+                                                        ":ev": [self._audit(f"sent:{how}"[:40], now)]}}}
+        lock = {"Put": {"TableName": self.name, "Item": {"user_id": user_id, "alert_id": JOBLOCK + a["canon"], "attempt_id": attempt_id,
+                                                          "job_id": a["job_id"], "state": SENT, "at": now.isoformat()},
+                        "ConditionExpression": "attribute_not_exists(alert_id)"}}
+        reasons = self._transact([upd, lock])
+        # Another attempt holds the job (an automatic run in flight): the send still counts.
+        if reasons and reasons[0] != "ConditionalCheckFailed" and reasons[1] == "ConditionalCheckFailed":
+            reasons = self._transact([upd])
+        if reasons:
+            again = self._get(user_id, ATTEMPT + attempt_id)
+            if again and again["state"] == SENT:
+                return self.view(again)
+            raise Conflict("this attempt changed meanwhile")
+        return self.view(self._get(user_id, ATTEMPT + attempt_id))
+
     def needs(self, user_id: str, queued=frozenset(), rows: list | None = None) -> list[dict]:
         """Jobs waiting on the user: the latest attempt per job is Needs
         input and the job isn't back in the queue already."""
@@ -528,7 +562,7 @@ class Attempts:
     def history(self, user_id: str, now: datetime | None = None) -> list[dict]:
         """Every attempt as a History row, in the shape apply.history uses."""
         now = _utc(now)
-        shown = {RESERVED: "in_progress", STARTED: "in_progress"}
+        shown = {RESERVED: "in_progress", STARTED: "in_progress", SENT: SUBMITTED}
         rows = []
         for a in self._attempts(user_id):
             state = a["state"]
@@ -583,7 +617,7 @@ class Attempts:
                 "remaining": max(0, min(left)) if left else None,
                 "applied_today": d["charged"] + old_sub_d,
                 # Jobs the extension filled in today, sent or left to send, each once.
-                "filled_today": old_sub_d + len({a["job_id"] for a in attempts if a["state"] in (FILLED, SUBMITTED, UNCONFIRMED)
+                "filled_today": old_sub_d + len({a["job_id"] for a in attempts if a["state"] in (FILLED, SENT, SUBMITTED, UNCONFIRMED)
                                                  and periods(datetime.fromisoformat(a["reserved_at"]), tz)[1] == day}),
                 "unconfirmed": sum(1 for a in attempts if a["state"] == UNCONFIRMED),
                 "needs_input": len(self.needs(user_id, queued_ids, attempts)), "queued": queued,
