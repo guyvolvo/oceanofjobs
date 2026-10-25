@@ -28,6 +28,9 @@ function provider(u) {
   return "email";
 }
 
+const projection = (names) => ({ ProjectionExpression: names.map((_, i) => `#n${i}`).join(", "),
+  ExpressionAttributeNames: Object.fromEntries(names.map((n, i) => [`#n${i}`, n])) });
+
 // Every account with what the CRM shows about it. shortcut: reads the whole
 // user pool and scans the alerts table for the member rows, cached a
 // minute; fine for a few thousand members, page it past that.
@@ -51,9 +54,9 @@ export async function contacts(env, { fresh = false } = {}) {
       + "OR begins_with(alert_id, :led) OR begins_with(alert_id, :res)",
     ExpressionAttributeValues: { ...Object.fromEntries(MEMBER_ROWS.map((r, i) => [`:r${i}`, { S: r }])),
       ":tok": { S: "#token#" }, ":led": { S: "#ledger#month#" }, ":res": { S: "#agent_resume#" } },
-    ProjectionExpression: "user_id, alert_id, newsletter, newsletter_at, newsletter_source, unsubscribed_at, version, agreed_at, #p, #s, "
-      + "joined_at, #u, note, #a, scope, created_at, charged, subscription_id, event_at",
-    ExpressionAttributeNames: { "#p": "plan", "#s": "status", "#u": "until", "#a": "at" },
+    // Every name aliased: DynamoDB reserves many plain words (scope, status, plan, at...).
+    ...projection(["user_id", "alert_id", "newsletter", "newsletter_at", "newsletter_source", "unsubscribed_at", "version", "agreed_at", "plan",
+      "status", "joined_at", "until", "note", "at", "scope", "created_at", "charged", "subscription_id", "event_at"]),
   }, 20);
   const crm = await all(env, "Query", { TableName: env.CRM_TABLE, KeyConditionExpression: "pk = :p",
     ExpressionAttributeValues: { ":p": { S: "tags" } } }, 5);
@@ -123,8 +126,7 @@ export function matches(c, f = {}) {
 // What a member did, for their page: counted from their own partition.
 export async function activity(env, id) {
   const r = await all(env, "Query", { TableName: env.ALERTS_TABLE, KeyConditionExpression: "user_id = :u",
-    ExpressionAttributeValues: { ":u": { S: id } }, ProjectionExpression: "alert_id, created_at, #s, active",
-    ExpressionAttributeNames: { "#s": "state" } }, 10);
+    ExpressionAttributeValues: { ":u": { S: id } }, ...projection(["alert_id", "created_at", "state", "active"]) }, 10);
   const count = { alerts: 0, active_alerts: 0, saved: 0, applications: 0 };
   for (const row of r.items) {
     const k = String(row.alert_id || "");

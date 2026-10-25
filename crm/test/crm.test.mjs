@@ -70,6 +70,10 @@ function fakeAws(state) {
     const target = (init.headers || {})["x-amz-target"] || "";
     const body = init.body ? JSON.parse(init.body) : {};
     const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
+    // DynamoDB refuses reserved words (scope, status, plan, at...) unaliased; the CRM aliases every name.
+    if (body.ProjectionExpression && body.ProjectionExpression.split(",").some((n) => !n.trim().startsWith("#"))) {
+      return new Response(JSON.stringify({ __type: "ValidationException", message: "unaliased name in " + body.ProjectionExpression }), { status: 400 });
+    }
     if (target.endsWith("ListUsers")) return ok({ Users: state.users });
     if (target.endsWith(".Scan")) return ok({ Items: state.alerts });
     const members = body.TableName === "alerts";

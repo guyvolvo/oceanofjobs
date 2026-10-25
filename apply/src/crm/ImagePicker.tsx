@@ -1,7 +1,8 @@
 // The image under "Ocean of Jobs" in an email: the default painting, none,
 // or one the owner picks and crops to the header's shape (552x140, saved
 // at twice that for sharp screens) and the CRM stores on the site.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Loader } from "@cloudflare/kumo/components/loader";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
@@ -70,10 +71,14 @@ function Cropper({ src, onCancel, onDone }: { src: string; onCancel: () => void;
   );
 }
 
+type Saved = { sk: string; url: string };
+
 export function ImagePicker({ value, onChange, disabled }: { value?: string; onChange: (v: string) => void; disabled?: boolean }) {
   const toasts = useKumoToastManager();
   const input = useRef<HTMLInputElement>(null);
   const [src, setSrc] = useState("");
+  const [saved, setSaved] = useState<Saved[] | null>(null);
+  useEffect(() => { crm<{ images: Saved[] }>("/images").then((r) => setSaved(r.images), () => setSaved([])); }, []);
   const pick = (file?: File) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) return toasts.add({ variant: "error", title: "Choose an image file." });
@@ -83,19 +88,33 @@ export function ImagePicker({ value, onChange, disabled }: { value?: string; onC
     r.readAsDataURL(file);
     if (input.current) input.current.value = "";
   };
-  const shown = value === "none" ? "" : value || DEFAULT;
+  const forget = async (img: Saved) => {
+    await crm(`/images/${encodeURIComponent(img.sk)}`, "DELETE").then(() => setSaved((s) => (s || []).filter((x) => x.sk !== img.sk)),
+      (e) => toasts.add({ variant: "error", title: e.message }));
+    if (value === img.url) onChange("");
+  };
+  const current = value === "none" ? "none" : value || "";
+  const tile = (key: string, on: boolean, label: string, child: React.ReactNode, act: () => void, extra?: React.ReactNode) => (
+    <div key={key} className={`crm-pick${on ? " on" : ""}`}>
+      <button type="button" disabled={disabled} aria-pressed={on} aria-label={label} onClick={act}>{child}</button>
+      {extra}
+    </div>
+  );
   return (
     <div className="crm-stack">
       <span className="crm-label">Header image</span>
-      {shown ? <img className="crm-header-img" src={shown} alt="" /> : <p className="crm-note">No image in this email.</p>}
-      <div className="crm-row">
-        <input ref={input} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
-        <Button variant="secondary" size="sm" disabled={disabled} onClick={() => input.current?.click()}>Choose an image</Button>
-        {value && value !== "none" ? <Button variant="ghost" size="sm" disabled={disabled} onClick={() => onChange("")}>Use the default</Button> : null}
-        {value !== "none" ? <Button variant="ghost" size="sm" disabled={disabled} onClick={() => onChange("none")}>No image</Button>
-          : <Button variant="ghost" size="sm" disabled={disabled} onClick={() => onChange("")}>Use the default</Button>}
+      <div className="crm-picks">
+        {tile("default", current === "", "The sea painting", <img src={DEFAULT} alt="" />, () => onChange(""))}
+        {(saved || []).map((img) => tile(img.sk, current === img.url, "A saved image", <img src={img.url} alt="" />, () => onChange(img.url),
+          <button type="button" className="crm-pick-x" disabled={disabled} aria-label="Remove from the list" onClick={() => forget(img)}>×</button>))}
+        {tile("none", current === "none", "No image", <span>No image</span>, () => onChange("none"))}
+        {tile("upload", false, "Upload and crop an image", <span>+ Upload</span>, () => input.current?.click())}
       </div>
-      {src ? <Cropper src={src} onCancel={() => setSrc("")} onDone={(url) => { setSrc(""); onChange(url); }} /> : null}
+      {saved === null ? <span className="crm-note"><Loader /> Loading your images</span> : null}
+      <input ref={input} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
+      {src ? <Cropper src={src} onCancel={() => setSrc("")} onDone={(url) => {
+        setSrc(""); onChange(url); setSaved((s) => [{ sk: new Date().toISOString(), url }, ...(s || [])]);
+      }} /> : null}
     </div>
   );
 }

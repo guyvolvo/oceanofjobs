@@ -59,7 +59,9 @@ for (const mode of ["dark", "light"]) {
   const ctx = await b.newContext({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1.25 });
   await ctx.route("http://crm.local/**", async (r) => {
     const p = new URL(r.request().url()).pathname;
-    if (p === "/api/images") { cropped = Buffer.from(JSON.parse(r.request().postData()).data, "base64"); return r.fulfill({ json: { url: "https://oceanofjobs.com/mail/picked.jpg" } }); }
+    if (p === "/api/images" && r.request().method() === "GET") return r.fulfill({ json: { images: [
+      { sk: "2", url: "https://oceanofjobs.com/mail/sample-a.jpg" }, { sk: "1", url: "https://oceanofjobs.com/mail/sample-b.jpg" }] } });
+    if (p === "/api/images" && r.request().method() === "POST") { cropped = Buffer.from(JSON.parse(r.request().postData()).data, "base64"); return r.fulfill({ json: { url: "https://oceanofjobs.com/mail/picked.jpg" } }); }
     if (p.startsWith("/api/")) return r.fulfill({ json: API[p] ?? {} });
     const file = join(root, p === "/" ? "crm.html" : p);
     try { r.fulfill({ body: await readFile(file), contentType: TYPES[extname(file)] || "application/octet-stream" }); }
@@ -68,6 +70,9 @@ for (const mode of ["dark", "light"]) {
   // The email header isn't served from the site until it deploys; use the repo's copy.
   await ctx.route("https://oceanofjobs.com/img/email-header.jpg", async (r) =>
     r.fulfill({ body: await readFile(resolve(import.meta.dirname, "../../frontend/img/email-header.jpg")), contentType: "image/jpeg" }));
+  for (const [name, file] of [["sample-a", "image-dithered.png"], ["sample-b", "serenox-Image 51-dithered.png"]]) {
+    await ctx.route(`https://oceanofjobs.com/mail/${name}.jpg`, async (r) => r.fulfill({ body: await readFile(resolve(import.meta.dirname, "../../frontend/img", file)), contentType: "image/png" }));
+  }
   await ctx.route("https://oceanofjobs.com/mail/picked.jpg", (r) => r.fulfill({ body: cropped || Buffer.alloc(0), contentType: "image/jpeg" }));
   await ctx.addInitScript((m) => localStorage.setItem("crm_theme", m), mode);
   const page = await ctx.newPage();
@@ -102,6 +107,7 @@ for (const mode of ["dark", "light"]) {
   await page.waitForTimeout(600);
   await page.screenshot({ path: join(out, `crm-editor-${mode}.png`), fullPage: true });
   if (mode === "dark") {
+    await page.screenshot({ path: join(out, "crm-gallery.png"), fullPage: true });
     await page.locator('input[type=file][accept="image/*"]').setInputFiles(resolve(import.meta.dirname, "../../frontend/img/image-dithered.png"));
     await page.waitForTimeout(800);
     await page.mouse.move(700, 400);

@@ -220,7 +220,7 @@ export async function run(env, { now = Date.now(), log = console.log } = {}) {
   if (!flows.length) return { ran: 0 };
   const [{ contacts }, done, counts, pending] = await Promise.all([S.contacts(env, { fresh: true }),
     all(env, "Query", { TableName: env.CRM_TABLE, KeyConditionExpression: "pk = :p", ExpressionAttributeValues: { ":p": { S: "flow-done" } },
-      ProjectionExpression: "sk" }, 10),
+      ProjectionExpression: "#k", ExpressionAttributeNames: { "#k": "sk" } }, 10),
     S.waitlistCounts(env),
     S.list(env, "flow-pending", { newest: false, limit: MAX_RUNS })]);
   let ran = 0;

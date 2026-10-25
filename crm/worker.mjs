@@ -278,6 +278,12 @@ async function api(request, env, who, path) {
     }
   }
 
+  if (area === "images" && method === "GET") return json(200, { images: await S.list(env, "image", { limit: 100 }) });
+  if (area === "images" && sub && method === "DELETE") {
+    // Off the list only: emails already sent with it still load it.
+    await S.del(env, "image", sub);
+    return json(200, { ok: true });
+  }
   if (area === "images" && method === "POST") {
     // A cropped header image (the page crops it to 1104x280, twice the
     // email's 552x140), stored on the site so mail clients can load it.
@@ -287,8 +293,10 @@ async function api(request, env, who, path) {
     if (bytes.length < 100 || bytes.length > 1_500_000 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return fail(400, "Send a JPEG under 1.5 MB.");
     const key = `mail/${S.id()}${S.id()}.jpg`;
     await s3Put(env, key, bytes, "image/jpeg");
+    const url = `https://oceanofjobs.com/${key}`;
+    await S.put(env, { pk: "image", sk: S.now() + "#" + S.id(), url });
     await S.audit(env, who, "image", { key });
-    return json(200, { url: `https://oceanofjobs.com/${key}` });
+    return json(200, { url });
   }
 
   if (area === "flows") {

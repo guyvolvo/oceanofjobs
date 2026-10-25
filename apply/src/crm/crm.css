@@ -94,3 +94,12 @@ body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-
 .crm-crop img { position: absolute; top: 0; left: 0; max-width: none; pointer-events: none; }
 .crm-zoom { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--text-color-kumo-subtle); font-size: 13px; }
 .crm-zoom input { flex: 1; }
+.crm-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.crm-pick { position: relative; }
+.crm-pick > button:first-child { display: grid; place-items: center; width: 100%; aspect-ratio: 552 / 140; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 10px;
+  background: var(--color-kumo-recessed); color: var(--text-color-kumo-subtle); font: 500 13px var(--font-sans); cursor: pointer; }
+.crm-pick > button:first-child img { width: 100%; height: 100%; object-fit: cover; }
+.crm-pick.on > button:first-child { border-color: var(--color-kumo-brand); }
+.crm-pick > button:first-child:hover { border-color: var(--color-kumo-line); }
+.crm-pick.on > button:first-child:hover { border-color: var(--color-kumo-brand); }
+.crm-pick-x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border: 0; border-radius: 50%; background: rgb(0 0 0 / 0.6); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; }
