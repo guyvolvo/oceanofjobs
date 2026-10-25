@@ -35,10 +35,12 @@ from handler import lambda_handler
 COGNITO_ISSUER = os.environ.get("COGNITO_ISSUER", "")
 COGNITO_AUDIENCE = os.environ.get("COGNITO_AUDIENCE", "")
 MAX_BODY = 64 * 1024
+# A CV upload (user_files.MAX_CV, 5 MB) arrives base64 in JSON: a third more.
+MAX_CV_BODY = 7 * 1024 * 1024 + 4096
 # What a personal access token may reach, by scope (path prefixes).
 TOKEN_PATHS = {
     "mcp": ("/api/me/saved", "/api/me/apply/queue", "/api/me/alerts", "/api/me/profile"),
-    "extension": ("/api/me/saved", "/api/me/apply/"),
+    "extension": ("/api/me/saved", "/api/me/apply/", "/api/me/storage", "/api/me/cv"),
 }
 # Which of an mcp token's permissions each of its paths needs.
 TOKEN_AREAS = {"/api/me/saved": ("saved", "saved jobs"), "/api/me/apply/queue": ("queue", "auto apply queue"),
@@ -138,7 +140,8 @@ def app(environ, start_response):
     # Every real body is a small JSON form; _event reads the whole thing
     # into memory, and nothing upstream caps it below Cloudflare's 100MB.
     try:
-        too_big = int(environ.get("CONTENT_LENGTH") or 0) > MAX_BODY
+        limit = MAX_CV_BODY if environ.get("PATH_INFO") == "/api/me/cv" else MAX_BODY
+        too_big = int(environ.get("CONTENT_LENGTH") or 0) > limit
     except ValueError:
         too_big = False
     if too_big:

@@ -50,6 +50,7 @@ import apply
 import agent
 import attempts
 import consent
+import user_files
 import paddle
 import tokens
 from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
@@ -599,6 +600,48 @@ def lambda_handler(event, context):
             who = (event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}) or {}).get("sub")
             if who and consent.blocked(_alerts_table, who, method, path):
                 return _response(403, json.dumps({"error": consent.REQUIRED, "code": "consent_required", "retryable": False}))
+        if path in ("/me/storage", "/me/storage/secrets", "/me/cv"):
+            # The extension's settings on the account (user_files.py). The
+            # secrets go back only to the extension's own token; the website
+            # learns that they exist, never what they are.
+            claims = _authenticated_claims(event)
+            uid = claims["sub"]
+            extension = claims.get("token_use") == "ooj" and claims.get("scope") == "extension"
+            body = json.loads(event.get("body") or "{}") if method in ("PUT", "POST") else {}
+            try:
+                if path == "/me/storage":
+                    if method == "GET":
+                        return _response(200, json.dumps(user_files.view(_alerts_table, uid)))
+                    if method == "PUT":
+                        return _response(200, json.dumps(user_files.set_mode(_alerts_table, uid, str(body.get("mode") or ""),
+                                                                             consent=body.get("consent") is True)))
+                    if method == "DELETE":
+                        user_files.forget(_alerts_table, uid)  # deleting the account
+                        return _response(204, "")
+                elif path == "/me/storage/secrets":
+                    if not extension:
+                        return _response(403, json.dumps({"error": "Only the extension can read or change these."}))
+                    if method == "GET":
+                        resp = _response(200, json.dumps(user_files.get_secrets(_alerts_table, uid)))
+                        resp["headers"]["Cache-Control"] = "no-store"
+                        return resp
+                    if method == "PUT":
+                        return _response(200, json.dumps(user_files.put_secrets(_alerts_table, uid, body)))
+                else:
+                    if method == "GET":
+                        cv = user_files.get_cv(_alerts_table, uid)
+                        if not cv:
+                            return _response(404, json.dumps({"error": "No CV on your account."}))
+                        resp = _response(200, json.dumps(cv))
+                        resp["headers"]["Cache-Control"] = "no-store"
+                        return resp
+                    if method == "PUT":
+                        return _response(200, json.dumps(user_files.put_cv(_alerts_table, uid, body)))
+                    if method == "DELETE":
+                        return _response(200, json.dumps(user_files.delete_cv(_alerts_table, uid)))
+            except user_files.NotReady as e:
+                return _response(503, json.dumps({"error": str(e), "code": "not_ready", "retryable": False}))
+            return _response(405, json.dumps({"error": "method not allowed"}))
         if path == "/me/consent":
             # Agreeing to the terms (the sign-in window or the prompt), and
             # what the website needs to know about it.
