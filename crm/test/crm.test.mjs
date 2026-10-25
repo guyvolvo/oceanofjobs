@@ -72,6 +72,29 @@ function fakeAws(state) {
     const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
     if (target.endsWith("ListUsers")) return ok({ Users: state.users });
     if (target.endsWith(".Scan")) return ok({ Items: state.alerts });
+    const members = body.TableName === "alerts";
+    const sameRow = (k) => (i) => i.user_id.S === k.user_id.S && i.alert_id.S === k.alert_id.S;
+    if (members && target.endsWith(".GetItem")) { const it = state.alerts.find(sameRow(body.Key)); return ok(it ? { Item: it } : {}); }
+    if (members && target.endsWith(".Query")) {
+      const u = body.ExpressionAttributeValues[":u"].S;
+      const pre = (body.ExpressionAttributeValues[":l"] || { S: "" }).S;
+      return ok({ Items: state.alerts.filter((i) => i.user_id.S === u && i.alert_id.S.startsWith(pre)) });
+    }
+    if (members && target.endsWith(".PutItem")) {
+      state.alerts = state.alerts.filter((i) => !sameRow(body.Item)(i));
+      state.alerts.push(body.Item);
+      return ok({});
+    }
+    if (members && target.endsWith(".UpdateItem")) {
+      const it = state.alerts.find(sameRow(body.Key));
+      const v = body.ExpressionAttributeValues;
+      if (!it || it.charged.N !== v[":c"].N || Number(it.held.N) < Number(v[":c"].N)) {
+        return new Response(JSON.stringify({ __type: "com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException" }), { status: 400 });
+      }
+      it.held = { N: String(Number(it.held.N) - Number(v[":c"].N)) };
+      it.charged = { N: "0" };
+      return ok({});
+    }
     if (target.endsWith(".Query")) {
       const pk = body.ExpressionAttributeValues[":p"] ? body.ExpressionAttributeValues[":p"].S : null;
       return ok({ Items: pk ? state.crm.filter((i) => i.pk.S === pk) : [] });
@@ -151,6 +174,57 @@ test("the Worker: locked without Access, writes need the header, sending is off 
   assert.match(csv.split("\n")[0], /^email,created/);
   const audit = state.crm.filter((i) => i.pk.S === "audit").map((i) => i.action.S);
   assert.ok(audit.includes("export") && audit.includes("test email") && audit.includes("send batch"), audit.join(","));
+  globalThis.fetch = realFetch;
+});
+
+test("licenses, credit resets and emails to one member or a hand-picked few", async () => {
+  _resetKeys();
+  dropCache();
+  const state = {
+    users: [user("u1", "owner@example.com"), user("u2", "a@example.com"), user("u3", "b@example.com")],
+    alerts: [row("u2", "#email", { newsletter: { BOOL: true } }), row("u3", "#email", { newsletter: { BOOL: false } }),
+      row("u2", "#plan", { plan: { S: "pro" }, status: { S: "canceled" } }),
+      row("u2", "#ledger#month#2026-10", { held: { N: "7" }, charged: { N: "5" } })],
+    crm: [], sent: [],
+  };
+  globalThis.fetch = fakeAws(state);
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm", UNSUBSCRIBE_SECRET: "s3cret" };
+  const tok = await jwt(good());
+  const H = { "X-CRM": "1", "Content-Type": "application/json" };
+  const call = (path, init = {}, e = env) => worker.fetch(new Request("https://crm.oceanofjobs.com" + path,
+    { ...init, headers: { "Cf-Access-Jwt-Assertion": tok, ...(init.headers || {}) } }), e);
+
+  let d = await (await call("/api/contacts/u2")).json();
+  assert.equal(d.billing.plan, "free", "a canceled paid plan isn't in force");
+  assert.deepEqual(d.billing.ledgers, [{ key: "#ledger#month#2026-10", held: 7, charged: 5 }]);
+  let r = await call("/api/contacts/u2/license", { method: "PUT", headers: H, body: JSON.stringify({ plan: "gold" }) });
+  assert.equal(r.status, 400, "only real plans");
+  r = await call("/api/contacts/u2/license", { method: "PUT", headers: H, body: JSON.stringify({ plan: "pro", until: "2999-01-01", note: "beta" }) });
+  assert.equal((await r.json()).billing.plan, "pro");
+  assert.equal((await (await call("/api/contacts")).json()).contacts.find((c) => c.id === "u2").plan, "pro", "the list shows it too");
+  r = await call("/api/contacts/u2/license", { method: "PUT", headers: H, body: JSON.stringify({ plan: "free" }) });
+  assert.equal((await r.json()).billing.license, null, "removed");
+
+  r = await call("/api/contacts/u2/credits", { method: "POST", headers: H, body: JSON.stringify({ key: "#apply_profile", charged: 5 }) });
+  assert.equal(r.status, 400, "only ledger rows");
+  r = await call("/api/contacts/u2/credits", { method: "POST", headers: H, body: JSON.stringify({ key: "#ledger#month#2026-10", charged: 4 }) });
+  assert.equal(r.status, 409, "stale numbers are refused");
+  r = await call("/api/contacts/u2/credits", { method: "POST", headers: H, body: JSON.stringify({ key: "#ledger#month#2026-10", charged: 5 }) });
+  assert.deepEqual((await r.json()).billing.ledgers, [{ key: "#ledger#month#2026-10", held: 2, charged: 0 }], "in-progress holds stay");
+
+  const msg = JSON.stringify({ subject: "Your plan", body: "Hi" });
+  r = await call("/api/contacts/u3/email", { method: "POST", headers: H, body: JSON.stringify({ subject: "Your plan", body: "Hi", test: true }) });
+  assert.equal((await r.json()).sent_to, "owner@example.com");
+  r = await call("/api/contacts/u3/email", { method: "POST", headers: H, body: msg });
+  assert.equal(r.status, 403, "sending is off");
+  r = await call("/api/contacts/u3/email", { method: "POST", headers: H, body: msg }, { ...env, SENDING: "on" });
+  assert.equal(r.status, 200, "a one-to-one email doesn't need the newsletter on");
+  assert.deepEqual(state.sent.map((m) => m.Destination.ToAddresses[0]), ["owner@example.com", "b@example.com"]);
+
+  r = await call("/api/campaigns", { method: "POST", headers: H, body: JSON.stringify({ subject: "S", body: "B", to: ["u2", "u3"] }) });
+  const { campaign } = await r.json();
+  r = await call(`/api/campaigns/${campaign.sk}/recipients`);
+  assert.deepEqual(await r.json(), { count: 1, sample: ["a@example.com"] }, "a hand-picked bulk email still goes only to subscribers");
   globalThis.fetch = realFetch;
 });
 

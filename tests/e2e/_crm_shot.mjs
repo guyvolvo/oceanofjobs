@@ -30,7 +30,11 @@ const API = {
   "/api/audit": { entries: [{ sk: ago(0) + "#a", who: "guyvoloshin@gmail.com", action: "export", detail: { count: 7 } },
     { sk: ago(0.1) + "#b", who: "guyvoloshin@gmail.com", action: "test email", detail: { campaign: "c1" } }] },
   "/api/contacts/u2": { contact: contacts[2], activity: { alerts: 3, active_alerts: 2, saved: 12, applications: 5 },
-    notes: [{ sk: ago(2) + "#n", text: "Asked about the Pro plan on the contact form." }] },
+    notes: [{ sk: ago(2) + "#n", text: "Asked about the Pro plan on the contact form." }], billing_url: "https://sandbox-vendors.paddle.com",
+    billing: { plan: "pro", paid: { plan: "basic", status: "active", period_end: ago(-20), subscription_id: "sub_01jabc", customer_id: "ctm_01jxyz", event_at: ago(10) },
+      license: { plan: "pro", until: "2026-12-31", note: "Beta tester", by: "guyvoloshin@gmail.com", at: ago(1) },
+      ledgers: [{ key: "#ledger#month#2026-10", held: 6, charged: 5 }, { key: "#ledger#day#2026-10-25", held: 1, charged: 1 }] },
+    emails: [{ sk: ago(3) + "#e", subject: "About your refund", body: "Hi", to: "noa@example.org" }] },
 };
 const b = await chromium.launch();
 const errors = [];
@@ -56,6 +60,13 @@ for (const mode of ["dark", "light"]) {
   await page.getByText("noa@example.org").first().click();
   await page.waitForTimeout(600);
   await page.screenshot({ path: join(out, `crm-member-${mode}.png`) });
+  await page.locator(".crm-dialog").evaluate((el) => { el.style.maxHeight = "none"; });
+  await page.locator(".crm-dialog").screenshot({ path: join(out, `crm-member-full-${mode}.png`) });
+  await page.keyboard.press("Escape");
+  await page.locator("[role=checkbox]").nth(2).click();
+  await page.locator("[role=checkbox]").nth(3).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: join(out, `crm-picked-${mode}.png`), clip: { x: 0, y: 0, width: 1360, height: 520 } });
   await page.goto("http://crm.local/#emails"); await page.reload(); await page.waitForTimeout(600);
   await page.getByText("Cloud storage for your resume").click();
   await page.waitForTimeout(600);

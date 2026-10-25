@@ -87,8 +87,9 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
       <div className="crm-split">
         <div className="crm-stack">
           <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!draft} maxLength={150} />
+          {c.to?.length ? <p className="crm-note">Goes to the {plural(c.to.length, "member")} you picked in Contacts, if they're subscribed to product updates.</p> : (
           <Select label="Send to" value={segment} onValueChange={(v) => setSegment(String(v ?? ""))} disabled={!draft}
-            items={{ "": "Everyone subscribed to product updates", ...Object.fromEntries(segments.map((s) => [s.sk, s.name])) }} />
+            items={{ "": "Everyone subscribed to product updates", ...Object.fromEntries(segments.map((s) => [s.sk, s.name])) }} />)}
           <InputArea label="Message" description="Markdown: # headings, **bold**, [links](https://…) and - lists" className="crm-md"
             value={body} onChange={(e) => setBody(e.target.value)} disabled={!draft} />
         </div>
@@ -115,10 +116,11 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
   );
 }
 
-export function Emails({ sending }: { sending: boolean }) {
+export function Emails({ sending, initial, onOpened }: { sending: boolean; initial?: Campaign | null; onOpened?: () => void }) {
   const { data, error, load } = useLoad<{ campaigns: Campaign[] }>("/campaigns");
   const { data: segs } = useLoad<{ segments: Segment[] }>("/segments");
-  const [editing, setEditing] = useState<Partial<Campaign> | null>(null);
+  const [editing, setEditing] = useState<Partial<Campaign> | null>(initial || null);
+  useEffect(() => { if (initial) onOpened?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (error) return <Failed error={error} retry={load} />;
   if (editing) return <Editor c={editing} segments={segs?.segments || []} sending={sending} onSaved={(c) => setEditing(c)} onClose={() => { setEditing(null); load(); }} />;
   return (

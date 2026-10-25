@@ -10,7 +10,7 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { Banner } from "@cloudflare/kumo/components/banner";
 import { Table } from "@cloudflare/kumo/components/table";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { crm, day, describe, plural, type Filter, type Segment } from "./api";
+import { crm, day, describe, plural, type Campaign, type Filter, type Segment } from "./api";
 import { Contacts } from "./Contacts";
 import { Emails } from "./Emails";
 import { Changelog } from "./Changelog";
@@ -158,6 +158,7 @@ export function App() {
   const [tab, setTab] = useState(() => (location.hash.slice(1) && TABS.some((t) => t.value === location.hash.slice(1)) ? location.hash.slice(1) : "overview"));
   const { data: me } = useLoad<{ email: string; sending: boolean }>("/me");
   const [light, setLight] = useState(document.documentElement.dataset.mode === "light");
+  const [draft, setDraft] = useState<Campaign | null>(null);
   const go = (v: string) => { setTab(v); history.replaceState(null, "", "#" + v); };
   const theme = () => {
     const next = !light;
@@ -174,9 +175,9 @@ export function App() {
       </div>
       <div className="crm-tabs"><Tabs variant="segmented" tabs={TABS} value={tab} onValueChange={go} /></div>
       {tab === "overview" ? <Overview sending={!!me?.sending} /> : null}
-      {tab === "contacts" ? <Contacts /> : null}
+      {tab === "contacts" ? <Contacts sending={!!me?.sending} onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
       {tab === "segments" ? <Segments /> : null}
-      {tab === "emails" ? <Emails sending={!!me?.sending} /> : null}
+      {tab === "emails" ? <Emails sending={!!me?.sending} initial={draft} onOpened={() => setDraft(null)} /> : null}
       {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}
       {tab === "activity" ? <Activity /> : null}
     </div>

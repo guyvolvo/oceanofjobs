@@ -1,11 +1,21 @@
 // The CRM's data. Contacts are read from what already exists: Cognito's
 // accounts and the members' own rows in the alerts table (api/consent.py:
-// #consent, #email, #waitlist#<plan>; api/paddle.py: #plan). The CRM never
-// writes those. Its own records (tags, notes, segments, campaigns, the
+// #consent, #email, #waitlist#<plan>; api/paddle.py: #plan). Of those
+// rows the CRM writes only two kinds: #grant, a plan given by hand
+// (api/apply.py's plan_of honours it), and a credit reset on a
+// #ledger# row (api/attempts.py). Its own records (tags, notes, segments, campaigns, the
 // changelog, the audit log) are in the CRM table, keyed pk/sk.
 import { all, cognito, ddb, item, plain } from "./aws.mjs";
 
-const MEMBER_ROWS = ["#consent", "#email", "#plan", "#waitlist#basic", "#waitlist#pro"];
+const MEMBER_ROWS = ["#consent", "#email", "#plan", "#grant", "#waitlist#basic", "#waitlist#pro"];
+const PLANS = ["free", "basic", "pro"];
+
+// The plan in force, the same rule as api/apply.py's plan_of.
+export function planOf(paid = {}, grant = {}, today = new Date().toISOString().slice(0, 10)) {
+  const p = PLANS.includes(paid.plan) && ["active", "trialing", "past_due"].includes(paid.status) ? paid.plan : "free";
+  const g = PLANS.includes(grant.plan) && (!grant.until || grant.until >= today) ? grant.plan : "free";
+  return PLANS.indexOf(g) > PLANS.indexOf(p) ? g : p;
+}
 let cache = null; // { at, contacts, complete }
 const CACHE_FOR = 60 * 1000;
 
@@ -62,7 +72,8 @@ export async function contacts(env, { fresh = false } = {}) {
       unsubscribed_at: mail.unsubscribed_at || null,
       agreed_version: (own["#consent"] || {}).version || null,
       agreed_at: (own["#consent"] || {}).agreed_at || null,
-      plan: (own["#plan"] || {}).plan || "free",
+      plan: planOf(own["#plan"], own["#grant"]),
+      license: own["#grant"] && own["#grant"].plan !== "free" ? { plan: own["#grant"].plan, until: own["#grant"].until || "" } : null,
       waitlist: ["basic", "pro"].filter((p) => own["#waitlist#" + p]),
       tags: tags[sub] || [],
     };
@@ -102,6 +113,53 @@ export async function activity(env, id) {
     else if (!k.startsWith("#")) { count.alerts++; if (row.active) count.active_alerts++; }
   }
   return count;
+}
+
+// A member's billing: the paid plan as Paddle last reported it, the
+// license given here, and their credit ledgers (newest first).
+export async function billing(env, uid) {
+  const getRow = (k) => ddb(env, "GetItem", { TableName: env.ALERTS_TABLE, Key: item({ user_id: uid, alert_id: k }) }).then((r) => plain(r.Item));
+  const [paid, grant, ledgers] = await Promise.all([getRow("#plan"), getRow("#grant"),
+    ddb(env, "Query", { TableName: env.ALERTS_TABLE, KeyConditionExpression: "user_id = :u AND begins_with(alert_id, :l)",
+      ExpressionAttributeValues: { ":u": { S: uid }, ":l": { S: "#ledger#" } }, ScanIndexForward: false, Limit: 6 })]);
+  const pick = (o, keys) => Object.fromEntries(keys.map((k) => [k, o[k] ?? ""]));
+  return {
+    plan: planOf(paid, grant),
+    paid: paid.plan ? pick(paid, ["plan", "status", "period_end", "subscription_id", "customer_id", "event_at"]) : null,
+    license: grant.plan && grant.plan !== "free" ? pick(grant, ["plan", "until", "note", "by", "at"]) : null,
+    ledgers: (ledgers.Items || []).map(plain).map((l) => ({ key: l.alert_id, held: Number(l.held || 0), charged: Number(l.charged || 0) })),
+  };
+}
+
+const bad = (message) => Object.assign(new Error(message), { status: 400 });
+export async function setLicense(env, uid, b, who) {
+  const plan = String(b.plan || "");
+  const until = String(b.until || "");
+  if (!["basic", "pro", "free"].includes(plan)) throw bad("Pick Basic or Pro.");
+  if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) throw bad("The end date must be a date.");
+  // Removing a license writes plan "free" rather than deleting the row: the
+  // CRM's AWS user can't delete anything in the members' table.
+  const row = { user_id: uid, alert_id: "#grant", plan, until: plan === "free" ? "" : until, note: String(b.note || "").trim().slice(0, 300), by: who, at: now() };
+  await ddb(env, "PutItem", { TableName: env.ALERTS_TABLE, Item: item(row) });
+  dropCache();
+  return row;
+}
+
+// Frees the credits a ledger has charged, leaving the ones still held by
+// applications in progress. Only if nothing changed since the page read it.
+export async function resetCredits(env, uid, key, charged, who) {
+  if (!/^#ledger#(month#\d{4}-\d{2}|day#\d{4}-\d{2}-\d{2})$/.test(key)) throw bad("That isn't a credit period.");
+  const n = Number(charged);
+  if (!Number.isInteger(n) || n < 1) throw bad("Nothing to reset.");
+  try {
+    await ddb(env, "UpdateItem", { TableName: env.ALERTS_TABLE, Key: item({ user_id: uid, alert_id: key }),
+      UpdateExpression: "SET held = held - :c, charged = :z, reset_at = :t, reset_by = :w",
+      ConditionExpression: "charged = :c AND held >= :c",
+      ExpressionAttributeValues: item({ ":c": n, ":z": 0, ":t": now(), ":w": who }) });
+  } catch (e) {
+    if (e.type && e.type.includes("ConditionalCheckFailed")) throw Object.assign(new Error("The credits changed since you opened this. Reload and try again."), { status: 409 });
+    throw e;
+  }
 }
 
 // The CRM table.
@@ -155,6 +213,8 @@ export async function saveCampaign(env, body) {
     subject: String(body.subject || "").trim().slice(0, 150),
     body: String(body.body || "").slice(0, 50000),
     segment: body.segment ? String(body.segment) : "",
+    // Members picked by hand in Contacts; when set, it replaces the segment.
+    to: Array.isArray(body.to) ? [...new Set(body.to.map(String))].slice(0, 5000) : (old && old.to) || [],
     created: old ? old.created : now(), updated: now(), sent: old ? old.sent : 0, changelog: body.changelog || (old && old.changelog) || "",
   };
   await put(env, c);

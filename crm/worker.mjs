@@ -40,11 +40,14 @@ async function body(request) {
   try { return await request.json(); } catch { return {}; }
 }
 
-// Who gets a campaign: the segment's members with the newsletter on.
+// Who gets a campaign: the members picked by hand, or the segment's, and
+// of those only the ones with the newsletter on.
 async function recipients(env, campaign) {
   const { contacts } = await S.contacts(env);
-  const seg = campaign.segment ? await S.get(env, "segment", campaign.segment) : null;
-  return contacts.filter((c) => c.newsletter && c.enabled && c.email && S.matches(c, seg ? seg.filter : {})).sort((a, b) => a.id.localeCompare(b.id));
+  const picked = campaign.to && campaign.to.length ? new Set(campaign.to) : null;
+  const seg = !picked && campaign.segment ? await S.get(env, "segment", campaign.segment) : null;
+  return contacts.filter((c) => c.newsletter && c.enabled && c.email && (picked ? picked.has(c.id) : S.matches(c, seg ? seg.filter : {})))
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 
 async function dispatchChangelog(env, entry) {
@@ -86,7 +89,9 @@ async function api(request, env, who, path) {
       agreed: contacts.filter((c) => c.agreed_version).length,
       waitlist: { basic: contacts.filter((c) => c.waitlist.includes("basic")).length, pro: contacts.filter((c) => c.waitlist.includes("pro")).length },
       plans: contacts.reduce((m, c) => ({ ...m, [c.plan]: (m[c.plan] || 0) + 1 }), {}),
-      by_day: Object.entries(contacts.reduce((m, c) => { const d = (c.created || "").slice(0, 10); if (d >= since(30).slice(0, 10)) m[d] = (m[d] || 0) + 1; return m; }, {})).sort(),
+      // Every one of the 30 days, so a day with no sign-ups shows as a gap, not as missing.
+      by_day: Array.from({ length: 30 }, (_, i) => since(29 - i).slice(0, 10))
+        .map((d) => [d, contacts.filter((c) => (c.created || "").startsWith(d)).length]),
     });
   }
 
@@ -109,9 +114,44 @@ async function api(request, env, who, path) {
       const { contacts } = await S.contacts(env);
       const c = contacts.find((x) => x.id === sub);
       if (!c) return fail(404, "No member with that id.");
-      const [activity, notes] = await Promise.all([S.activity(env, sub), S.list(env, "note#" + sub)]);
+      const [activity, notes, billing, emails] = await Promise.all([S.activity(env, sub), S.list(env, "note#" + sub),
+        S.billing(env, sub), S.list(env, "direct#" + sub, { limit: 20 })]);
       await S.audit(env, who, "view contact", { contact: sub });
-      return json(200, { contact: c, activity, notes });
+      return json(200, { contact: c, activity, notes, billing, emails, billing_url: env.BILLING_URL || "" });
+    }
+    if (sub && more === "license" && method === "PUT") {
+      const row = await S.setLicense(env, sub, await body(request), who);
+      await S.audit(env, who, row.plan === "free" ? "remove license" : "license", { contact: sub, plan: row.plan, until: row.until });
+      return json(200, { billing: await S.billing(env, sub) });
+    }
+    if (sub && more === "credits" && method === "POST") {
+      const b = await body(request);
+      await S.resetCredits(env, sub, String(b.key || ""), b.charged, who);
+      await S.audit(env, who, "reset credits", { contact: sub, period: b.key, freed: Number(b.charged) });
+      return json(200, { billing: await S.billing(env, sub) });
+    }
+    if (sub && more === "email" && method === "POST") {
+      // One email to one member, about their account: not a promotion, so
+      // it doesn't need the newsletter on, but it does need SENDING.
+      const b = await body(request);
+      const subject = String(b.subject || "").trim().slice(0, 150);
+      const md = String(b.body || "").slice(0, 50000);
+      if (!subject || !md.trim()) return fail(400, "Write a subject and a message first.");
+      const { contacts } = await S.contacts(env);
+      const c = contacts.find((x) => x.id === sub);
+      if (!c || !c.email) return fail(404, "No member with that id.");
+      if (b.test) {
+        const me = contacts.find((x) => x.email === who);
+        await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + subject, md }));
+        await S.audit(env, who, "test email", { contact: sub });
+        return json(200, { sent_to: who });
+      }
+      if (env.SENDING !== "on") return fail(403, "Sending to members is turned off. Only test emails go out.");
+      await sesSend(env, await message(env, { to: c.email, userId: c.id, subject, md }));
+      const rec = { pk: "direct#" + sub, sk: S.now() + "#" + S.id(), subject, body: md, to: c.email };
+      await S.put(env, rec);
+      await S.audit(env, who, "email member", { contact: sub, subject });
+      return json(200, { email: rec });
     }
     if (sub && more === "tags" && method === "PUT") {
       const tags = await S.setTags(env, sub, (await body(request)).tags);

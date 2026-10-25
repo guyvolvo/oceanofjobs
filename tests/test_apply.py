@@ -127,6 +127,14 @@ t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "pro", "sta
 check("pro counts per day, 50", apply.usage(t, "u", NOW)["limit"] == 50 and apply.usage(t, "u", NOW)["period"] == "day")
 t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "pro", "status": "canceled"})
 check("a canceled plan is free again", apply.usage(t, "u", NOW)["plan"] == "free")
+t.put_item(Item={"user_id": "u", "alert_id": apply.GRANT_ROW, "plan": "basic", "until": "2026-10-31"})
+check("a license given in the CRM is in force", apply.plan_of(t, "u", NOW) == "basic")
+check("a license ends after its last day", apply.plan_of(t, "u", datetime(2026, 11, 1, tzinfo=timezone.utc)) == "free")
+t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "pro", "status": "active"})
+check("a paid plan above the license wins", apply.plan_of(t, "u", NOW) == "pro")
+t.put_item(Item={"user_id": "u", "alert_id": apply.GRANT_ROW, "plan": "free", "until": ""})
+t.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "pro", "status": "canceled"})
+check("a removed license is free again", apply.plan_of(t, "u", NOW) == "free")
 
 for bad in ({"job_id": "../x"}, {"job_id": jobs[0], "status": "won"}):
     try:

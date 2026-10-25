@@ -6,6 +6,7 @@ rows the alert evaluator never sees (no `active` attribute):
 
     #apply_profile          the application profile and settings
     #plan                   the paid plan, written only by paddle.py
+    #grant                  a plan the owner gave by hand in the CRM (crm/)
     #applied#<job id>       one row per job the extension claimed
     #queue#<job id>         a job the user approved for queue mode
 
@@ -27,6 +28,7 @@ from boto3.dynamodb.conditions import Key
 
 PROFILE_ROW = "#apply_profile"
 PLAN_ROW = "#plan"
+GRANT_ROW = "#grant"
 APPLIED = "#applied#"
 QUEUE = "#queue#"
 
@@ -250,13 +252,16 @@ def reusable_answers(answers: list[dict]) -> list[dict]:
     return [a for a in answers if (not job_specific(a["question"]) or a.get("job_id")) and a.get("approval") != "rejected"]
 
 
-def plan_of(table, user_id: str) -> str:
-    """The plan in force: a paid plan only while Paddle says it is
-    active or trialing (paddle.py keeps the row)."""
+def plan_of(table, user_id: str, now: datetime | None = None) -> str:
+    """The plan in force, the higher of: a paid plan while Paddle says it
+    is active or trialing (paddle.py keeps the row), and a plan given in
+    the CRM, through its end date (YYYY-MM-DD, UTC; none means no end)."""
     item = table.get_item(Key={"user_id": user_id, "alert_id": PLAN_ROW}).get("Item") or {}
-    if item.get("plan") in LIMITS and item.get("status") in ("active", "trialing", "past_due"):
-        return item["plan"]
-    return "free"
+    paid = item["plan"] if item.get("plan") in LIMITS and item.get("status") in ("active", "trialing", "past_due") else "free"
+    grant = table.get_item(Key={"user_id": user_id, "alert_id": GRANT_ROW}).get("Item") or {}
+    today = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+    given = grant["plan"] if grant.get("plan") in LIMITS and (not grant.get("until") or grant["until"] >= today) else "free"
+    return max(paid, given, key=list(LIMITS).index)
 
 
 def query_all(table, user_id: str, prefix: str = "", **kw) -> list[dict]:
