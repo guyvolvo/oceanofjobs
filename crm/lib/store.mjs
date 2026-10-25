@@ -43,15 +43,30 @@ export async function contacts(env, { fresh = false } = {}) {
     if (!token) break;
     if (i === 24) complete = false;
   }
+  // Also what the automatic emails look at: tokens (extension, MCP),
+  // the monthly credit ledgers and the resume.
   const rows = await all(env, "Scan", {
     TableName: env.ALERTS_TABLE,
-    FilterExpression: "alert_id IN (" + MEMBER_ROWS.map((_, i) => `:r${i}`).join(", ") + ")",
-    ExpressionAttributeValues: Object.fromEntries(MEMBER_ROWS.map((r, i) => [`:r${i}`, { S: r }])),
+    FilterExpression: "alert_id IN (" + MEMBER_ROWS.map((_, i) => `:r${i}`).join(", ") + ") OR begins_with(alert_id, :tok) "
+      + "OR begins_with(alert_id, :led) OR begins_with(alert_id, :res)",
+    ExpressionAttributeValues: { ...Object.fromEntries(MEMBER_ROWS.map((r, i) => [`:r${i}`, { S: r }])),
+      ":tok": { S: "#token#" }, ":led": { S: "#ledger#month#" }, ":res": { S: "#agent_resume#" } },
+    ProjectionExpression: "user_id, alert_id, newsletter, newsletter_at, newsletter_source, unsubscribed_at, version, agreed_at, #p, #s, "
+      + "joined_at, #u, note, #a, scope, created_at, charged, subscription_id, event_at",
+    ExpressionAttributeNames: { "#p": "plan", "#s": "status", "#u": "until", "#a": "at" },
   }, 20);
   const crm = await all(env, "Query", { TableName: env.CRM_TABLE, KeyConditionExpression: "pk = :p",
     ExpressionAttributeValues: { ":p": { S: "tags" } } }, 5);
   const byUser = {};
-  for (const r of rows.items) (byUser[r.user_id] ||= {})[r.alert_id] = r;
+  const extra = {};
+  for (const r of rows.items) {
+    const k = String(r.alert_id);
+    const x = (extra[r.user_id] ||= { tokens: [], ledgers: {}, resume: false });
+    if (k.startsWith("#token#")) x.tokens.push({ scope: r.scope || "", created_at: r.created_at || "" });
+    else if (k.startsWith("#ledger#month#")) x.ledgers[k.slice(14)] = Number(r.charged || 0);
+    else if (k.startsWith("#agent_resume#")) x.resume = true;
+    else (byUser[r.user_id] ||= {})[k] = r;
+  }
   const tags = Object.fromEntries(crm.items.map((t) => [t.sk, t.tags || []]));
   const list = users.map((u) => {
     const sub = attr(u, "sub");
@@ -78,6 +93,10 @@ export async function contacts(env, { fresh = false } = {}) {
       waiting: Object.fromEntries(["basic", "pro"].filter((p) => own["#waitlist#" + p])
         .map((p) => [p, { joined_at: own["#waitlist#" + p].joined_at || null, status: own["#waitlist#" + p].status || "waiting" }])),
       tags: tags[sub] || [],
+      ...(extra[sub] || { tokens: [], ledgers: {}, resume: false }),
+      grant: own["#grant"] ? { plan: own["#grant"].plan, until: own["#grant"].until || "", at: own["#grant"].at || "" } : null,
+      paid: own["#plan"] ? { plan: own["#plan"].plan, status: own["#plan"].status || "", subscription_id: own["#plan"].subscription_id || "",
+        event_at: own["#plan"].event_at || "" } : null,
     };
   });
   cache = { at: Date.now(), contacts: list, complete: complete && rows.complete };
@@ -175,6 +194,9 @@ export async function waitlistCounts(env) {
 // onlyNew: fail (ConditionalCheckFailed) when the key is already there.
 const put = (env, o, onlyNew = false) => ddb(env, "PutItem", { TableName: env.CRM_TABLE, Item: item(o),
   ...(onlyNew ? { ConditionExpression: "attribute_not_exists(sk)" } : {}) });
+export async function batchPut(env, items) {
+  if (items.length) await ddb(env, "BatchWriteItem", { RequestItems: { [env.CRM_TABLE]: items.map((o) => ({ PutRequest: { Item: item(o) } })) } });
+}
 const del = (env, pk, sk) => ddb(env, "DeleteItem", { TableName: env.CRM_TABLE, Key: item({ pk, sk }) });
 export async function get(env, pk, sk) {
   const r = await ddb(env, "GetItem", { TableName: env.CRM_TABLE, Key: item({ pk, sk }) });

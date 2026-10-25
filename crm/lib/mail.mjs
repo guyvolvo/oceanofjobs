@@ -62,7 +62,7 @@ export async function unsubscribeUrl(env, userId) {
   return `${SITE}/api/alerts/unsubscribe?u=${encodeURIComponent(userId)}&a=${encodeURIComponent("#email")}&t=${t}`;
 }
 
-export function page(subject, bodyHtml, unsubscribe, footerAddress = "") {
+export function page(subject, bodyHtml, unsubscribe, footerAddress = "", kind = "newsletter") {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(subject)}</title></head>
 <body style="margin:0;padding:0;background:#f2f0ef">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f2f0ef"><tr><td align="center" style="padding:28px 12px">
@@ -72,8 +72,9 @@ export function page(subject, bodyHtml, unsubscribe, footerAddress = "") {
 <tr><td style="padding:8px 28px 20px;font:400 15px/1.55 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#2b3328">${bodyHtml}</td></tr>
 </table>
 <p style="max-width:600px;margin:16px auto 0;font:400 12px/1.5 -apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#6b7266">
-You're getting this because you subscribed to product updates from Ocean of Jobs.
-<a href="${esc(unsubscribe)}" style="color:#6b7266">Unsubscribe</a> or change it in your <a href="${SITE}/account#settings" style="color:#6b7266">account settings</a>.${footerAddress ? `<br>${esc(footerAddress)}` : ""}</p>
+${kind === "account" ? `You're getting this because of your Ocean of Jobs account. Manage your emails in your <a href="${SITE}/account#settings" style="color:#6b7266">account settings</a>.`
+  : `You're getting this because you subscribed to product updates from Ocean of Jobs.
+<a href="${esc(unsubscribe)}" style="color:#6b7266">Unsubscribe</a> or change it in your <a href="${SITE}/account#settings" style="color:#6b7266">account settings</a>.`}${footerAddress ? `<br>${esc(footerAddress)}` : ""}</p>
 </td></tr></table></body></html>`;
 }
 
@@ -97,7 +98,23 @@ export function reply(env, { to, subject, md, inReplyTo = "", references = "" })
 }
 
 // One SES v2 message for one member.
-export async function message(env, { to, userId, subject, md }) {
+// kind "account": about the member's own account, so no unsubscribe from
+// product updates (it would unsubscribe them from something else).
+export async function message(env, { to, userId, subject, md, kind = "newsletter" }) {
+  if (kind === "account") {
+    return {
+      FromEmailAddress: env.MAIL_FROM || "Ocean of Jobs <info@oceanofjobs.com>",
+      Destination: { ToAddresses: [to] },
+      ConfigurationSetName: env.SES_CONFIGURATION_SET || undefined,
+      Content: { Simple: {
+        Subject: { Data: subject, Charset: "UTF-8" },
+        Body: {
+          Html: { Data: page(subject, markdown(md), "", env.MAIL_FOOTER_ADDRESS, "account"), Charset: "UTF-8" },
+          Text: { Data: `${text(md)}\n\nAccount settings: ${SITE}/account#settings`, Charset: "UTF-8" },
+        },
+      } },
+    };
+  }
   const unsubscribe = await unsubscribeUrl(env, userId);
   return {
     FromEmailAddress: env.MAIL_FROM || "Ocean of Jobs <info@oceanofjobs.com>",

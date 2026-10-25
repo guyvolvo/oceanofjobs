@@ -17,8 +17,8 @@ import { Failed, useLoad } from "./App";
 
 // The email as members get it: the same template the Worker sends (the
 // card, the painting, the footer), with Markdown escaped by mail.mjs.
-export function MailPreview({ subject, body }: { subject: string; body: string }) {
-  return <div className="crm-mail" dangerouslySetInnerHTML={{ __html: page(subject, markdown(body), "#") }} />;
+export function MailPreview({ subject, body, kind = "newsletter" }: { subject: string; body: string; kind?: "newsletter" | "account" }) {
+  return <div className="crm-mail" dangerouslySetInnerHTML={{ __html: page(subject, markdown(body), "#", "", kind) }} />;
 }
 
 function SendDialog({ c, onClose, onDone }: { c: Campaign; onClose: () => void; onDone: () => void }) {

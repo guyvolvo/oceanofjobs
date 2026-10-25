@@ -12,6 +12,7 @@ import { sesSend } from "./lib/aws.mjs";
 import { message, reply } from "./lib/mail.mjs";
 import { address, decodeWords, readMessage } from "./lib/mime.mjs";
 import { waitlistChange } from "./lib/admin.mjs";
+import * as A from "./lib/auto.mjs";
 import * as S from "./lib/store.mjs";
 
 const SECURITY = {
@@ -156,8 +157,12 @@ async function api(request, env, who, path) {
       return json(200, { email: rec });
     }
     if (sub && more === "tags" && method === "PUT") {
+      const { contacts } = await S.contacts(env);
+      const before = new Set((contacts.find((x) => x.id === sub) || {}).tags || []);
       const tags = await S.setTags(env, sub, (await body(request)).tags);
       await S.audit(env, who, "tags", { contact: sub, tags });
+      const c = contacts.find((x) => x.id === sub);
+      for (const t of tags.filter((x) => !before.has(x))) if (c) await A.fire(env, "tag_added", { ...c, tags }, { tag: t });
       return json(200, { tags });
     }
     if (sub && more === "notes" && method === "POST") {
@@ -272,6 +277,50 @@ async function api(request, env, who, path) {
     }
   }
 
+  if (area === "flows") {
+    if (!sub && method === "GET") {
+      const flows = (await S.list(env, "flow", { newest: false })).map(({ pk, ...f }) => ({ ...f, id: f.sk }));
+      return json(200, { flows, sending: env.SENDING === "on",
+        triggers: A.TRIGGERS.map((t) => ({ id: t.id, group: t.group, name: t.name, help: t.help || "", days: t.days ?? null, event: !!t.event })),
+        actions: A.ACTIONS });
+    }
+    if (sub === "run" && method === "POST") return json(200, await A.run(env));
+    if (!sub && method === "POST") {
+      const b = await body(request);
+      const old = b.id ? await S.get(env, "flow", String(b.id)) : null;
+      const f = A.clean(b);
+      if (f.enabled && !f.actions.length) return fail(400, "Add a step before turning it on.");
+      if (f.enabled && f.trigger === "tag_added" && !f.tag) return fail(400, "Name the tag that starts it.");
+      const flow = { pk: "flow", sk: old ? old.sk : S.id(), ...f, runs: old ? old.runs || 0 : 0, created: old ? old.created : S.now(), updated: S.now(),
+        // Turning it on, or changing what starts it, takes a new baseline on the next run.
+        baseline_at: old && old.enabled && f.enabled && old.trigger === f.trigger && old.days === f.days
+          && JSON.stringify(old.conditions || {}) === JSON.stringify(f.conditions) ? old.baseline_at || "" : "" };
+      await S.put(env, Object.fromEntries(Object.entries(flow).filter(([, v]) => v !== undefined)));
+      await S.audit(env, who, f.enabled ? "flow on" : "flow saved", { flow: flow.sk, name: flow.name });
+      return json(200, { flow: { ...flow, id: flow.sk } });
+    }
+    const f = sub ? await S.get(env, "flow", sub) : null;
+    if (sub && !f) return fail(404, "No such flow.");
+    if (sub && !more && method === "DELETE") {
+      await S.del(env, "flow", sub);
+      await S.audit(env, who, "delete flow", { flow: sub, name: f.name });
+      return json(200, { ok: true });
+    }
+    if (sub && more === "test" && method === "POST") {
+      // Messages only, about you: emails go to you, Slack, Discord and webhooks
+      // get a test post; steps that change data are skipped.
+      const { contacts } = await S.contacts(env);
+      const me = contacts.find((x) => x.email === who) || { id: "owner", email: who, plan: "free", waiting: {}, tags: [] };
+      const log = await A.runSteps(env, f, me, A.vars(me, await S.waitlistCounts(env), { tag: f.tag || "", from: who, subject: "Test", message: "A test message." }), { test: true });
+      return json(200, { log });
+    }
+    if (sub && more === "preview" && method === "GET") {
+      const { contacts } = await S.contacts(env);
+      const list = A.matches(f, contacts);
+      return json(200, { count: list.length, sample: list.slice(0, 5).map((m) => m.contact.email) });
+    }
+  }
+
   if (area === "waitlist") {
     if (!sub && method === "GET") {
       const [{ contacts }, counts] = await Promise.all([S.contacts(env, { fresh: q.fresh === "1" }), S.waitlistCounts(env)]);
@@ -291,21 +340,33 @@ async function api(request, env, who, path) {
       return json(200, out);
     }
     if (sub === "approve" && method === "POST") {
-      // Gives each their waitlist's plan as a license until the date, then
-      // marks them approved. Ten at a time: two subrequests each.
+      // Gives each their waitlist's plan as a license until the date, marks
+      // them approved and runs the "Approved from the waitlist" flows now
+      // rather than on the next scheduled run (the key they leave keeps that
+      // run from starting them again). Eight at a time.
       const b = await body(request);
-      const people = (Array.isArray(b.people) ? b.people : []).slice(0, 10);
+      const people = (Array.isArray(b.people) ? b.people : []).slice(0, 8);
       const until = String(b.until || "");
       if (!people.length) return fail(400, "Pick someone to approve.");
+      const flows = await A.flowsFor(env, "waitlist_approved");
+      const { contacts } = flows.length ? await S.contacts(env) : { contacts: [] };
+      const counts = flows.length ? await S.waitlistCounts(env) : null;
       const done = [];
+      let ran = 0;
       for (const p of people) {
         const plan = p.plan === "basic" ? "basic" : "pro";
         await S.setLicense(env, String(p.id), { plan, until, note: "Waitlist" }, who);
         await waitlistChange(env, { op: "mark", user_id: String(p.id), plan, status: "approved" });
         done.push(p.id);
+        const c = contacts.find((x) => x.id === p.id);
+        if (c) {
+          ran += await A.fire(env, "waitlist_approved", { ...c, grant: { plan, until, at: S.now() }, waiting: { ...c.waiting, [plan]: { ...(c.waiting[plan] || {}), status: "approved" } } },
+            {}, { key: plan, flows, counts });
+        }
       }
-      await S.audit(env, who, "waitlist approve", { people: done, until });
-      return json(200, { approved: done });
+      S.dropCache();
+      await S.audit(env, who, "waitlist approve", { people: done, until, flows: ran });
+      return json(200, { approved: done, flows: ran });
     }
   }
 
@@ -363,10 +424,13 @@ export async function receive(msg, env) {
     const { text, attachments } = readMessage(await rawText(msg.raw));
     const { contacts } = await S.contacts(env);
     const c = contacts.find((x) => x.email === from.email);
+    const subject = decodeWords(msg.headers.get("subject") || "").slice(0, 300);
     await S.put(env, { pk: "inbox", sk: S.now() + "#" + S.id(), dir: "in", email: from.email, name: from.name.slice(0, 200),
-      subject: decodeWords(msg.headers.get("subject") || "").slice(0, 300), text: text.slice(0, 30000), attachments,
+      subject, text: text.slice(0, 30000), attachments,
       message_id: (msg.headers.get("message-id") || "").slice(0, 500), references: (msg.headers.get("references") || "").slice(0, 2000),
       to: String(msg.to || "").slice(0, 200), contact: c ? c.id : "", read: false });
+    await A.fire(env, "inbox_received", c || { email: from.email, tags: [], waiting: {} },
+      { from: from.name ? `${from.name} <${from.email}>` : from.email, subject, message: text.slice(0, 3000) });
   } catch (e) {
     console.log("saving mail failed", e && e.message);
   }
@@ -374,6 +438,7 @@ export async function receive(msg, env) {
 
 export default {
   email: (msg, env) => receive(msg, env),
+  scheduled: (event, env, ctx) => ctx.waitUntil(A.run(env).catch((e) => console.log("automatic emails failed", e && e.message))),
   async fetch(request, env) {
     const url = new URL(request.url);
     const who = await owner(request, env);

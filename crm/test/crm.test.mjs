@@ -110,7 +110,14 @@ function fakeAws(state) {
       state.crm.push(body.Item);
       return ok({});
     }
-    if (target.endsWith(".DeleteItem")) return ok({});
+    if (target.endsWith(".BatchWriteItem")) {
+      for (const r of Object.values(body.RequestItems)[0]) state.crm.push(r.PutRequest.Item);
+      return ok({});
+    }
+    if (target.endsWith(".DeleteItem")) {
+      state.crm = state.crm.filter((i) => !(i.pk.S === body.Key.pk.S && i.sk.S === body.Key.sk.S));
+      return ok({});
+    }
     if (u.includes("/v2/email/outbound-emails")) { state.sent.push(body); return ok({ MessageId: "m" + state.sent.length }); }
     return new Response("{}", { status: 404 });
   };
@@ -342,5 +349,70 @@ test("the waitlist: listed from the members' rows, changed only through the sign
   assert.equal(grant.plan.S, "pro");
   assert.equal(grant.until.S, "2026-12-31");
   assert.deepEqual(box.at(-1).body, { op: "mark", user_id: "u2", plan: "pro", status: "approved" });
+  globalThis.fetch = realFetch;
+});
+
+test("flows: a baseline first, then each new match once; steps, waits, events and approvals", async () => {
+  _resetKeys();
+  dropCache();
+  const A = await import("../lib/auto.mjs");
+  const state = {
+    users: [user("u1", "owner@example.com"), user("u2", "a@example.com"), user("u3", "b@example.com")],
+    alerts: [row("u2", "#waitlist#pro", { plan: { S: "pro" }, joined_at: { S: "2026-10-25T10:00:00Z" } }),
+      row("#waitlist", "#count#pro", { n: { N: "1" } })],
+    crm: [], sent: [],
+  };
+  const aws = fakeAws(state);
+  const posts = [];
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    if (u.startsWith("https://box.oceanofjobs.com/")) return new Response(JSON.stringify({ ok: true }));
+    if (u.startsWith("https://hooks.slack.com/")) { posts.push(JSON.parse(init.body)); return new Response("ok"); }
+    return aws(url, init);
+  };
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm",
+    UNSUBSCRIBE_SECRET: "s3cret", SENDING: "on" };
+  const tok = await jwt(good());
+  const H = { "Cf-Access-Jwt-Assertion": tok, "X-CRM": "1", "Content-Type": "application/json" };
+  const call = (path, init = {}) => worker.fetch(new Request("https://crm.oceanofjobs.com" + path, { ...init, headers: { ...H, ...(init.headers || {}) } }), env);
+  const save = async (f) => (await call("/api/flows", { method: "POST", body: JSON.stringify(f) })).json();
+  let r = await call("/api/flows", { method: "POST", body: JSON.stringify({ trigger: "waitlist_pro", enabled: true, actions: [{ type: "slack", url: "https://evil.example/x", text: "x" }] }) });
+  assert.equal(r.status, 400, "a Slack step needs a Slack address");
+  await save({ name: "Pro welcome", trigger: "waitlist_pro", enabled: true, actions: [
+    { type: "email", subject: "You're in", body: "Hi {{email}}, {{pro_left}} left" },
+    { type: "slack", url: "https://hooks.slack.com/services/T/B/X", text: "{{email}} joined Pro" },
+    { type: "tag_add", tag: "pro-waitlist" },
+    { type: "wait", days: 2 },
+    { type: "email", subject: "Two days later", body: "Still there?" }] });
+  assert.equal((await A.run(env)).ran, 0, "the first run only marks who already matches");
+  assert.equal(state.sent.length + posts.length, 0);
+  state.alerts.push(row("u3", "#waitlist#pro", { plan: { S: "pro" }, joined_at: { S: "2026-10-26T10:00:00Z" } }));
+  dropCache();
+  assert.equal((await A.run(env)).ran, 1);
+  assert.equal(state.sent[0].Destination.ToAddresses[0], "b@example.com", "only the new one");
+  assert.match(state.sent[0].Content.Simple.Body.Text.Data, /^Hi b@example\.com, 99 left/);
+  assert.ok(!state.sent[0].Content.Simple.Headers, "an account email has no newsletter unsubscribe header");
+  assert.deepEqual(posts, [{ text: "b@example.com joined Pro" }]);
+  assert.ok(state.crm.some((i) => i.pk.S === "tags" && i.sk.S === "u3"), "tagged");
+  assert.equal(state.sent.length, 1, "the rest waits");
+  dropCache();
+  assert.equal((await A.run(env)).ran, 0, "once each, and the wait isn't due");
+  await A.run(env, { now: Date.now() + 3 * 864e5 });
+  assert.equal(state.sent.at(-1).Content.Simple.Subject.Data, "Two days later", "after the wait");
+
+  await save({ name: "Approved", trigger: "waitlist_approved", enabled: true, actions: [{ type: "email", subject: "Approved", body: "Pro until {{license_until}}" }] });
+  r = await call("/api/waitlist/approve", { method: "POST", body: JSON.stringify({ people: [{ id: "u3", plan: "pro" }], until: "2026-12-31" }) });
+  assert.equal((await r.json()).flows, 1, "approving runs it at once");
+  assert.match(state.sent.at(-1).Content.Simple.Body.Text.Data, /Pro until 31 December 2026/);
+  const before = state.sent.length;
+  state.alerts.find((i) => i.user_id.S === "u3" && i.alert_id.S === "#waitlist#pro").status = { S: "approved" };
+  dropCache();
+  await A.run(env);
+  assert.equal(state.sent.length, before, "the scheduled run doesn't start it again");
+
+  await save({ name: "Mail alert", trigger: "inbox_received", enabled: true, actions: [{ type: "slack", url: "https://hooks.slack.com/services/T/B/X", text: "Mail from {{from}}: {{subject}}" }] });
+  await worker.email({ from: "z@example.com", to: "info@oceanofjobs.com", forward: async () => {},
+    headers: new Headers({ from: "Zed <z@example.com>", subject: "Hello" }), raw: new Response("Content-Type: text/plain\n\nHi").body }, env);
+  assert.deepEqual(posts.at(-1), { text: "Mail from Zed <z@example.com>: Hello" });
   globalThis.fetch = realFetch;
 });

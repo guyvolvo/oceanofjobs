@@ -15,10 +15,11 @@ import { Emails } from "./Emails";
 import { Changelog } from "./Changelog";
 import { Inbox } from "./Inbox";
 import { Waitlist } from "./Waitlist";
+import { Flows } from "./Flows";
 
 const TABS = [
   { value: "overview", label: "Overview" }, { value: "inbox", label: "Inbox" }, { value: "contacts", label: "Users" }, { value: "waitlist", label: "Waitlist" }, { value: "segments", label: "Groups" },
-  { value: "emails", label: "Emails" }, { value: "changelog", label: "Changelog" }, { value: "activity", label: "Activity" },
+  { value: "emails", label: "Emails" }, { value: "flows", label: "Flows" }, { value: "changelog", label: "Changelog" }, { value: "activity", label: "Activity" },
 ];
 
 export function useLoad<T>(path: string) {
@@ -192,6 +193,7 @@ export function App() {
       {tab === "waitlist" ? <Waitlist onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
       {tab === "segments" ? <Segments /> : null}
       {tab === "emails" ? <Emails sending={!!me?.sending} initial={draft} onOpened={() => setDraft(null)} /> : null}
+      {tab === "flows" ? <Flows /> : null}
       {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}
       {tab === "activity" ? <Activity /> : null}
       </main>

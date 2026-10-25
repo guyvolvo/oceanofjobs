@@ -157,6 +157,9 @@ def deploy() -> None:
     upload(e, build(), app)
     ok(cf.call("POST", f"/accounts/{ACCOUNT}/workers/scripts/{SCRIPT}/subdomain", {"enabled": False, "previews_enabled": False}), "turning off workers.dev")
     print("workers.dev and preview addresses off")
+    # The flows' scheduled run (crm/lib/auto.mjs): every 10 minutes.
+    ok(cf.call("PUT", f"/accounts/{ACCOUNT}/workers/scripts/{SCRIPT}/schedules", [{"cron": "*/10 * * * *"}]), "setting the schedule")
+    print("flows run every 10 minutes")
     dns()
     # Fail closed: over the free quota, the host answers an error, never an origin.
     want = {"pattern": PATTERN, "script": SCRIPT, "request_limit_fail_open": False}

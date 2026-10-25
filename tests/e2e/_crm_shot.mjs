@@ -45,6 +45,13 @@ const API = {
       ledgers: [{ key: "#ledger#month#2026-10", held: 6, charged: 5 }, { key: "#ledger#day#2026-10-25", held: 1, charged: 1 }] },
     emails: [{ sk: ago(3) + "#e", subject: "About your refund", body: "Hi", to: "noa@example.org" }] },
 };
+const { TRIGGERS, ACTIONS } = await import("../../crm/lib/auto.mjs");
+API["/api/flows"] = { sending: true, actions: ACTIONS,
+  triggers: TRIGGERS.map((t) => ({ id: t.id, group: t.group, name: t.name, help: t.help || "", days: t.days ?? null, event: !!t.event })),
+  flows: [{ id: "f1", name: "Pro waitlist confirmation", trigger: "waitlist_pro", enabled: true, conditions: {}, runs: 12, last_run_at: ago(0.1),
+    actions: [{ type: "email", subject: "You're on the Pro waitlist", body: "Hi {{email}}" }, { type: "tag_add", tag: "pro-waitlist" }, { type: "slack", url: "https://hooks.slack.com/x", text: "{{email}} joined" }] },
+    { id: "f2", name: "Connect the extension", trigger: "no_extension", days: 3, enabled: false, conditions: { newsletter: true }, runs: 0,
+      actions: [{ type: "wait", days: 1 }, { type: "email", subscribers: true }] }] };
 const b = await chromium.launch();
 const errors = [];
 for (const mode of ["dark", "light"]) {
@@ -62,12 +69,16 @@ for (const mode of ["dark", "light"]) {
   await ctx.addInitScript((m) => localStorage.setItem("crm_theme", m), mode);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
-  for (const tab of ["overview", "inbox", "contacts", "waitlist", "segments", "emails", "changelog", "activity"]) {
+  for (const tab of ["overview", "inbox", "contacts", "waitlist", "flows", "segments", "emails", "changelog", "activity"]) {
     await page.goto(`http://crm.local/#${tab}`);
     await page.reload();
     await page.waitForTimeout(700);
     await page.screenshot({ path: join(out, `crm-${tab}-${mode}.png`), fullPage: true });
   }
+  await page.goto("http://crm.local/#flows"); await page.reload(); await page.waitForTimeout(600);
+  await page.getByText("Welcome approved beta users").click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: join(out, `crm-flow-editor-${mode}.png`), fullPage: true });
   await page.goto("http://crm.local/#inbox"); await page.reload(); await page.waitForTimeout(600);
   await page.locator(".crm-thread").nth(1).click();
   await page.waitForTimeout(400);
