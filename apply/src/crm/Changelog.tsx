@@ -64,7 +64,7 @@ export function Changelog({ onEmail }: { onEmail: () => void }) {
       <LayerCard><div className="crm-card">
         <h2>Published</h2>
         {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.entries.length ? <p className="crm-note">Nothing published yet.</p> : (
-          <div className="crm-table"><Table><Table.Body>
+          <div className="crm-table"><Table className="crm-list"><Table.Body>
             {data.entries.map((e) => (
               <Table.Row key={e.sk}>
                 <Table.Cell><b>{e.title}</b><span className="crm-sub">{e.date} · published {day(e.published_at)}</span></Table.Cell>

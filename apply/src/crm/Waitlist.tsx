@@ -76,17 +76,14 @@ export function Waitlist({ onEmail }: { onEmail: (c: Campaign) => void }) {
         <LayerCard><div className="crm-stat">
           <b>{pro.taken} <small>of {pro.cap}</small></b><span>Pro places taken</span>
           <span className="wl-meter"><i style={{ width: `${Math.min(100, pro.cap ? (pro.taken / pro.cap) * 100 : 100)}%` }} /></span>
+          <div className="crm-row wl-cap">
+            <div className="crm-num"><Input aria-label="Pro limit" type="number" min={0} value={cap} placeholder={String(pro.cap)} onChange={(e) => setCap(e.target.value)} /></div>
+            <Button variant="secondary" size="sm" disabled={cap === "" || Number(cap) === pro.cap} loading={busy.includes('"cap"')}
+              onClick={change({ op: "cap", cap: Number(cap) }, `Pro limit set to ${cap}`)}>Change limit</Button>
+          </div>
         </div></LayerCard>
         <LayerCard><div className="crm-stat"><b>{basic}</b><span>on the Basic waitlist, no limit</span></div></LayerCard>
         <LayerCard><div className="crm-stat"><b>{data.people.filter((p) => p.status === "approved").length}</b><span>approved</span></div></LayerCard>
-        <LayerCard><div className="crm-card crm-stack">
-          <div className="crm-row">
-            <Input label="Pro limit" type="number" min={0} value={cap} placeholder={String(pro.cap)} onChange={(e) => setCap(e.target.value)} />
-            <Button variant="secondary" disabled={cap === "" || Number(cap) === pro.cap} loading={busy.includes('"cap"')}
-              onClick={change({ op: "cap", cap: Number(cap) }, `Pro limit set to ${cap}`)}>Save</Button>
-          </div>
-          <span className="crm-note">New Pro joins stop at this number. Lowering it doesn't remove anyone.</span>
-        </div></LayerCard>
       </div>
       <LayerCard><div className="crm-card crm-stack">
         <div className="crm-row">

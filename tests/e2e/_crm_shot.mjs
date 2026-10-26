@@ -56,7 +56,7 @@ let cropped = null;
 const b = await chromium.launch();
 const errors = [];
 for (const mode of ["dark", "light"]) {
-  const ctx = await b.newContext({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1.25 });
+  const ctx = await b.newContext({ viewport: { width: Number(process.env.W || 1360), height: 900 }, deviceScaleFactor: 1.25 });
   await ctx.route("http://crm.local/**", async (r) => {
     const p = new URL(r.request().url()).pathname;
     if (p === "/api/images" && r.request().method() === "GET") return r.fulfill({ json: { images: [

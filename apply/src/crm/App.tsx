@@ -119,7 +119,7 @@ function Segments() {
       <LayerCard><div className="crm-card">
         <h2>Groups</h2>
         {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.segments.length ? <p className="crm-note">No groups yet.</p> : (
-          <div className="crm-table"><Table><Table.Body>
+          <div className="crm-table"><Table className="crm-list"><Table.Body>
             {data.segments.map((s) => (
               <Table.Row key={s.sk}>
                 <Table.Cell><b>{s.name}</b><span className="crm-sub">{describe(s.filter)}</span></Table.Cell>
@@ -142,12 +142,12 @@ function Activity() {
       <h2>Activity</h2>
       <p className="crm-note">Everything done in the CRM: views of a user, exports, edits and every email sent.</p>
       {!data ? <p className="crm-note"><Loader /> Loading</p> : (
-        <div className="crm-table"><Table><Table.Body>
+        <div className="crm-table"><Table className="crm-log"><Table.Body>
           {data.entries.map((a) => (
             <Table.Row key={a.sk}>
-              <Table.Cell className="crm-sub">{new Date(a.sk.split("#")[0]).toLocaleString()}</Table.Cell>
+              <Table.Cell><span className="crm-sub">{new Date(a.sk.split("#")[0]).toLocaleString()}</span></Table.Cell>
               <Table.Cell>{a.action}</Table.Cell>
-              <Table.Cell className="crm-sub">{Object.entries(a.detail || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ")}</Table.Cell>
+              <Table.Cell><span className="crm-sub">{Object.entries(a.detail || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ")}</span></Table.Cell>
             </Table.Row>
           ))}
         </Table.Body></Table></div>

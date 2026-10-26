@@ -138,7 +138,7 @@ export function Emails({ sending, initial, onOpened }: { sending: boolean; initi
         <Button variant="primary" onClick={() => setEditing({})}>New email</Button>
       </div>
       {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.campaigns.length ? <p className="crm-note">No emails yet.</p> : (
-        <div className="crm-table"><Table><Table.Body>
+        <div className="crm-table"><Table className="crm-list"><Table.Body>
           {data.campaigns.map((c) => (
             <Table.Row key={c.sk} className="crm-click" onClick={() => setEditing(c)}>
               <Table.Cell><b>{c.subject || "No subject"}</b><span className="crm-sub">Updated {day(c.updated)}</span></Table.Cell>
