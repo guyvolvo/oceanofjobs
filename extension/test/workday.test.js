@@ -18,6 +18,16 @@ test('a posting on any company Workday site, and the steps of its application', 
   }
 });
 
+test('a made-up password passes the usual Workday rules, and differs each time', () => {
+  const seen = new Set();
+  for (let i = 0; i < 200; i++) {
+    const p = w.newPassword();
+    assert.ok(p.length === 16 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p), p);
+    seen.add(p);
+  }
+  assert.equal(seen.size, 200);
+});
+
 test('Workday confirmation wording', () => {
   for (const t of ['Application Submitted', 'Your application has been successfully submitted.', 'Congratulations! Thanks for applying.']) assert.ok(w.DONE.test(t), t);
   assert.ok(!w.DONE.test('Review your application, then submit it.'));

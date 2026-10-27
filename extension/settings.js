@@ -47,7 +47,7 @@
       </section>
       <section class="p-sec" aria-labelledby="s-wd-h">
         <h3 id="s-wd-h">Workday password</h3>
-        <p class="note">Signs you in on Workday careers sites, and creates an account when you don't have one.</p>
+        <p class="note">Signs you in on Workday careers sites, and creates an account when you don't have one. If you don't set one, the extension makes one the first time it needs it and saves it here.</p>
         <div class="pw"><input class="input" type="password" id="s-wd" autocomplete="new-password" spellcheck="false" aria-labelledby="s-wd-h"><button type="button" id="s-wd-show">Show</button></div>
         <div class="row"><button type="button" class="btn sm primary" id="s-wd-save">Save</button><button type="button" class="btn sm" id="s-wd-gen">Generate</button></div>
         <p class="note" id="s-wd-msg" role="status"></p>
@@ -180,10 +180,7 @@
       $('s-wd-show').textContent = shown ? 'Show' : 'Hide';
     });
     $('s-wd-gen').addEventListener('click', () => {
-      const sets = ['abcdefghijkmnopqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789', '!@#$%&*?'];
-      const pick = (chars) => chars[crypto.getRandomValues(new Uint32Array(1))[0] % chars.length];
-      // Four of each kind, shuffled, so every rule above holds.
-      $('s-wd').value = Array.from({ length: 16 }, (_, i) => pick(sets[i % 4])).sort(() => crypto.getRandomValues(new Int8Array(1))[0]).join('');
+      $('s-wd').value = globalThis.oojAts.workday.newPassword();
       $('s-wd').type = 'text';
       $('s-wd-show').textContent = 'Hide';
       say('s-wd-msg', 'Save this password somewhere safe, then click Save.');

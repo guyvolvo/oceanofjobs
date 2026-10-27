@@ -379,10 +379,16 @@ async function intoWorkday(tabId, ctx, job) {
   let r = await enter();
   if (r.error) return r.error;
   if (r.at === 'form') return null;
-  const { workday } = await chrome.storage.local.get('workday');
   const email = (ctx.profile.contact || {}).email;
-  if (!workday || !workday.password) return 'no Workday password';
   if (!email) return 'no email in the profile';
+  let { workday } = await chrome.storage.local.get('workday');
+  if (!workday || !workday.password) {
+    // None set: one made here and saved like a typed one, so Settings shows
+    // it and every Workday site after this one gets the same.
+    await saveSecrets({ workday: globalThis.oojAts.workday.newPassword() }).catch(() => null);
+    ({ workday } = await chrome.storage.local.get('workday'));
+    if (!workday || !workday.password) return 'no Workday password';
+  }
   let signed = await inTab(tabId, 'workday', 'account', [email, workday.password]).catch(() => null);
   // A new account sends some sites to their own sign-in page; the redirect
   // can land a moment after the page reports loaded.
@@ -403,6 +409,20 @@ async function intoWorkday(tabId, ctx, job) {
   if (signed && signed.failed) return signed.failed;
   r = await enter();
   return r.at === 'form' ? null : r.error || 'Workday sign-in: no answer';
+}
+
+// A fill the user starts on a Workday posting or its sign-in step takes
+// the run's way in, so the general reader lands on the form's first page.
+// null once there (or off Workday), else the reason it stopped.
+async function workdayFirst(tabId, url) {
+  if (!globalThis.oojAts.workday.matches(url)) return null;
+  let a;
+  try {
+    a = await account();
+  } catch (e) {
+    return e.status === 401 ? EXPIRED : UNREACHABLE;
+  }
+  return intoWorkday(tabId, { profile: a.profile }, { url });
 }
 
 // The general filler's run on a tab that shows job.url: the form found the
@@ -1076,6 +1096,9 @@ async function fillTab(tabId) {
   if (!st.token || st.authError) return { error: st.authError ? EXPIRED : NOT_CONNECTED };
   if (!st.cv) return { error: NO_CV };
   let tab = await chrome.tabs.get(tabId);
+  const stop = await workdayFirst(tabId, tab.url);
+  if (stop) return { error: stop };
+  tab = await chrome.tabs.get(tabId);
   let name, page, frameId = 0;
   // A posting page links to its form, or the Apply button reloads the
   // page: read again once it loads. activeTab does not follow the tab to
@@ -1151,6 +1174,8 @@ async function pageState(tabId) {
       || (u.hostname === 'chrome.google.com' && u.pathname.startsWith('/webstore')) || /\.pdf$/i.test(u.pathname)) return 'unsupported';
   const reachable = await chrome.scripting.executeScript({ target: { tabId }, func: () => true }).then(() => true, () => false);
   if (!reachable) return 'unsupported';
+  // Its sign-in step has no fields to read; a fill signs in first.
+  if (globalThis.oojAts.workday.matches(tab.url)) return 'form';
   const name = adapterFor(tab.url);
   try {
     const form = globalThis.oojAts[name].formUrl && globalThis.oojAts[name].formUrl(tab.url);
@@ -1207,8 +1232,14 @@ async function assistHere(msg, sender) {
   const tabId = sender.tab.id;
   let frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   let url = msg.url;
-  let page = await readForm(tabId, 'generic', frameId).catch(() => null);
   let moved = false;
+  if (frameId === 0 && globalThis.oojAts.workday.matches(url)) {
+    const stop = await workdayFirst(tabId, url);
+    if (stop) return { error: stop };
+    url = (await chrome.tabs.get(tabId)).url;
+    moved = url !== msg.url;
+  }
+  let page = await readForm(tabId, 'generic', frameId).catch(() => null);
   if (page && page.frame) {
     const f = await frameWithForm(tabId, 10000);
     page = f && f.frameId !== frameId ? await readForm(tabId, 'generic', f.frameId).catch(() => null) : null;

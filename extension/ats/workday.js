@@ -165,7 +165,20 @@
     }
   }
 
+  // A password Workday's usual rules take: 16 characters, four each of
+  // lowercase, uppercase, digit and symbol, shuffled.
+  function newPassword() {
+    const sets = ['abcdefghijkmnopqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789', '!@#$%&*?'];
+    const rand = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+    const chars = Array.from({ length: 16 }, (_, i) => sets[i % 4][rand(sets[i % 4].length)]);
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = rand(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join('');
+  }
+
   root.oojAts = root.oojAts || {};
-  root.oojAts.workday = { matches, onSite, enter, account, signInPage, outcome };
-  if (typeof module === 'object' && module.exports) module.exports = { matches, onSite, DONE, VERIFY };
+  root.oojAts.workday = { matches, onSite, enter, account, signInPage, outcome, newPassword };
+  if (typeof module === 'object' && module.exports) module.exports = { matches, onSite, DONE, VERIFY, newPassword };
 })(globalThis);
