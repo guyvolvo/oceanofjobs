@@ -102,6 +102,10 @@ def checkout(table, user_id: str, email: str | None, plan: str, send=None) -> di
     body = {"product_cart": [{"product_id": product, "quantity": 1}],
             "customer": {"customer_id": customer_for(table, user_id, email, send)},
             "metadata": {"user_id": user_id},
+            # A customer attached by id locks its name and email on the
+            # checkout; the buyer types their real name and may bill another
+            # address. The account is still found by the customer id.
+            "feature_flags": {"allow_customer_editing_name": True, "allow_customer_editing_email": True},
             "return_url": f"{SITE}/apply?checkout=done", "cancel_url": f"{SITE}/pricing"}
     if os.environ.get("DODO_DISCOUNT"):
         try:

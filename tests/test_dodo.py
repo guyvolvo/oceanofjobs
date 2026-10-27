@@ -137,6 +137,8 @@ sent = [c for c in fake.calls if c[1] == "/checkouts"][0][2]
 check("the checkout names the pro product, the customer, the account and the discount",
       sent["product_cart"] == [{"product_id": "pdt_pro", "quantity": 1}] and sent["customer"] == {"customer_id": "cus_new"}
       and sent["metadata"] == {"user_id": "u1"} and sent["discount_codes"] == ["LAUNCH50"], json.dumps(sent))
+check("the buyer can change the name and email on the checkout",
+      sent["feature_flags"] == {"allow_customer_editing_name": True, "allow_customer_editing_email": True}, json.dumps(sent))
 check("the customer is remembered both ways", t.items[("u1", "#billing")]["customer_id"] == "cus_new"
       and t.items[(dodo.CUSTOMERS, "cus_new")]["owner"] == "u1")
 dodo.checkout(t, "u1", "a@b.c", "basic", fake)
