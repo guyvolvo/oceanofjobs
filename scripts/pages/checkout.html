@@ -15,13 +15,21 @@
             var plan = q.get("plan");
             if (!manage && plan !== "basic" && plan !== "pro") { say('Pick a plan on the <a class="link" href="/pricing">pricing page</a>.'); return; }
             if (manage) say("Opening billing…");
-            // The plan belongs to an account, so the buyer logs in first.
-            if (!(typeof getAuthTokens === "function" && getAuthTokens())) {
-              say('Log in first so the plan goes on your account. <a class="link" href="/account">Log in</a>');
-              return;
+            // The plan belongs to an account, so the buyer logs in first, in
+            // the site's sign-in dialog. Google and GitHub come back to this
+            // address; an email code stays on the page, so wait for it.
+            var signedIn = function () { return typeof getAuthTokens === "function" && !!getAuthTokens(); };
+            if (!signedIn()) {
+              say('Log in so the plan goes on your account. <a class="link" href="/account" id="co-login">Log in</a>');
+              var open = function (e) { if (window.openSignIn) { if (e) e.preventDefault(); window.openSignIn(); } };
+              document.getElementById("co-login").addEventListener("click", open);
+              open();
+              await new Promise(function (done) { var t = setInterval(function () { if (signedIn()) { clearInterval(t); done(); } }, 500); });
+              say(manage ? "Opening billing…" : "Opening checkout…");
             }
             try {
               var out = await authedFetch(manage ? "/me/billing" : "/me/checkout", { method: "POST", body: JSON.stringify(manage ? {} : { plan: plan }) });
+              if (!out || !out.url) throw new Error("Couldn't open checkout.");
               location.href = out.url;
             } catch (e) {
               say((e && e.message ? e.message : "Couldn't open checkout.") + ' <a class="link" href="' + location.href + '">Try again</a>');
