@@ -8,10 +8,12 @@ Run directly, no framework:  python tests/test_dodo.py
 import base64
 import hashlib
 import hmac
+import io
 import json
 import os
 import sys
 import time
+import urllib.error
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -141,6 +143,29 @@ dodo.checkout(t, "u1", "a@b.c", "basic", fake)
 check("a second checkout reuses the customer", [c[1] for c in fake.calls].count("/customers") == 1)
 check("an unknown plan isn't sold", dodo.checkout(t, "u1", "a@b.c", "gold", fake).get("code") == "unknown_plan")
 check("no confirmed email, no checkout", dodo.checkout(FakeTable(), "u2", None, "pro", fake).get("code") == "no_email")
+class Refusing(FakeDodo):
+    """Refuses every checkout that carries a discount code with status."""
+    def __init__(self, answers, status):
+        super().__init__(answers)
+        self.status = status
+
+    def __call__(self, req):
+        body = json.loads(req.data) if req.data else {}
+        if req.full_url.endswith("/checkouts") and (body.get("discount_codes") or self.status >= 500):
+            self.calls.append(("POST", "/checkouts", body))
+            raise urllib.error.HTTPError(req.full_url, self.status, "refused", {}, io.BytesIO(b'{"message":"discount expired"}'))
+        return super().__call__(req)
+
+
+late = Refusing({("POST", "/checkouts"): {"checkout_url": "https://checkout.example/full"}}, 422)
+out = dodo.checkout(t, "u1", "a@b.c", "pro", late)
+check("an expired code still sells, at the full price", out == {"url": "https://checkout.example/full"}
+      and "discount_codes" not in late.calls[-1][2], str(late.calls))
+try:
+    dodo.checkout(t, "u1", "a@b.c", "pro", Refusing({}, 502))
+    check("Dodo being down isn't hidden by the retry", False)
+except dodo.DodoError as e:
+    check("Dodo being down isn't hidden by the retry", e.status == 502)
 check("the portal opens for a customer", dodo.portal(t, "u1", fake) == {"url": "https://portal.example/p"})
 check("no customer, no portal", dodo.portal(FakeTable(), "u2", fake).get("code") == "no_customer")
 

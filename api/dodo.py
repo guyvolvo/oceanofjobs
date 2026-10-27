@@ -50,7 +50,9 @@ STATUS = {"active": "active", "past_due": "past_due", "on_hold": "on_hold", "pau
 
 
 class DodoError(Exception):
-    pass
+    def __init__(self, message: str, status: int = 0):
+        super().__init__(message)
+        self.status = status
 
 
 def _host() -> str:
@@ -72,7 +74,7 @@ def _call(method: str, path: str, body: dict | None = None, send=None) -> dict:
     try:
         raw = (send or (lambda r: urllib.request.urlopen(r, timeout=15).read()))(req)
     except urllib.error.HTTPError as e:
-        raise DodoError(f"Dodo {method} {path}: {e.code} {e.read()[:300]!r}") from e
+        raise DodoError(f"Dodo {method} {path}: {e.code} {e.read()[:300]!r}", e.code) from e
     except OSError as e:
         raise DodoError(f"Dodo {method} {path}: {e!r}") from e
     return json.loads(raw or b"{}")
@@ -102,7 +104,14 @@ def checkout(table, user_id: str, email: str | None, plan: str, send=None) -> di
             "metadata": {"user_id": user_id},
             "return_url": f"{SITE}/apply?checkout=done", "cancel_url": f"{SITE}/pricing"}
     if os.environ.get("DODO_DISCOUNT"):
-        body["discount_codes"] = [os.environ["DODO_DISCOUNT"]]
+        try:
+            return {"url": _call("POST", "/checkouts", {**body, "discount_codes": [os.environ["DODO_DISCOUNT"]]}, send)["checkout_url"]}
+        except DodoError as e:
+            # The code expired (LAUNCH50 ends 2026-12-31) or ran out: sell at
+            # the full price rather than not at all.
+            if not 400 <= e.status < 500:
+                raise
+            print(f"dodo: checkout without {os.environ['DODO_DISCOUNT']}: {e}")
     return {"url": _call("POST", "/checkouts", body, send)["checkout_url"]}
 
 
