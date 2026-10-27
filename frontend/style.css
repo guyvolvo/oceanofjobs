@@ -1982,6 +1982,9 @@ table.jobs thead th[data-sort="age"] { text-align: center; }
   color: var(--grey);
   animation: status-spin 0.9s linear infinite;
 }
+/* Checkout, while our API makes the Dodo checkout (scripts/pages/checkout.html). */
+.co-wait { display: flex; padding: 24px 0; }
+.co-wait .loading-spinner { width: 32px; height: 32px; color: var(--h-muted, var(--grey)); }
 
 /* Run query, while it runs. The ring rides in the button rather than
    beside it, so the button keeps its width and nothing on the row shifts:

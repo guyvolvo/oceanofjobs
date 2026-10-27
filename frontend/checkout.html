@@ -90,7 +90,7 @@
     <section class="home-section">
       <div class="home-wrap legal-doc">
         <h1 class="home-h2">Checkout</h1>
-        <p id="co-msg" aria-live="polite">Opening checkout…</p>
+        <p id="co-msg" aria-live="polite"></p>
         <p class="legal-updated"><a href="/pricing">Back to pricing</a></p>
         <p class="legal-updated">Payments are handled by Dodo Payments, our Merchant of Record. See the <a class="link" href="/terms">terms</a> and <a class="link" href="/refunds">refund policy</a>.</p>
         <script>
@@ -101,11 +101,19 @@
           document.addEventListener("DOMContentLoaded", async function () {
             var msg = document.getElementById("co-msg");
             var say = function (html) { msg.innerHTML = html; };
+            // The turning ring while our API makes the checkout; the words
+            // are for screen readers.
+            var wait = function (words) {
+              say('<span class="co-wait"><svg class="loading-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+                + '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.2"/>'
+                + '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="18 39"/>'
+                + '</svg><span class="sr-only">' + words + '</span></span>');
+            };
             var q = new URLSearchParams(location.search);
             var manage = q.has("manage");
             var plan = q.get("plan");
             if (!manage && plan !== "basic" && plan !== "pro") { say('Pick a plan on the <a class="link" href="/pricing">pricing page</a>.'); return; }
-            if (manage) say("Opening billing…");
+            wait(manage ? "Opening billing…" : "Opening checkout…");
             // The plan belongs to an account, so the buyer logs in first, in
             // the site's sign-in dialog. Google and GitHub come back to this
             // address; an email code stays on the page, so wait for it.
@@ -116,7 +124,7 @@
               document.getElementById("co-login").addEventListener("click", open);
               open();
               await new Promise(function (done) { var t = setInterval(function () { if (signedIn()) { clearInterval(t); done(); } }, 500); });
-              say(manage ? "Opening billing…" : "Opening checkout…");
+              wait(manage ? "Opening billing…" : "Opening checkout…");
             }
             try {
               var out = await authedFetch(manage ? "/me/billing" : "/me/checkout", { method: "POST", body: JSON.stringify(manage ? {} : { plan: plan }) });
