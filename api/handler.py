@@ -54,7 +54,7 @@ import attempts
 import consent
 import unsubscribe_token
 import user_files
-import paddle
+import dodo
 import tokens
 from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
                      empty_profile)
@@ -79,6 +79,9 @@ _ALLOWED_FILTER_KEYS = {
     "min_age_days", "max_age_days", "skills", "ids", "search_mode", "search_exact", "roles",
     "salary_min", "salary_max", "salary_known", "salary_disclosed",
 }
+
+# Joining a paid plan's waitlist (POST /me/waitlist). Off until paid plans open.
+WAITLIST_OPEN = False
 
 # Best matches: how many days since posting cost one matched skill in the
 # ranking. See the sort_key == "match" branch in route_jobs.
@@ -667,6 +670,24 @@ def lambda_handler(event, context):
             except user_files.NotReady as e:
                 return _response(503, json.dumps({"error": str(e), "code": "not_ready", "retryable": False}))
             return _response(405, json.dumps({"error": "method not allowed"}))
+        if path in ("/me/checkout", "/me/billing"):
+            # Buying a plan and managing it (dodo.py): links to Dodo's
+            # hosted checkout and customer portal, for the signed-in account.
+            if method != "POST":
+                return _response(405, json.dumps({"error": "method not allowed"}))
+            claims = _authenticated_claims(event)
+            try:
+                if path == "/me/checkout":
+                    plan = str(json.loads(event.get("body") or "{}").get("plan") or "")
+                    out = dodo.checkout(_alerts_table, claims["sub"], claims.get("email") if email_is_verified(claims) else None, plan)
+                else:
+                    out = dodo.portal(_alerts_table, claims["sub"])
+            except dodo.DodoError as e:
+                print(f"dodo: {e}")
+                return _response(503, json.dumps({"error": "Couldn't reach the payment provider. Try again in a minute.", "retryable": True}))
+            resp = _response(400 if "error" in out else 200, json.dumps(out))
+            resp["headers"]["Cache-Control"] = "no-store"
+            return resp
         if path == "/me/consent":
             # Agreeing to the terms (the sign-in window or the prompt), and
             # what the website needs to know about it.
@@ -720,8 +741,11 @@ def lambda_handler(event, context):
             resp["headers"]["Cache-Control"] = "no-store"
             return resp
         if path == "/me/waitlist":
-            # A paid plan's waitlist, from the pricing page.
+            # A paid plan's waitlist. Closed: the site offers no sign-up
+            # until paid plans open (WAITLIST_OPEN).
             claims = _authenticated_claims(event)
+            if method == "POST" and not WAITLIST_OPEN:
+                return _response(403, json.dumps({"error": "The waitlist is closed.", "code": "waitlist_closed"}))
             if method == "POST":
                 body = json.loads(event.get("body") or "{}")
                 try:
@@ -787,13 +811,12 @@ def lambda_handler(event, context):
                 route_delete_alert(user_id, alert_id)
                 return _response(204, "")
             return _response(405, json.dumps({"error": "method not allowed"}))
-        if path == "/paddle/webhook":
-            # Paddle's notifications (paddle.py): signed, from Paddle's
-            # addresses, and the only writer of a user's paid plan.
+        if path == "/dodo/webhook":
+            # Dodo's notifications (dodo.py): signed, and the only writer
+            # of a user's paid plan.
             if method != "POST":
                 return _response(405, json.dumps({"error": "method not allowed"}))
-            status, out = paddle.handle(_alerts_table, event.get("headers") or {}, event.get("body") or "",
-                                        event.get("requestContext", {}).get("http", {}).get("sourceIp", ""))
+            status, out = dodo.handle(_alerts_table, event.get("headers") or {}, event.get("body") or "")
             return _response(status, json.dumps(out))
         if path.startswith("/me/apply/") or path == "/me/apply":
             try:

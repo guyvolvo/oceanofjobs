@@ -78,7 +78,10 @@ with mock_aws():
     s, out = call("ann", "PUT", "/me/email", {"newsletter": "yes"})
     check("only true or false", s == 400, (s, out))
 
-    # Waitlists.
+    # Waitlists: closed, then opened for the rest of these checks.
+    s, out = call("cy", "POST", "/me/waitlist", {"plan": "pro"})
+    check("a closed waitlist takes no one", s == 403 and out.get("code") == "waitlist_closed" and not row("cy", "#waitlist#pro"), (s, out))
+    handler.WAITLIST_OPEN = True
     s, out = call("cy", "POST", "/me/waitlist", {"plan": "pro"})
     first = row("cy", "#waitlist#pro").get("joined_at")
     check("joining a waitlist records the plan", s == 200 and out["waitlist"] == ["pro"] and first, out)
