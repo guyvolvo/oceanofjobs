@@ -37,3 +37,18 @@ test('confirmation text is counted, so a posting that already says thanks does n
   assert.equal(g.sentCount('מועמדותך נשלחה בהצלחה'), 1);
   assert.equal(g.sentCount('Submit your application below. We review every application.'), 0);
 });
+
+test('a form of only contact, address and card fields is no application', () => {
+  const f = (label, type = 'text', autocomplete = null, tag = 'INPUT') => ({ label, type, autocomplete, tag });
+  // Dodo's checkout: the card the extension showed on it.
+  assert.ok(g.contactOnly([f('Full Name', 'text', 'name'), f('Email', 'email', 'email'), f('Phone (optional)', 'tel'),
+    f('Country', 'select-one', 'country'), f('Address Line', 'text', 'address-line1'), f('Purchasing as a business', 'checkbox')]));
+  assert.ok(g.contactOnly([f('First name'), f('Last name'), f('Email address'), f('Company'), f('ZIP code'), f('Card number', 'text', 'cc-number')]));
+  assert.ok(g.contactOnly([f('Name'), f('Work email', 'email'), f('Phone number', 'tel'), f('I agree to the terms', 'checkbox')]));
+  // Applications ask something else, or take a CV.
+  assert.ok(!g.contactOnly([f('First name'), f('Last name'), f('Email', 'email'), f('LinkedIn profile')]));
+  assert.ok(!g.contactOnly([f('Name'), f('Email', 'email'), f('Resume/CV', 'file')]));
+  assert.ok(!g.contactOnly([f('Name'), f('Email', 'email'), f('Why do you want to work here?', 'textarea', null, 'TEXTAREA')]));
+  assert.ok(!g.contactOnly([f('Full name'), f('Email', 'email'), f('Years of experience', 'number')]));
+  assert.ok(!g.contactOnly([f('Do you need sponsorship?', 'checkbox')]), 'tick boxes alone are not a contact form either');
+});

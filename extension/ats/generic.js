@@ -771,13 +771,28 @@
 
   // For the fill button and for picking the frame to fill: how strongly
   // this document looks like an application form, 0 for not at all.
+  // Fields every sign-up, contact and checkout form has: by autocomplete
+  // token, or else by label. A form of only these (and tick boxes) asks
+  // nothing an application asks, so detect.js offers no fill there.
+  const CONTACT_AUTOCOMPLETE = /^(name|honorific-\w+|given-name|family-name|additional-name|nickname|email|tel(-[\w-]+)?|street-address|address-line\d|address-level\d|postal-code|country|country-name|organization|organization-title|cc-[\w-]+|username)$/;
+  const CONTACT_LABEL = /^(your |full |first |last |given |family |sur|business |company )?name\b|e-?mail|phone|mobile|\btel\b|address|street|\bcity\b|\bstate\b|province|region|\bzip|postal|post ?code|country|company|business|organi[sz]ation|card|expir|\bcvc\b|\bcvv\b|security code|tax id|\bvat\b|coupon|promo|discount/;
+  function contactOnly(fields) {
+    const asked = fields.filter((f) => !['checkbox', 'radio'].includes(f.type));
+    return asked.length > 0 && asked.every((f) => f.type !== 'file' && f.tag !== 'TEXTAREA' && (
+      CONTACT_AUTOCOMPLETE.test(String(f.autocomplete || '').replace(/^(section-\S+ )?(shipping |billing )?/, ''))
+      || ['email', 'tel'].includes(f.type) || CONTACT_LABEL.test(clean(f.label).toLowerCase())));
+  }
+
   function formHere() {
     if (!document.body || deep(document, 'input:not([type="hidden"]), textarea, select').length < 3) return { score: 0 };
     const f = findForm();
-    return f ? { score: score(controls(f)), file: deep(f, 'input[type="file"]').length > 0 } : { score: 0 };
+    if (!f) return { score: 0 };
+    const els = controls(f);
+    const fields = els.map((el) => ({ type: el.type, tag: el.tagName, autocomplete: el.getAttribute('autocomplete'), label: labelOf(el, f) }));
+    return { score: score(els), file: deep(f, 'input[type="file"]').length > 0, contactOnly: contactOnly(fields) };
   }
 
   root.oojAts = root.oojAts || {};
   root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo, next, nextOutcome, wall, watchSend, sentHere };
-  if (typeof module === 'object' && module.exports) module.exports = { buttonKind, sentCount };
+  if (typeof module === 'object' && module.exports) module.exports = { buttonKind, sentCount, contactOnly };
 })(globalThis);

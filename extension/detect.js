@@ -58,8 +58,12 @@
     if (shown || !all.generic) return shown;
     if (globalThis.oojMatch.notJobSite(location.hostname)) return false;
     const p = all.generic.formHere();
-    const jobish = () => globalThis.oojMatch.jobish(location.href + ' ' + document.title + ' ' + heading());
-    const form = p.score > 0 && (p.file || dedicated || jobish());
+    // Our own name is no job word: Dodo's checkout and receipts carry
+    // "Ocean of Jobs auto apply".
+    const jobish = () => globalThis.oojMatch.jobish((location.href + ' ' + document.title + ' ' + heading()).replace(/ocean ?of ?jobs/gi, ''));
+    // A sign-up, contact or checkout form (only name, email, phone,
+    // address, card) is no application, whatever the page says.
+    const form = p.score > 0 && (p.file || dedicated || (!p.contactOnly && jobish()));
     if (!form && !(isTop && !site && all.generic.postingHere() && jobish())) return false;
     found();
     return true;
