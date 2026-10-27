@@ -12,7 +12,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Checkout | Ocean of Jobs</title>
   <meta name="robots" content="noindex" />
-  <meta name="description" content="Checkout for Ocean of Jobs plans, handled by Paddle." />
+  <meta name="description" content="Checkout for Ocean of Jobs plans, handled by Dodo Payments." />
   <!-- Share previews. Same static card as the board, for the reason
        given there: a crawler that renders this page live catches it
        mid-fetch. -->
@@ -21,13 +21,13 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://oceanofjobs.com/checkout" />
   <meta property="og:title" content="Checkout | Ocean of Jobs" />
-  <meta property="og:description" content="Checkout for Ocean of Jobs plans, handled by Paddle." />
+  <meta property="og:description" content="Checkout for Ocean of Jobs plans, handled by Dodo Payments." />
   <meta property="og:image" content="https://oceanofjobs.com/og.jpg?v=3" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Checkout | Ocean of Jobs" />
-  <meta name="twitter:description" content="Checkout for Ocean of Jobs plans, handled by Paddle." />
+  <meta name="twitter:description" content="Checkout for Ocean of Jobs plans, handled by Dodo Payments." />
   <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
   <script>
     // GitHub sign-in hands its tokens back in the fragment, which never
@@ -92,54 +92,31 @@
         <h1 class="home-h2">Checkout</h1>
         <p id="co-msg" aria-live="polite">Opening checkout…</p>
         <p class="legal-updated"><a href="/pricing">Back to pricing</a></p>
-        <p class="legal-updated">Payments are handled by Paddle, our Merchant of Record. See the <a class="link" href="/terms">terms</a> and <a class="link" href="/refunds">refund policy</a>.</p>
-        <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+        <p class="legal-updated">Payments are handled by Dodo Payments, our Merchant of Record. See the <a class="link" href="/terms">terms</a> and <a class="link" href="/refunds">refund policy</a>.</p>
         <script>
-          // Paddle's default payment link is this page. Paddle.js opens the
-          // checkout by itself when the address carries _ptxn (a transaction
-          // made in Paddle); ?plan=basic or ?plan=pro starts one from the
-          // pricing page, for the signed-in account.
+          // ?plan=basic or ?plan=pro: our API makes a Dodo checkout for the
+          // signed-in account (api/dodo.py) and this page goes there.
+          // ?manage=1: the same for Dodo's customer portal.
           // After the page, because auth.js loads at the end of it.
-          document.addEventListener("DOMContentLoaded", function () {
-            // Paddle client-side token: public by design. A test_ token runs
-            // against Paddle's sandbox, which is what this is until the live
-            // account is approved; then the live token and these go back:
-            // basic pri_01m5c6nb2wc9df6hk0hqkwdr1r, pro pri_01m5c6q394qkj6pfxekj6t37sh.
-            var TOKEN = "test_5a348c8bde3ec8221103236f0ca";
-            var PRICES = { basic: "pri_01m5cqee0n7wygn2e6whf2t616", pro: "pri_01m5cqeeesvyw1a0d4ftz9jhsx" };
-            // 50% off the first payment. It has no code, so Paddle only
-            // applies it when the checkout names it (dsc_... from Paddle).
-            var FIRST_MONTH_DISCOUNT = "dsc_01m5cqeemxw9zvh20tym4s60x0";
+          document.addEventListener("DOMContentLoaded", async function () {
             var msg = document.getElementById("co-msg");
             var say = function (html) { msg.innerHTML = html; };
-            if (!TOKEN || !window.Paddle) {
-              say("Couldn't load the Paddle checkout. If you use a content blocker, allow cdn.paddle.com and reload.");
+            var q = new URLSearchParams(location.search);
+            var manage = q.has("manage");
+            var plan = q.get("plan");
+            if (!manage && plan !== "basic" && plan !== "pro") { say('Pick a plan on the <a class="link" href="/pricing">pricing page</a>.'); return; }
+            if (manage) say("Opening billing…");
+            // The plan belongs to an account, so the buyer logs in first.
+            if (!(typeof getAuthTokens === "function" && getAuthTokens())) {
+              say('Log in first so the plan goes on your account. <a class="link" href="/account">Log in</a>');
               return;
             }
-            if (TOKEN.indexOf("test_") === 0) Paddle.Environment.set("sandbox");
-            Paddle.Initialize({
-              token: TOKEN,
-              // Light or dark to match the page; the brand colour is set in Paddle.
-              checkout: { settings: { theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light" } },
-              eventCallback: function (e) {
-                if (e.name === "checkout.completed") location.href = "/apply";
-              },
-            });
-            var q = new URLSearchParams(location.search);
-            if (q.has("_ptxn")) return;
-            var price = PRICES[q.get("plan")];
-            if (!price) { say('Pick a plan on the <a class="link" href="/pricing">pricing page</a>.'); return; }
-            // The plan belongs to an account, so the buyer signs in first and
-            // the checkout carries who they are for the webhook to match.
-            var tokens = typeof getAuthTokens === "function" ? getAuthTokens() : null;
-            if (!tokens) { say('Log in first so the plan goes on your account. <a class="link" href="/account">Log in</a>'); return; }
-            var claims = JSON.parse(atob(tokens.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-            Paddle.Checkout.open({
-              items: [{ priceId: price, quantity: 1 }],
-              customer: claims.email ? { email: claims.email } : undefined,
-              customData: { user_id: claims.sub },
-              discountId: FIRST_MONTH_DISCOUNT || undefined,
-            });
+            try {
+              var out = await authedFetch(manage ? "/me/billing" : "/me/checkout", { method: "POST", body: JSON.stringify(manage ? {} : { plan: plan }) });
+              location.href = out.url;
+            } catch (e) {
+              say((e && e.message ? e.message : "Couldn't open checkout.") + ' <a class="link" href="' + location.href + '">Try again</a>');
+            }
           });
         </script>
       </div>
@@ -167,6 +144,5 @@
   <script src="hero_nav.js"></script>
   <script src="mobile_nav.js"></script>
   <script src="upstream.js"></script>
-  <script src="waitlist.js"></script>
 </body>
 </html>

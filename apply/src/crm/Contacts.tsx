@@ -59,7 +59,7 @@ function BillingSection({ id, d, setBilling }: { id: string; d: Detail; setBilli
         {b.paid?.subscription_id ? <><dt>Subscription</dt><dd><code>{b.paid.subscription_id}</code></dd></> : null}
         {b.paid?.customer_id ? <><dt>Customer</dt><dd><code>{b.paid.customer_id}</code></dd></> : null}
       </dl>
-      {b.paid && d.billing_url ? <p className="crm-note">Refunds, cancellations and plan changes are in <a className="crm-link" href={d.billing_url} target="_blank" rel="noopener noreferrer">Paddle</a>. Search for the subscription above.</p> : null}
+      {b.paid && d.billing_url ? <p className="crm-note">Refunds, cancellations and plan changes are in <a className="crm-link" href={d.billing_url} target="_blank" rel="noopener noreferrer">Dodo Payments</a>. Search for the subscription above.</p> : null}
 
       <h3 className="crm-h3">License</h3>
       <p className="crm-note">{b.license ? `${PLAN[b.license.plan]} ${b.license.until ? `through ${day(b.license.until + "T12:00:00")}` : "with no end date"}, given ${day(b.license.at)}${b.license.note ? `: ${b.license.note}` : ""}.`

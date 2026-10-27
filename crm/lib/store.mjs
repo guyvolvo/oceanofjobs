@@ -1,6 +1,6 @@
 // The CRM's data. Contacts are read from what already exists: Cognito's
 // accounts and the members' own rows in the alerts table (api/consent.py:
-// #consent, #email, #waitlist#<plan>; api/paddle.py: #plan). Of those
+// #consent, #email, #waitlist#<plan>; api/dodo.py: #plan). Of those
 // rows the CRM writes only two kinds: #grant, a plan given by hand
 // (api/apply.py's plan_of honours it), and a credit reset on a
 // #ledger# row (api/attempts.py). Its own records (tags, notes, segments, campaigns, the
@@ -138,7 +138,7 @@ export async function activity(env, id) {
   return count;
 }
 
-// A member's billing: the paid plan as Paddle last reported it, the
+// A member's billing: the paid plan as Dodo last reported it, the
 // license given here, and their credit ledgers (newest first).
 export async function billing(env, uid) {
   const getRow = (k) => ddb(env, "GetItem", { TableName: env.ALERTS_TABLE, Key: item({ user_id: uid, alert_id: k }) }).then((r) => plain(r.Item));

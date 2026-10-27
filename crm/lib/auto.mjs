@@ -61,7 +61,7 @@ export const TRIGGERS = [
   { id: "paid_started", group: "Payments", name: "Started a paid plan", help: "Once payments are live.",
     when: (c) => c.paid && ["active", "trialing"].includes(c.paid.status) && [[c.paid.subscription_id || "once"]] },
   { id: "payment_failed", group: "Payments", name: "A payment failed", help: "Once payments are live.",
-    when: (c) => c.paid && c.paid.status === "past_due" && [[c.paid.event_at || "once"]] },
+    when: (c) => c.paid && ["past_due", "on_hold"].includes(c.paid.status) && [[c.paid.event_at || "once"]] },
   { id: "paid_canceled", group: "Payments", name: "Canceled their paid plan", help: "Once payments are live.",
     when: (c) => c.paid && c.paid.status === "canceled" && [[c.paid.subscription_id || "once"]] },
   { id: "tag_added", group: "CRM", name: "Tag added", event: true, help: "When you add this tag to a user." },

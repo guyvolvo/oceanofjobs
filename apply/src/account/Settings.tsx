@@ -297,13 +297,17 @@ export function Settings({ email, logOut }: { email: string; logOut: () => void 
             onClick={() => document.getElementById("hero-theme")?.click()}>{dark ? "Light" : "Dark"}</Button>
         </div>
         <div className="oj-row oj-row-between">
+          <span className="oj-pref-text"><span className="oj-pref-label">Billing</span><span className="oj-note">Cancel your plan, change your card or download invoices.</span></span>
+          <Button variant="secondary" onClick={() => { location.href = "/checkout?manage=1"; }}>Manage billing</Button>
+        </div>
+        <div className="oj-row oj-row-between">
           <span className="oj-pref-label">Log out</span>
           <Button variant="secondary" onClick={logOut}>Log out</Button>
         </div>
       </Card>
       <Tokens />
       <Card title="Delete account" className="oj-danger-card"
-        note="Deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens. It doesn't cancel a paid plan, so cancel that through Paddle first. This can't be undone.">
+        note="Deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens. It doesn't cancel a paid plan, so cancel that under Billing first. This can't be undone.">
         <div><Button variant="secondary" className="oj-danger-ghost" loading={deleting} onClick={() => setAsking(true)}>Delete account</Button></div>
         <ConfirmDanger open={asking} title="Delete your account?" confirm="Delete my account" onConfirm={del} onCancel={() => setAsking(false)}>
           This deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens. This can't be undone.

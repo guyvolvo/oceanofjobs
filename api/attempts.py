@@ -129,7 +129,7 @@ def periods(now: datetime, tz: str | None) -> tuple[str, str]:
 def billing_period(now: datetime, tz: str | None) -> str:
     """The period the dispute allowance counts in (R12). The calendar month
     in the user's time zone for now; the one place to change when it
-    follows Paddle's billing periods instead."""
+    follows the payment provider's billing periods instead."""
     return periods(now, tz)[0]
 
 

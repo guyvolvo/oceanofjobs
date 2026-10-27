@@ -33,7 +33,7 @@ LEGAL = {
     "terms": ("Terms of Service", "The terms for using Ocean of Jobs, its API, MCP server, browser extension and paid plans.", False),
     "refunds": ("Refund Policy", "Full refund within 14 days of any payment for Ocean of Jobs plans.", False),
     "privacy": ("Privacy", "What Ocean of Jobs collects, why, and how to remove it.", False),
-    "checkout": ("Checkout", "Checkout for Ocean of Jobs plans, handled by Paddle.", True),
+    "checkout": ("Checkout", "Checkout for Ocean of Jobs plans, handled by Dodo Payments.", True),
 }
 
 FAQ = """
@@ -55,7 +55,7 @@ FAQ = """
           </div>
           <div class="home-feature">
             <h3>Can I cancel or get a refund?</h3>
-            <p>You can cancel at any time from the link in your Paddle receipt or at paddle.net. Your subscription remains active until the end of the period you've paid for. You're also eligible for a full refund within 14 days of any payment, subject to our <a href="/refunds">refund policy</a>.</p>
+            <p>You can cancel at any time under Billing in your account settings or from the link in your receipt. Your subscription remains active until the end of the period you've paid for. You're also eligible for a full refund within 14 days of any payment, subject to our <a href="/refunds">refund policy</a>.</p>
           </div>
         </div>
         <p class="price3-note"><a href="/refunds">Refund policy</a> · <a href="/terms">Terms of service</a></p>

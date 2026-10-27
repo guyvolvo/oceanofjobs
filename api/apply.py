@@ -5,7 +5,7 @@ All of it lives in the alerts table under the user's own partition, in
 rows the alert evaluator never sees (no `active` attribute):
 
     #apply_profile          the application profile and settings
-    #plan                   the paid plan, written only by paddle.py
+    #plan                   the paid plan, written only by dodo.py
     #grant                  a plan the owner gave by hand in the CRM (crm/)
     #applied#<job id>       one row per job the extension claimed
     #queue#<job id>         a job the user approved for queue mode
@@ -253,8 +253,8 @@ def reusable_answers(answers: list[dict]) -> list[dict]:
 
 
 def plan_of(table, user_id: str, now: datetime | None = None) -> str:
-    """The plan in force, the higher of: a paid plan while Paddle says it
-    is active or trialing (paddle.py keeps the row), and a plan given in
+    """The plan in force, the higher of: a paid plan while Dodo says it
+    is active or in its grace period (dodo.py keeps the row), and a plan given in
     the CRM, through its end date (YYYY-MM-DD, UTC; none means no end)."""
     item = table.get_item(Key={"user_id": user_id, "alert_id": PLAN_ROW}).get("Item") or {}
     paid = item["plan"] if item.get("plan") in LIMITS and item.get("status") in ("active", "trialing", "past_due") else "free"

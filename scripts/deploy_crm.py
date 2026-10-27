@@ -36,8 +36,8 @@ OWNER = "guyvoloshin@gmail.com"
 VARS = {"OWNER_EMAIL": OWNER, "USER_POOL_ID": "il-central-1_0vIcqqXyg", "ALERTS_TABLE": "iljobs-alerts", "CRM_TABLE": "ooj-crm",
         "AWS_REGION": "il-central-1", "MAIL_FROM": "Ocean of Jobs <info@oceanofjobs.com>", "SES_CONFIGURATION_SET": "ooj-marketing",
         "DAILY_CAP": "500",
-        # Where the member page's Paddle link goes; the live dashboard once Paddle is out of sandbox.
-        "BILLING_URL": "https://sandbox-vendors.paddle.com",
+        # Where the member page's billing link goes: Dodo's dashboard.
+        "BILLING_URL": "https://app.dodopayments.com",
         # Mail to info@ is forwarded here before the Inbox saves it (a verified Email Routing destination).
         "FORWARD_TO": OWNER,
         # Email header images go here, under mail/ (the CRM's key may write nothing else).
