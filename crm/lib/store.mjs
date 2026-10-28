@@ -16,7 +16,25 @@ export function planOf(paid = {}, grant = {}, today = new Date().toISOString().s
   const g = PLANS.includes(grant.plan) && (!grant.until || grant.until >= today) ? grant.plan : "free";
   return PLANS.indexOf(g) > PLANS.indexOf(p) ? g : p;
 }
-let cache = null; // { at, contacts, complete }
+let cache = null; // { at, contacts, attempts, older, complete }
+
+// The hiring system an attempt went to. Attempts don't store the ATS, so
+// it's read from the job's link: the canonical id's prefix when
+// api/apply.py's canonical_job recognised it, else the link's host, named
+// for the systems the extension applies on.
+const ATS_HOSTS = [["greenhouse.io", "Greenhouse"], ["lever.co", "Lever"], ["ashbyhq.com", "Ashby"], ["workable.com", "Workable"],
+  ["myworkdayjobs.com", "Workday"], ["myworkdaysite.com", "Workday"], ["smartrecruiters.com", "SmartRecruiters"], ["bamboohr.com", "BambooHR"],
+  ["applytojob.com", "JazzHR"], ["recruitee.com", "Recruitee"], ["teamtailor.com", "Teamtailor"], ["pinpointhq.com", "Pinpoint"],
+  ["breezy.hr", "Breezy"], ["personio.de", "Personio"], ["personio.com", "Personio"], ["comeet.com", "Comeet"], ["comeet.co", "Comeet"]];
+const ATS_CANON = { greenhouse: "Greenhouse", ashby: "Ashby", workable: "Workable", lever: "Lever" };
+export function hiringSystem(url = "", canon = "") {
+  const named = ATS_CANON[String(canon).split(":")[0]];
+  if (named) return named;
+  let host = "";
+  try { host = new URL(url).hostname.toLowerCase().replace(/^www\./, ""); } catch { return "Unknown"; }
+  const hit = ATS_HOSTS.find(([h]) => host === h || host.endsWith("." + h));
+  return hit ? hit[1] : host || "Unknown";
+}
 const CACHE_FOR = 60 * 1000;
 
 const attr = (u, name) => ((u.Attributes || []).find((a) => a.Name === name) || {}).Value || "";
@@ -47,23 +65,36 @@ export async function contacts(env, { fresh = false } = {}) {
     if (i === 24) complete = false;
   }
   // Also what the automatic emails look at: tokens (extension, MCP),
-  // the monthly credit ledgers and the resume.
+  // the monthly credit ledgers and the resume; and the application
+  // attempts (api/attempts.py) and the older #applied# rows (api/apply.py's
+  // claim and result path) for the overview. One scan for all of them:
+  // pages are cut by what DynamoDB reads, not by what the filter keeps,
+  // so the attempts add no pages.
   const rows = await all(env, "Scan", {
     TableName: env.ALERTS_TABLE,
-    FilterExpression: "alert_id IN (" + MEMBER_ROWS.map((_, i) => `:r${i}`).join(", ") + ") OR begins_with(alert_id, :tok) "
-      + "OR begins_with(alert_id, :led) OR begins_with(alert_id, :res)",
+    // #n1 is alert_id: every name aliased, DynamoDB reserves many plain words (scope, status, plan, at, state, url...).
+    FilterExpression: "#n1 IN (" + MEMBER_ROWS.map((_, i) => `:r${i}`).join(", ") + ") OR begins_with(#n1, :tok) "
+      + "OR begins_with(#n1, :led) OR begins_with(#n1, :res) OR begins_with(#n1, :att) OR begins_with(#n1, :app)",
     ExpressionAttributeValues: { ...Object.fromEntries(MEMBER_ROWS.map((r, i) => [`:r${i}`, { S: r }])),
-      ":tok": { S: "#token#" }, ":led": { S: "#ledger#month#" }, ":res": { S: "#agent_resume#" } },
-    // Every name aliased: DynamoDB reserves many plain words (scope, status, plan, at...).
+      ":tok": { S: "#token#" }, ":led": { S: "#ledger#month#" }, ":res": { S: "#agent_resume#" }, ":att": { S: "#attempt#" }, ":app": { S: "#applied#" } },
     ...projection(["user_id", "alert_id", "newsletter", "newsletter_at", "newsletter_source", "unsubscribed_at", "version", "agreed_at", "plan",
-      "status", "joined_at", "until", "note", "at", "scope", "created_at", "charged", "subscription_id", "event_at"]),
+      "status", "joined_at", "until", "note", "at", "scope", "created_at", "charged", "subscription_id", "event_at",
+      "state", "url", "canon", "reserved_at", "settled_at"]),
   }, 20);
   const crm = await all(env, "Query", { TableName: env.CRM_TABLE, KeyConditionExpression: "pk = :p",
     ExpressionAttributeValues: { ":p": { S: "tags" } } }, 5);
   const byUser = {};
   const extra = {};
+  const attempts = [];
+  const older = []; // when each #applied# row was written
   for (const r of rows.items) {
     const k = String(r.alert_id);
+    if (k.startsWith("#attempt#")) {
+      attempts.push({ user: r.user_id, state: r.state || "", at: r.settled_at || r.reserved_at || "", started: r.reserved_at || "",
+        system: hiringSystem(r.url, r.canon) });
+      continue;
+    }
+    if (k.startsWith("#applied#")) { older.push(r.at || ""); continue; }
     const x = (extra[r.user_id] ||= { tokens: [], ledgers: {}, resume: false });
     if (k.startsWith("#token#")) x.tokens.push({ scope: r.scope || "", created_at: r.created_at || "" });
     else if (k.startsWith("#ledger#month#")) x.ledgers[k.slice(14)] = Number(r.charged || 0);
@@ -102,7 +133,7 @@ export async function contacts(env, { fresh = false } = {}) {
         event_at: own["#plan"].event_at || "" } : null,
     };
   });
-  cache = { at: Date.now(), contacts: list, complete: complete && rows.complete };
+  cache = { at: Date.now(), contacts: list, attempts, older, complete: complete && rows.complete };
   return cache;
 }
 export function dropCache() { cache = null; }
@@ -124,14 +155,20 @@ export function matches(c, f = {}) {
 }
 
 // What a member did, for their page: counted from their own partition.
+// Applications the same way as the overview: confirmed (Submitted) and
+// unconfirmed apart; fills the member sent themselves and the older
+// #applied# rows (whose outcome can't be told) each on their own.
 export async function activity(env, id) {
   const r = await all(env, "Query", { TableName: env.ALERTS_TABLE, KeyConditionExpression: "user_id = :u",
-    ExpressionAttributeValues: { ":u": { S: id } }, ...projection(["alert_id", "created_at", "state", "active"]) }, 10);
-  const count = { alerts: 0, active_alerts: 0, saved: 0, applications: 0 };
+    ExpressionAttributeValues: { ":u": { S: id } }, ...projection(["alert_id", "created_at", "state", "active", "status"]) }, 10);
+  const count = { alerts: 0, active_alerts: 0, saved: 0, confirmed: 0, unconfirmed: 0, sent: 0, older: 0 };
   for (const row of r.items) {
     const k = String(row.alert_id || "");
-    if (k.startsWith("#attempt#")) { if (["submitted", "unconfirmed", "sent"].includes(row.state)) count.applications++; }
-    else if (k.startsWith("#applied#")) count.applications++;
+    if (k.startsWith("#attempt#")) {
+      if (row.state === "submitted") count.confirmed++;
+      else if (row.state === "unconfirmed") count.unconfirmed++;
+      else if (row.state === "sent") count.sent++;
+    } else if (k.startsWith("#applied#")) { if (row.status === "submitted") count.older++; }
     else if (k.startsWith("#saved#") || /^[0-9a-f]{16}$/.test(k)) count.saved++;
     else if (!k.startsWith("#")) { count.alerts++; if (row.active) count.active_alerts++; }
   }

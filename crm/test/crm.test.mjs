@@ -75,7 +75,7 @@ function fakeAws(state) {
       return new Response(JSON.stringify({ __type: "ValidationException", message: "unaliased name in " + body.ProjectionExpression }), { status: 400 });
     }
     if (target.endsWith("ListUsers")) return ok({ Users: state.users });
-    if (target.endsWith(".Scan")) return ok({ Items: state.alerts });
+    if (target.endsWith(".Scan")) { (state.scans ||= []).push(body); return ok({ Items: state.alerts }); }
     const members = body.TableName === "alerts";
     const sameRow = (k) => (i) => i.user_id.S === k.user_id.S && i.alert_id.S === k.alert_id.S;
     if (members && target.endsWith(".GetItem")) { const it = state.alerts.find(sameRow(body.Key)); return ok(it ? { Item: it } : {}); }
@@ -580,5 +580,96 @@ test("default flows: logs from what's already recorded", async () => {
   r = await (await call("/api/inbox/sent")).json();
   assert.deepEqual(r.sent.map((m) => [m.source, m.to, m.subject]).sort(), [
     ["Account notice", "3 members", "News"], ["Flow: Welcome", "a@example.com", "Welcome"], ["Reply", "b@example.com", "Re: hi"], ["To one member", "a@example.com", "Your plan"]]);
+  globalThis.fetch = realFetch;
+});
+
+test("the overview's applications: confirmed and unconfirmed apart, failed apart, by hiring system, per active user per week", async () => {
+  _resetKeys();
+  dropCache();
+  // Settled the way api/attempts.py writes it: Python's isoformat, +00:00.
+  const ago = (h) => new Date(Date.now() - h * 36e5).toISOString().replace("Z", "+00:00");
+  const attempt = (sub, id, state, url, hours, extra = {}) => row(sub, "#attempt#" + id, { state: { S: state }, url: { S: url },
+    reserved_at: { S: ago(hours + 0.1) }, ...(["reserved", "submission_started"].includes(state) ? {} : { settled_at: { S: ago(hours) } }), ...extra });
+  const state = {
+    users: [user("u1", "owner@example.com"), user("u2", "a@example.com"), user("u3", "b@example.com")],
+    alerts: [
+      attempt("u2", "a1", "submitted", "https://boards.greenhouse.io/acme/jobs/1", 20),
+      attempt("u2", "a2", "submitted", "https://acme.wd5.myworkdayjobs.com/en-US/careers/job/2", 48),
+      // Greenhouse on the company's own site: known from the canonical id.
+      attempt("u2", "a3", "unconfirmed", "https://acme.com/careers?gh_jid=3", 72, { canon: { S: "greenhouse:3" } }),
+      attempt("u2", "a4", "failed", "https://jobs.lever.co/acme/4", 30),
+      attempt("u2", "a5", "filled", "https://jobs.lever.co/acme/5", 30),
+      attempt("u3", "b1", "submitted", "https://www.jobs.example.org/b1", 240),
+      attempt("u3", "b2", "skipped", "https://jobs.example.org/b2", 240),
+      attempt("u3", "b3", "submitted", "https://jobs.example.org/b3", 40 * 24),
+      attempt("u3", "b4", "reserved", "https://jobs.example.org/b4", 1),
+      attempt("u3", "b5", "not_sent_disputed", "https://jobs.lever.co/acme/7", 30),
+      // Reserved 9 days ago, confirmed 6 days ago: u1 is active the week before, the confirmation counts last week.
+      row("u1", "#attempt#c2", { state: { S: "submitted" }, url: { S: "https://jobs.lever.co/acme/8" }, reserved_at: { S: ago(9 * 24) },
+        settled_at: { S: ago(6 * 24) } }),
+      attempt("u1", "c1", "sent", "https://jobs.lever.co/acme/6", 48),
+      // Charged on the ledger: not what the funnel reads.
+      row("u3", "#ledger#month#2026-10", { held: { N: "3" }, charged: { N: "3" } }),
+      row("u2", "#applied#old1", { status: { S: "submitted" }, at: { S: ago(40 * 24) } }),
+    ],
+    crm: [], sent: [],
+  };
+  globalThis.fetch = fakeAws(state);
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm" };
+  const tok = await jwt(good());
+  const dash = (range) => worker.fetch(new Request("https://crm.oceanofjobs.com/api/dashboard?range=" + range,
+    { headers: { "Cf-Access-Jwt-Assertion": tok } }), env).then((r) => r.json());
+
+  let d = (await dash("30d")).applications;
+  assert.deepEqual([d.confirmed, d.unconfirmed, d.failed, d.disputed], [4, 1, 1, 1],
+    "40 days ago, in progress, filled and sent aren't in these; disputed isn't failed");
+  assert.deepEqual(d.by_system.slice(2).map(([n]) => n).sort(), ["Workday", "jobs.example.org"], "busiest first");
+  assert.deepEqual(Object.fromEntries(d.by_system.map(([n, ...x]) => [n, x])),
+    { Greenhouse: [1, 1, 0], Workday: [1, 0, 0], Lever: [1, 0, 1], "jobs.example.org": [1, 0, 0] }, "the disputed one is in no column");
+  assert.equal(d.by_time.length, 30);
+  assert.deepEqual(d.by_time.reduce((t, [, c, u, f]) => [t[0] + c, t[1] + u, t[2] + f], [0, 0, 0]), [4, 1, 1]);
+  // Four whole weeks. Last week: u2 and u3 started one, 3 confirmed and 1 unconfirmed settled.
+  // The week before: u3 and u1 started one, 1 confirmed.
+  assert.equal(d.weeks, 4);
+  assert.equal(d.active_user_weeks, 4);
+  assert.equal(d.per_user_week, 1);
+  assert.equal(d.unconfirmed_per_user_week, 0.25);
+  assert.equal(d.older, 0, "the #applied# row is 40 days old");
+
+  d = (await dash("7d")).applications;
+  assert.deepEqual([d.confirmed, d.unconfirmed, d.failed, d.weeks, d.active_user_weeks, d.per_user_week, d.unconfirmed_per_user_week],
+    [3, 1, 1, 1, 2, 1.5, 0.5]);
+  d = (await dash("24h")).applications;
+  assert.deepEqual([d.confirmed, d.unconfirmed, d.failed], [1, 0, 0]);
+  assert.equal(d.by_time.length, 24);
+  assert.equal(d.weeks, 1, "24h still reads the last whole week for the per-week figure");
+
+  // One scan for members and attempts, every name aliased.
+  assert.equal(state.scans.length, 1, "the dashboard reuses the cached contacts scan");
+  const scan = state.scans[0];
+  assert.match(scan.FilterExpression, /begins_with\(#n1, :att\)/);
+  assert.doesNotMatch(scan.FilterExpression, /alert_id/);
+  for (const n of ["state", "url", "canon", "reserved_at", "settled_at"]) assert.ok(Object.values(scan.ExpressionAttributeNames).includes(n), n);
+
+  // The member page: confirmed and unconfirmed apart, the user's own sends and older rows on their own.
+  const r2 = await (await worker.fetch(new Request("https://crm.oceanofjobs.com/api/contacts/u2", { headers: { "Cf-Access-Jwt-Assertion": tok } }), env)).json();
+  assert.deepEqual([r2.activity.confirmed, r2.activity.unconfirmed, r2.activity.sent, r2.activity.older], [2, 1, 0, 1]);
+
+  // The funnel: signed up in the range and at least one confirmed in it. u5 has only an
+  // unconfirmed one and a charged ledger, so it isn't counted.
+  dropCache();
+  const recent = (sub, email) => ({ ...user(sub, email), UserCreateDate: Math.floor(Date.now() / 1000) - 2 * 86400 });
+  state.users = [user("u1", "owner@example.com"), recent("u4", "c@example.com"), recent("u5", "d@example.com")];
+  state.alerts = [attempt("u4", "d1", "submitted", "https://jobs.lever.co/acme/9", 5), attempt("u5", "e1", "unconfirmed", "https://jobs.lever.co/acme/10", 5),
+    row("u5", "#ledger#month#2026-10", { held: { N: "1" }, charged: { N: "1" } }), row("u5", "#applied#old2", { status: { S: "submitted" }, at: { S: ago(5) } })];
+  const fresh = await dash("30d");
+  assert.deepEqual([fresh.funnel[0], fresh.funnel.find(([s]) => s.startsWith("Applied"))], [["Signed up", 2], ["Applied (confirmed)", 1]]);
+  assert.equal(fresh.applications.older, 1, "an #applied# row in the range shows the note");
+
+  // Nothing at all: no division by zero.
+  dropCache();
+  state.alerts = [];
+  d = (await dash("30d")).applications;
+  assert.deepEqual([d.confirmed, d.per_user_week, d.by_system], [0, null, []]);
   globalThis.fetch = realFetch;
 });

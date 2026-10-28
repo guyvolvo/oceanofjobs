@@ -73,6 +73,52 @@ const csvCell = (v) => {
   return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
 
+// The overview's applications, from the attempt rows (api/attempts.py).
+// Each state is in at most one count: submitted (the site confirmed) is
+// Confirmed, unconfirmed is Unconfirmed, failed is Failed, and
+// not_sent_disputed is Disputed, counted on its own and in no chart.
+// Open (reserved, submission_started), skipped, needs_input, abandoned,
+// filled and sent are in none. An attempt counts at its settlement, or its
+// start while it's still open.
+const OUTCOMES = ["submitted", "unconfirmed", "failed"];
+const WEEK = 7 * 864e5;
+// The seven busiest systems, then the rest added up as Other.
+function topSystems(rows) {
+  rows.sort((a, b) => b[1] + b[2] + b[3] - (a[1] + a[2] + a[3]));
+  if (rows.length <= 8) return rows;
+  const rest = rows.slice(7).reduce((t, r) => [t[0], t[1] + r[1], t[2] + r[2], t[3] + r[3]], ["Other", 0, 0, 0]);
+  return [...rows.slice(0, 7), rest];
+}
+function applications(attempts, start, now, span, buckets, key) {
+  const inRange = attempts.filter((a) => a.at >= start);
+  const split = (list) => OUTCOMES.map((s) => list.filter((a) => a.state === s).length);
+  const [confirmed, unconfirmed, failed] = split(inRange);
+  const disputed = inRange.filter((a) => a.state === "not_sent_disputed").length;
+  const systems = {};
+  for (const a of inRange) if (OUTCOMES.includes(a.state)) (systems[a.system] ||= []).push(a);
+  // Whole weeks back from now, at least one, so 24h and 7d show the last week.
+  // The one definition of an active user, the line under the overview's
+  // tiles: started (reserved) at least one application that week. Fills the
+  // user sends themselves (filled, sent) never reserve, so they don't count.
+  const weeks = Math.max(1, Math.floor(span / WEEK));
+  let sent = 0, unsure = 0, active = 0;
+  for (let w = 0; w < weeks; w++) {
+    const from = new Date(now - (w + 1) * WEEK).toISOString(), to = new Date(now - w * WEEK).toISOString();
+    const within = (t) => t >= from && t < to;
+    active += new Set(attempts.filter((a) => within(a.started) && !["filled", "sent"].includes(a.state)).map((a) => a.user)).size;
+    sent += attempts.filter((a) => a.state === "submitted" && within(a.at)).length;
+    unsure += attempts.filter((a) => a.state === "unconfirmed" && within(a.at)).length;
+  }
+  const perUser = (n) => (active ? Math.round((n / active) * 100) / 100 : null);
+  return {
+    confirmed, unconfirmed, failed, disputed,
+    by_time: buckets.map((b) => [b, ...split(inRange.filter((a) => key(a.at) === b))]),
+    by_system: topSystems(Object.entries(systems).map(([name, list]) => [name, ...split(list)])),
+    weeks, active_user_weeks: active,
+    per_user_week: perUser(sent), unconfirmed_per_user_week: perUser(unsure),
+  };
+}
+
 async function api(request, env, who, path) {
   const method = request.method;
   const url = new URL(request.url);
@@ -83,7 +129,7 @@ async function api(request, env, who, path) {
   if (area === "me" && method === "GET") return json(200, { email: who, sending: env.SENDING === "on" });
 
   if (area === "dashboard" && method === "GET") {
-    const { contacts, complete } = await S.contacts(env, { fresh: q.fresh === "1" });
+    const { contacts, attempts, older, complete } = await S.contacts(env, { fresh: q.fresh === "1" });
     // The range picked on the overview: hourly buckets for a day, daily ones otherwise.
     const RANGES = { "24h": [24, 36e5], "7d": [7, 864e5], "30d": [30, 864e5], "90d": [90, 864e5] };
     const range = RANGES[q.range] ? q.range : "30d";
@@ -95,6 +141,7 @@ async function api(request, env, who, path) {
     const cohort = contacts.filter((c) => c.created && c.created >= start);
     const count = (list, f) => list.filter(f).length;
     const tally = (list, k) => list.reduce((m, c) => ({ ...m, [c[k]]: (m[c[k]] || 0) + 1 }), {});
+    const confirmedBy = new Set(attempts.filter((a) => a.state === "submitted" && a.at >= start).map((a) => a.user));
     return json(200, {
       complete, range,
       members: contacts.length,
@@ -109,14 +156,13 @@ async function api(request, env, who, path) {
         ["Signed up", cohort.length],
         ["Extension", count(cohort, (c) => c.tokens.some((t) => t.scope === "extension"))],
         ["Resume", count(cohort, (c) => c.resume)],
-        ["Applied", count(cohort, (c) => Object.values(c.ledgers).some((x) => x > 0))],
+        // At least one confirmed application in the range (attempt state submitted).
+        ["Applied (confirmed)", count(cohort, (c) => confirmedBy.has(c.id))],
         ["Paid", count(cohort, (c) => c.paid && ["active", "trialing", "past_due"].includes(c.paid.status))],
       ],
       providers: tally(cohort, "provider"),
       plans: tally(cohort, "plan"),
-      // Applications charged per month (monthly credit ledgers), last six months.
-      apps_by_month: Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 5 + i); return d.toISOString().slice(0, 7); })
-        .map((m) => [m, contacts.reduce((t, c) => t + Object.entries(c.ledgers).filter(([k]) => k.startsWith(m)).reduce((a, [, v]) => a + v, 0), 0)]),
+      applications: { ...applications(attempts, start, now, n * step, buckets, key), older: older.filter((t) => t >= start).length },
     });
   }
 

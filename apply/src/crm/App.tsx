@@ -41,14 +41,19 @@ export function Failed({ error, retry }: { error: string; retry: () => void }) {
 type Range = "24h" | "7d" | "30d" | "90d";
 type Dash = { complete: boolean; range: Range; members: number; new: number; newsletter: number; waitlist: { basic: number; pro: number };
   mcp: number; signups: [string, number][]; total: [string, number][]; funnel: [string, number][]; providers: Record<string, number>;
-  plans: Record<string, number>; apps_by_month: [string, number][] };
+  plans: Record<string, number>; applications: Apps };
+// Attempt outcomes as [label, confirmed, unconfirmed, failed].
+type Split = [string, number, number, number];
+type Apps = { confirmed: number; unconfirmed: number; failed: number; disputed: number; older: number; by_time: Split[]; by_system: Split[];
+  weeks: number; active_user_weeks: number; per_user_week: number | null; unconfirmed_per_user_week: number | null };
 // Imported on first use, so ECharts loads with the overview, not the CRM.
 const Charts = () => import("./Charts");
 const SignupsChart = lazy(() => Charts().then((m) => ({ default: m.SignupsChart })));
 const GrowthChart = lazy(() => Charts().then((m) => ({ default: m.GrowthChart })));
 const FunnelChart = lazy(() => Charts().then((m) => ({ default: m.FunnelChart })));
 const ShareChart = lazy(() => Charts().then((m) => ({ default: m.ShareChart })));
-const AppsChart = lazy(() => Charts().then((m) => ({ default: m.AppsChart })));
+const OutcomesChart = lazy(() => Charts().then((m) => ({ default: m.OutcomesChart })));
+const SystemsChart = lazy(() => Charts().then((m) => ({ default: m.SystemsChart })));
 const PROVIDER: Record<string, string> = { google: "Google", github: "GitHub", email: "Email" };
 const PLAN: Record<string, string> = { free: "Free", basic: "Basic", pro: "Pro" };
 const RANGES: Record<Range, string> = { "24h": "24h", "7d": "7d", "30d": "30d", "90d": "90d" };
@@ -67,10 +72,13 @@ function Overview({ sending }: { sending: boolean }) {
   const { data, error, load } = useLoad<Dash>(`/dashboard?range=${range}`);
   if (error) return <Failed error={error} retry={load} />;
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
-  const stats: [number, string][] = [
+  const stats: [number, string, string?][] = [
     [data.members, "Users"], [data.new, `New in ${RANGES[range]}`], [data.newsletter, "Product updates"],
     [data.waitlist.basic, "Basic waitlist"], [data.waitlist.pro, "Pro waitlist"], [data.mcp, "AI agent"],
+    [data.applications.per_user_week ?? 0, "Confirmed per active user per week",
+      `${(data.applications.unconfirmed_per_user_week ?? 0).toLocaleString()} unconfirmed`],
   ];
+  const apps = data.applications;
   const parts = (m: Record<string, number>, names: Record<string, string>): [string, number][] => Object.entries(m).map(([k, n]) => [names[k] || k, n]);
   return (
     <div className="crm-stack">
@@ -80,15 +88,24 @@ function Overview({ sending }: { sending: boolean }) {
       <div><Tabs variant="segmented" value={range} onValueChange={(v) => setRange(v as Range)}
         tabs={(Object.keys(RANGES) as Range[]).map((r) => ({ value: r, label: RANGES[r] }))} /></div>
       <div className="crm-stats">
-        {stats.map(([n, label]) => <LayerCard key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span></div></LayerCard>)}
+        {stats.map(([n, label, sub]) => <LayerCard key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span>
+          {sub ? <span className="crm-sub">{sub}</span> : null}</div></LayerCard>)}
       </div>
+      <p className="crm-note">An active user started at least one application that week. Counted over the last {apps.weeks === 1 ? "week" : `${apps.weeks} weeks`}.</p>
       <div className="crm-charts">
         <ChartCard title="Sign-ups"><SignupsChart buckets={data.signups} /></ChartCard>
         <ChartCard title="Total users"><GrowthChart buckets={data.total} /></ChartCard>
         <ChartCard title="Funnel" wide><FunnelChart steps={data.funnel} /></ChartCard>
         <ChartCard title="Sign-in method"><ShareChart name="Sign-in method" parts={parts(data.providers, PROVIDER)} /></ChartCard>
         <ChartCard title="Plans"><ShareChart name="Plans" parts={parts(data.plans, PLAN)} /></ChartCard>
-        <ChartCard title="Applications per month" wide><AppsChart months={data.apps_by_month} /></ChartCard>
+        <ChartCard title="Applications" wide>
+          <OutcomesChart buckets={apps.by_time} />
+          <p className="crm-note">{plural(apps.disputed, "attempt")} disputed as not sent, left out.</p>
+          {apps.older ? <p className="crm-note">Older applications from before attempts aren't counted.</p> : null}
+        </ChartCard>
+        <ChartCard title="By hiring system" wide>
+          {apps.by_system.length ? <SystemsChart systems={apps.by_system} /> : <p className="crm-note">No applications in this range.</p>}
+        </ChartCard>
       </div>
     </div>
   );
