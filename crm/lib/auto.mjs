@@ -237,10 +237,17 @@ export async function run(env, { now = Date.now(), log = console.log } = {}) {
   for (const f of flows.filter((x) => byId[x.trigger].when)) {
     const fresh = matches(f, contacts, now).filter((m) => !seen.has(m.key));
     if (!f.baseline_at) {
-      for (let i = 0; i < fresh.length; i += 25) {
-        await S.batchPut(env, fresh.slice(i, i + 25).map((m) => ({ pk: "flow-done", sk: m.key, at: new Date(now).toISOString(), skipped: true })));
+      // A failure here shows on the flow: it once failed silently for days
+      // (the key had no BatchWriteItem), and the flow read 0 runs, no error.
+      try {
+        for (let i = 0; i < fresh.length; i += 25) {
+          await S.batchPut(env, fresh.slice(i, i + 25).map((m) => ({ pk: "flow-done", sk: m.key, at: new Date(now).toISOString(), skipped: true })));
+        }
+        await S.put(env, { ...f, baseline_at: new Date(now).toISOString(), baseline_count: fresh.length });
+      } catch (e) {
+        log("flow baseline failed", f.name, e && e.message);
+        await S.put(env, { ...f, last_error: String(e && e.message).slice(0, 300), last_error_at: new Date(now).toISOString() }).catch(() => {});
       }
-      await S.put(env, { ...f, baseline_at: new Date(now).toISOString(), baseline_count: fresh.length });
       continue;
     }
     for (const m of fresh) {

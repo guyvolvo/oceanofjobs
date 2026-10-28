@@ -43,7 +43,8 @@ POLICY = {"Version": "2012-10-17", "Statement": [
      "Resource": f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/iljobs-alerts",
      "Condition": {"ForAllValues:StringEquals": {"dynamodb:Attributes": [
          "user_id", "alert_id", "plan", "until", "note", "by", "at", "held", "charged", "reset_at", "reset_by"]}}},
-    {"Sid": "CrmTable", "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:UpdateItem"],
+    {"Sid": "CrmTable", "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:UpdateItem",
+                                                    "dynamodb:BatchWriteItem"],
      "Resource": f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/{TABLE}"},
     {"Sid": "EmailImages", "Effect": "Allow", "Action": ["s3:PutObject"],
      "Resource": "arn:aws:s3:::iljobs-frontend-876913698688/mail/*"},

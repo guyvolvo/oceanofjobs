@@ -115,6 +115,7 @@ function fakeAws(state) {
       return ok({});
     }
     if (target.endsWith(".BatchWriteItem")) {
+      if (state.denyBatch) return new Response(JSON.stringify({ __type: "AccessDeniedException", message: "not authorized to perform: dynamodb:BatchWriteItem" }), { status: 400 });
       for (const r of Object.values(body.RequestItems)[0]) state.crm.push(r.PutRequest.Item);
       return ok({});
     }
@@ -419,6 +420,22 @@ test("flows: a baseline first, then each new match once; steps, waits, events an
     headers: new Headers({ from: "Zed <z@example.com>", subject: "Hello" }), raw: new Response("Content-Type: text/plain\n\nHi").body }, env);
   assert.deepEqual(posts.at(-1), { text: "Mail from Zed <z@example.com>: Hello" });
   globalThis.fetch = realFetch;
+});
+
+test("flows: a baseline that can't be saved shows on the flow as an error", async () => {
+  _resetKeys();
+  dropCache();
+  const A = await import("../lib/auto.mjs");
+  const state = { users: [user("u2", "a@example.com")], alerts: [], crm: [], sent: [], denyBatch: true };
+  globalThis.fetch = fakeAws(state);
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm", SENDING: "on" };
+  state.crm.push({ pk: { S: "flow" }, sk: { S: "f1" }, name: { S: "Welcome" }, trigger: { S: "signup" }, enabled: { BOOL: true },
+    actions: { L: [] }, baseline_at: { S: "" } });
+  assert.equal((await A.run(env, { log: () => {} })).ran, 0);
+  const f = state.crm.find((i) => i.pk.S === "flow");
+  assert.match(f.last_error.S, /BatchWriteItem/);
+  assert.equal(f.baseline_at.S, "", "no baseline was taken, so the next run tries again");
+  assert.equal(state.sent.length, 0);
 });
 
 test("bulk changes: tags, licenses and waitlists for many users at once", async () => {
