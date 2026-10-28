@@ -1,3 +1,5 @@
+/* Layer order for public/site.css, the site header's styles. */
+@layer properties, theme, base, site, components, utilities;
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
@@ -16,4 +18,15 @@ html > body[data-scroll-locked] {
 @theme {
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* The site header on the docs' own background, as it sits on each page's
+   own colour elsewhere. Fumadocs' sticky sidebar and phone bar start below
+   it (64px bar + 1px rule), and its menus open over them. */
+:root {
+  --fd-banner-height: 65px;
+}
+.home.site-header {
+  --h-bg: var(--color-fd-background);
+  z-index: 40;
 }

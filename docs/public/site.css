@@ -1,0 +1,15 @@
+/* The site header's styles (app/layout.tsx): frontend/style.css in its own
+   cascade layer, above Tailwind's reset and Fumadocs' base and below their
+   components and utilities, as on /apply (apply/public/site.css). */
+@layer properties, theme, base, site, components, utilities;
+@import url("/style.css") layer(site);
+
+/* style.css also styles bare elements for the site's own pages. The docs
+   keep their own; the header's rules are classes, so they still win. */
+@layer site {
+  html, body, button, input, select, textarea, mark, footer, ::selection { all: revert-layer; }
+}
+@layer site {
+  *::-webkit-scrollbar, *::-webkit-scrollbar-track, *::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-corner { all: revert-layer; }
+}

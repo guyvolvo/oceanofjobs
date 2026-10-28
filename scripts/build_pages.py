@@ -14,9 +14,11 @@ different from the homepage. Run after editing the homepage or a page:
 It also writes the shared header (api/site_header.py) into these pages,
 in place of the homepage's own bar, and between the
 <!-- site-header:<section> --> and <!-- side-nav:<section> --> markers
-of the other static pages and /apply.
+of the other static pages and /apply, and into
+docs/components/site-header.ts for the docs at /docs.
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -27,6 +29,7 @@ import site_header  # noqa: E402
 FRONT = Path(__file__).resolve().parent.parent / "frontend"
 MARKED = [FRONT / n for n in ("stats.html", "404.html", "board.html", "companies.html")] \
     + [FRONT.parent / "apply" / n for n in ("index.html", "account.html", "contact.html")]
+DOCS_HEADER = FRONT.parent / "docs" / "components" / "site-header.ts"
 PAGES = Path(__file__).resolve().parent / "pages"
 LEGAL = {
     # name: (title, description, noindex)
@@ -70,6 +73,12 @@ def marked(page: str) -> str:
                   lambda m: f"<!-- site-header:{m.group(1)} -->{site_header.header(m.group(1))}<!-- /site-header -->", page, flags=re.S)
     return re.sub(r"<!-- side-nav:(\w*) -->.*?<!-- /side-nav -->",
                   lambda m: f"<!-- side-nav:{m.group(1)} -->{site_header.side(m.group(1))}<!-- /side-nav -->", page, flags=re.S)
+
+
+def docs_header() -> str:
+    """The docs' copy of the header (docs/app/layout.tsx renders it), with its scripts."""
+    html = site_header.header("docs") + "".join(f'<script src="{s}" defer></script>' for s in site_header.SCRIPTS)
+    return f"// Written by scripts/build_pages.py from api/site_header.py.\nexport const siteHeader = {json.dumps(html)};\n"
 
 
 def shell(home: str, name: str, title: str, desc: str, main: str, noindex: bool = False) -> str:
@@ -119,6 +128,8 @@ def main():
     for path in MARKED:
         path.write_text(marked(path.read_text(encoding="utf-8")), encoding="utf-8")
         print(f"header in {path.relative_to(FRONT.parent)}")
+    DOCS_HEADER.write_text(docs_header(), encoding="utf-8")
+    print(f"header in {DOCS_HEADER.relative_to(FRONT.parent)}")
 
 
 if __name__ == "__main__":
