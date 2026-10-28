@@ -416,6 +416,9 @@ with mock_aws():
     s, b = as_(SESSION, "PATCH", "history/" + j66, {"outcome": "rejected"})
     hist = [r for r in as_(SESSION, "GET", "history")[1]["applied"] if r["job_id"] == j66][0]
     check("and takes an outcome, which leaves it sent", s == 200 and hist["outcome"] == "rejected" and hist["status"] == "sent", repr((s, b, hist)))
+    s, b = as_(MCP, "PATCH", "history/" + j66, {"outcome": "interview"})
+    hist = [r for r in as_(MCP, "GET", "history")[1]["applied"] if r["job_id"] == j66][0]
+    check("an MCP token marking it leaves it sent too", s == 200 and hist["outcome"] == "interview" and hist["status"] == "sent", repr((s, b, hist)))
     s, b = as_(MCP, "PUT", "queue/" + j66)
     check("and it isn't queued again", s == 409 and "already applied" in b["error"], repr((s, b)))
 
