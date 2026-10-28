@@ -1,0 +1,1214 @@
+{
+ "recorded": "2026-10-28",
+ "source": "Systems bamboohr, jazzhr, recruitee, lever, teamtailor, pinpoint, breezy, personio, comeet, workday, greenhouse, workable: the 2026-10-28 sweep after the extension fill fixes, 3 pages each. The rest: the first ats_sweep.mjs run on 2026-10-28, 2 pages each.",
+ "stats": {
+  "bamboohr": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 47,
+   "filled": 45,
+   "required": 39,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 3,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "email:text": 1,
+    "phone:text": 1,
+    "address:text": 1,
+    "city:text": 1,
+    "zip:text": 1,
+    "resume no file selected:file": 1,
+    "date available:text": 1,
+    "desired pay:text": 1,
+    "website blog or portfolio:text": 0.67,
+    "linkedin url:text": 0.67,
+    "college university:text": 0.67,
+    "who referred you for this position:text": 0.33,
+    "are you a us citizen or us person:radio": 0.33,
+    "veteran status:radio": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.96,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 1
+   }
+  },
+  "jazzhr": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 56,
+   "filled": 42,
+   "required": 37,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "email address:email": 1,
+    "phone:tel": 1,
+    "address:text": 0.67,
+    "city:text": 0.67,
+    "state province:text": 0.67,
+    "postal:text": 0.67,
+    "resume:file": 1,
+    "do you have a valid driver s license:select": 0.33,
+    "are you 18 years of age or older:select": 0.33,
+    "what languages do you speak fluently:text": 0.33,
+    "desired salary:text": 0.33,
+    "earliest start date:text": 0.33,
+    "can you work weekends:select": 0.33,
+    "can you work evenings:select": 0.33,
+    "have you ever been convicted of a felony:select": 0.33,
+    "no:checkbox": 0.33,
+    "linkedin:checkbox": 0.33,
+    "indeed:checkbox": 0.33,
+    "zip recruiter:checkbox": 0.33,
+    "social media:checkbox": 0.33,
+    "google:checkbox": 0.33,
+    "career fair:checkbox": 0.33,
+    "other:checkbox": 0.33,
+    "who referred you to this position:text": 0.33,
+    "cover letter:file": 0.33,
+    "are you currently opota certified:select": 0.33,
+    "gender:select": 0.33,
+    "race ethnicity:select": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.75,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "recruitee": {
+   "tried": 4,
+   "usable": 3,
+   "form": 3,
+   "fields": 22,
+   "filled": 17,
+   "required": 17,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "closed": 1,
+    "form": 3
+   },
+   "shape": {
+    "nom complet:text": 0.33,
+    "adresse e mail:email": 0.33,
+    "sélectionner l indicatif du pays france:combobox": 0.33,
+    "numéro de téléphone:tel": 0.33,
+    "cv:file": 0.33,
+    "lettre de motivation:file": 0.33,
+    "full name:text": 0.33,
+    "email address:email": 0.33,
+    "select country calling code france:combobox": 0.33,
+    "phone number:tel": 0.33,
+    "cv or resume:file": 0.33,
+    "cover letter:file": 0.33,
+    "allgemeine anrede:combobox": 0.33,
+    "vor und nachname:text": 0.33,
+    "e mail adresse:email": 0.33,
+    "ländervorwahl auswählen deutschland:combobox": 0.33,
+    "telefonnummer:tel": 0.33,
+    "lebenslauf:file": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.77,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "lever": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 56,
+   "filled": 46,
+   "required": 36,
+   "missing": 3,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 2,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "resume cv attach resume cv:file": 1,
+    "full name:text": 1,
+    "email:email": 1,
+    "phone:text": 1,
+    "current location:text": 1,
+    "current company:text": 1,
+    "linkedin url:text": 1,
+    "gender:select": 0.67,
+    "current nationality:select": 0.33,
+    "home country:select": 0.33,
+    "date of birth dd mm yyyy:text": 0.33,
+    "marital status:select": 0.33,
+    "if yes for what role:text": 0.33,
+    "which location are you applying for:select": 0.33,
+    "twitter url:text": 0.33,
+    "github url:text": 0.33,
+    "portfolio url:text": 0.67,
+    "other website:text": 0.67,
+    "pronouns:checkbox": 0.33,
+    "custom:checkbox": 0.33,
+    "race:select": 0.33,
+    "veteran status:select": 0.33
+   },
+   "missingFields": {
+    "Gender": 1,
+    "Date of Birth (DD/MM/YYYY)": 1,
+    "Marital Status": 1
+   },
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 0.92,
+    "fillRate": 0.82,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0.67
+   }
+  },
+  "teamtailor": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 34,
+   "filled": 24,
+   "required": 24,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "welches arbeitsmodell bevorzugst du:radio": 0.33,
+    "vorname erforderlich:text": 0.33,
+    "nachname erforderlich:text": 0.33,
+    "e mail erforderlich:email": 0.33,
+    "telefon erforderlich:tel": 0.33,
+    "lebenslauf hochladen erforderlich:file": 0.33,
+    "weitere dateien:file": 0.33,
+    "bewerbungsschreiben:textarea": 0.33,
+    "rango salarial obligatorio:text": 0.33,
+    "nombre obligatorio:text": 0.67,
+    "apellidos obligatorio:text": 0.67,
+    "correo electrónico obligatorio:email": 0.67,
+    "teléfono obligatorio:tel": 0.67,
+    "dirección:combobox": 0.33,
+    "subir currículum obligatorio:file": 0.67,
+    "tienes carnet de carretilla obligatorio:radio": 0.33,
+    "información personal:file": 0.33,
+    "carta de motivación:textarea": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.71,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "pinpoint": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 43,
+   "filled": 24,
+   "required": 18,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "email address:email": 1,
+    "phone:tel": 1,
+    "linkedin url:text": 0.67,
+    "attach résumé cv:file": 1,
+    "3 questions:radio": 1,
+    "what is your notice period:combobox": 0.33,
+    "what is your notice period:select": 0.33,
+    "locations:combobox": 0.33,
+    "job title:combobox": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.56,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "breezy": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 24,
+   "filled": 21,
+   "required": 21,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "full name:text": 1,
+    "email address:email": 1,
+    "phone number:text": 1,
+    "cover letter:textarea": 0.67,
+    "what is your salary expectations:text": 0.33,
+    "what is your current notice period:text": 0.33,
+    "why do you want to work for reiss:textarea": 0.33,
+    "address:text": 0.33,
+    "desired salary:select": 0.33,
+    "desired salary:text": 0.33,
+    "experience summary:textarea": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.88,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "personio": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 34,
+   "filled": 22,
+   "required": 7,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 6,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "vorname:text": 1,
+    "nachname:text": 1,
+    "e mail:email": 1,
+    "telefon:text": 1,
+    "geschlecht:select": 0.33,
+    "verfügbar ab:text": 0.67,
+    "gehaltsvorstellung:text": 0.67,
+    "geburtsdatum:date": 0.33,
+    "upload anschreiben:file": 1,
+    "upload lebenslauf:file": 1,
+    "upload arbeitszeugnis:file": 0.67,
+    "upload andere:file": 1,
+    "deutschkenntnisse:select": 0.33,
+    "linkedin:text": 0.33,
+    "link zu linkedin oder xing profil:text": 0.33,
+    "upload arbeitsprobe:file": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.65,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 2
+   }
+  },
+  "comeet": {
+   "tried": 3,
+   "usable": 3,
+   "form": 1,
+   "fields": 17,
+   "filled": 13,
+   "required": 12,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2,
+    "form": 1
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "email:email": 1,
+    "selected country:combobox": 1,
+    "phone:tel": 1,
+    "resume:file": 1,
+    "personal website:url": 1,
+    "cover letter:file": 1,
+    "portfolio:file": 1,
+    "personal note:textarea": 1
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 0.33,
+    "requiredRate": 1,
+    "fillRate": 0.76,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "workday": {
+   "tried": 3,
+   "usable": 3,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "sign-in": 3
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "greenhouse": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 88,
+   "filled": 60,
+   "required": 49,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "email:text": 1,
+    "phone:text": 1,
+    "candidate location:text": 0.67,
+    "resume cv:file": 1,
+    "cover letter:file": 1,
+    "country:select": 1,
+    "linkedin profile:text": 1,
+    "website:text": 0.67,
+    "current job title:text": 0.33,
+    "current company:text": 0.33,
+    "work experience:textarea": 0.33,
+    "additional skills:text": 0.33,
+    "certifications or licenses:text": 0.33,
+    "languages:select": 0.33,
+    "willingness to relocate:select": 0.33,
+    "how did you hear about us:select": 0.33,
+    "are you at least 18 years or older:select": 0.33,
+    "if yes please provide the name:text": 0.33,
+    "salary expectation:text": 0.33,
+    "how did you hear about this job:textarea": 0.33,
+    "most recent employer:text": 0.33,
+    "most recent job title:text": 0.33,
+    "school:select": 0.67,
+    "degree:select": 0.67,
+    "discipline:select": 0.67,
+    "start date month:select": 0.67,
+    "end date month:select": 0.67,
+    "please indicate your gender identity:select": 0.33,
+    "what does the best team wins mean to you:select": 0.33,
+    "preferred first name:text": 0.33,
+    "are you 18 or older:select": 0.33,
+    "have you previously worked at natera:select": 0.33,
+    "what city do you currently live in:text": 0.33,
+    "what state do you currently live in:select": 0.33,
+    "postal code:text": 0.33,
+    "what are your salary expectations:text": 0.33,
+    "who is your most recent current employer:text": 0.33,
+    "gender:select": 0.33,
+    "race:select": 0.33,
+    "veteran status:select": 0.33,
+    "are you hispanic latino:select": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.68,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "workable": {
+   "tried": 3,
+   "usable": 3,
+   "form": 3,
+   "fields": 37,
+   "filled": 29,
+   "required": 29,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 1,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 3
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "email:text": 1,
+    "phone:text": 1,
+    "resume:file": 1,
+    "headline:text": 0.67,
+    "address:text": 0.67,
+    "summary:textarea": 0.67,
+    "cover letter:textarea": 0.67,
+    "how many years of experience do you have:text": 0.33,
+    "what is your current ctc:text": 0.33,
+    "what is your expected ctc:text": 0.33,
+    "what is your notice period:text": 0.33,
+    "are you willing to relocate bangalore:select": 0.33,
+    "what is your current salary:text": 0.33,
+    "what is your expected gross salary:text": 0.33,
+    "how long is your notice period:text": 0.33
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.78,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0.33
+   }
+  },
+  "ashby": {
+   "tried": 2,
+   "usable": 2,
+   "form": 2,
+   "fields": 24,
+   "filled": 19,
+   "required": 18,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 2
+   },
+   "shape": {
+    "full name:text": 0.5,
+    "email:text": 1,
+    "phone:phone": 0.5,
+    "location:location": 0.5,
+    "resume:file": 1,
+    "linkedin profile:text": 1,
+    "name:text": 0.5,
+    "phone:text": 0.5,
+    "cover letter:file": 0.5,
+    "website:text": 0.5
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.79,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "smartrecruiters": {
+   "tried": 2,
+   "usable": 0,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "captcha": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": null,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "amazon": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "sign-in": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "microsoft": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "sign-in": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "apple": {
+   "tried": 2,
+   "usable": 1,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "load-failed": 1,
+    "no-form": 1
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "oracle": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "checkpoint": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "eightfold": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "jobvite": {
+   "tried": 2,
+   "usable": 2,
+   "form": 2,
+   "fields": 20,
+   "filled": 12,
+   "required": 10,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 2,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 2
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "address:text": 1,
+    "address2:text": 1,
+    "city:text": 1,
+    "state:select": 1,
+    "zip postal code:text": 1,
+    "country:select": 1,
+    "email:text": 1,
+    "phone:tel": 1
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.6,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 1
+   }
+  },
+  "hibob": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "gem": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "post-blocked": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "deel": {
+   "tried": 2,
+   "usable": 2,
+   "form": 2,
+   "fields": 14,
+   "filled": 12,
+   "required": 8,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 2
+   },
+   "shape": {
+    "first name:text": 1,
+    "last name:text": 1,
+    "email:text": 1,
+    "dial code:combobox": 1,
+    "phone number:tel": 1,
+    "linkedin profile:text": 1
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 0.86,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "niloosoft": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "ness": {
+   "tried": 2,
+   "usable": 2,
+   "form": 2,
+   "fields": 6,
+   "filled": 6,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 2
+   },
+   "shape": {
+    "שם מלא:text": 1,
+    "מייל:email": 1,
+    "העלאת קובץ קורות חיים:file": 1
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": null,
+    "fillRate": 1,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "wpjobs": {
+   "tried": 2,
+   "usable": 2,
+   "form": 2,
+   "fields": 6,
+   "filled": 6,
+   "required": 6,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 2,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 2
+   },
+   "shape": {
+    "full name:text": 1,
+    "email:email": 1,
+    "phone:tel": 1
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 1,
+    "fillRate": 1,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 1
+   }
+  },
+  "redmatch": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "wprest": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "tycowp": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  },
+  "experis": {
+   "tried": 2,
+   "usable": 2,
+   "form": 1,
+   "fields": 8,
+   "filled": 6,
+   "required": 1,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 1,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 1,
+    "form": 1
+   },
+   "shape": {
+    "שם פרטי:text": 1,
+    "שם משפחה:text": 1,
+    "מייל:text": 1,
+    "נייד:text": 1,
+    "העלאת קורות חיים:file": 1,
+    "אני מסכים ה ל תנאי השימוש של האתר:checkbox": 1
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 0.5,
+    "requiredRate": 1,
+    "fillRate": 0.75,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 1
+   }
+  },
+  "adamjobs": {
+   "tried": 2,
+   "usable": 2,
+   "form": 2,
+   "fields": 14,
+   "filled": 12,
+   "required": 8,
+   "missing": 2,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 2
+   },
+   "shape": {
+    "שם פרטי:text": 1,
+    "שם משפחה:text": 1,
+    "נייד:tel": 1,
+    "צירוף קובץ:file": 1,
+    "פרופיל לינקדאין:url": 1,
+    "איך הגעת למשרה:select": 1,
+    "אני מסכים למדיניות הפרטיות:checkbox": 1
+   },
+   "missingFields": {
+    "צירוף קובץ": 2
+   },
+   "rates": {
+    "formRate": 1,
+    "requiredRate": 0.75,
+    "fillRate": 0.86,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 0
+   }
+  },
+  "nogamy": {
+   "tried": 2,
+   "usable": 2,
+   "form": 2,
+   "fields": 8,
+   "filled": 6,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 4,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "form": 2
+   },
+   "shape": {
+    "שם מלא:text": 1,
+    "טלפון:text": 1,
+    "אימייל:email": 1,
+    "חברה:text": 1
+   },
+   "missingFields": {},
+   "rates": {
+    "formRate": 1,
+    "requiredRate": null,
+    "fillRate": 0.75,
+    "fillErrorsPerForm": 0,
+    "openListsPerForm": 0,
+    "pageErrorsPerForm": 2
+   }
+  },
+  "matrix": {
+   "tried": 2,
+   "usable": 2,
+   "form": 0,
+   "fields": 0,
+   "filled": 0,
+   "required": 0,
+   "missing": 0,
+   "fillErrors": 0,
+   "openLists": 0,
+   "pageErrors": 0,
+   "demographicsToAi": 0,
+   "claims": 0,
+   "outcomes": {
+    "no-form": 2
+   },
+   "shape": {},
+   "missingFields": {},
+   "rates": {
+    "formRate": 0,
+    "requiredRate": null,
+    "fillRate": null,
+    "fillErrorsPerForm": null,
+    "openListsPerForm": null,
+    "pageErrorsPerForm": null
+   }
+  }
+ }
+}
