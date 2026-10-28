@@ -5380,14 +5380,15 @@ function paintLocationBox() {
   document.getElementById("f-location-clear").hidden = !(state.country.length || state.city.length);
 }
 
-// Countries opened or shut by their caret. One with a ticked city opens
-// on its own until its caret shuts it.
+// Countries opened or shut by their caret. One that is ticked, or has a
+// ticked city, opens on its own until its caret shuts it.
 const placeOpen = new Set();
 const placeShut = new Set();
 
 // With nothing typed: every country, the ones that are on first, each
 // followed by its cities when open. Typed: the countries and cities whose
-// names contain it, names that start with it first, then the most jobs.
+// names contain it, names that start with it first, then the most jobs;
+// a country there opens on its cities the same way.
 function placeMatches(raw) {
   const q = raw.trim().toLowerCase();
   const countries = railFacets.locations || [];
@@ -5398,27 +5399,28 @@ function placeMatches(raw) {
     return { kind, value, label: t ? t.label || t.value : c.label || countryLabel(c.value), n: (t || c).n,
              on: !mixed && (t ? state.city : state.country).includes(value), mixed, ...extra };
   };
-  if (!q) {
-    const isOn = (c) => state.country.includes(c.value) || cityOn(c);
-    const out = [];
-    for (const c of [...countries.filter(isOn), ...countries.filter((c) => !isOn(c))]) {
-      const open = !placeShut.has(c.value) && (placeOpen.has(c.value) || cityOn(c));
-      out.push(row("country", c, null, { open, caret: (c.cities || []).length > 0 }));
-      if (open) for (const t of c.cities || []) out.push(row("city", c, t, { indent: true }));
-    }
-    return out;
-  }
-  const out = [];
+  const isOn = (c) => state.country.includes(c.value) || cityOn(c);
+  const isOpen = (c) => !placeShut.has(c.value) && (placeOpen.has(c.value) || isOn(c));
+  const tree = (c, extra) => {
+    const open = isOpen(c);
+    return [row("country", c, null, { open, caret: (c.cities || []).length > 0, ...extra }),
+            ...(open ? (c.cities || []).map((t) => row("city", c, t, { indent: true })) : [])];
+  };
+  if (!q) return [...countries.filter(isOn), ...countries.filter((c) => !isOn(c))].flatMap((c) => tree(c));
+  const hits = [];
   for (const c of countries) {
     const name = c.label || countryLabel(c.value);
     const at = name.toLowerCase().indexOf(q);
-    if (at >= 0) out.push({ ...row("country", c, null), at });
+    if (at >= 0) hits.push({ c, at, n: c.n });
+    // An open country already lists its cities under it.
+    if (at >= 0 && isOpen(c)) continue;
     for (const t of c.cities || []) {
       const i = (t.label || t.value).toLowerCase().indexOf(q);
-      if (i >= 0) out.push({ ...row("city", c, t, { sub: name }), at: i });
+      if (i >= 0) hits.push({ city: row("city", c, t, { sub: name }), at: i, n: t.n });
     }
   }
-  return out.sort((a, b) => (a.at > 0) - (b.at > 0) || b.n - a.n).slice(0, PLACE_MATCHES);
+  return hits.sort((a, b) => (a.at > 0) - (b.at > 0) || b.n - a.n).slice(0, PLACE_MATCHES)
+    .flatMap((h) => (h.city ? [h.city] : tree(h.c)));
 }
 
 function wireLocationBox() {
@@ -5448,7 +5450,7 @@ function wireLocationBox() {
     const caret = (p, i) => p.caret
       ? `<button type="button" class="topbar-place-caret" data-caret="${i}" tabindex="-1" aria-label="${p.open ? "Hide" : "Show"} cities in ${escapeHtml(p.label)}">`
         + `<svg viewBox="0 0 10 6" aria-hidden="true"${p.open ? "" : ' style="transform:rotate(-90deg)"'}><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
-      : p.kind === "country" && !q.trim() ? '<span class="topbar-place-caret" aria-hidden="true"></span>' : "";
+      : p.kind === "country" ? '<span class="topbar-place-caret" aria-hidden="true"></span>' : "";
     list.innerHTML = items.length
       ? items.map((p, i) => `<li role="option" id="f-place-${i}" class="topbar-place${p.on || p.mixed ? " on" : ""}${p.indent ? " city" : ""}" data-i="${i}" aria-checked="${p.mixed ? "mixed" : p.on}">`
           + caret(p, i)
