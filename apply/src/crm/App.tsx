@@ -91,7 +91,7 @@ function Overview({ sending }: { sending: boolean }) {
         {stats.map(([n, label, sub]) => <LayerCard key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span>
           {sub ? <span className="crm-sub">{sub}</span> : null}</div></LayerCard>)}
       </div>
-      <p className="crm-note">An active user started at least one application that week. Counted over the last {apps.weeks === 1 ? "week" : `${apps.weeks} weeks`}.</p>
+      <p className="crm-note">An active user had at least one application started or finished that week, counted once. Weeks run in UTC, counted over the last {apps.weeks === 1 ? "week" : `${apps.weeks} weeks`}.</p>
       <div className="crm-charts">
         <ChartCard title="Sign-ups"><SignupsChart buckets={data.signups} /></ChartCard>
         <ChartCard title="Total users"><GrowthChart buckets={data.total} /></ChartCard>
@@ -101,7 +101,7 @@ function Overview({ sending }: { sending: boolean }) {
         <ChartCard title="Applications" wide>
           <OutcomesChart buckets={apps.by_time} />
           <p className="crm-note">{plural(apps.disputed, "attempt")} disputed as not sent, left out.</p>
-          {apps.older ? <p className="crm-note">Older applications from before attempts aren't counted.</p> : null}
+          <p className="crm-note">Counts recorded attempts only.{apps.older ? " Applications from before attempts were recorded aren't included, so a lower number here doesn't mean fewer applications." : ""}</p>
         </ChartCard>
         <ChartCard title="By hiring system" wide>
           {apps.by_system.length ? <SystemsChart systems={apps.by_system} /> : <p className="crm-note">No applications in this range.</p>}

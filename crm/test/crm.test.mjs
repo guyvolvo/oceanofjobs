@@ -631,14 +631,14 @@ test("the overview's applications: confirmed and unconfirmed apart, failed apart
   // Four whole weeks. Last week: u2 and u3 started one, 3 confirmed and 1 unconfirmed settled.
   // The week before: u3 and u1 started one, 1 confirmed.
   assert.equal(d.weeks, 4);
-  assert.equal(d.active_user_weeks, 4);
-  assert.equal(d.per_user_week, 1);
-  assert.equal(d.unconfirmed_per_user_week, 0.25);
+  assert.equal(d.active_user_weeks, 5, "u1 started the week before and settled last week: active in both, once each");
+  assert.equal(d.per_user_week, 0.8);
+  assert.equal(d.unconfirmed_per_user_week, 0.2);
   assert.equal(d.older, 0, "the #applied# row is 40 days old");
 
   d = (await dash("7d")).applications;
   assert.deepEqual([d.confirmed, d.unconfirmed, d.failed, d.weeks, d.active_user_weeks, d.per_user_week, d.unconfirmed_per_user_week],
-    [3, 1, 1, 1, 2, 1.5, 0.5]);
+    [3, 1, 1, 1, 3, 1, 0.33], "u1's confirmation last week puts u1 in last week's denominator");
   d = (await dash("24h")).applications;
   assert.deepEqual([d.confirmed, d.unconfirmed, d.failed], [1, 0, 0]);
   assert.equal(d.by_time.length, 24);

@@ -89,7 +89,7 @@ function topSystems(rows) {
   const rest = rows.slice(7).reduce((t, r) => [t[0], t[1] + r[1], t[2] + r[2], t[3] + r[3]], ["Other", 0, 0, 0]);
   return [...rows.slice(0, 7), rest];
 }
-function applications(attempts, start, now, span, buckets, key) {
+export function applications(attempts, start, now, span, buckets, key) {
   const inRange = attempts.filter((a) => a.at >= start);
   const split = (list) => OUTCOMES.map((s) => list.filter((a) => a.state === s).length);
   const [confirmed, unconfirmed, failed] = split(inRange);
@@ -98,14 +98,15 @@ function applications(attempts, start, now, span, buckets, key) {
   for (const a of inRange) if (OUTCOMES.includes(a.state)) (systems[a.system] ||= []).push(a);
   // Whole weeks back from now, at least one, so 24h and 7d show the last week.
   // The one definition of an active user, the line under the overview's
-  // tiles: started (reserved) at least one application that week. Fills the
-  // user sends themselves (filled, sent) never reserve, so they don't count.
+  // tiles: at least one application started or settled that week, so every
+  // confirmation in the numerator has its user in that week's denominator.
+  // Fills the user sends themselves (filled, sent) never reserve: not counted.
   const weeks = Math.max(1, Math.floor(span / WEEK));
   let sent = 0, unsure = 0, active = 0;
   for (let w = 0; w < weeks; w++) {
     const from = new Date(now - (w + 1) * WEEK).toISOString(), to = new Date(now - w * WEEK).toISOString();
     const within = (t) => t >= from && t < to;
-    active += new Set(attempts.filter((a) => within(a.started) && !["filled", "sent"].includes(a.state)).map((a) => a.user)).size;
+    active += new Set(attempts.filter((a) => (within(a.started) || within(a.at)) && !["filled", "sent"].includes(a.state)).map((a) => a.user)).size;
     sent += attempts.filter((a) => a.state === "submitted" && within(a.at)).length;
     unsure += attempts.filter((a) => a.state === "unconfirmed" && within(a.at)).length;
   }
