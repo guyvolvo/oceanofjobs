@@ -110,7 +110,6 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) skip(); }}>
       <Dialog className="oj-dialog oj-setup">
         <div className="oj-setup-top">
-          <img src="/mark-black.png" width="28" height="28" alt="Ocean of Jobs" />
           {step !== "welcome" && step !== "done" ? <span className="oj-note">Step {at} of {steps.length - 2}</span> : null}
         </div>
         {step === "welcome" ? <>
