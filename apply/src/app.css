@@ -219,6 +219,8 @@ body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit
 .oj-setup { width: min(560px, calc(100vw - 32px)); gap: 16px; }
 .oj-setup-top { display: flex; align-items: center; justify-content: space-between; }
 .oj-setup-top img { display: block; }
+/* The mark is black; on the dark theme it would vanish, so it shows white there. */
+:root[data-mode="dark"] .oj-setup-top img { filter: invert(1); }
 .oj-setup-head { display: flex; align-items: center; gap: 12px; }
 .oj-setup-badge { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
   background: var(--color-kumo-tint); color: var(--color-kumo-brand); }
