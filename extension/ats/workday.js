@@ -1,7 +1,7 @@
 // Workday: a company's careers site on *.myworkdayjobs.com or
 // *.myworkdaysite.com. Applying takes a candidate account on that
-// company's own site, so a run first opens the form (Apply, then Apply
-// Manually) and signs in with the user's email and the Workday password
+// company's own site, so a run first opens the form (Apply, then Autofill
+// with Resume or Apply Manually) and signs in with the user's email and the Workday password
 // set in the extension's options, creating the account when there is
 // none. The pages after that (My Information, My Experience, the
 // company's questions, Voluntary Disclosures, Review) are read, filled and
@@ -79,9 +79,12 @@
     const apply = await waitFor(() => $('adventureButton'), 15000);
     if (!apply) return { error: CLOSED.test(text()) ? 'job closed' : 'application form not found' };
     press(apply);
-    const manual = await waitFor(() => $('applyManually'), 10000);
-    // A site with no choice to make goes straight to the form.
-    if (manual) press(manual);
+    // Autofill with Resume: Workday reads the CV into My Experience (work
+    // history, education), entries the general filler never adds. Apply
+    // Manually where a site doesn't offer it; with no choice at all, a site
+    // goes straight to the form.
+    const way = await waitFor(() => $('autofillWithResume') || $('applyManually'), 10000);
+    if (way) press(way);
     at = await waitFor(inside, 20000);
     return at ? { at } : { error: 'application form not found' };
   }

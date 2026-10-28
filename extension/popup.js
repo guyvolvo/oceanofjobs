@@ -161,7 +161,7 @@ function render(s) {
     $('left').textContent = String(s.usage.remaining);
   }
   $('today').textContent = s.appliedToday == null ? '…' : String(s.appliedToday);
-  $('today-label').textContent = `${plural(s.appliedToday || 0, 'application')} submitted today`;
+  $('today-label').textContent = `${plural(s.appliedToday || 0, 'application')} sent today`;
   $('needs').textContent = String(s.needs.length);
   $('needs-label').textContent = `${plural(s.needs.length, 'needs', 'need')} your attention`;
   const list = $('needs-list');

@@ -363,8 +363,8 @@ const generalRun = (job) => GENERAL_ATS.has(job.ats) && !dedicatedRun(job);
 // Whether a run can apply to job at all.
 const canRun = (job) => dedicatedRun(job) || generalRun(job);
 
-// Into a Workday application: Apply, then Apply Manually, then signed in
-// with the profile's email and the Workday password from the extension's
+// Into a Workday application: Apply, then Autofill with Resume (or Apply
+// Manually), then signed in with the profile's email and the Workday password from the extension's
 // options, or a new account made with them. null once on the form's first
 // page, else the reason it stopped.
 async function intoWorkday(tabId, ctx, job) {
@@ -474,10 +474,10 @@ async function viaGeneral(job, ctx, id, tabId, state) {
     if (hard.length) return ['failed', 'could not fill ' + hard.join('; ')];
     fills.push(...plan.fills.filter((f) => !filled.errors.some((e) => e.startsWith(f.label + ':'))));
     const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId);
-    // A CAPTCHA or an invisible human check: the extension never gets round
-    // one. Everything is answered, so the job waits in Needs attention for
-    // the user to open and send, and the credit goes back.
-    if (info && info.botCheck || await inTab(tabId, 'generic', 'wall', [], frameId).then((w) => w && w.captcha, () => false)) {
+    // A CAPTCHA to solve: the extension never gets round one. Everything is
+    // answered, so the job waits in Needs attention for the user to open and
+    // send, and the credit goes back. An invisible human check is tried.
+    if (await inTab(tabId, 'generic', 'wall', [], frameId).then((w) => w && w.captcha, () => false)) {
       return ['needs_input', 'ready to submit', []];
     }
     if (info && info.text) break;
@@ -503,6 +503,8 @@ async function viaGeneral(job, ctx, id, tabId, state) {
       : inTab(tabId, 'generic', 'outcome', [before, until - Date.now(), true], frameId)).catch(() => null);
     if (!out) await new Promise((r) => setTimeout(r, 1000));
   }
+  // The page's human check refused the click: nothing went, so the same as a CAPTCHA.
+  if (out && /^captcha: human check/.test(out.failed || '')) return ['needs_input', 'ready to submit', []];
   return afterClick(out);
 }
 
@@ -816,7 +818,6 @@ const NO_CV = 'Add your resume in Settings before applying.';
 const ALREADY = "You've already applied to this job with Ocean of Jobs.";
 const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
 const READ_ERROR = "Couldn't read the application form on this page.";
-const BOT_CHECK = "This site requires you to submit the form yourself. Review your answers and use the site's Submit button.";
 const UNREACHABLE = "Couldn't load your Ocean of Jobs account. Try again in a minute.";
 async function offerHere(url) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
@@ -980,7 +981,7 @@ function autoWhy(a, job, url, result, info) {
   const screen = { history: a.history, guardrails: s.guardrails || {}, now: Date.now(), retrySkipped: true, minMatch: null };
   // Never apply to holds domains: the company the page names, or the page's own host.
   const screened = oojMatch.screenJob(job, screen) || oojMatch.screenJob({ ...job, company_domain: new URL(url).hostname }, screen);
-  return oojMatch.autoSubmit({ fill: s.fill, plan: a.usage.plan, botCheck: !!(info && info.botCheck), submit: !!(info && info.text) && result.filled > 0,
+  return oojMatch.autoSubmit({ fill: s.fill, plan: a.usage.plan, submit: !!(info && info.text) && result.filled > 0,
     missing: result.missing, errors: result.errors, remaining: a.usage.remaining, screened });
 }
 
@@ -1287,7 +1288,9 @@ async function assistHere(msg, sender) {
   const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
   if (r.error) return r;
   const submit = r.submitInfo;
-  const out = { ...r, frameId, url, submit: submit && !submit.botCheck && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
+  // A page with a human check gets the card's Submit as well, pressed by
+  // Full automatic too; a refused click comes back as not submitted.
+  const out = { ...r, frameId, url, submit: submit && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
   // The card that asked went with the old page. detect.js on the new one
   // may still be starting, so try for a few seconds.
   for (let i = 0; moved && i < 10; i++) {
@@ -1305,7 +1308,6 @@ async function submitHere(msg, sender) {
   await setWatch(tabId, null); // the card's own attempt records this send
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
-  if (info && info.botCheck) return { error: BOT_CHECK };
   if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
