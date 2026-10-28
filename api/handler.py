@@ -1949,7 +1949,8 @@ def route_companies(params: dict) -> dict:
 # to say something. The reply address is the sender's, so answering is
 # one click; the mail itself comes from the alerts sender, the one
 # address SES is verified for.
-CONTACT_TO = os.environ.get("CONTACT_TO", "guyvoloshin@gmail.com")
+# info@ goes to the CRM's inbox, which also forwards a copy to the owner.
+CONTACT_TO = os.environ.get("CONTACT_TO", "info@oceanofjobs.com")
 CONTACT_FROM = os.environ.get("ALERTS_FROM_EMAIL", "alerts@oceanofjobs.com")
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[a-z]{2,}$", re.I)
 _ses_client = None

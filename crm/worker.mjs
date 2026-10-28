@@ -565,7 +565,11 @@ export async function receive(msg, env) {
     try { await msg.forward(env.FORWARD_TO); } catch (e) { console.log("forward failed", e && e.message); }
   }
   try {
-    const from = address(msg.headers.get("from") || msg.from);
+    // The contact form sends from our own address with the writer in
+    // Reply-To: file it under the writer, so a reply reaches them.
+    const sender = msg.headers.get("from") || msg.from;
+    const replyTo = msg.headers.get("reply-to");
+    const from = address(replyTo && /@oceanofjobs\.com>?\s*$/i.test(sender) ? replyTo : sender);
     const { text, attachments } = readMessage(await rawText(msg.raw));
     const { contacts } = await S.contacts(env);
     const c = contacts.find((x) => x.email === from.email);

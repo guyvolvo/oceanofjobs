@@ -176,7 +176,7 @@ variable "github_oauth_client_secret" {
 variable "contact_to_email" {
   type        = string
   description = "Where the contact page's form is delivered (api/handler.py's /contact)."
-  default     = "guyvoloshin@gmail.com"
+  default     = "info@oceanofjobs.com"
 }
 
 variable "alerts_from_email" {

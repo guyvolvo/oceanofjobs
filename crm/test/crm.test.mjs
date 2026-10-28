@@ -310,6 +310,12 @@ test("the inbox: mail is forwarded and saved, replies thread and need sending on
   const after = (await (await call("/api/inbox")).json()).messages;
   assert.equal(after.length, 2);
   assert.equal(after.find((m) => m.dir === "in").read, true);
+  // The contact form: sent from our own address, the writer in Reply-To.
+  await worker.email({ from: "alerts@oceanofjobs.com", to: "info@oceanofjobs.com", forward: async () => {},
+    headers: new Headers({ from: "alerts@oceanofjobs.com", "reply-to": "b@example.com", subject: "oceanofjobs.com contact: B" }),
+    raw: new Response("From: alerts@oceanofjobs.com\r\nContent-Type: text/plain\r\n\r\nHello there").body }, env);
+  const contact = (await (await call("/api/inbox")).json()).messages.find((m) => m.subject.startsWith("oceanofjobs.com contact"));
+  assert.equal(contact.email, "b@example.com", "filed under the writer, not our own sender");
   globalThis.fetch = realFetch;
 });
 

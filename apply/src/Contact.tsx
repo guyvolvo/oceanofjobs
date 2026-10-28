@@ -108,7 +108,7 @@ function Contact() {
             <div className="contact-sent" role="status">
               <CheckCircle size={40} className="contact-sent-mark" />
               <h2 className="oj-card-title">Message sent</h2>
-              <p className="oj-note">Thanks. The reply will go to {sentTo}.</p>
+              <p className="oj-note">Thanks, sent to info@oceanofjobs.com</p>
               <div><Button variant="secondary" onClick={() => setSentTo("")}>Send another message</Button></div>
             </div>
           ) : (
