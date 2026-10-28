@@ -345,20 +345,19 @@ test('contact labels in the languages SmartRecruiters and Breezy forms come in',
 });
 
 test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left for the user', () => {
-  const ready = { fill: 'full', plan: 'pro', botCheck: false, submit: true, missing: [], errors: [], remaining: 5, screened: null };
+  const ready = { fill: 'full', plan: 'pro', submit: true, missing: [], errors: [], remaining: 5, screened: null };
   assert.equal(m.autoSubmit(ready), null);
   assert.equal(m.autoSubmit({ ...ready, plan: 'basic' }), null);
   assert.equal(m.autoSubmit({ ...ready, remaining: null }), null, 'no limit known is no reason to stop');
   assert.equal(m.autoSubmit({ ...ready, fill: 'half' }), '', 'Half automatic only fills');
   assert.equal(m.autoSubmit({ ...ready, fill: undefined }), '', 'a profile saved before the setting is Half automatic');
   assert.equal(m.autoSubmit({ ...ready, plan: 'free' }), 'full automatic needs a paid plan');
-  assert.equal(m.autoSubmit({ ...ready, botCheck: true }), 'bot check');
   assert.equal(m.autoSubmit({ ...ready, submit: false }), 'no submit button');
   assert.equal(m.autoSubmit({ ...ready, missing: ['Phone'] }), 'needs input');
   assert.equal(m.autoSubmit({ ...ready, errors: ['Country: no option matches "Mars"'] }), 'needs input');
   assert.equal(m.autoSubmit({ ...ready, remaining: 0 }), 'limit reached');
   assert.equal(m.autoSubmit({ ...ready, screened: 'blocked company' }), 'blocked company');
-  for (const why of ['full automatic needs a paid plan', 'bot check', 'no submit button', 'needs input', 'limit reached', 'blocked company']) {
+  for (const why of ['full automatic needs a paid plan', 'no submit button', 'needs input', 'limit reached', 'blocked company']) {
     assert.match(m.reasonText(why), /^[A-Z].*\.$/, `"${why}" reads as a sentence`);
   }
 });

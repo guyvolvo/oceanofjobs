@@ -979,7 +979,7 @@ function autoWhy(a, job, url, result, info) {
   const screen = { history: a.history, guardrails: s.guardrails || {}, now: Date.now(), retrySkipped: true, minMatch: null };
   // Never apply to holds domains: the company the page names, or the page's own host.
   const screened = oojMatch.screenJob(job, screen) || oojMatch.screenJob({ ...job, company_domain: new URL(url).hostname }, screen);
-  return oojMatch.autoSubmit({ fill: s.fill, plan: a.usage.plan, botCheck: !!(info && info.botCheck), submit: !!(info && info.text) && result.filled > 0,
+  return oojMatch.autoSubmit({ fill: s.fill, plan: a.usage.plan, submit: !!(info && info.text) && result.filled > 0,
     missing: result.missing, errors: result.errors, remaining: a.usage.remaining, screened });
 }
 
@@ -1286,8 +1286,8 @@ async function assistHere(msg, sender) {
   const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
   if (r.error) return r;
   const submit = r.submitInfo;
-  // A page with a human check still gets the card's Submit for the user to
-  // press; Full automatic leaves it to them (autoWhy).
+  // A page with a human check gets the card's Submit as well, pressed by
+  // Full automatic too; a refused click comes back as not submitted.
   const out = { ...r, frameId, url, submit: submit && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
   // The card that asked went with the old page. detect.js on the new one
   // may still be starting, so try for a few seconds.
