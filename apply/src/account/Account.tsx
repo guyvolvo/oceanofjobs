@@ -250,6 +250,8 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
 
   // Three independent fetches, started together, each with a watchdog:
   // a request that never settles still ends in a sentence, not a spinner.
+  // The watchdog fires at 15s whether or not the list came back; a list
+  // that did hides it (render below). It used to replace a loaded list.
   useEffect(() => {
     const stuck = window.setTimeout(() => {
       setAlertsError((e) => e || STUCK);
@@ -271,12 +273,6 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
     });
     return () => clearTimeout(stuck);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (alerts) setAlertsError((e) => (e === STUCK ? "" : e));
-  }, [alerts]);
-  useEffect(() => {
-    if (savedJobs) setSavedError((e) => (e === STUCK ? "" : e));
-  }, [savedJobs]);
 
   // The hash is the section, so /account#alerts opens there and Back walks
   // out of a section the way it came in.
@@ -484,8 +480,8 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
             <Skills skills={skills} setSkills={setSkills} onPick={pickCv} onFile={takeCv} fileName={cv.name} cvStatus={cv.status}
               save={saveSkills} saving={savingSkills} matchesHref={boardLink(p, skills)} />
           )}
-          {section === "alerts" && <Alerts alerts={alerts} error={alertsError} form={form} reload={reloadAlerts} />}
-          {section === "saved" && <Saved jobs={savedJobs} error={savedError} removing={removing} remove={removeSaved} />}
+          {section === "alerts" && <Alerts alerts={alerts} error={alerts && alertsError === STUCK ? "" : alertsError} form={form} reload={reloadAlerts} />}
+          {section === "saved" && <Saved jobs={savedJobs} error={savedJobs && savedError === STUCK ? "" : savedError} removing={removing} remove={removeSaved} />}
           {section === "preferences" && (profile
             ? <Preferences profile={profile} onEditing={onPrefsEditing} save={async (prefs) => { await putProfile(prefs); }} />
             : waiting)}
