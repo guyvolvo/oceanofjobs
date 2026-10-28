@@ -60,7 +60,8 @@
   const within = (box, el) => { for (let n = el; n; n = up(n)) if (n === box) return true; return false; };
   const inForm = (el) => { for (let n = el; n; n = up(n)) if (n.tagName === 'FORM') return true; return false; };
 
-  const kind = (el) => (el.tagName === 'INPUT' ? (el.getAttribute('role') === 'combobox' ? 'combobox' : el.type)
+  // Workday's search prompts ("Country Phone Code") are plain inputs that only take a choice from their list.
+  const kind = (el) => (el.tagName === 'INPUT' ? (el.getAttribute('role') === 'combobox' || el.getAttribute('data-uxi-widget-type') === 'selectinput' ? 'combobox' : el.type)
     : el.tagName === 'TEXTAREA' ? 'textarea' : el.tagName === 'SELECT' ? (el.multiple ? 'multiselect' : 'select') : 'combobox');
 
   // Radios and checkboxes are often hidden behind a styled label, so those
@@ -447,9 +448,31 @@
     const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
     const doc = scope(el);
     const lists = [...new Set([el.getAttribute('aria-controls'), el.getAttribute('aria-owns'), input && input.getAttribute('aria-controls')])]
-      .map((id) => id && (doc.getElementById(id) || el.ownerDocument.getElementById(id))).filter(Boolean);
-    const opts = (lists.length ? lists : [el.ownerDocument]).flatMap((l) => deep(l, '[role="option"]')).filter(shown);
+      .map((id) => id && (doc.getElementById(id) || el.ownerDocument.getElementById(id))).filter(Boolean)
+      // Downshift (Recruitee) names its list after the button instead, and keeps closed ones on the page.
+      .concat(el.id ? deep(doc, '[role="listbox"][aria-labelledby]').filter((l) => l.getAttribute('aria-labelledby').split(/\s+/).includes(el.id)) : []);
+    // Not Workday's chosen-value pills: they are options too, and on show beside every closed dropdown.
+    const opts = (lists.length ? lists : [el.ownerDocument]).flatMap((l) => deep(l, '[role="option"]'))
+      .filter((o) => shown(o) && !o.closest('[data-automation-id="selectedItemList"]'));
     return opts.length && opts;
+  }
+
+  // What a dropdown shows as chosen: Workday's pills in a search prompt, or
+  // a list button's caption ("Mobile", "Select One").
+  function chosen(el) {
+    const box = el.closest('[data-automation-id="multiSelectContainer"]');
+    if (box) return deep(box, '[data-automation-id="selectedItem"]').map((p) => clean(p.textContent));
+    return el.tagName === 'BUTTON' ? [caption(el)] : [];
+  }
+
+  async function close(el) {
+    const esc = (t) => t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+    esc(el);
+    await sleep(100);
+    const active = el.ownerDocument.activeElement;
+    // Downshift (Recruitee) moves focus into its open list and hears Escape only there.
+    if (active && active !== el && active !== el.ownerDocument.body && listOf(el)) esc(active);
+    leave(el);
   }
 
   // A dropdown you cannot type in lists every choice when opened, so read
@@ -464,8 +487,7 @@
     press(el);
     const opts = await waitFor(() => listOf(el), 800);
     const texts = opts ? opts.map((o) => clean(o.textContent)).filter(Boolean) : [];
-    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
-    leave(el);
+    await close(el);
     return search && !(texts.length >= 2 && texts.length <= 25) ? [] : texts;
   }
 
@@ -473,6 +495,9 @@
   async function chooseOption(el, value, key) {
     const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
     const listed = () => listOf(el);
+    const prompt = !!input && input.getAttribute('data-uxi-widget-type') === 'selectinput';
+    // Already showing it (Workday sets Country Phone Code from Country): left alone, never reopened.
+    if (chosen(el).some((t) => root.oojMatch.pickOption([t], value) === 0)) return null;
     press(el);
     el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     // "decline" is picked from the list ("Prefer not to say"), never typed
@@ -480,12 +505,20 @@
     let opts = await waitFor(listed, value === 'decline' ? 3000 : 1000);
     if (input && typeable(input) && value !== 'decline' && (!opts || root.oojMatch.pickOption(opts.map((o) => o.textContent), value) < 0)) {
       setValue(input, key === 'location' ? value.split(',')[0] : value);
-      opts = await waitFor(listed, 5000);
+      // Workday's prompts search on Enter. shortcut: not yet seen on a live Workday page, check there.
+      if (prompt) input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+      opts = await waitFor(() => { const o = listed(); return o && (root.oojMatch.pickOption(o.map((x) => x.textContent), value) >= 0 || key === 'location') && o; }, 5000) || listed();
     }
-    if (!opts) return input && input.value ? null : 'no options to pick from';
-    let i = root.oojMatch.pickOption(opts.map((o) => o.textContent), value);
-    if (i < 0 && key === 'location') i = 0;
-    if (i < 0) return `no option matches "${value}"`;
+    // A typed place with no list keeps what was typed; a Workday prompt's search text is no answer.
+    if (!opts && input && input.value && !prompt) return null;
+    let i = opts ? root.oojMatch.pickOption(opts.map((o) => o.textContent), value) : -1;
+    if (i < 0 && opts && key === 'location') i = 0;
+    // Closed again, so the user isn't left with an open list.
+    if (i < 0) {
+      if (prompt) setValue(input, '');
+      await close(input || el);
+      return opts ? `no option matches "${value}"` : 'no options to pick from';
+    }
     press(opts[i]);
     if (input) leave(input);
     return null;

@@ -44,7 +44,8 @@
     [/sponsor/, 'sponsorship'],
     [/authorized to work|work authorization|eligible to work|right to work|legally (able|permitted) to work/, 'work_auth'],
     [/salary|compensation expectation|expected (pay|compensation)|desired (pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
-    [/notice period|earliest .*start|when can you start|available to start|start date/, 'notice'],
+    // Not an education or job entry's "Start date month" (Greenhouse).
+    [/notice period|earliest .*start|when can you start|available to start|start date(?! (month|year|day))/, 'notice'],
     [/preferred (first )?name/, 'preferred_name'],
     [/^(legal )?first name$/, 'first_name'],
     [/^(legal )?(last name|surname|family name)$/, 'last_name'],
@@ -62,8 +63,9 @@
     // Anchored, so a custom question that mentions an email is left alone.
     // Also in French, Spanish, Italian, Portuguese, German, Dutch, Polish
     // and the Nordic languages, as SmartRecruiters and Breezy forms come.
-    [/^(legal )?(first|given) name$|^forename$|^(vorname|voornaam|prénom|prenom|nombre|nome|imię|förnamn|fornavn|etunimi)$/, 'first_name'],
-    [/^(legal )?(last|family) name$|^surname$|^(nachname|achternaam|apellidos?|nom( de famille)?|cognome|sobrenome|nazwisko|efternamn|efternavn|sukunimi)$/, 'last_name'],
+    // Workday: "Given Name(s) - Latin Script", beside the same name in the local script.
+    [/^(legal )?(first|given) names?( s)?( latin script)?$|^forename$|^(vorname|voornaam|prénom|prenom|nombre|nome|imię|förnamn|fornavn|etunimi)$/, 'first_name'],
+    [/^(legal )?(last|family) names?( s)?( latin script)?$|^surname$|^(nachname|achternaam|apellidos?|nom( de famille)?|cognome|sobrenome|nazwisko|efternamn|efternavn|sukunimi)$/, 'last_name'],
     [/^(your |full |full legal |legal )?name$|^name surname$|^first and last name$|^(volledige naam|vollständiger name|vor und nachname|nom complet|nom et prénom|nombre completo|nombre y apellidos?|nome completo|nome e cognome|imię i nazwisko)$/, 'full_name'],
     [/^(your |votre |confirm (your )?|confirmez (votre )?)?e ?mail( address| adresse| adres)?$|^e ?mailadres$|^(adresse|endereço de|indirizzo) e ?mail$|^(correo|correo electrónico|courriel)$/, 'email'],
     [/^(your )?(mobile |cell |contact )?(phone|telephone|mobile|telefon|telefonnummer|handynummer|telefoonnummer|téléphone|teléfono|telefone|telefono|cellulare|celular|móvil|portable)( number)?$|^(numéro de téléphone|número de teléfono|número de telefone|numero di telefono|numer telefonu)$/, 'phone'],
@@ -227,6 +229,8 @@
     return true;
   }
 
+  const CITY = /^(current )?city$|^(ville|ciudad|città|cidade|stadt|plaats|woonplaats|miasto|עיר)$/;
+
   // fields: [{name, label, required, type, options}] as an ATS filler reads
   // them. Returns what to type where, and the required ones nobody answered.
   function planFill(fields, profile, job) {
@@ -246,6 +250,8 @@
       // exact question.
       let value = key ? profileValue(key, profile, job) : undefined;
       if (key === 'phone' && split && value) value = nationalNumber(value);
+      // A box for the city alone (Workday's beside Country and Postal Code) gets "Tel Aviv", not "Tel Aviv, Israel".
+      if (key === 'location' && value && f.type !== 'combobox' && CITY.test(normalise(f.label))) value = value.split(',')[0].trim();
       if (!fits(value)) value = findAnswer(f.label, profile.answers, job && job.id);
       if (!fits(value)) value = undefined;
       // Full automatic or Auto-apply mode: a required demographic question

@@ -166,7 +166,12 @@
     if (!opts) return 'no options to pick from';
     let i = root.oojMatch.pickOption(opts.map((o) => o.textContent), value);
     if (i < 0 && key === 'location') i = 0;
-    if (i < 0) return `no option matches "${value}"`;
+    if (i < 0) {
+      // Closed again (and the typed text cleared), so the user isn't left with an open list.
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true, cancelable: true }));
+      input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      return `no option matches "${value}"`;
+    }
     opts[i].click();
     input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     const container = input.closest('.select__control') || input.closest('.select-shell');
