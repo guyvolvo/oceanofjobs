@@ -11,7 +11,6 @@
 // same steps and copy.
 (function () {
 const EMAIL_TITLE = "Log in to Ocean of Jobs";
-const EMAIL_SUB = "We'll email you a code. No password needed.";
 
 function openSignIn() {
   if (document.getElementById("signin-scrim")) return;
@@ -23,7 +22,7 @@ function openSignIn() {
       <img class="signin-mark" src="/favicon.svg?v=3" width="44" height="44" alt="" />
       <div class="signin-head">
         <h2 id="signin-title">${EMAIL_TITLE}</h2>
-        <p id="signin-sub">${EMAIL_SUB}</p>
+        <p id="signin-sub" hidden></p>
       </div>
       <div class="signin-consent" id="signin-consent">
         <label class="signin-check"><input type="checkbox" id="signin-terms"> <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></span></label>
@@ -107,11 +106,12 @@ function openSignIn() {
       const to = document.createElement("strong");
       to.textContent = $("signin-email-input").value.trim();
       sub.replaceChildren("We sent a code to ", to, ".");
+      sub.hidden = false;
       $("signin-otp-input").value = "";
       $("signin-otp-input").focus();
     } else {
       $("signin-title").textContent = EMAIL_TITLE;
-      sub.textContent = EMAIL_SUB;
+      sub.hidden = true;
       $("signin-email-input").focus();
     }
   };

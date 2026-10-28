@@ -95,7 +95,7 @@ function SignIn() {
         <img className="oj-signin-mark" src="/favicon.svg?v=3" width="44" height="44" alt="" />
         <div className="oj-signin-head">
           <h1 id="signin-title">{step === "email" ? "Log in to Ocean of Jobs" : "Check your email"}</h1>
-          <p>{step === "email" ? "We'll email you a code. No password needed." : <>We sent a code to <strong>{email.trim()}</strong>.</>}</p>
+          {step !== "email" && <p>We sent a code to <strong>{email.trim()}</strong>.</p>}
         </div>
         {step === "email" ? (
           <>
