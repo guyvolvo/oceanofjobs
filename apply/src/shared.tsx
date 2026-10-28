@@ -106,7 +106,7 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
   }, [ext.checking, ext.installed, ext.connected]);
   if (ext.checking && !ext.installed) return <span className="oj-row oj-note"><Loader size="sm" /> Looking for the extension</span>;
   if (!ext.installed) {
-    return <p className="oj-note">Install the Ocean of Jobs extension to apply from here. It isn't in the Chrome Web Store yet.</p>;
+    return <p className="oj-note">Install the Ocean of Jobs extension to apply from here: <a className="oj-link" href="https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi" target="_blank" rel="noopener">Chrome Web Store</a>.</p>;
   }
   if (!ext.connected) {
     return (
