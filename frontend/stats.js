@@ -393,7 +393,7 @@ function editFilter(i, anchor) {
       const shown = (want ? options.filter((o) => o.name.toLowerCase().includes(want)) : options).slice(0, 400);
       list.innerHTML = shown.map((o) => `<label class="st-opt"><input type="checkbox" value="${escapeHtml(o.value)}"${sel.has(o.value) ? " checked" : ""} />
         <span>${escapeHtml(o.name)}</span><span class="st-opt-n">${fmtInt(o.n)}</span></label>`).join("")
-        || `<div class="st-pop-empty">${options.length ? "No matches." : "Loading values…"}</div>`;
+        || `<div class="st-pop-empty">${options.length ? "No results" : "Loading values…"}</div>`;
     };
     paint();
     list.addEventListener("change", (e) => {
@@ -647,8 +647,7 @@ function render(result, ms, read) {
   $("st-rtitle").textContent = resultTitle();
   const context = resultContext();
   if (!result.length) {
-    const why = mode === "builder" ? "No jobs match these filters." : "The query returned no rows.";
-    out.innerHTML = `<div class="st-empty"><strong>No results</strong><span>${why}</span></div>`;
+    out.innerHTML = `<div class="st-empty"><strong>No results</strong></div>`;
     metric.textContent = [...context, `0 rows in ${ms} ms`].join(" · ");
     metric.title = `${fmtBytes(read)} fetched`;
     lastResult = null;

@@ -1186,7 +1186,7 @@ function renderScopedPanels(stats) {
       ${
         rows.length
           ? renderBarList(rows, "domain", { clickable: true, limit: COMPANY_ROWS_SHOWN })
-          : '<div class="sub" style="color:var(--grey)">No company has a matching open job.</div>'
+          : '<div class="sub" style="color:var(--grey)">No results</div>'
       }
       ${
         rows.length > COMPANY_ROWS_SHOWN
@@ -2079,7 +2079,7 @@ function lastAppliedFilter() {
 
 function emptyState(line) {
   const last = lastAppliedFilter();
-  return `<strong>No jobs match</strong><span>${line}</span>`
+  return `<strong>No results</strong>${line ? `<span>${line}</span>` : ""}`
     + (last
       ? `<button type="button" class="btn ghost empty-undo" id="empty-undo">Remove ${escapeHtml(last.label)}</button>`
       : "");
@@ -2159,7 +2159,7 @@ function emptySearchState(data) {
   const mode = (data.search && data.search.mode) || "all";
   const shown = terms.map((t) => `<code>${escapeHtml(t)}</code>`).join(" · ");
   const lines = [
-    `<strong>No jobs match</strong>`,
+    `<strong>No results</strong>`,
     `<span>${mode === "any" ? "No job mentions any of these words" : `No job has all ${terms.length} of these words`}: ${shown}</span>`,
   ];
   const actions = [];
@@ -2422,7 +2422,7 @@ function renderJobs(data, starred) {
   if (!data.jobs.length) {
     document.getElementById("jobs-empty").innerHTML = state.search
       ? emptySearchState(data)
-      : emptyState("No jobs match these filters.");
+      : emptyState("");
     document.getElementById("jobs-empty").style.display = "block";
     wireEmptyUndo();
     document.getElementById("jobs-body").innerHTML = "";
@@ -3896,7 +3896,7 @@ function createMultiSelect(containerId, { placeholder, options = [], searchable 
           ${escapeHtml(o.label)}
         </label>`
         )
-        .join("") || '<div class="ms-empty">No matches.</div>')
+        .join("") || '<div class="ms-empty">No results</div>')
       + (more > 0 ? `<div class="ms-empty">${fmtInt(more)} more. ${q ? "Keep typing to narrow it." : "Type to search them."}</div>` : "");
   }
 
@@ -4107,7 +4107,7 @@ function createLocationSelect(containerId, { placeholder, onChange }) {
           }
         </div>`);
     }
-    optionsEl.innerHTML = blocks.join("") || '<div class="ms-empty">No matches.</div>';
+    optionsEl.innerHTML = blocks.join("") || '<div class="ms-empty">No results</div>';
   }
 
   function emit() {
@@ -4614,7 +4614,7 @@ function renderFilterRail() {
               kind: group.key, value: r.value, label: railLabel(group, r), n: r.n,
               checked: picked.has(r.value),
             })).join("")
-          : '<div class="rail-empty">No matches.</div>')
+          : '<div class="rail-empty">No results</div>')
         + railMoreHtml(group, pool.length);
     }
 
@@ -5022,7 +5022,7 @@ function railRedrawGroup(key) {
           kind: group.key, value: r.value, label: railLabel(group, r), n: r.n,
           checked: picked.has(r.value),
         })).join("")
-      : '<div class="rail-empty">No matches.</div>')
+      : '<div class="rail-empty">No results</div>')
     + railMoreHtml(group, railRows(group).length);
   if (focused) {
     const next = section.querySelector(".rail-search");
@@ -5482,7 +5482,7 @@ function wireLocationBox() {
         + '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.2"/>'
         + '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="18 39"/>'
         + '</svg><span class="sr-only">Loading places</span></li>'
-      : '<li class="topbar-place-none">No places with listings match.</li>';
+      : '<li class="topbar-place-none">No results</li>';
     list.hidden = !list.innerHTML;
     if (keep) list.scrollTop = top;
     input.setAttribute("aria-expanded", String(!list.hidden));

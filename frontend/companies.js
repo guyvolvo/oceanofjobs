@@ -147,12 +147,12 @@
         ...[...countries.filter((c) => c.value === state.country), ...countries.filter((c) => c.value !== state.country)]
           .filter((c) => hit(c.label) || hit(c.value)).map((c) =>
           `<button type="button" class="dir-opt${state.country === c.value ? " on" : ""}" data-country="${esc(c.value)}"><span>${esc(c.label)}</span><span class="dir-n">${fmt(c.n)}</span></button>`)];
-      return countries.length ? (rows.join("") || '<div class="dir-opt side-hint">No country matches.</div>') : boneRows(6, "dir-opt");
+      return countries.length ? (rows.join("") || '<div class="dir-opt side-hint">No results</div>') : boneRows(6, "dir-opt");
     }
     const counts = atsCounts();
     const rows = counts.filter(([a]) => hit(atsName(a))).map(([a, n]) =>
       `<button type="button" class="dir-opt${state.ats.has(a) ? " on" : ""}" data-ats="${esc(a)}"><span>${esc(atsName(a))}</span><span class="dir-n">${fmt(n)}</span></button>`);
-    return counts.length ? (rows.join("") || '<div class="dir-opt side-hint">No system matches.</div>') : boneRows(6, "dir-opt");
+    return counts.length ? (rows.join("") || '<div class="dir-opt side-hint">No results</div>') : boneRows(6, "dir-opt");
   }
 
   function renderPills() {

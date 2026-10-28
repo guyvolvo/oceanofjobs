@@ -69,7 +69,7 @@ export function Picker({ label, placeholder, options, value, onChange, limit }: 
       <Combobox.TriggerMultipleWithInput className="oj-picker" placeholder={placeholder}
         renderItem={(o: Option) => <Combobox.Chip key={o.value} removeLabel={`Remove ${o.label}`}>{o.label}</Combobox.Chip>} />
       <Combobox.Content className="oj-picker-menu">
-        <Combobox.Empty>No matches.</Combobox.Empty>
+        <Combobox.Empty>No results</Combobox.Empty>
         <Combobox.List>
           {(o: Option) => (
             <Combobox.Item key={`${o.kind || ""}:${o.value}`} value={o} className={o.kind === "city" ? "oj-pick-city" : undefined}>
