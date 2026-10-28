@@ -35,14 +35,14 @@ export function History({ rows, source, reload }: { rows: HistoryRow[]; source?:
           <Select aria-label="Show" value={filter} onValueChange={(v) => setFilter((v as string) || "all")} items={items} />
         </div>
       </div>
-      <p className="oj-note">What happened is for you to mark. It doesn't change the status or your credits.</p>
+      <p className="oj-note">Mark the outcome when you hear back. It doesn't change the status or your credits.</p>
       <LayerCard className="oj-table">
         <Table>
           <Table.Header>
             <Table.Row>
               <Table.Head>Job</Table.Head>
               <Table.Head className="oj-hide-sm">Status</Table.Head>
-              <Table.Head className="oj-hide-sm">What happened?</Table.Head>
+              <Table.Head className="oj-hide-sm">Outcome</Table.Head>
               <Table.Head className="oj-hide-sm">Date</Table.Head>
             </Table.Row>
           </Table.Header>

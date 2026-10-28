@@ -100,7 +100,7 @@ export function OutcomeSelect({ row, onChange }: { row: HistoryRow; onChange: ()
       toasts.add({ variant: "error", title: "Couldn't save that", description: "Try again." });
     }
   };
-  return <Select size="sm" aria-label={`What happened with ${row.title || "this application"}?`} value={value}
+  return <Select size="sm" aria-label={`Outcome for ${row.title || "this application"}`} value={value}
     onValueChange={(v) => pick((v as string) || "none")} items={OUTCOME} />;
 }
 
@@ -192,10 +192,7 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
     onOpened();
   };
   return (
-    <div className="oj-row">
-      <Button variant="primary" loading={busy} disabled={!queue?.length} onClick={next}>Apply to next</Button>
-      {queue?.length ? null : <span className="oj-note">Your queue is empty.</span>}
-    </div>
+    <Button variant="primary" loading={busy} disabled={!queue?.length} onClick={next}>Apply to next</Button>
   );
 }
 

@@ -54,10 +54,10 @@ export function Overview({ s, ext, queue, needs, history, reload }: {
             <h2 className="oj-card-title">Applications {period}</h2>
             <span className="oj-note">{PLAN[s.plan] || "Free plan"}</span>
           </div>
-          <Meter label={`${s.used + s.in_progress} of ${s.limit} used ${period}`} value={s.used + s.in_progress} max={s.limit || 1}
-            customValue={`${s.remaining} left`} />
+          <Meter label={`${s.used + s.in_progress} of ${s.limit} used`} value={s.used + s.in_progress} max={s.limit || 1}
+            customValue={`${s.remaining} left ${period}`} />
           <p className="oj-note">
-            {s.used} sent or awaiting confirmation, {s.in_progress} in progress, {plural(s.filled_today, "form")} filled today.
+            {s.used} sent{s.in_progress ? `, ${s.in_progress} in progress` : ""}, {plural(s.filled_today, "form")} filled today.
             {" "}AI answers: {s.ai.limit === null ? `${s.ai.used} ${period}` : `${s.ai.used} of ${s.ai.limit} ${period}`}.
             {s.daily_max ? ` You've also set a limit of ${s.daily_max} a day.` : ""}
             {s.plan !== "pro" ? <> <a className="oj-link" href="/pricing">Compare plans</a></> : null}
@@ -79,7 +79,7 @@ export function Overview({ s, ext, queue, needs, history, reload }: {
                 <SourceLabel row={next} />
               </div>
             ) : (
-              <p className="oj-note">Your queue is empty. Add jobs with Auto apply on the <a className="oj-link" href="/board">job board</a>, or ask your AI assistant to queue them.</p>
+              <p className="oj-note">No jobs in the queue. Add jobs from the <a className="oj-link" href="/board">board</a> or ask your AI assistant to queue them.</p>
             )}
             <div><ExtensionAction ext={ext} queue={queue} onOpened={reload} /></div>
             {queue && queue.length > 1 ? <p className="oj-note">{plural(queue.length - 1, "more job")} after this one. <a className="oj-link" href="#queue">View queue</a></p> : null}
@@ -98,14 +98,14 @@ export function Overview({ s, ext, queue, needs, history, reload }: {
                   </li>
                 ))}
               </ul>
-            ) : <p className="oj-note">Nothing needs you right now.</p>}
+            ) : <p className="oj-note">Nothing needs your attention.</p>}
             {attention.length > SHOWN ? <a className="oj-link" href="#needs">See all {attention.length}</a> : null}
           </section>
         </LayerCard>
 
         <LayerCard>
           <section className="oj-card-body" aria-labelledby="ov-sources">
-            <h2 className="oj-card-title" id="ov-sources">Where your jobs came from</h2>
+            <h2 className="oj-card-title" id="ov-sources">Job sources</h2>
             {bySource.size ? (
               <ul className="oj-list">
                 {[...bySource].map(([src, c]) => (
@@ -118,13 +118,13 @@ export function Overview({ s, ext, queue, needs, history, reload }: {
                   </li>
                 ))}
               </ul>
-            ) : <p className="oj-note">Shows where each job was added from: the board, an alert, your AI assistant or the extension.</p>}
+            ) : <p className="oj-note">No jobs yet.</p>}
           </section>
         </LayerCard>
 
         <LayerCard>
           <section className="oj-card-body" aria-labelledby="ov-after">
-            <h2 className="oj-card-title" id="ov-after">After applying</h2>
+            <h2 className="oj-card-title" id="ov-after">Outcomes</h2>
             {sent.length ? (
               <>
                 <p className="oj-row oj-num">
@@ -134,7 +134,7 @@ export function Overview({ s, ext, queue, needs, history, reload }: {
                 </p>
                 {unmarked.length ? (
                   <>
-                    <p className="oj-note">What happened with these? Only you mark this, and it doesn't change the status.</p>
+                    <p className="oj-note">Mark the outcome when you hear back. This won't change the application status.</p>
                     <ul className="oj-list">
                       {unmarked.map((r) => (
                         <li key={r.job_id} className="oj-list-row">
@@ -145,9 +145,9 @@ export function Overview({ s, ext, queue, needs, history, reload }: {
                     </ul>
                   </>
                 ) : <p className="oj-note">You've marked every recent application.</p>}
-                <a className="oj-link" href="#history">See all in History</a>
+                <a className="oj-link" href="#history">View history</a>
               </>
-            ) : <p className="oj-note">Once an application is sent, you can mark what happened here.</p>}
+            ) : <p className="oj-note">Once an application is sent, you can mark its outcome here.</p>}
           </section>
         </LayerCard>
       </div>
