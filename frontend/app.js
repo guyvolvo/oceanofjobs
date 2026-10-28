@@ -266,7 +266,7 @@ async function syncQueueFromServer() {
     const [queue, history] = await Promise.all([
       authedFetch("/me/apply/queue"), authedFetch("/me/apply/history").catch(() => null)]);
     applyQueue = new Set((queue?.queue || []).map((r) => r.job_id));
-    appliedAt = new Map((history?.applied || []).filter((r) => r.status === "submitted" && r.at).map((r) => [r.job_id, r.at]));
+    appliedAt = new Map((history?.applied || []).filter((r) => (r.status === "submitted" || r.status === "sent") && r.at).map((r) => [r.job_id, r.at]));
   } catch {
     return; // same as the saved sync: nothing on screen changes
   }
