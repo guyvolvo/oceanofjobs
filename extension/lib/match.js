@@ -44,7 +44,8 @@
     [/sponsor/, 'sponsorship'],
     [/authorized to work|work authorization|eligible to work|right to work|legally (able|permitted) to work/, 'work_auth'],
     [/salary|compensation expectation|expected (pay|compensation)|desired (pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
-    [/notice period|earliest .*start|when can you start|available to start|start date/, 'notice'],
+    // Not an education or job entry's "Start date month" (Greenhouse).
+    [/notice period|earliest .*start|when can you start|available to start|start date(?! (month|year|day))/, 'notice'],
     [/preferred (first )?name/, 'preferred_name'],
     [/^(legal )?first name$/, 'first_name'],
     [/^(legal )?(last name|surname|family name)$/, 'last_name'],
@@ -62,8 +63,9 @@
     // Anchored, so a custom question that mentions an email is left alone.
     // Also in French, Spanish, Italian, Portuguese, German, Dutch, Polish
     // and the Nordic languages, as SmartRecruiters and Breezy forms come.
-    [/^(legal )?(first|given) name$|^forename$|^(vorname|voornaam|prénom|prenom|nombre|nome|imię|förnamn|fornavn|etunimi)$/, 'first_name'],
-    [/^(legal )?(last|family) name$|^surname$|^(nachname|achternaam|apellidos?|nom( de famille)?|cognome|sobrenome|nazwisko|efternamn|efternavn|sukunimi)$/, 'last_name'],
+    // Workday: "Given Name(s) - Latin Script", beside the same name in the local script.
+    [/^(legal )?(first|given) names?( s)?( latin script)?$|^forename$|^(vorname|voornaam|prénom|prenom|nombre|nome|imię|förnamn|fornavn|etunimi)$/, 'first_name'],
+    [/^(legal )?(last|family) names?( s)?( latin script)?$|^surname$|^(nachname|achternaam|apellidos?|nom( de famille)?|cognome|sobrenome|nazwisko|efternamn|efternavn|sukunimi)$/, 'last_name'],
     [/^(your |full |full legal |legal )?name$|^name surname$|^first and last name$|^(volledige naam|vollständiger name|vor und nachname|nom complet|nom et prénom|nombre completo|nombre y apellidos?|nome completo|nome e cognome|imię i nazwisko)$/, 'full_name'],
     [/^(your |votre |confirm (your )?|confirmez (votre )?)?e ?mail( address| adresse| adres)?$|^e ?mailadres$|^(adresse|endereço de|indirizzo) e ?mail$|^(correo|correo electrónico|courriel)$/, 'email'],
     [/^(your )?(mobile |cell |contact )?(phone|telephone|mobile|telefon|telefonnummer|handynummer|telefoonnummer|téléphone|teléfono|telefone|telefono|cellulare|celular|móvil|portable)( number)?$|^(numéro de téléphone|número de teléfono|número de telefone|numero di telefono|numer telefonu)$/, 'phone'],
@@ -75,6 +77,9 @@
     [/^שם( מלא)?$/, 'full_name'],
     [/^(מייל|אימייל|דוא ?ל|דואר אלקטרוני|כתובת (מייל|אימייל|דוא ?ל))$/, 'email'],
     [/^(נייד|טלפון|טלפון נייד|פלאפון|מספר (טלפון|נייד|פלאפון))$/, 'phone'],
+    // A phone number split in two (Workday): its country code on its own.
+    [/^(country )?(phone|telephone|dialing|calling) (country )?code$|^country (phone|dialing|calling) code$/, 'phone_code'],
+    [/^phone (device )?type$|^type of phone( number)?$/, 'phone_type'],
     [/^(עיר|עיר מגורים|מקום מגורים)$/, 'location'],
     [/לינקדאין/, 'linkedin'],
   ];
@@ -111,6 +116,24 @@
     return parts.length ? parts[parts.length - 1] : undefined;
   }
 
+  // Calling codes for a number split in two: the country goes in its own
+  // dropdown, the rest in the number box. Longest code first, so +972 is
+  // never read as +97. shortcut: the common countries only, add as forms need.
+  const CALLING = [['972', 'Israel'], ['971', 'United Arab Emirates'], ['353', 'Ireland'], ['351', 'Portugal'], ['380', 'Ukraine'],
+    ['420', 'Czech Republic'], ['48', 'Poland'], ['49', 'Germany'], ['44', 'United Kingdom'], ['41', 'Switzerland'], ['39', 'Italy'],
+    ['34', 'Spain'], ['33', 'France'], ['32', 'Belgium'], ['31', 'Netherlands'], ['30', 'Greece'], ['46', 'Sweden'], ['47', 'Norway'],
+    ['45', 'Denmark'], ['43', 'Austria'], ['40', 'Romania'], ['91', 'India'], ['86', 'China'], ['81', 'Japan'], ['82', 'South Korea'],
+    ['65', 'Singapore'], ['61', 'Australia'], ['64', 'New Zealand'], ['55', 'Brazil'], ['52', 'Mexico'], ['54', 'Argentina'],
+    ['27', 'South Africa'], ['7', 'Russia'], ['1', 'United States']].sort((a, b) => b[0].length - a[0].length);
+  const callingOf = (phone) => { const d = String(phone || '').trim(); return d.startsWith('+') ? CALLING.find(([code]) => d.replace(/\D/g, '').startsWith(code)) : undefined; };
+  const callingCountry = (phone) => (callingOf(phone) || [])[1];
+  // The number without its country code, for the box beside a code dropdown:
+  // "+972 58-785-8580" is "587858580". A number without a + is left as typed.
+  function nationalNumber(phone) {
+    const hit = callingOf(phone);
+    return hit ? String(phone).replace(/\D/g, '').slice(hit[0].length).replace(/^0+/, '') : phone;
+  }
+
   function workAuth(work, job) {
     const mine = (work.authorized_countries || []).map((c) => c.toUpperCase());
     const theirs = String((job && job.country) || '').split(',').map((c) => c.trim().toUpperCase()).filter(Boolean);
@@ -130,6 +153,8 @@
       case 'phone': return blank(c.phone);
       case 'location': return blank(c.location);
       case 'phone_country': case 'country': return countryOf(c.location);
+      case 'phone_code': return countryOf(c.location) || callingCountry(c.phone);
+      case 'phone_type': return blank(c.phone) && 'Mobile';
       case 'linkedin': return blank(l.linkedin);
       case 'github': return blank(l.github);
       case 'website': return blank(l.website);
@@ -204,10 +229,14 @@
     return true;
   }
 
+  const CITY = /^(current )?city$|^(ville|ciudad|città|cidade|stadt|plaats|woonplaats|miasto|עיר)$/;
+
   // fields: [{name, label, required, type, options}] as an ATS filler reads
   // them. Returns what to type where, and the required ones nobody answered.
   function planFill(fields, profile, job) {
     const fills = [], missing = [];
+    // A form with its own country code dropdown wants the number without one.
+    const split = fields.some((f) => classify(f) === 'phone_code');
     for (const f of fields) {
       const key = classify(f);
       if (key === 'resume') { fills.push({ ...f, key, value: 'cv' }); continue; }
@@ -220,6 +249,9 @@
       // period list or a start date) gives way to a saved answer for this
       // exact question.
       let value = key ? profileValue(key, profile, job) : undefined;
+      if (key === 'phone' && split && value) value = nationalNumber(value);
+      // A box for the city alone (Workday's beside Country and Postal Code) gets "Tel Aviv", not "Tel Aviv, Israel".
+      if (key === 'location' && value && f.type !== 'combobox' && CITY.test(normalise(f.label))) value = value.split(',')[0].trim();
       if (!fits(value)) value = findAnswer(f.label, profile.answers, job && job.id);
       if (!fits(value)) value = undefined;
       // Full automatic or Auto-apply mode: a required demographic question
@@ -503,7 +535,7 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, mustAnswer, suggestable,
+    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, mustAnswer, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

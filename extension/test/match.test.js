@@ -389,3 +389,38 @@ test('demographic questions in other wordings are recognised; ordinary questions
   assert.equal(m.classify({ label: 'What is your sex?' }), 'gender', 'a saved gender answer fills "Sex"');
   assert.equal(m.classify({ label: 'Do you have a long-term health condition or impairment?' }), 'disability');
 });
+
+test('a phone number split in two (Workday): the country in its dropdown, the rest in the box', () => {
+  const p = { ...profile, contact: { ...profile.contact, phone: '+972587858580', location: 'Tel Aviv, Israel' } };
+  const fields = [
+    { name: 'phoneType', label: 'Phone Device Type', required: true, type: 'combobox', options: ['Landline', 'Mobile'] },
+    { name: 'countryPhoneCode', label: 'Country Phone Code', required: true, type: 'combobox', options: [] },
+    { name: 'phoneNumber', label: 'Phone Number', required: true, type: 'text', options: [] },
+  ];
+  const by = Object.fromEntries(m.planFill(fields, p, {}).fills.map((f) => [f.name, f.value]));
+  assert.deepEqual(by, { phoneType: 'Mobile', countryPhoneCode: 'Israel', phoneNumber: '587858580' });
+  const alone = m.planFill([fields[2]], p, {}).fills[0].value;
+  assert.equal(alone, '+972587858580', 'a form with one phone box keeps the full number');
+  assert.equal(m.nationalNumber('+44 07911 123456'), '7911123456');
+  assert.equal(m.nationalNumber('+1 (415) 555-0100'), '4155550100');
+  assert.equal(m.nationalNumber('058-785-8580'), '058-785-8580', 'no + : left as typed');
+});
+
+test('Workday My Information: Latin-script names and a city box', () => {
+  assert.equal(m.classify({ label: 'Given Name(s) - Latin Script' }), 'first_name');
+  assert.equal(m.classify({ label: 'Family Name - Latin Script' }), 'last_name');
+  assert.equal(m.classify({ label: 'Given Name(s)' }), 'first_name');
+  assert.equal(m.classify({ label: 'Hebrew Given Name(s)' }), null, 'the local-script name is left alone');
+  const p = { ...profile, contact: { ...profile.contact, location: 'Tel Aviv, Israel' } };
+  const value = (f) => (m.planFill([f], p, {}).fills[0] || {}).value;
+  assert.equal(value({ name: 'c', label: 'City', type: 'text', options: [] }), 'Tel Aviv');
+  assert.equal(value({ name: 'l', label: 'Location', type: 'text', options: [] }), 'Tel Aviv, Israel');
+  assert.equal(value({ name: 'c', label: 'City', type: 'combobox', options: [] }), 'Tel Aviv, Israel', 'a typeahead looks it up as typed');
+});
+
+test('an education entry\'s "Start date month" is not the notice period (Greenhouse)', () => {
+  assert.equal(m.classify({ label: 'Start date month' }), null);
+  assert.equal(m.classify({ label: 'Start date year' }), null);
+  assert.equal(m.classify({ label: 'Start date' }), 'notice');
+  assert.equal(m.classify({ label: 'What is your earliest start date?' }), 'notice');
+});

@@ -307,7 +307,7 @@ await check("a form's own Apply submit button is never pressed", async () => {
 
 await check("formHere: an application form counts, a comment form does not", async () => {
   await load(FORM);
-  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 16, file: true });
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 16, file: true, contactOnly: false });
   await load(`<form id="commentform" action="/wp-comments-post.php"><input name="author"><input type="email" name="email"><input name="url"><textarea name="comment"></textarea></form>`);
   assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 0 });
   await load(`<input placeholder="Search"><button>Go</button>`);
@@ -452,6 +452,72 @@ await check("a button dropdown (Workday's) is read with its options and picked",
     return { type: f.type, options: f.options, errors: res.errors, shows: document.querySelector('[aria-haspopup]').textContent };
   });
   assert.deepEqual(r, { type: "combobox", options: ["LinkedIn", "Referral"], errors: [], shows: "Referral" });
+});
+
+// Recruitee's dropdowns (Downshift), as on a live form 2026-10-28: each
+// list is named after its button by aria-labelledby, stays on the page
+// when closed (only faded out), takes focus when open and hears Escape
+// only there.
+const DOWNSHIFT = (id, label, options) => `<div><label for="${id}">${label}</label>
+  <button type="button" id="${id}" aria-haspopup="listbox" onclick="const m = this.nextElementSibling; m.style.opacity = 1; m.setAttribute('aria-expanded', 'true'); m.focus()">Auswählen</button>
+  <div role="listbox" tabindex="-1" aria-labelledby="${id}" aria-expanded="false" style="opacity:0"
+    onkeydown="if (event.key === 'Escape') { this.style.opacity = 0; this.setAttribute('aria-expanded', 'false'); this.previousElementSibling.focus() }">
+    ${options.map((o) => `<div role="option" onclick="const m = this.parentElement; m.previousElementSibling.textContent = this.textContent; m.style.opacity = 0; m.setAttribute('aria-expanded', 'false')">${o}</div>`).join("")}</div></div>`;
+await check("Downshift dropdowns (Recruitee): each read from its own list, closed again, and picked", async () => {
+  await serve(`<form>${FIELDS}${DOWNSHIFT("sal", "Anrede", ["Herr", "Frau", "Kein/e"])}${DOWNSHIFT("cc", "Ländervorwahl", ["Deutschland", "Israel"])}<button>Senden</button></form>`);
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const { fields } = await g.read();
+    const open = () => [...document.querySelectorAll('[role="listbox"]')].map((m) => m.getAttribute("aria-expanded"));
+    const afterRead = open();
+    const res = await g.fill([{ ...fields.find((f) => f.label === "Anrede"), value: "Frau" }], null);
+    return { options: fields.slice(3).map((f) => f.options.join("|")), afterRead, errors: res.errors, shows: sal.textContent, afterFill: open() };
+  });
+  assert.deepEqual(r, { options: ["Herr|Frau|Kein/e", "Deutschland|Israel"], afterRead: ["false", "false"], errors: [], shows: "Frau", afterFill: ["false", "false"] });
+});
+
+// Workday's phone block as a saved My Information page has it (2026-10-28),
+// values made up: the country code prompt shows its choice as a pill with
+// role="option", on show next to every closed dropdown. The device type list
+// draws a moment after the press, as Workday's does.
+const WD_PHONE = (pill) => `<form>${FIELDS}
+  <div data-automation-id="formField-phoneType"><label for="pt">Phone Device Type<abbr>*</abbr></label>
+    <button aria-haspopup="listbox" type="button" id="pt" name="phoneType" onkeydown="if (event.key === 'Escape') pl.hidden = true"
+      onclick="setTimeout(() => { pl.hidden = false; this.setAttribute('aria-controls', 'pl'); }, 100)">Select One</button></div>
+  <ul id="pl" role="listbox" hidden><li role="option" aria-disabled="true">Select One</li>
+    <li role="option" onclick="pt.textContent = this.textContent; pl.hidden = true">Landline</li>
+    <li role="option" onclick="pt.textContent = this.textContent; pl.hidden = true">Mobile</li></ul>
+  <div data-automation-id="formField-countryPhoneCode"><label for="cc">Country Phone Code<abbr>*</abbr></label>
+    <div data-automation-id="multiSelectContainer"><input id="cc" placeholder="Search" data-uxi-widget-type="selectinput" data-automation-id="searchBox" aria-required="true">
+      <ul role="listbox" data-automation-id="selectedItemList"><li><div role="option" data-automation-id="selectedItem"><p data-automation-id="promptOption">${pill}</p></div></li></ul></div></div>
+  <div data-automation-id="formField-phoneNumber"><label for="pn">Phone Number<abbr>*</abbr></label><input id="pn" name="phoneNumber"></div>
+  <button>Save and Continue</button></form>`;
+await check("Workday's phone block: device type from its own list, a country code already chosen left alone", async () => {
+  await serve(WD_PHONE("Israel (+972)"));
+  const p = { ...profile, contact: { ...profile.contact, phone: "+972 58 700 0000" } };
+  const r = await page.evaluate(async (p) => {
+    const g = globalThis.oojAts.generic;
+    const { fields } = await g.read();
+    const plan = globalThis.oojMatch.planFill(fields, p, {});
+    const res = await g.fill(plan.fills.filter((f) => f.key !== "full_name" && f.key !== "email"), null);
+    return { read: fields.slice(3).map((f) => [f.label, f.type, f.options.join("|")]), plan: plan.fills.slice(3).map((f) => [f.key, f.value]),
+      errors: res.errors, type: pt.textContent, code: cc.value, number: pn.value, open: !pl.hidden };
+  }, p);
+  assert.deepEqual(r, {
+    read: [["Phone Device Type", "combobox", "Select One|Landline|Mobile"], ["Country Phone Code", "combobox", ""], ["Phone Number", "text", ""]],
+    plan: [["phone_type", "Mobile"], ["phone_code", "Israel"], ["phone", "587000000"]],
+    errors: [], type: "Mobile", code: "", number: "587000000", open: false,
+  });
+});
+await check("Workday's country code prompt with another country and no list: an error, the search box left empty", async () => {
+  await serve(WD_PHONE("United States of America (+1)"));
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const { fields } = await g.read();
+    const f = fields.find((x) => x.label === "Country Phone Code");
+    return { errors: (await g.fill([{ ...f, key: "phone_code", value: "Israel" }], null)).errors, code: cc.value };
+  });
+  assert.deepEqual(r, { errors: ["Country Phone Code: no options to pick from"], code: "" }, JSON.stringify(r));
 });
 
 await check("a pinned form area wins over a bigger form elsewhere", async () => {
