@@ -474,10 +474,10 @@ async function viaGeneral(job, ctx, id, tabId, state) {
     if (hard.length) return ['failed', 'could not fill ' + hard.join('; ')];
     fills.push(...plan.fills.filter((f) => !filled.errors.some((e) => e.startsWith(f.label + ':'))));
     const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId);
-    // A CAPTCHA or an invisible human check: the extension never gets round
-    // one. Everything is answered, so the job waits in Needs attention for
-    // the user to open and send, and the credit goes back.
-    if (info && info.botCheck || await inTab(tabId, 'generic', 'wall', [], frameId).then((w) => w && w.captcha, () => false)) {
+    // A CAPTCHA to solve: the extension never gets round one. Everything is
+    // answered, so the job waits in Needs attention for the user to open and
+    // send, and the credit goes back. An invisible human check is tried.
+    if (await inTab(tabId, 'generic', 'wall', [], frameId).then((w) => w && w.captcha, () => false)) {
       return ['needs_input', 'ready to submit', []];
     }
     if (info && info.text) break;
@@ -503,6 +503,8 @@ async function viaGeneral(job, ctx, id, tabId, state) {
       : inTab(tabId, 'generic', 'outcome', [before, until - Date.now(), true], frameId)).catch(() => null);
     if (!out) await new Promise((r) => setTimeout(r, 1000));
   }
+  // The page's human check refused the click: nothing went, so the same as a CAPTCHA.
+  if (out && /^captcha: human check/.test(out.failed || '')) return ['needs_input', 'ready to submit', []];
   return afterClick(out);
 }
 
