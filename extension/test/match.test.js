@@ -360,3 +360,15 @@ test('sentText: what a Submit came to, for the card and the popup', () => {
   assert.match(m.sentText({ failed: 'form errors: Phone' }), /^Not submitted: The form needs your attention: Phone\. This attempt doesn't count/);
   assert.equal(m.sentText({ error: 'blocked company' }), 'This company is on your Never apply to list.');
 });
+
+test('unattended, a required demographic question with no saved answer takes "I don\'t wish to answer"', () => {
+  const lgbt = { name: 'q9', label: 'Do you identify as a member of the 2SLGBTQIA+ Community ?', required: true, type: 'select', options: ['Yes', 'No', "I don't wish to answer"] };
+  const noDecline = { name: 'q10', label: 'Which Ethnicity do Identify With?', required: true, type: 'select', options: ['White', 'Asian'] };
+  const plan = (settings) => m.planFill([lgbt, noDecline], { ...profile, eeo: {}, settings }, {});
+  const full = plan({ fill: 'full', mode: 'queue' });
+  assert.deepEqual(full.fills.map((f) => [f.name, f.value]), [['q9', 'decline']], 'Full automatic declines');
+  assert.deepEqual(full.missing.map((f) => f.name), ['q10'], 'no decline option: never invented, left for the user');
+  assert.deepEqual(plan({ fill: 'half', mode: 'auto' }).fills.map((f) => f.value), ['decline'], 'Auto-apply mode declines too');
+  assert.deepEqual(plan({ fill: 'half', mode: 'queue' }).missing.map((f) => f.name), ['q9', 'q10'], 'Half automatic leaves both for the user');
+  assert.ok(m.isEeo ? m.isEeo(lgbt) : true, '2SLGBTQIA+ counts as demographic');
+});

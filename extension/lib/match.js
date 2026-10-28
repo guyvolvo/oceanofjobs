@@ -220,6 +220,10 @@
       let value = key ? profileValue(key, profile, job) : undefined;
       if (!fits(value)) value = findAnswer(f.label, profile.answers, job && job.id);
       if (!fits(value)) value = undefined;
+      // Full automatic or Auto-apply mode: a required demographic question
+      // with no saved answer takes the form's own "I don't wish to answer",
+      // so the form can be sent. Never an invented answer.
+      if (value === undefined && f.required && unattended(profile) && isEeo({ ...f, key }) && f.options && pickOption(f.options, 'decline') >= 0) value = 'decline';
       if (value === undefined) { if (f.required) missing.push({ ...f, key }); continue; }
       fills.push({ ...f, key, value });
     }
@@ -230,8 +234,13 @@
   // by AI. Some have no profile key to map to; their wording marks them.
   function isEeo(field) {
     return EEO.has(field.key || classify(field))
-      || /\b(sexual orientation|transgender|lgbt\w*|pronouns?)\b/.test(normalise(field.label));
+      // "lgbt" anywhere: "2SLGBTQIA+" has no word break before it.
+      || /\b(sexual orientation|transgender|queer|pronouns?)\b|lgbt/.test(normalise(field.label));
   }
+
+  // The user isn't checking each form before it goes: Fill application on
+  // Full automatic, or Auto-apply mode's own runs.
+  const unattended = (profile) => !!profile && !!profile.settings && (profile.settings.fill === 'full' || profile.settings.mode === 'auto');
 
   // Consent, terms and privacy wording, in English and Hebrew.
   const isStatement = (text) => /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that|מדיניות|פרטיות|מאשר|מסכים|תנאי/i.test(text);
