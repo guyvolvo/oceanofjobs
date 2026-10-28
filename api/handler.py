@@ -39,7 +39,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 from aggregates import (scoped_variant_key, company_directory, company_directory_daily, company_profile, compute_facets,
-                        compute_scoped_stats, compute_stats, has_board_filters, place_rows, search_companies,
+                        compute_scoped_stats, compute_stats, has_board_filters, place_rows, search_companies, search_places,
                         skill_counts, skills_history)
 from db import get_connection, status as db_status
 from help_page import HELP_HTML
@@ -514,6 +514,11 @@ def lambda_handler(event, context):
             if job is None:
                 return _response(404, json.dumps({"error": "no job with that id"}))
             return _response(200, json.dumps(job, default=str), cache_seconds=60)
+        if path == "/places/search":
+            # The Location box past the 40 countries the facet carries.
+            with expensive.guard("directory"):
+                return _response(200, json.dumps(search_places(get_connection(), params), default=str),
+                                 cache_seconds=60)
         if path == "/companies/search":
             # Before /companies. Cached at the edge like the facets: the
             # same question from the next visitor gets the same answer.

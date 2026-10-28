@@ -19,7 +19,7 @@ wrong for a loader that already has a file open on disk.
 import contextlib
 from datetime import datetime, timedelta, timezone
 
-from countries import label_for
+from countries import COUNTRY_NAMES, label_for
 from job_filters import (FRESH_CLAUSE, bool_param, build_jobs_where, category_sql, facet_index_hint,
                          has_fts_index, has_places, israel_clause)
 from hot_companies import GOOGLE_FAVICON, HOT_COMPANIES, LOGO_PINS
@@ -620,12 +620,9 @@ def _compute_facets(conn, params: dict, locations: list | None = None) -> dict:
         for (code, name), n in sorted(pairs.items(), key=lambda kv: (-kv[1], kv[0][1])):
             cities.setdefault(code, []).append({"value": name, "n": n})
 
-        def kept(rows):
-            return [r for i, r in enumerate(rows[:CITY_LIMIT]) if i < CITY_TOP or r["n"] >= CITY_MIN_LISTINGS]
-
         top = sorted(countries.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)[:country_limit]
         return [
-            {"value": code, "label": label_for(code), "n": n, "cities": kept(cities.get(code, []))}
+            {"value": code, "label": label_for(code), "n": n, "cities": kept_cities(cities.get(code, []))}
             for code, n in top
         ]
 
@@ -780,6 +777,65 @@ def search_companies(conn, params: dict) -> dict:
         [*args, needle, *([needle] if has_name else []), COMPANY_SEARCH_LIMIT],
     ).fetchall()
     return {"companies": [dict(r) for r in rows]}
+
+
+def kept_cities(rows: list[dict]) -> list[dict]:
+    """A country's biggest CITY_TOP cities, then those with CITY_MIN_LISTINGS, up to CITY_LIMIT."""
+    return [r for i, r in enumerate(rows[:CITY_LIMIT]) if i < CITY_TOP or r["n"] >= CITY_MIN_LISTINGS]
+
+
+PLACE_SEARCH_LIMIT = 40
+
+
+def search_places(conn, params: dict) -> dict:
+    """Countries and cities whose names contain `name`, in the facet's
+    location shape, counted under every other active filter.
+
+    The location facet carries the 40 biggest countries, so the board's
+    Location box could not find Argentina (1,891 listings). Sending every
+    country made each facet answer bigger for everyone; this asks only
+    when somebody types a place. A country that matches comes with its
+    cities; a city that matches comes under its country, alone.
+    """
+    name = str(params.get("name") or "").strip().lower()[:60]
+    if len(name) < 2 or not has_places(conn):
+        return {"locations": []}
+    codes = sorted({code for alias, code in COUNTRY_NAMES.items() if name in alias.lower()})
+    scoped = {k: v for k, v in params.items() if k not in ("country", "city", "name")}
+    caps = has_fts_index(conn)
+    where_sql, args = build_jobs_where(scoped, caps, True)
+    needle = "%" + name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    in_country = "".join(" OR (',' || country || ',') LIKE ?" for _ in codes)
+    countries: dict[str, int] = {}
+    pairs: dict[tuple[str, str], int] = {}
+    for country, city, n in conn.execute(
+        f"""
+        SELECT country, city, COUNT(*) AS n
+        FROM jobs{facet_index_hint(scoped, caps)}
+        WHERE {where_sql} AND country IS NOT NULL AND country != ''
+          AND (LOWER(city) LIKE ? ESCAPE '\\'{in_country})
+        GROUP BY country, city
+        """,
+        [*args, needle, *(f"%,{c},%" for c in codes)],
+    ):
+        row_codes = [c for c in country.split(",") if c]
+        for code in row_codes:
+            if code in codes:
+                countries[code] = countries.get(code, 0) + n
+        for city_name in (t for t in (city or "").split(",") if t):
+            for code in row_codes:
+                if code in codes or name in city_name.lower():
+                    pairs[(code, city_name)] = pairs.get((code, city_name), 0) + n
+    cities: dict[str, list[dict]] = {}
+    for (code, city_name), n in sorted(pairs.items(), key=lambda kv: (-kv[1], kv[0][1])):
+        cities.setdefault(code, []).append({"value": city_name, "n": n})
+    # A country found only through a city has no count of its own here.
+    found = sorted(set(countries) | set(cities), key=lambda c: -countries.get(c, 0))[:PLACE_SEARCH_LIMIT]
+    return {"locations": [
+        {"value": code, "label": label_for(code), "n": countries.get(code),
+         "cities": kept_cities(cities.get(code, [])) if code in countries
+                   else [t for t in cities.get(code, []) if name in t["value"].lower()]}
+        for code in found]}
 
 
 # The filters a precomputed scoped block can stand for: the board's

@@ -5385,13 +5385,32 @@ function paintLocationBox() {
 const placeOpen = new Set();
 const placeShut = new Set();
 
+// Places the box found by asking the API (/places/search): the facet
+// carries the 40 biggest countries, and Argentina was not one of them.
+const placeFound = new Map();
+let placeAsking = false;
+
+// The facet's countries with any cities found beyond them, then the
+// countries only the search found.
+function placeCountries() {
+  const out = (railFacets.locations || []).map((c) => {
+    const f = placeFound.get(c.value);
+    if (!f) return c;
+    const have = new Set((c.cities || []).map((t) => t.value));
+    return { ...c, cities: [...(c.cities || []), ...f.cities.filter((t) => !have.has(t.value))] };
+  });
+  const listed = new Set(out.map((c) => c.value));
+  for (const f of placeFound.values()) if (!listed.has(f.value)) out.push(f);
+  return out;
+}
+
 // With nothing typed: every country, the ones that are on first, each
 // followed by its cities when open. Typed: the countries and cities whose
 // names contain it, names that start with it first, then the most jobs;
 // a country there opens on its cities the same way.
 function placeMatches(raw) {
   const q = raw.trim().toLowerCase();
-  const countries = railFacets.locations || [];
+  const countries = placeCountries();
   const cityOn = (c) => (c.cities || []).some((t) => state.city.includes(cityKey(c, t)));
   const row = (kind, c, t, extra) => {
     const value = t ? cityKey(c, t) : c.value;
@@ -5406,7 +5425,8 @@ function placeMatches(raw) {
     return [row("country", c, null, { open, caret: (c.cities || []).length > 0, ...extra }),
             ...(open ? (c.cities || []).map((t) => row("city", c, t, { indent: true })) : [])];
   };
-  if (!q) return [...countries.filter(isOn), ...countries.filter((c) => !isOn(c))].flatMap((c) => tree(c));
+  // A country found only through one of its cities has no count to list it by.
+  if (!q) return [...countries.filter(isOn), ...countries.filter((c) => !isOn(c) && c.n != null)].flatMap((c) => tree(c));
   const hits = [];
   for (const c of countries) {
     const name = c.label || countryLabel(c.value);
@@ -5456,8 +5476,13 @@ function wireLocationBox() {
           + caret(p, i)
           + `<span class="rail-box" aria-hidden="true">${p.mixed ? RAIL_DASH_SVG : RAIL_CHECK_SVG}</span>`
           + `<span class="topbar-place-name">${railMark(p.label, q.trim())}${p.sub ? `<span class="topbar-place-sub">, ${escapeHtml(p.sub)}</span>` : ""}</span>`
-          + `<span class="topbar-place-n">${fmtInt(p.n)}</span></li>`).join("")
-      : q.trim() ? '<li class="topbar-place-none">No places with listings match.</li>' : "";
+          + `<span class="topbar-place-n">${p.n == null ? "" : fmtInt(p.n)}</span></li>`).join("")
+      : !q.trim() ? ""
+      : placeAsking ? '<li class="topbar-place-none topbar-place-wait"><svg class="loading-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        + '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.2"/>'
+        + '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="18 39"/>'
+        + '</svg><span class="sr-only">Loading places</span></li>'
+      : '<li class="topbar-place-none">No places with listings match.</li>';
     list.hidden = !list.innerHTML;
     if (keep) list.scrollTop = top;
     input.setAttribute("aria-expanded", String(!list.hidden));
@@ -5474,7 +5499,34 @@ function wireLocationBox() {
   };
 
   input.addEventListener("focus", () => { input.select(); show(typed = ""); });
-  input.addEventListener("input", () => show(typed = input.value));
+  let askTimer = 0;
+  let askSeq = 0;
+  input.addEventListener("input", () => {
+    show(typed = input.value);
+    clearTimeout(askTimer);
+    const q = typed.trim();
+    placeAsking = q.length >= 2;
+    if (!placeAsking) return;
+    show(typed, true);
+    askTimer = setTimeout(async () => {
+      const seq = ++askSeq;
+      try {
+        const data = await getJSON(`/places/search?${qs({ ...currentFilterParams(), country: "", city: "", name: q })}`);
+        if (seq !== askSeq) return; // a later keystroke has its own answer coming
+        for (const f of data.locations || []) {
+          const old = placeFound.get(f.value);
+          const have = new Set((old?.cities || []).map((t) => t.value));
+          placeFound.set(f.value, { ...f, n: f.n ?? old?.n ?? null,
+            cities: [...(old?.cities || []), ...f.cities.filter((t) => !have.has(t.value))] });
+        }
+      } catch {
+        // Non-fatal: the list keeps what the facet sent.
+      }
+      if (seq !== askSeq) return;
+      placeAsking = false;
+      if (document.activeElement === input) show(typed, true);
+    }, 250);
+  });
   placesRefresh = () => show(typed, true);
   input.addEventListener("blur", () => { close(); paintLocationBox(); });
   input.addEventListener("keydown", (e) => {

@@ -421,6 +421,7 @@ button, input, select {
   border: 0; background: none; color: var(--grey); cursor: pointer; }
 .topbar-place-caret svg { width: 10px; height: 6px; }
 .topbar-place-caret:hover { color: var(--black); }
+.topbar-place-wait { display: flex; justify-content: center; }
 /* The phone's bar: a little tighter. */
 @media (max-width: 800px) {
   .board-head .topbar-search.split { width: auto; height: 40px; }
