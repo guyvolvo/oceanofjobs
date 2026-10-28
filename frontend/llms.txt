@@ -1,6 +1,6 @@
 # OceanOfJobs.com
 
-> An open-source tech job board focused on Israel. It pulls listings straight from the hiring systems of about 3,450 companies (Greenhouse, Lever, Ashby, SmartRecruiters, Workday and others) every 5 minutes, so a listing here is the employer's own posting, not a repost. The same companies' roles in other countries are listed too. The data is free to use through a public JSON API with no key.
+> A tech job board focused on Israel. It pulls listings straight from the hiring systems of about 3,450 companies (Greenhouse, Lever, Ashby, SmartRecruiters, Workday and others) every 5 minutes, so a listing here is the employer's own posting, not a repost. The same companies' roles in other countries are listed too. The data is free to use through a public JSON API with no key.
 
 Every listing links to the employer's own application page. Salaries come in three kinds, and the API says which one you are looking at in `salary_source`: `disclosed` is the employer's published range, `table` is our estimate for the role and seniority in the Israeli market, and `estimated` is our estimate from what comparable roles pay at that company and location. Only `disclosed` comes from the employer.
 
@@ -11,7 +11,7 @@ Every listing links to the employer's own application page. Salaries come in thr
 - [Explore](https://oceanofjobs.com/stats): query every tracked listing with filters and groupings, or with SQL, in the browser.
 - [API reference](https://oceanofjobs.com/api/help): every public endpoint and parameter.
 - [Privacy policy](https://oceanofjobs.com/privacy): what the optional alerts feature stores.
-- [Source code](https://github.com/guyvolvo/oceanofjobs): MIT licensed.
+- [Source code](https://github.com/guyvolvo/oceanofjobs): source-available under the PolyForm Noncommercial License 1.0.0, noncommercial use only.
 
 ## API
 

@@ -1,6 +1,6 @@
 # Ocean of Jobs
 
-Ocean of Jobs is an open-source job board that collects listings directly from company hiring systems. It tracks when jobs are added, changed, closed, or reposted, and makes the data available through a website, a public REST API, and an MCP server.
+Ocean of Jobs is a job board that collects listings directly from company hiring systems. It tracks when jobs are added, changed, closed, or reposted, and makes the data available through a website, a public REST API, and an MCP server.
 
 **Live site:** https://oceanofjobs.com
 
@@ -12,7 +12,7 @@ Ocean of Jobs is an open-source job board that collects listings directly from c
 | Documentation | [/docs](https://oceanofjobs.com/docs) |
 | REST API | [/docs/api](https://oceanofjobs.com/docs/api) |
 | MCP server | [/mcp](https://oceanofjobs.com/mcp) |
-| License | MIT |
+| License | PolyForm Noncommercial 1.0.0 |
 
 ## Using the MCP server
 
@@ -177,4 +177,8 @@ The frontend uses plain HTML, CSS, and JavaScript without a frontend framework. 
 
 ## License
 
-MIT
+Ocean of Jobs is source-available under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+
+You can inspect, modify, and share the code for noncommercial purposes, subject to the license terms. Commercial use requires separate permission from the copyright holder.
+
+Ocean of Jobs and its hosted services are operated independently of this source-code license. See the license for the full terms.
