@@ -13,7 +13,7 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { ApiError, apply, send, type Profile } from "./api";
-import { ConfirmDanger, NeedsResume } from "./shared";
+import { ConfirmDanger, NeedsResume, SETUP } from "./shared";
 import { ResumeStorage } from "./Storage";
 import { useUnsaved } from "./unsaved";
 import type { Ext } from "./ext";
@@ -168,6 +168,7 @@ export function Settings({ ext }: { ext: Ext }) {
 
   return (
     <form className="oj-stack" noValidate onSubmit={(e) => { e.preventDefault(); save(); }}>
+      <div className="oj-row oj-row-end"><Button variant="ghost" onClick={() => dispatchEvent(new Event(SETUP))}>Run setup again</Button></div>
       <ResumeStorage ext={ext} />
       <Card title="Personal details" note="Used to fill in application forms. Your details are saved to your account so you can use them on any computer.">
         <div className="oj-form">

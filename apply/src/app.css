@@ -214,3 +214,8 @@ body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit
 /* Kumo paints the filled look with a gradient on an inner span. */
 .oj-destructive span { background-image: linear-gradient(#c8463a 0%, #b8362c 100%) !important; }
 .oj-destructive:hover span { background-image: linear-gradient(#b23c31 0%, #a02e25 100%) !important; }
+
+/* The setup guide (Onboarding.tsx). */
+.oj-setup { width: min(560px, calc(100vw - 32px)); }
+.oj-setup-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.oj-row-end { justify-content: flex-end; }

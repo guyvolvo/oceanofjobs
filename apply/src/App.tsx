@@ -13,6 +13,7 @@ const Attention = lazy(() => import("./Attention").then((m) => ({ default: m.Att
 const History = lazy(() => import("./History").then((m) => ({ default: m.History })));
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
 const Agent = lazy(() => import("./Agent").then((m) => ({ default: m.Agent })));
+const Onboarding = lazy(() => import("./Onboarding").then((m) => ({ default: m.Onboarding })));
 import { plural } from "./shared";
 import { useLeaveGuard } from "./unsaved";
 
@@ -27,6 +28,8 @@ type Data = { summary?: Summary; queue?: QueueItem[]; needs?: Need[]; history?: 
 
 export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   const [section, setSection] = useState<Section>(fromHash);
+  // The setup guide changes the settings, so Settings reads them again after it.
+  const [settingsKey, setSettingsKey] = useState(0);
   const [data, setData] = useState<Data>({});
   const [failed, setFailed] = useState(false);
   const ext = useExtension();
@@ -104,7 +107,10 @@ export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
         {section === "queue" && (data.queue ? <Queue items={data.queue} ext={ext} reload={load} /> : waiting)}
         {section === "needs" && (data.needs && data.history ? <Attention needs={data.needs} history={data.history} disputesLeft={s?.disputes_left ?? 0} reload={load} /> : waiting)}
         {section === "history" && (data.history ? <History rows={data.history} /> : waiting)}
-        {section === "settings" && <Settings ext={ext} />}
+        {section === "settings" && <>
+          <Onboarding plan={s?.plan} ext={ext} onDone={() => setSettingsKey((k) => k + 1)} />
+          <Settings key={settingsKey} ext={ext} />
+        </>}
         {section === "agent" && <Agent />}
       </div></Suspense>
     </>

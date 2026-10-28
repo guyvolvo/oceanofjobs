@@ -981,7 +981,7 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
     if sub == "" and method == "DELETE":
         # Account deletion: the profile, the applied history and the queue.
         for r in apply.query_all(_alerts_table, user_id):
-            if r["alert_id"] == apply.PROFILE_ROW or r["alert_id"].startswith(
+            if r["alert_id"] in (apply.PROFILE_ROW, apply.ONBOARDED_ROW) or r["alert_id"].startswith(
                     (apply.APPLIED, apply.QUEUE, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY,
                      agent.AGENT, agent.RESUME, ai_answers.RATE_ROW, ai_answers.MONTH_ROW)):
                 _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
@@ -997,7 +997,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
             if claims.get("token_use") == "ooj":
                 profile["answers"] = apply.reusable_answers(profile["answers"])
-            return ok(200, {"profile": profile,
+            onboarded = bool(_alerts_table.get_item(Key={"user_id": user_id, "alert_id": apply.ONBOARDED_ROW}).get("Item"))
+            return ok(200, {"profile": profile, "onboarded": onboarded,
                             "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
         if method == "PUT":
             new = body.get("profile") or {}
@@ -1006,6 +1007,16 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             if turning_on and not agent.get_resume(_alerts_table, user_id):
                 return ok(400, {"error": agent.NEEDS_RESUME, "code": "needs_resume"})
             return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, new)})
+    if sub == "onboarded" and method in ("POST", "DELETE"):
+        # The setup guide on /apply: done or skipped (POST), or asked for again (DELETE).
+        key = {"user_id": user_id, "alert_id": apply.ONBOARDED_ROW}
+        if method == "DELETE":
+            _alerts_table.delete_item(Key=key)
+        else:
+            choice = str(body.get("choice") or "")
+            _alerts_table.put_item(Item={**key, "at": datetime.now(timezone.utc).isoformat(),
+                                         "choice": choice if choice in ("control", "balance", "automation") else "skipped"})
+        return ok(204)
     if sub == "agent/resume" and method in ("PUT", "DELETE"):
         # Added or removed only from /apply with a signed-in session.
         if event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("token_use") == "ooj":

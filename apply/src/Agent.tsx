@@ -27,7 +27,7 @@ type AgentData = {
   editable: boolean;
   resume: Resume;
 };
-type Resume = { name: string; chars: number; truncated: boolean; uploaded_at: string } | null;
+export type Resume = { name: string; chars: number; truncated: boolean; uploaded_at: string } | null;
 type Row = { key: number; text: string };
 type Form = Omit<AgentData, "facts" | "never_claim" | "editable" | "resume"> & { facts: Row[]; never: Row[] };
 
@@ -127,7 +127,7 @@ async function readResume(file: File): Promise<string> {
 
 // On every plan: the resume fills the search preferences and unlocks the
 // hands-off settings, and the AI answers from it.
-function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r: Resume) => void }) {
+export function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r: Resume) => void }) {
   const toasts = useKumoToastManager();
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);

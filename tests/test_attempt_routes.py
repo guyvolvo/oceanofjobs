@@ -73,6 +73,22 @@ with mock_aws():
           [a["question"] for a in profile_as("ooj")] == ["Notice period?"], repr(profile_as("ooj")))
     check("a signed-in session sees every answer, so it can remove them",
           [a["question"] for a in profile_as("id")] == ["Why do you want to work here?", "Notice period?"])
+
+    # The setup guide: shown until finished or skipped, kept when the profile is saved, back on request.
+    onboarded = lambda: json.loads(handler.route_apply("zoe", "GET", "profile", {}, {})["body"])["onboarded"]  # noqa: E731
+    check("a new user sees the setup guide", onboarded() is False)
+    s, _ = call("zoe", "POST", "onboarded", {"choice": "balance"})
+    check("finishing it records the choice and hides it", s == 204 and onboarded() is True
+          and table.get_item(Key={"user_id": "zoe", "alert_id": apply.ONBOARDED_ROW})["Item"]["choice"] == "balance")
+    apply.put_profile(table, "zoe", {"settings": {"mode": "queue"}})
+    check("saving the profile doesn't bring it back", onboarded() is True)
+    call("zoe", "POST", "onboarded", {"choice": "whatever"})
+    check("an unknown choice is recorded as skipped", table.get_item(Key={"user_id": "zoe", "alert_id": apply.ONBOARDED_ROW})["Item"]["choice"] == "skipped")
+    s, _ = call("zoe", "DELETE", "onboarded")
+    check("Run setup again shows it once more", s == 204 and onboarded() is False)
+    call("zoe", "POST", "onboarded", {})
+    call("zoe", "DELETE", "")
+    check("deleting auto apply data takes the record too", not table.get_item(Key={"user_id": "zoe", "alert_id": apply.ONBOARDED_ROW}).get("Item"))
     s, _ = call("zoe", "POST", "answers", {"question": "Why do you want to work here?", "answer": "Monday's product.", "job_id": f"{7:016x}"})
     check("answering it for one job keeps it for that job", s == 204 and {"question": "Why do you want to work here?",
           "answer": "Monday's product.", "job_id": f"{7:016x}", "source": "user", "approval": "approved"} in profile_as("ooj"), repr(profile_as("ooj")))

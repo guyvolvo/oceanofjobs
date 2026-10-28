@@ -27,6 +27,9 @@ from urllib.parse import urlsplit
 from boto3.dynamodb.conditions import Key
 
 PROFILE_ROW = "#apply_profile"
+# /apply's setup guide was finished or skipped (its own row, so saving the
+# profile never resets it).
+ONBOARDED_ROW = "#apply_onboarded"
 PLAN_ROW = "#plan"
 GRANT_ROW = "#grant"
 APPLIED = "#applied#"

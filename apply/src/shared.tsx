@@ -12,6 +12,8 @@ import { ask, connectExtension, type Ext } from "./ext";
 // resume field on the AI agent tab, which stays highlighted until they
 // touch it (Agent.tsx ResumeField listens for RESUME_FOCUS).
 export const RESUME_FOCUS = "ooj-resume-focus";
+// Opens the setup guide (Onboarding.tsx) again.
+export const SETUP = "ooj-setup";
 export function NeedsResume() {
   const go = () => {
     if (location.hash === "#agent") return dispatchEvent(new Event(RESUME_FOCUS));
