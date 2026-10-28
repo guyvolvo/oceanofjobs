@@ -6,6 +6,7 @@ import { Button } from "@cloudflare/kumo/components/button";
 import { InputArea } from "@cloudflare/kumo/components/input";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Loader } from "@cloudflare/kumo/components/loader";
+import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { crm, plural } from "./api";
 import { Failed, useLoad } from "./App";
@@ -13,9 +14,53 @@ import { Failed, useLoad } from "./App";
 export type Mail = { sk: string; dir: "in" | "out"; email: string; name: string; subject: string; text: string; read: boolean;
   contact: string; attachments?: number; by?: string };
 
+type Sent = { at: string; to: string; subject: string; body: string; source: string };
+
 const when = (sk: string) => new Date(sk.split("#")[0]).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
+// Everything the CRM sent: replies, emails to one member, campaigns and flow emails.
+function SentMail() {
+  const { data, error, load } = useLoad<{ sent: Sent[] }>("/inbox/sent");
+  const [open, setOpen] = useState<number | null>(null);
+  if (error) return <Failed error={error} retry={load} />;
+  if (!data) return <p className="crm-note"><Loader /> Loading</p>;
+  const m = open === null ? null : data.sent[open];
+  return (
+    <div className="crm-inbox">
+      <LayerCard><div className="crm-card crm-threads">
+        <h2>Sent</h2>
+        {!data.sent.length ? <p className="crm-note">Nothing sent yet.</p> : data.sent.map((x, i) => (
+          <button key={i} type="button" className={`crm-thread${i === open ? " on" : ""}`} onClick={() => setOpen(i)}>
+            <span className="crm-row between"><b>{x.to}</b><span className="crm-sub">{when(x.at)}</span></span>
+            <span className="crm-sub">{x.subject || "No subject"}</span>
+            <span className="crm-snippet">{x.source}</span>
+          </button>
+        ))}
+      </div></LayerCard>
+      <LayerCard><div className="crm-card crm-stack">
+        {!m ? <p className="crm-note">Pick an email.</p> : <>
+          <div>
+            <h2>{m.subject || "No subject"}</h2>
+            <p className="crm-note">To {m.to} · {m.source} · {when(m.at)}</p>
+          </div>
+          <div className="crm-msg out"><div className="crm-msg-text">{m.body || "(no text)"}</div></div>
+        </>}
+      </div></LayerCard>
+    </div>
+  );
+}
+
 export function Inbox({ sending, onUnread }: { sending: boolean; onUnread: (n: number) => void }) {
+  const [view, setView] = useState("in");
+  return (
+    <div className="crm-stack">
+      <div><Tabs variant="segmented" value={view} onValueChange={setView} tabs={[{ value: "in", label: "Received" }, { value: "sent", label: "Sent" }]} /></div>
+      {view === "sent" ? <SentMail /> : <Received sending={sending} onUnread={onUnread} />}
+    </div>
+  );
+}
+
+function Received({ sending, onUnread }: { sending: boolean; onUnread: (n: number) => void }) {
   const toasts = useKumoToastManager();
   const { data, error, load, setData } = useLoad<{ messages: Mail[] }>("/inbox");
   const [open, setOpen] = useState<string | null>(null);

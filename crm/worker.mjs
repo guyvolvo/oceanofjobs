@@ -462,6 +462,41 @@ async function api(request, env, who, path) {
 
   if (area === "inbox") {
     if (!sub && method === "GET") return json(200, { messages: await S.list(env, "inbox", { limit: 500 }) });
+    if (sub === "sent" && method === "GET") {
+      // Everything the CRM sent, read from where each kind is already kept:
+      // inbox replies, emails to one member (direct#<user>), campaigns, and
+      // the email steps in each flow's log. Newest 100.
+      const out = [];
+      for (const m of await S.list(env, "inbox", { limit: 500 })) {
+        if (m.dir === "out") out.push({ at: m.sk.split("#")[0], to: m.email, subject: m.subject, body: m.text, source: "Reply" });
+      }
+      const members = [...new Set((await S.list(env, "audit", { limit: 1000 })).filter((a) => a.action === "email member")
+        .map((a) => (a.detail || {}).contact).filter(Boolean))].slice(0, 25);
+      for (const id of members) {
+        for (const d of await S.list(env, "direct#" + id, { limit: 20 })) {
+          out.push({ at: d.sk.split("#")[0], to: d.to, subject: d.subject, body: d.body, source: "To one member" });
+        }
+      }
+      for (const c of await S.list(env, "campaign")) {
+        if (c.status !== "draft" && c.sent) {
+          out.push({ at: c.sent_at || c.updated, to: `${c.sent} member${c.sent === 1 ? "" : "s"}`, subject: c.subject, body: c.body,
+            source: c.kind === "notice" ? "Account notice" : "Product update" });
+        }
+      }
+      for (const f of await S.list(env, "flow", { newest: false })) {
+        if (!(f.actions || []).some((a) => a.type === "email")) continue;
+        for (const r of await S.list(env, "flowlog#" + f.sk, { limit: 50 })) {
+          if (r.test) continue;
+          (r.steps || []).forEach(([type, result], i) => {
+            const a = f.actions[(r.from || 0) + i];
+            if (type === "email" && result === "done" && a) {
+              out.push({ at: r.at, to: r.email, subject: a.subject, body: a.body, source: `Flow: ${f.name}` });
+            }
+          });
+        }
+      }
+      return json(200, { sent: out.sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 100) });
+    }
     if (sub === "read" && method === "POST") {
       const sks = ((await body(request)).sk || []).slice(0, 100).map(String);
       for (const sk of sks) {

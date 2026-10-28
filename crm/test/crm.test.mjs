@@ -564,5 +564,15 @@ test("default flows: logs from what's already recorded", async () => {
   r = await (await call("/api/flows/builtin/signin")).json();
   assert.deepEqual(r.entries, [{ at: "2026-10-28T09:00:00Z", to: "a@example.com", what: "Code requested" }], "the sign-in Lambda's rows");
   assert.equal((await call("/api/flows/builtin/nope")).status, 404, "no log for what isn't recorded");
+  // The inbox's Sent view: the email to one member above, a reply, a sent campaign, a flow's email step.
+  state.crm.push({ pk: { S: "inbox" }, sk: { S: "2026-10-28T08:00:00Z#r1" }, dir: { S: "out" }, email: { S: "b@example.com" }, subject: { S: "Re: hi" }, text: { S: "Thanks" } },
+    { pk: { S: "campaign" }, sk: { S: "c1" }, status: { S: "sent" }, sent: { N: "3" }, sent_at: { S: "2026-10-28T07:00:00Z" }, subject: { S: "News" }, body: { S: "Body" }, kind: { S: "notice" } },
+    { pk: { S: "flow" }, sk: { S: "f1" }, name: { S: "Welcome" }, trigger: { S: "signup" }, enabled: { BOOL: true },
+      actions: { L: [{ M: { type: { S: "email" }, subject: { S: "Welcome" }, body: { S: "Hello" } } }] } },
+    { pk: { S: "flowlog#f1" }, sk: { S: "2026-10-28T06:00:00Z#l1" }, at: { S: "2026-10-28T06:00:00Z" }, email: { S: "a@example.com" },
+      test: { BOOL: false }, from: { N: "0" }, steps: { L: [{ L: [{ S: "email" }, { S: "done" }] }] } });
+  r = await (await call("/api/inbox/sent")).json();
+  assert.deepEqual(r.sent.map((m) => [m.source, m.to, m.subject]).sort(), [
+    ["Account notice", "3 members", "News"], ["Flow: Welcome", "a@example.com", "Welcome"], ["Reply", "b@example.com", "Re: hi"], ["To one member", "a@example.com", "Your plan"]]);
   globalThis.fetch = realFetch;
 });
