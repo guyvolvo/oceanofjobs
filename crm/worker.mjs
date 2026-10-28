@@ -78,21 +78,23 @@ const csvCell = (v) => {
 // Confirmed, unconfirmed is Unconfirmed, failed is Failed, and
 // not_sent_disputed is Disputed, counted on its own and in no chart.
 // Open (reserved, submission_started), skipped, needs_input, abandoned,
-// filled and sent are in none. An attempt counts at its settlement, or its
-// start while it's still open.
-const OUTCOMES = ["submitted", "unconfirmed", "failed"];
+// and filled are in none. sent is the user pressing the site's own Submit,
+// receipt not confirmed: its own category, never added to confirmed. An
+// attempt counts at its settlement, or its start while it's still open.
+const OUTCOMES = ["submitted", "unconfirmed", "sent", "failed"];
 const WEEK = 7 * 864e5;
 // The seven busiest systems, then the rest added up as Other.
 function topSystems(rows) {
-  rows.sort((a, b) => b[1] + b[2] + b[3] - (a[1] + a[2] + a[3]));
+  const sum = (r) => r.slice(1).reduce((t, n) => t + n, 0);
+  rows.sort((a, b) => sum(b) - sum(a));
   if (rows.length <= 8) return rows;
-  const rest = rows.slice(7).reduce((t, r) => [t[0], t[1] + r[1], t[2] + r[2], t[3] + r[3]], ["Other", 0, 0, 0]);
+  const rest = rows.slice(7).reduce((t, r) => t.map((n, i) => (i ? n + r[i] : n)), ["Other", 0, 0, 0, 0]);
   return [...rows.slice(0, 7), rest];
 }
 export function applications(attempts, start, now, span, buckets, key) {
   const inRange = attempts.filter((a) => a.at >= start);
   const split = (list) => OUTCOMES.map((s) => list.filter((a) => a.state === s).length);
-  const [confirmed, unconfirmed, failed] = split(inRange);
+  const [confirmed, unconfirmed, sent, failed] = split(inRange);
   const disputed = inRange.filter((a) => a.state === "not_sent_disputed").length;
   const systems = {};
   for (const a of inRange) if (OUTCOMES.includes(a.state)) (systems[a.system] ||= []).push(a);
@@ -100,23 +102,24 @@ export function applications(attempts, start, now, span, buckets, key) {
   // The one definition of an active user, the line under the overview's
   // tiles: at least one application started or settled that week, so every
   // confirmation in the numerator has its user in that week's denominator.
-  // Fills the user sends themselves (filled, sent) never reserve: not counted.
+  // A fill the user never sent (filled) isn't an application: not counted.
   const weeks = Math.max(1, Math.floor(span / WEEK));
-  let sent = 0, unsure = 0, active = 0;
+  let ok = 0, unsure = 0, own = 0, active = 0;
   for (let w = 0; w < weeks; w++) {
     const from = new Date(now - (w + 1) * WEEK).toISOString(), to = new Date(now - w * WEEK).toISOString();
     const within = (t) => t >= from && t < to;
-    active += new Set(attempts.filter((a) => (within(a.started) || within(a.at)) && !["filled", "sent"].includes(a.state)).map((a) => a.user)).size;
-    sent += attempts.filter((a) => a.state === "submitted" && within(a.at)).length;
+    active += new Set(attempts.filter((a) => (within(a.started) || within(a.at)) && a.state !== "filled").map((a) => a.user)).size;
+    ok += attempts.filter((a) => a.state === "submitted" && within(a.at)).length;
     unsure += attempts.filter((a) => a.state === "unconfirmed" && within(a.at)).length;
+    own += attempts.filter((a) => a.state === "sent" && within(a.at)).length;
   }
   const perUser = (n) => (active ? Math.round((n / active) * 100) / 100 : null);
   return {
-    confirmed, unconfirmed, failed, disputed,
+    confirmed, unconfirmed, sent, failed, disputed,
     by_time: buckets.map((b) => [b, ...split(inRange.filter((a) => key(a.at) === b))]),
     by_system: topSystems(Object.entries(systems).map(([name, list]) => [name, ...split(list)])),
     weeks, active_user_weeks: active,
-    per_user_week: perUser(sent), unconfirmed_per_user_week: perUser(unsure),
+    per_user_week: perUser(ok), unconfirmed_per_user_week: perUser(unsure), sent_per_user_week: perUser(own),
   };
 }
 

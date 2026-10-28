@@ -25,6 +25,7 @@ function tokens() {
     success: v("--color-kumo-success", ChartPalette.semantic("Success", dark)),
     warning: v("--color-kumo-warning", ChartPalette.semantic("Warning", dark)),
     danger: v("--color-kumo-danger", ChartPalette.semantic("Attention", dark)),
+    info: ChartPalette.categorical(0, dark),
   };
 }
 type T = ReturnType<typeof tokens>;
@@ -109,10 +110,10 @@ export function ShareChart({ parts, name }: { parts: [string, number][]; name: s
   return <Chart echarts={echarts} options={options} height={200} />;
 }
 
-// Application outcomes, kept apart: [label, confirmed, unconfirmed, failed].
-type Split = [string, number, number, number];
-const OUTCOMES = ["Confirmed", "Unconfirmed", "Failed"];
-const colours = (t: T) => [t.success, t.warning, t.danger];
+// Application outcomes, kept apart: [label, confirmed, unconfirmed, sent by the user, failed].
+type Split = [string, number, number, number, number];
+const OUTCOMES = ["Confirmed", "Unconfirmed", "Sent by user, not confirmed", "Failed"];
+const colours = (t: T) => [t.success, t.warning, t.info, t.danger];
 const val = (r: Split, i: number) => r[i + 1] as number;
 
 function Legend({ rows }: { rows: Split[] }) {

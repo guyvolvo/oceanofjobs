@@ -621,26 +621,27 @@ test("the overview's applications: confirmed and unconfirmed apart, failed apart
     { headers: { "Cf-Access-Jwt-Assertion": tok } }), env).then((r) => r.json());
 
   let d = (await dash("30d")).applications;
-  assert.deepEqual([d.confirmed, d.unconfirmed, d.failed, d.disputed], [4, 1, 1, 1],
-    "40 days ago, in progress, filled and sent aren't in these; disputed isn't failed");
+  assert.deepEqual([d.confirmed, d.unconfirmed, d.sent, d.failed, d.disputed], [4, 1, 1, 1, 1],
+    "40 days ago, in progress and filled aren't in these; sent by the user is its own; disputed isn't failed");
   assert.deepEqual(d.by_system.slice(2).map(([n]) => n).sort(), ["Workday", "jobs.example.org"], "busiest first");
   assert.deepEqual(Object.fromEntries(d.by_system.map(([n, ...x]) => [n, x])),
-    { Greenhouse: [1, 1, 0], Workday: [1, 0, 0], Lever: [1, 0, 1], "jobs.example.org": [1, 0, 0] }, "the disputed one is in no column");
+    { Greenhouse: [1, 1, 0, 0], Workday: [1, 0, 0, 0], Lever: [1, 0, 1, 1], "jobs.example.org": [1, 0, 0, 0] }, "the disputed one is in no column");
   assert.equal(d.by_time.length, 30);
-  assert.deepEqual(d.by_time.reduce((t, [, c, u, f]) => [t[0] + c, t[1] + u, t[2] + f], [0, 0, 0]), [4, 1, 1]);
+  assert.deepEqual(d.by_time.reduce((t, [, ...x]) => t.map((n, i) => n + x[i]), [0, 0, 0, 0]), [4, 1, 1, 1]);
   // Four whole weeks. Last week: u2 and u3 started one, 3 confirmed and 1 unconfirmed settled.
   // The week before: u3 and u1 started one, 1 confirmed.
   assert.equal(d.weeks, 4);
   assert.equal(d.active_user_weeks, 5, "u1 started the week before and settled last week: active in both, once each");
   assert.equal(d.per_user_week, 0.8);
   assert.equal(d.unconfirmed_per_user_week, 0.2);
+  assert.equal(d.sent_per_user_week, 0.2, "u1's own send, same denominator, never in per_user_week");
   assert.equal(d.older, 0, "the #applied# row is 40 days old");
 
   d = (await dash("7d")).applications;
   assert.deepEqual([d.confirmed, d.unconfirmed, d.failed, d.weeks, d.active_user_weeks, d.per_user_week, d.unconfirmed_per_user_week],
     [3, 1, 1, 1, 3, 1, 0.33], "u1's confirmation last week puts u1 in last week's denominator");
   d = (await dash("24h")).applications;
-  assert.deepEqual([d.confirmed, d.unconfirmed, d.failed], [1, 0, 0]);
+  assert.deepEqual([d.confirmed, d.unconfirmed, d.sent, d.failed], [1, 0, 0, 0]);
   assert.equal(d.by_time.length, 24);
   assert.equal(d.weeks, 1, "24h still reads the last whole week for the per-week figure");
 
@@ -653,7 +654,7 @@ test("the overview's applications: confirmed and unconfirmed apart, failed apart
 
   // The member page: confirmed and unconfirmed apart, the user's own sends and older rows on their own.
   const r2 = await (await worker.fetch(new Request("https://crm.oceanofjobs.com/api/contacts/u2", { headers: { "Cf-Access-Jwt-Assertion": tok } }), env)).json();
-  assert.deepEqual([r2.activity.confirmed, r2.activity.unconfirmed, r2.activity.sent, r2.activity.older], [2, 1, 0, 1]);
+  assert.deepEqual([r2.activity.confirmed, r2.activity.unconfirmed, r2.activity.sent, r2.activity.failed, r2.activity.older], [2, 1, 0, 1, 1]);
 
   // The funnel: signed up in the range and at least one confirmed in it. u5 has only an
   // unconfirmed one and a charged ledger, so it isn't counted.

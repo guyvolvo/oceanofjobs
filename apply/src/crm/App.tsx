@@ -42,10 +42,11 @@ type Range = "24h" | "7d" | "30d" | "90d";
 type Dash = { complete: boolean; range: Range; members: number; new: number; newsletter: number; waitlist: { basic: number; pro: number };
   mcp: number; signups: [string, number][]; total: [string, number][]; funnel: [string, number][]; providers: Record<string, number>;
   plans: Record<string, number>; applications: Apps };
-// Attempt outcomes as [label, confirmed, unconfirmed, failed].
-type Split = [string, number, number, number];
-type Apps = { confirmed: number; unconfirmed: number; failed: number; disputed: number; older: number; by_time: Split[]; by_system: Split[];
-  weeks: number; active_user_weeks: number; per_user_week: number | null; unconfirmed_per_user_week: number | null };
+// Attempt outcomes as [label, confirmed, unconfirmed, sent by the user, failed].
+type Split = [string, number, number, number, number];
+type Apps = { confirmed: number; unconfirmed: number; sent: number; failed: number; disputed: number; older: number; by_time: Split[]; by_system: Split[];
+  weeks: number; active_user_weeks: number; per_user_week: number | null; unconfirmed_per_user_week: number | null;
+  sent_per_user_week: number | null };
 // Imported on first use, so ECharts loads with the overview, not the CRM.
 const Charts = () => import("./Charts");
 const SignupsChart = lazy(() => Charts().then((m) => ({ default: m.SignupsChart })));
@@ -76,7 +77,7 @@ function Overview({ sending }: { sending: boolean }) {
     [data.members, "Users"], [data.new, `New in ${RANGES[range]}`], [data.newsletter, "Product updates"],
     [data.waitlist.basic, "Basic waitlist"], [data.waitlist.pro, "Pro waitlist"], [data.mcp, "AI agent"],
     [data.applications.per_user_week ?? 0, "Confirmed per active user per week",
-      `${(data.applications.unconfirmed_per_user_week ?? 0).toLocaleString()} unconfirmed`],
+      `${(data.applications.unconfirmed_per_user_week ?? 0).toLocaleString()} unconfirmed, ${(data.applications.sent_per_user_week ?? 0).toLocaleString()} sent by user`],
   ];
   const apps = data.applications;
   const parts = (m: Record<string, number>, names: Record<string, string>): [string, number][] => Object.entries(m).map(([k, n]) => [names[k] || k, n]);

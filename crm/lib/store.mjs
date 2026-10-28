@@ -156,18 +156,19 @@ export function matches(c, f = {}) {
 
 // What a member did, for their page: counted from their own partition.
 // Applications the same way as the overview: confirmed (Submitted) and
-// unconfirmed apart; fills the member sent themselves and the older
-// #applied# rows (whose outcome can't be told) each on their own.
+// unconfirmed apart, sent by the member themselves and failed apart, and
+// the older #applied# rows (whose outcome can't be told) on their own.
 export async function activity(env, id) {
   const r = await all(env, "Query", { TableName: env.ALERTS_TABLE, KeyConditionExpression: "user_id = :u",
     ExpressionAttributeValues: { ":u": { S: id } }, ...projection(["alert_id", "created_at", "state", "active", "status"]) }, 10);
-  const count = { alerts: 0, active_alerts: 0, saved: 0, confirmed: 0, unconfirmed: 0, sent: 0, older: 0 };
+  const count = { alerts: 0, active_alerts: 0, saved: 0, confirmed: 0, unconfirmed: 0, sent: 0, failed: 0, older: 0 };
   for (const row of r.items) {
     const k = String(row.alert_id || "");
     if (k.startsWith("#attempt#")) {
       if (row.state === "submitted") count.confirmed++;
       else if (row.state === "unconfirmed") count.unconfirmed++;
       else if (row.state === "sent") count.sent++;
+      else if (row.state === "failed") count.failed++;
     } else if (k.startsWith("#applied#")) { if (row.status === "submitted") count.older++; }
     else if (k.startsWith("#saved#") || /^[0-9a-f]{16}$/.test(k)) count.saved++;
     else if (!k.startsWith("#")) { count.alerts++; if (row.active) count.active_alerts++; }
