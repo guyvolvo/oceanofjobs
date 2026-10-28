@@ -216,6 +216,21 @@ body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit
 .oj-destructive:hover span { background-image: linear-gradient(#b23c31 0%, #a02e25 100%) !important; }
 
 /* The setup guide (Onboarding.tsx). */
-.oj-setup { width: min(560px, calc(100vw - 32px)); }
+.oj-setup { width: min(560px, calc(100vw - 32px)); gap: 16px; }
+.oj-setup-top { display: flex; align-items: center; justify-content: space-between; }
+.oj-setup-top img { display: block; }
+.oj-setup-head { display: flex; align-items: center; gap: 12px; }
+.oj-setup-badge { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
+  background: var(--color-kumo-tint); color: var(--color-kumo-brand); }
+.oj-setup-icon { width: 22px; height: 22px; fill: currentColor; flex: none; }
+.oj-setup-choices { margin: 0; padding: 0; border: 0; display: grid; gap: 10px; }
+.oj-setup-choice { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--color-kumo-line);
+  border-radius: 12px; cursor: pointer; line-height: 1.4; transition: border-color 120ms ease, background-color 120ms ease; }
+.oj-setup-choice:hover { background: var(--color-kumo-tint); }
+.oj-setup-choice.on { border-color: var(--color-kumo-brand); background: var(--color-kumo-tint); }
+.oj-setup-choice .oj-setup-icon { color: var(--text-color-kumo-subtle); }
+.oj-setup-choice.on .oj-setup-icon { color: var(--color-kumo-brand); }
+.oj-setup-choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.oj-setup-choice:has(input:focus-visible) { outline: 2px solid var(--color-kumo-brand); outline-offset: 2px; }
 .oj-setup-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .oj-row-end { justify-content: flex-end; }

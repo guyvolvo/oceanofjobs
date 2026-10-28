@@ -46,6 +46,7 @@ await dlg.getByText("Set up auto apply").waitFor({ timeout: 15000 });
 await p.screenshot({ path: `${OUT}/setup-1.png` });
 await dlg.getByRole("button", { name: "Next" }).click();
 await dlg.getByText("I prefer full automation", { exact: false }).click();
+await p.waitForTimeout(200);
 await p.screenshot({ path: `${OUT}/setup-2.png` });
 const steps = [];
 await dlg.getByRole("button", { name: "Next" }).click();
