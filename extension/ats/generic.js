@@ -457,7 +457,7 @@
   // only a sample (the first 20 of a thousand schools), so its list counts
   // only when it is short, like a question's answers (SmartRecruiters'
   // searchable dropdowns), and never for a place, which is looked up as typed.
-  const PLACE = new Set(['location', 'country', 'phone_country']);
+  const PLACE = new Set(['location', 'country', 'phone_country', 'phone_code']);
   async function peekOptions(el, field) {
     const search = typeable(el);
     if (search && root.oojMatch && PLACE.has(root.oojMatch.classify(field))) return [];

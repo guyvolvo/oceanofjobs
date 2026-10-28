@@ -389,3 +389,19 @@ test('demographic questions in other wordings are recognised; ordinary questions
   assert.equal(m.classify({ label: 'What is your sex?' }), 'gender', 'a saved gender answer fills "Sex"');
   assert.equal(m.classify({ label: 'Do you have a long-term health condition or impairment?' }), 'disability');
 });
+
+test('a phone number split in two (Workday): the country in its dropdown, the rest in the box', () => {
+  const p = { ...profile, contact: { ...profile.contact, phone: '+972587858580', location: 'Tel Aviv, Israel' } };
+  const fields = [
+    { name: 'phoneType', label: 'Phone Device Type', required: true, type: 'combobox', options: ['Landline', 'Mobile'] },
+    { name: 'countryPhoneCode', label: 'Country Phone Code', required: true, type: 'combobox', options: [] },
+    { name: 'phoneNumber', label: 'Phone Number', required: true, type: 'text', options: [] },
+  ];
+  const by = Object.fromEntries(m.planFill(fields, p, {}).fills.map((f) => [f.name, f.value]));
+  assert.deepEqual(by, { phoneType: 'Mobile', countryPhoneCode: 'Israel', phoneNumber: '587858580' });
+  const alone = m.planFill([fields[2]], p, {}).fills[0].value;
+  assert.equal(alone, '+972587858580', 'a form with one phone box keeps the full number');
+  assert.equal(m.nationalNumber('+44 07911 123456'), '7911123456');
+  assert.equal(m.nationalNumber('+1 (415) 555-0100'), '4155550100');
+  assert.equal(m.nationalNumber('058-785-8580'), '058-785-8580', 'no + : left as typed');
+});
