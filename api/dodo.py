@@ -119,6 +119,17 @@ def checkout(table, user_id: str, email: str | None, plan: str, send=None) -> di
     return {"url": _call("POST", "/checkouts", body, send)["checkout_url"]}
 
 
+def state(table, user_id: str) -> dict:
+    """What the account page's Billing tab shows: the paid plan as Dodo
+    last reported it, a plan given in the CRM, and whether the account has
+    a Dodo customer to open the portal for. Read only, no call to Dodo."""
+    row = lambda k: table.get_item(Key={"user_id": user_id, "alert_id": k}).get("Item") or {}
+    paid, grant, billing = row(PLAN_ROW), row("#grant"), row(BILLING_ROW)
+    return {"paid": {k: paid.get(k) or "" for k in ("plan", "status", "period_end")} if paid.get("plan") else None,
+            "license": {"plan": grant["plan"], "until": grant.get("until") or ""} if grant.get("plan") not in (None, "free") else None,
+            "customer": bool(billing.get("customer_id"))}
+
+
 def portal(table, user_id: str, send=None) -> dict:
     """{"url": customer portal} for the account's Dodo customer, or
     {"error", "code"} when it never bought anything."""

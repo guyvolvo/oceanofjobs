@@ -675,6 +675,9 @@ def lambda_handler(event, context):
             except user_files.NotReady as e:
                 return _response(503, json.dumps({"error": str(e), "code": "not_ready", "retryable": False}))
             return _response(405, json.dumps({"error": "method not allowed"}))
+        if path == "/me/billing" and method == "GET":
+            # The Billing tab on /account: what the account pays for, from our rows.
+            return _response(200, json.dumps(dodo.state(_alerts_table, _authenticated_claims(event)["sub"])))
         if path in ("/me/checkout", "/me/billing"):
             # Buying a plan and managing it (dodo.py): links to Dodo's
             # hosted checkout and customer portal, for the signed-in account.
@@ -855,6 +858,10 @@ def lambda_handler(event, context):
             if method == "DELETE":
                 tokens.revoke(_alerts_table, user_id, path[len("/me/tokens/"):])
                 return _response(204, "")
+            if method == "PATCH":
+                body = json.loads(event.get("body") or "{}")
+                return _response(200, json.dumps(tokens.update(_alerts_table, user_id, path[len("/me/tokens/"):],
+                                                               body.get("name"), body.get("permissions"))))
             return _response(405, json.dumps({"error": "method not allowed"}))
         return _response(404, json.dumps({"error": f"no route for {path}"}))
     except ValueError as e:

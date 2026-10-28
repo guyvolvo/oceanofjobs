@@ -169,6 +169,14 @@ try:
 except dodo.DodoError as e:
     check("Dodo being down isn't hidden by the retry", e.status == 502)
 check("the portal opens for a customer", dodo.portal(t, "u1", fake) == {"url": "https://portal.example/p"})
+t.put_item(Item={"user_id": "u1", "alert_id": dodo.PLAN_ROW, "plan": "pro", "status": "trialing", "period_end": "2026-11-04T10:00:00Z"})
+check("billing state: the paid plan, its status and renewal, and a customer",
+      dodo.state(t, "u1") == {"paid": {"plan": "pro", "status": "trialing", "period_end": "2026-11-04T10:00:00Z"}, "license": None, "customer": True},
+      repr(dodo.state(t, "u1")))
+t.put_item(Item={"user_id": "u3", "alert_id": "#grant", "plan": "basic", "until": "2026-12-31"})
+check("billing state: a plan given in the CRM, no customer",
+      dodo.state(t, "u3") == {"paid": None, "license": {"plan": "basic", "until": "2026-12-31"}, "customer": False}, repr(dodo.state(t, "u3")))
+check("billing state: nothing at all is free", dodo.state(FakeTable(), "u9") == {"paid": None, "license": None, "customer": False})
 check("no customer, no portal", dodo.portal(FakeTable(), "u2", fake).get("code") == "no_customer")
 
 print("\n%d failed" % len(failures) if failures else "\nall passed")

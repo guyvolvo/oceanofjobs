@@ -113,6 +113,9 @@ function Tokens() {
   const [revoking, setRevoking] = useState<string | null>(null);
   const [made, setMade] = useState("");
   const [agent, setAgent] = useState("cc");
+  const [editing, setEditing] = useState<Token | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPerms, setEditPerms] = useState(every("read"));
   const fail = (title: string) => toasts.add({ variant: "error", title });
 
   const load = useCallback(async () => {
@@ -151,6 +154,27 @@ function Tokens() {
       setRevoking(null);
     }
   };
+  const startEdit = (t: Token) => {
+    setEditing(t);
+    setEditName(t.name);
+    if (t.permissions) setEditPerms(t.permissions);
+  };
+  // The name, and for an AI agent's token what it may do. The token and its expiry stay.
+  const saveEdit = async () => {
+    if (!editing) return;
+    setBusy(true);
+    try {
+      await api(`/me/tokens/${editing.id}`, send("PATCH", { name: editName, ...(editing.permissions ? { permissions: editPerms } : {}) }));
+      toasts.add({ variant: "success", title: "Token saved" });
+      setEditing(null);
+      await load();
+    } catch {
+      fail("Couldn't save the token. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const editNothing = !!editing?.permissions && AREAS.every(([k]) => editPerms[k] === "none");
   const full = (tokens?.length || 0) >= 5;
   const a = AGENTS[agent];
   const nothing = AREAS.every(([k]) => perms[k] === "none");
@@ -172,6 +196,21 @@ function Tokens() {
             <div className="oj-row oj-dialog-actions">
               <Button variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button>
               <Button type="submit" variant="primary" loading={busy} disabled={nothing}>Create token</Button>
+            </div>
+          </form>
+        </Dialog>
+      </Dialog.Root>
+      <Dialog.Root open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
+        <Dialog className="oj-dialog oj-token-dialog">
+          <Dialog.Title className="oj-card-title">Edit token</Dialog.Title>
+          <form className="oj-stack" onSubmit={(e) => { e.preventDefault(); saveEdit(); }}>
+            <Input label="Token name" maxLength={60} autoComplete="off" autoFocus
+              value={editName} onChange={(e) => setEditName(e.target.value)} />
+            {editing?.permissions ? <PermissionGrid perms={editPerms} setPerms={setEditPerms} /> : null}
+            {editNothing ? <p className="oj-error" role="alert">Give the token at least one permission.</p> : null}
+            <div className="oj-row oj-dialog-actions">
+              <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button type="submit" variant="primary" loading={busy} disabled={editNothing}>Save</Button>
             </div>
           </form>
         </Dialog>
@@ -205,7 +244,10 @@ function Tokens() {
                   </Table.Cell>
                   <Table.Cell className="oj-actions-cell">
                     {/* The list holds the extension's token too, so one stray click could disconnect it. */}
-                    <ConfirmButton ask="Revoke?" variant="ghost" loading={revoking === t.id} onConfirm={() => revoke(t.id)}>Revoke</ConfirmButton>
+                    <div className="oj-row oj-token-actions">
+                      <Button variant="ghost" onClick={() => startEdit(t)}>Edit</Button>
+                      <ConfirmButton ask="Revoke?" variant="ghost" loading={revoking === t.id} onConfirm={() => revoke(t.id)}>Revoke</ConfirmButton>
+                    </div>
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -295,10 +337,6 @@ export function Settings({ email, logOut }: { email: string; logOut: () => void 
           {/* Clicks the header's own theme button, which owns the switch and the storage key. */}
           <Button variant="secondary" aria-label={`Switch to the ${dark ? "light" : "dark"} theme`}
             onClick={() => document.getElementById("hero-theme")?.click()}>{dark ? "Light" : "Dark"}</Button>
-        </div>
-        <div className="oj-row oj-row-between">
-          <span className="oj-pref-text"><span className="oj-pref-label">Billing</span><span className="oj-note">Cancel your plan, change your card or download invoices.</span></span>
-          <Button variant="secondary" onClick={() => { location.href = "/checkout?manage=1"; }}>Manage billing</Button>
         </div>
         <div className="oj-row oj-row-between">
           <span className="oj-pref-label">Log out</span>

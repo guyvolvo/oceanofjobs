@@ -21,8 +21,9 @@ import { Card } from "./ui";
 import { useLeaveGuard } from "../unsaved";
 const Preferences = lazy(() => import("./Preferences").then((m) => ({ default: m.Preferences })));
 const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
+const Billing = lazy(() => import("./Billing").then((m) => ({ default: m.Billing })));
 
-const SECTIONS = ["overview", "skills", "alerts", "saved", "preferences", "settings"] as const;
+const SECTIONS = ["overview", "skills", "alerts", "saved", "preferences", "billing", "settings"] as const;
 type Section = (typeof SECTIONS)[number];
 // A hash can also name a part of a section (#aa-settings, from older
 // extension builds and the MCP server's refusal message).
@@ -415,6 +416,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
     { value: "alerts", label: count(alerts?.length || 0, "Alerts") },
     { value: "saved", label: count(savedCount, "Saved jobs") },
     { value: "preferences", label: "Preferences" },
+    { value: "billing", label: "Billing" },
     { value: "settings", label: "Settings" },
   ];
   const prefsLine = [
@@ -485,6 +487,7 @@ function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
           {section === "preferences" && (profile
             ? <Preferences profile={profile} onEditing={onPrefsEditing} save={async (prefs) => { await putProfile(prefs); }} />
             : waiting)}
+          {section === "billing" && <Billing />}
           {section === "settings" && <Settings email={email} logOut={logOut} />}
         </Suspense>
       </div>

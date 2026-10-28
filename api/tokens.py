@@ -136,9 +136,31 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
     return {**_public(item), "token": token}
 
 
-def revoke(table, user_id: str, token_id: str) -> None:
+def _check_id(token_id: str) -> None:
     if len(token_id) != 8 or any(c not in "0123456789abcdef" for c in token_id):
         raise ValueError("not a token id")
+
+
+def update(table, user_id: str, token_id: str, name=None, permissions=None) -> dict:
+    """A token's name and, for an AI agent's token, what it may do. The
+    token itself and its expiry stay as they are."""
+    _check_id(token_id)
+    item = table.get_item(Key={"user_id": user_id, "alert_id": ROW + token_id}).get("Item")
+    if not item:
+        raise ValueError("no such token")
+    if name is not None:
+        item["name"] = str(name).strip()[:NAME_MAX] or item.get("name") or "Token"
+    if permissions is not None:
+        if (item.get("scope") or "mcp") != "mcp":
+            raise ValueError("only an AI agent's token has permissions")
+        item["permissions"] = clean_permissions(permissions)
+    # Revoked meanwhile: no row comes back from the dead.
+    table.put_item(Item=item, ConditionExpression="attribute_exists(alert_id)")
+    return _public(item)
+
+
+def revoke(table, user_id: str, token_id: str) -> None:
+    _check_id(token_id)
     table.delete_item(Key={"user_id": user_id, "alert_id": ROW + token_id})
 
 

@@ -143,6 +143,26 @@ for _ in range(3):
 mine = tokens.list_tokens(table, "u-reconnect")
 check("connecting the extension again replaces its token instead of adding one",
       len(mine) == 1 and mine[0]["id"] == last["id"] and tokens.verify(table, last["token"], NOW)["scope"] == "extension", repr(mine))
+# Editing: the name and permissions change; the token keeps working.
+got = tokens.update(table, USER, made["id"], "  renamed ", {"saved": "read", "queue": "none", "alerts": "write", "preferences": "none"})
+check("a token can be renamed and its permissions changed",
+      got["name"] == "renamed" and got["permissions"]["alerts"] == "write" and got["permissions"]["saved"] == "read", repr(got))
+check("an edited token still works, with its new permissions",
+      tokens.verify(table, tok, NOW)["permissions"] == got["permissions"])
+check("a name alone leaves the permissions", tokens.update(table, USER, made["id"], "again")["permissions"] == got["permissions"])
+for bad, why in ((("zzzzzzzz", "x"), "not a token id"), (("0" * 8, "x"), "no such token"),
+                 ((made["id"], None, {"saved": "none", "queue": "none", "alerts": "none", "preferences": "none"}), "needs access")):
+    try:
+        tokens.update(table, USER, *bad)
+        check(f"update refuses: {why}", False)
+    except ValueError as e:
+        check(f"update refuses: {why}", why in str(e), str(e))
+ext = tokens.create(table, "u-ext-edit", "Chrome extension", None, NOW, scope="extension")
+try:
+    tokens.update(table, "u-ext-edit", ext["id"], None, {"saved": "read"})
+    check("the extension's token has no permissions to edit", False)
+except ValueError:
+    check("the extension's token has no permissions to edit", tokens.update(table, "u-ext-edit", ext["id"], "Work laptop")["name"] == "Work laptop")
 tokens.revoke(table, USER, made["id"])
 check("a revoked token stops working at once", tokens.verify(table, tok, NOW) is None)
 try:
