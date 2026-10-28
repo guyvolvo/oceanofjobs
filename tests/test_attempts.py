@@ -290,8 +290,8 @@ with mock_aws():
     again = A.sent("u", "snt-000001", "page", NOW)
     row = next(r for r in A.history("u", NOW) if r["attempt_id"] == "snt-000001")
     s = A.summary("u", NOW)
-    check("a sent fill shows as submitted, costs nothing and reports the same twice",
-          a["state"] == at.SENT and again["state"] == at.SENT and row["status"] == "submitted" and not row["disputable"]
+    check("a sent fill shows as sent (never submitted: nothing confirmed it), costs nothing and reports the same twice",
+          a["state"] == at.SENT and again["state"] == at.SENT and row["status"] == "sent" and not row["disputable"]
           and s["used"] == 0 and s["in_progress"] == 0 and s["filled_today"] == 1, repr((a, row, s)))
     check("and the job can't be applied to again", raises(lambda: A.reserve("u", "snt-000002", job(5), NOW), at.JobTaken))
     A.reserve("u", "snt-000003", job(6), NOW)                     # a run holds the job

@@ -136,7 +136,7 @@ If your client only supports locally running MCP servers, you can connect throug
 
 ## Available tools
 
-The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs), three for your [auto apply queue](#auto-apply-queue), four for your [alerts](#alerts) and two for your [search preferences](#search-preferences) need a personal access token.
+The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs), five for your [auto apply queue and history](#auto-apply-queue), four for your [alerts](#alerts) and two for your [search preferences](#search-preferences) need a personal access token.
 
 ### `search_jobs`
 
@@ -192,15 +192,19 @@ These tools need a personal access token. Without one they answer with an error 
 
 ## Auto apply queue
 
-Three tools hand jobs to the Ocean of Jobs Chrome extension, which applies to them with your profile and resume: "queue the top three for auto apply". The extension picks up queued jobs on its next check, every 15 minutes, so it has to be installed and connected. Only jobs on Greenhouse, Ashby and Workable can be queued. Others are refused.
+Five tools hand jobs to the Ocean of Jobs Chrome extension and read back what happened, which applies to them with your profile and resume: "queue the top three for auto apply". The extension picks up queued jobs on its next check, every 15 minutes, so it has to be installed and connected. Only jobs on Greenhouse, Ashby and Workable can be queued. Others are refused.
 
 | Tool | What it does |
 |---|---|
-| `queue_for_auto_apply` | Queues a job by its ID. Queueing the same job twice does nothing. |
-| `list_auto_apply_queue` | Lists the jobs waiting in your queue, oldest first. A job leaves the queue once the extension has tried it. |
+| `queue_for_auto_apply` | Queues a job by its ID. A job already in your queue, added from the board or anywhere else, stays one entry. A job already applied to or being applied to is refused. |
+| `list_auto_apply_queue` | Lists the jobs waiting in your queue, oldest first, with `source`, where each was first added from, and `sources`, every place that tried to add it. A job leaves the queue once the extension has tried it. |
 | `remove_from_auto_apply_queue` | Takes a job out of the queue before the extension gets to it. |
+| `list_auto_apply_history` | Lists the jobs the extension worked on, newest first, with `status`, `source` and `outcome`. `submitted` means the site confirmed it. `unconfirmed` means it was sent or may have been, without a confirmation. `sent` means the user sent it with the site's own button and the site didn't confirm it. |
+| `set_application_outcome` | Marks what you say happened after applying: `interview`, `offer`, `rejected` or `no_reply`, or `none` to clear it. Only on a submitted or unconfirmed application. It doesn't change the status or your credits. |
 
-Queueing only works after you turn on **Jobs queued by my AI assistant through MCP** in your [auto apply settings](https://oceanofjobs.com/account#aa-settings). Until then `queue_for_auto_apply` answers with an error that says so. These tools need the same personal access token as the saved-jobs tools.
+`source` is `board`, `alert`, `mcp`, `extension`, `matches` or `other`, and `null` for jobs added before 28 October 2026. Ocean of Jobs sets it from how the job was added: a job your assistant queues is always `mcp`. `outcome` is `null` until you mark one. Nothing is marked for you, so silence never becomes `no_reply`.
+
+Queueing only works after you turn on **Jobs queued by my AI assistant through MCP** in your [auto apply settings](https://oceanofjobs.com/account#aa-settings). Until then `queue_for_auto_apply` answers with an error that says so. These tools need the same personal access token as the saved-jobs tools. The history tools use the token's auto apply queue permission: read to list, write to mark an outcome.
 
 ## Alerts
 

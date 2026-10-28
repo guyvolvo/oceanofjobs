@@ -3,9 +3,11 @@ import { Badge } from "@cloudflare/kumo/components/badge";
 import { Button, LinkButton } from "@cloudflare/kumo/components/button";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Loader } from "@cloudflare/kumo/components/loader";
+import { Select } from "@cloudflare/kumo/components/select";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { GearSix, WarningCircle } from "@phosphor-icons/react";
-import type { QueueItem, Status } from "./api";
+import { apply, send, type HistoryRow, type Origin, type Outcome, type QueueItem, type Source, type Status } from "./api";
 import { ask, connectExtension, type Ext } from "./ext";
 
 // A setting that needs a resume first. The warning takes the user to the
@@ -33,6 +35,7 @@ export function NeedsResume() {
 export const STATUS: Record<Status, { label: string; variant: "success" | "warning" | "info" | "neutral" | "orange" | "error" | "secondary" | "outline" | "teal-subtle" }> = {
   submitted: { label: "Submitted", variant: "success" },
   unconfirmed: { label: "Submission unconfirmed", variant: "warning" },
+  sent: { label: "Sent by you, not confirmed", variant: "warning" },
   filled: { label: "Filled", variant: "info" },
   in_progress: { label: "In progress", variant: "secondary" },
   needs_input: { label: "Needs your input", variant: "warning" },
@@ -45,6 +48,60 @@ export const STATUS: Record<Status, { label: string; variant: "success" | "warni
 export function StatusBadge({ status }: { status: Status }) {
   const s = STATUS[status] || { label: status, variant: "outline" as const };
   return <Badge variant={s.variant}>{s.label}</Badge>;
+}
+
+// Where a job came from: a short name for the Overview's breakdown, and the
+// words after "From" on a row. A job from before sources were kept has none
+// and shows none.
+export const SOURCE: Record<Source, { name: string; from: string }> = {
+  board: { name: "Job board", from: "the board" },
+  alert: { name: "Alerts", from: "an alert" },
+  mcp: { name: "AI assistant (MCP)", from: "your AI assistant (MCP)" },
+  extension: { name: "Extension", from: "the extension" },
+  matches: { name: "Your matches", from: "your matches" },
+  other: { name: "Other", from: "elsewhere" },
+};
+
+// The first source, and on hover or focus every other place that tried to add the job.
+export function SourceLabel({ row }: { row: Origin }) {
+  if (!row.source || !SOURCE[row.source]) return null;
+  const label = `From ${SOURCE[row.source].from}`;
+  const others = (row.sources || []).slice(1).filter((x) => SOURCE[x.source]);
+  if (!others.length) return <span className="oj-source">{label}</span>;
+  const also = "Also added from " + others.map((x) => SOURCE[x.source].from + (x.at ? ` on ${fmtDate(x.at)}` : "")).join(", ") + ".";
+  return (
+    <Tooltip content={also} render={<button type="button" className="oj-source oj-source-more" aria-label={`${label}. ${also}`} />}>
+      {label} +{others.length}
+    </Tooltip>
+  );
+}
+
+// Only an application that went out can have an outcome.
+export const SENT: Status[] = ["submitted", "unconfirmed", "sent"];
+
+export const OUTCOME: Record<Outcome | "none", string> = {
+  none: "Not marked", interview: "Interview", offer: "Offer", rejected: "Rejected", no_reply: "No reply",
+};
+
+// What the user says happened after applying. Only they set it; it never
+// changes the status or a credit.
+export function OutcomeSelect({ row, onChange }: { row: HistoryRow; onChange: () => void }) {
+  const toasts = useKumoToastManager();
+  const [value, setValue] = useState<string>(row.outcome || "none");
+  useEffect(() => setValue(row.outcome || "none"), [row.outcome]);
+  const pick = async (v: string) => {
+    const before = value;
+    setValue(v);
+    try {
+      await apply(`history/${encodeURIComponent(row.job_id)}`, send("PATCH", { outcome: v }));
+      onChange();
+    } catch {
+      setValue(before);
+      toasts.add({ variant: "error", title: "Couldn't save that", description: "Try again." });
+    }
+  };
+  return <Select size="sm" aria-label={`What happened with ${row.title || "this application"}?`} value={value}
+    onValueChange={(v) => pick((v as string) || "none")} items={OUTCOME} />;
 }
 
 export const ATS: Record<string, string> = { greenhouse: "Greenhouse", ashby: "Ashby", workable: "Workable", workday: "Workday",

@@ -323,10 +323,10 @@ async function toggleQueue(id) {
     paintQueue(id);
     const errEl = document.getElementById("jobs-error");
     if (!errEl) return;
-    // A 403 or 422 carries a reason written for people (api/handler.py
+    // A 403, 409 or 422 carries a reason written for people (api/handler.py
     // route_apply); anything else is a status code or a dropped connection.
     errEl.textContent = on
-      ? `Couldn't queue that job. ${err.status === 403 || err.status === 422 ? err.message : "Try again."}`
+      ? `Couldn't queue that job. ${[403, 409, 422].includes(err.status) ? err.message : "Try again."}`
       : "Couldn't take that job off your queue. Try again.";
     errEl.style.display = "block";
   }

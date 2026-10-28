@@ -191,6 +191,17 @@ test('screenJob applies the guardrails', () => {
   assert.equal(m.screenJob({ id: 'b3', company_domain: 'wix.com', match_score: 2 }, ctx), null);
 });
 
+// History calls a form the user sent with the site's own button "sent", not
+// "submitted": it still counts as applied, for the day and for the company.
+test('a job the user sent themselves counts as applied', () => {
+  const at = new Date(NOW).toISOString();
+  const sent = [{ job_id: 's1', company: 'acme.com', status: 'sent', at }];
+  const ctx = { history: sent, guardrails: { one_per_company_days: 7 }, now: NOW, retrySkipped: true, minMatch: null };
+  assert.equal(m.screenJob({ id: 's1', company_domain: 'acme.com' }, ctx), 'already applied');
+  assert.equal(m.screenJob({ id: 's2', company_domain: 'acme.com' }, ctx), 'applied to this company recently');
+  assert.equal(m.appliedToday(sent, NOW), 1);
+});
+
 // Regression, bug 2 (2026-10-21): a job skipped for a question the profile
 // can't answer is now on record (the server keeps unclaimed skips), so an
 // automatic run doesn't pick it, and run the AI on it, every 15 minutes.

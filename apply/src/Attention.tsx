@@ -26,7 +26,7 @@ function Questions({ need, reload }: { need: Need; reload: () => void }) {
       for (const [i, question] of need.questions.entries()) {
         await apply("answers", send("POST", { question, answer: answers[i].trim(), job_id: need.job_id }));
       }
-      await apply(`queue/${encodeURIComponent(need.job_id)}`, send("PUT"));
+      await apply(`queue/${encodeURIComponent(need.job_id)}`, send("PUT", { requeue: true }));
       toasts.add({ variant: "success", title: "Answers saved", description: `${need.title} is back in your queue.` });
       reload();
     } catch (e) {

@@ -332,9 +332,12 @@
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
 
+  // Applications that went out: sent is the user's own Submit on the site, unconfirmed.
+  const WENT_OUT = ['submitted', 'unconfirmed', 'sent'];
+
   function appliedToday(history, now) {
     const today = new Date(now);
-    return (history || []).filter((h) => h.status === 'submitted' && sameDay(new Date(h.at), today)).length;
+    return (history || []).filter((h) => (h.status === 'submitted' || h.status === 'sent') && sameDay(new Date(h.at), today)).length;
   }
 
   function isBlocked(domain, blocked) {
@@ -352,14 +355,14 @@
     const g = ctx.guardrails || {};
     const history = ctx.history || [];
     const mine = history.filter((h) => h.job_id === job.id);
-    // Submission unconfirmed counts too: it is never retried (contract R5).
-    if (mine.some((h) => h.status === 'submitted' || h.status === 'unconfirmed')) return 'already applied';
+    // Submission unconfirmed and the user's own send count too: never retried (contract R5).
+    if (mine.some((h) => WENT_OUT.includes(h.status))) return 'already applied';
     if (!ctx.retrySkipped && mine.length) return 'already tried';
     if (isBlocked(job.company_domain, g.blocked_companies)) return 'blocked company';
     const days = g.one_per_company_days;
     if (days > 0) {
       const since = ctx.now - days * 864e5;
-      const recent = history.some((h) => h.status === 'submitted' && h.company === job.company_domain && Date.parse(h.at) >= since);
+      const recent = history.some((h) => (h.status === 'submitted' || h.status === 'sent') && h.company === job.company_domain && Date.parse(h.at) >= since);
       if (recent) return 'applied to this company recently';
     }
     if (ctx.minMatch != null && (job.match_score || 0) < ctx.minMatch) return 'below your minimum match';

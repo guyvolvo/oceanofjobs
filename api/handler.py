@@ -967,8 +967,8 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
     """/api/me/apply/*: automatic applications (apply.py). Used by the
     account page with the user's session, by the browser extension
     with an "extension" token, and by the MCP server with an "mcp" token
-    on the queue only (serve.py)."""
-    body = json.loads(event.get("body") or "{}") if method in ("POST", "PUT") else {}
+    on the queue and history only (serve.py)."""
+    body = json.loads(event.get("body") or "{}") if method in ("POST", "PUT", "PATCH") else {}
     if not isinstance(body, dict):
         raise ValueError("the request body must be a JSON object")
     no_store = {"Cache-Control": "no-store"}
@@ -982,10 +982,14 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         # Account deletion: the profile, the applied history and the queue.
         for r in apply.query_all(_alerts_table, user_id):
             if r["alert_id"] in (apply.PROFILE_ROW, apply.ONBOARDED_ROW) or r["alert_id"].startswith(
-                    (apply.APPLIED, apply.QUEUE, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY,
+                    (apply.APPLIED, apply.QUEUE, apply.OUTCOME, apply.ORIGIN, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY,
                      agent.AGENT, agent.RESUME, ai_answers.RATE_ROW, ai_answers.MONTH_ROW)):
                 _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
         return ok(204)
+    origin = _token_origin(event)
+    if sub in ("attempts", "filled", "claim") and method == "POST" and origin and apply.JOB_ID.match(str(body.get("job_id") or "")):
+        # A job the extension starts itself, not from the queue: from the extension.
+        apply.note_origin(_alerts_table, user_id, body["job_id"], origin, first_only=True)
     if sub == "attempts" or sub.startswith("attempts/"):
         return _route_attempts(user_id, method, sub, body, ok)
     if sub == "profile":
@@ -1141,7 +1145,21 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         limit = max(1, min(limit, 500))
         rows = apply.history(_alerts_table, user_id, limit) + attempts.Attempts(_alerts_table).history(user_id)
         rows = sorted(rows, key=lambda r: r.get("at") or "", reverse=True)[:limit]
-        return ok(200, {"applied": _history_view(rows)})
+        marked, found = apply.outcomes(_alerts_table, user_id), apply.origins(_alerts_table, user_id)
+        return ok(200, {"applied": [{**r, **found.get(r["job_id"], apply.NO_ORIGIN),
+                                     **((r["status"] in SENT_STATUSES and marked.get(r["job_id"])) or NO_OUTCOME)}
+                                    for r in _history_view(rows)]})
+    if sub.startswith("history/") and method == "PATCH":
+        # An outcome the user reports, on a job that was sent. Nothing else changes.
+        job_id = sub[len("history/"):]
+        sent = _history_view([r for r in apply.history(_alerts_table, user_id, 500) + attempts.Attempts(_alerts_table).history(user_id)
+                              if r.get("job_id") == job_id])
+        if not any(r["status"] in SENT_STATUSES for r in sent):
+            return ok(404, {"error": "No submitted application for this job."})
+        try:
+            return ok(200, apply.set_outcome(_alerts_table, user_id, job_id, body.get("outcome")))
+        except ValueError as e:
+            return ok(400, {"error": str(e)})
     if sub == "queue" and method == "GET":
         q = apply.queue(_alerts_table, user_id)
         info = {}
@@ -1178,11 +1196,20 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             if row[0] not in apply.FILLABLE_ATS:
                 return ok(422, {"error": f"Auto apply can't apply through {page_chrome.ats_name(row[0])} yet. "
                                          "Open the job and use Fill application in the extension instead."})
-            # A submitted application is final for every caller, the board and
-            # AI assistants included, matched by the job itself, not only its id.
-            if apply.submitted_already(_alerts_table, user_id, job_id, row[1]):
-                return ok(409, {"error": "You've already applied to this job."})
-            apply.enqueue(_alerts_table, user_id, job_id)
+            # The source comes from the token where there is one; only the
+            # website says which of its own surfaces it was.
+            source = origin or body.get("source") or "board"
+            if not origin and source not in ("board", "alert"):
+                return ok(400, {"error": "source must be board or alert"})
+            # Putting a job back (Undo, questions answered) isn't finding it
+            # again. The extension's only queue PUT is that re-queue.
+            requeue = origin == "extension" or body.get("requeue") is True
+            # One queue entry per job across every surface, and none for a job
+            # in progress or already sent, matched by the job itself, not only its id.
+            try:
+                apply.enqueue(_alerts_table, user_id, job_id, source, row[1], requeue=requeue)
+            except (apply.AlreadyApplied, apply.InProgress) as e:
+                return ok(409, {"error": str(e)})
             return ok(204)
         if method == "DELETE":
             apply.dequeue(_alerts_table, user_id, job_id)
@@ -1198,6 +1225,22 @@ def _busy_response(content_type: str) -> dict:
     return {"statusCode": 429, "body": body,
             "headers": {"Content-Type": content_type, "Retry-After": str(expensive.RETRY_AFTER_S),
                         "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"}}
+
+
+# History statuses that mean the application went out, the only ones an
+# outcome can be set on. "unconfirmed" and "sent" (by the user, with the
+# site's own button) stay apart from "submitted".
+SENT_STATUSES = ("submitted", "unconfirmed", "sent")
+NO_OUTCOME = {"outcome": None, "outcome_at": None}
+
+
+def _token_origin(event) -> str | None:
+    """The source a personal access token stands for, or None for a
+    signed-in website session."""
+    claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+    if claims.get("token_use") != "ooj":
+        return None
+    return "mcp" if claims.get("scope") == "mcp" else "extension"
 
 
 def _authenticated_claims(event) -> dict:

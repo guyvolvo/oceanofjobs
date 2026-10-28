@@ -166,11 +166,72 @@ h = apply.history(t, "u")
 check("history lists every claimed job, newest first, with its status",
       len(h) == 10 and {"job_id", "status", "company", "at"} <= set(h[0]), repr(h[:1]))
 
-apply.enqueue(t, "u", jobs[5], NOW)
-apply.enqueue(t, "u", jobs[2], NOW + timedelta(minutes=1))
+apply.enqueue(t, "u", jobs[5], "board", now=NOW)
+apply.enqueue(t, "u", jobs[2], "board", now=NOW + timedelta(minutes=1))
 check("the queue keeps the order jobs were approved in", [q["job_id"] for q in apply.queue(t, "u")] == [jobs[5], jobs[2]])
 apply.dequeue(t, "u", jobs[5])
 check("and removes them", [q["job_id"] for q in apply.queue(t, "u")] == [jobs[2]])
+
+# Phase 1: where a job came from, one entry per job, and outcomes.
+t4 = FakeTable()
+gh = "https://job-boards.greenhouse.io/embed/job_app?for=celonis&token=8015242003"
+J1, J2, J3 = "1111111111111111", "2222222222222222", "3333333333333333"
+try:
+    apply.enqueue(t4, "u", J1, "admin", now=NOW)
+    check("a source outside the list is refused", False)
+except ValueError:
+    check("a source outside the list is refused", True)
+check("a new job is queued", apply.enqueue(t4, "u", J1, "mcp", gh, now=NOW) is True)
+check("the same job from the board isn't queued again", apply.enqueue(t4, "u", J1, "board", gh, now=NOW + timedelta(hours=1)) is False)
+check("nor under another id by its canonical identity",
+      apply.enqueue(t4, "u", J2, "board", "https://boards.greenhouse.io/celonis/jobs/8015242003", now=NOW) is False
+      and [q["job_id"] for q in apply.queue(t4, "u")] == [J1])
+q = apply.queue(t4, "u")[0]
+check("the first source labels the job, and the later one is kept beside it",
+      q["source"] == "mcp" and q["source_at"] == NOW.isoformat()
+      and [x["source"] for x in q["sources"]] == ["mcp", "board"], repr(q))
+apply.enqueue(t4, "u", J1, "board", gh, now=NOW + timedelta(hours=2))
+check("a source that tried before isn't listed twice", [x["source"] for x in apply.queue(t4, "u")[0]["sources"]] == ["mcp", "board"])
+lock = ("u", apply.JOBLOCK + "greenhouse:1")
+t4.items[lock] = {"user_id": "u", "alert_id": lock[1], "state": "reserved"}
+gh1 = "https://job-boards.greenhouse.io/embed/job_app?for=x&token=1"
+try:
+    apply.enqueue(t4, "u", J3, "board", gh1, now=NOW)
+    check("a job with an open attempt isn't queued", False)
+except apply.InProgress:
+    check("a job with an open attempt isn't queued", ("u", apply.QUEUE + J3) not in t4.items)
+for state in ("submitted", "unconfirmed", "sent"):
+    t4.items[lock]["state"] = state
+    try:
+        apply.enqueue(t4, "u", J3, "mcp", gh1, now=NOW)
+        check(f"a job that is {state} isn't queued", False)
+    except apply.AlreadyApplied:
+        check(f"a job that is {state} isn't queued", ("u", apply.QUEUE + J3) not in t4.items)
+check("a refused try still notes who tried", [x["source"] for x in apply.origins(t4, "u")[J3]["sources"]] == ["board", "mcp"])
+apply.note_origin(t4, "u", J1, "extension", first_only=True)
+apply.note_origin(t4, "u", "4444444444444444", "extension", now=NOW, first_only=True)
+got = apply.origins(t4, "u")
+check("the extension starting a job adds nothing to a queued one, and names one it found itself",
+      [x["source"] for x in got[J1]["sources"]] == ["mcp", "board"] and got["4444444444444444"]["source"] == "extension")
+t4.items[("u", apply.QUEUE + "5555555555555555")] = {"user_id": "u", "alert_id": apply.QUEUE + "5555555555555555", "job_id": "5555555555555555"}
+apply.note_origin(t4, "u", "5555555555555555", "extension", first_only=True)
+check("a job queued before sources were kept gets no guessed source", "5555555555555555" not in apply.origins(t4, "u")
+      and next(q for q in apply.queue(t4, "u") if q["job_id"] == "5555555555555555")["source"] is None)
+
+before = {k: dict(v) for k, v in t4.items.items()}
+got = apply.set_outcome(t4, "u", J1, "interview", NOW)
+check("an outcome is set with its time", got == {"job_id": J1, "outcome": "interview", "outcome_at": NOW.isoformat()}
+      and apply.outcomes(t4, "u")[J1]["outcome"] == "interview")
+check("and touches no other row", {k: v for k, v in t4.items.items() if not k[1].startswith(apply.OUTCOME)} == before)
+apply.set_outcome(t4, "u", J1, "no_reply", NOW)
+check("no reply is only what the user marks", apply.outcomes(t4, "u")[J1]["outcome"] == "no_reply")
+check("none clears it", apply.set_outcome(t4, "u", J1, "none")["outcome"] is None and J1 not in apply.outcomes(t4, "u"))
+for bad in ("hired", "", None, "submitted"):
+    try:
+        apply.set_outcome(t4, "u", J1, bad)
+        check(f"outcome {bad!r} is refused", False)
+    except ValueError:
+        check(f"outcome {bad!r} is refused", True)
 
 
 # Regression, bug 1 (2026-10-21): a submitted application is final. A

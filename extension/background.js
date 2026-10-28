@@ -839,7 +839,7 @@ async function offerHere(url) {
   }
   if (!st.cv) return { show: true, blocked: NO_CV, action: { label: 'Add resume', options: true } };
   const id = await pageJobId(url);
-  if (a.history.some((h) => h.job_id === id && (h.status === 'submitted' || h.status === 'unconfirmed'))) return { show: true, blocked: ALREADY };
+  if (a.history.some((h) => h.job_id === id && ['submitted', 'unconfirmed', 'sent'].includes(h.status))) return { show: true, blocked: ALREADY };
   return { show: true, remaining: a.usage.remaining };
 }
 

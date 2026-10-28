@@ -205,7 +205,10 @@ _STATUS_TEXT = {
     400: "Bad request. Invalid parameter or body payload.",
     401: "Unauthorized. Missing or invalid authentication token.",
     404: "Not found. Invalid endpoint path or missing resource ID.",
+    403: "Forbidden. The token's permissions or your auto apply settings don't allow this.",
     405: "Method not allowed.",
+    409: "Conflict. The job is already being applied to or was already applied to.",
+    422: "Auto apply can't apply on this job's site yet.",
     429: "Rate limit exceeded.",
     500: "Server error. Returns a short error string.",
 }
@@ -217,6 +220,19 @@ def _json(schema, description="Success."):
 
 def _errors(*codes):
     return {str(c): _json(ERROR, _STATUS_TEXT[c]) for c in codes}
+
+
+# Where an auto apply job came from, and the outcome its owner reported.
+ORIGIN = {
+    "source": {"type": ["string", "null"], "enum": ["board", "alert", "mcp", "extension", "matches", "other", None]},
+    "source_at": {"type": ["string", "null"], "format": "date-time"},
+    "sources": {"type": "array", "items": {"type": "object", "properties": {
+        "source": {"type": "string"}, "at": {"type": "string", "format": "date-time"}}}},
+}
+OUTCOME = {
+    "outcome": {"type": ["string", "null"], "enum": ["interview", "offer", "rejected", "no_reply", None]},
+    "outcome_at": {"type": ["string", "null"], "format": "date-time"},
+}
 
 
 def _ref(name):
@@ -456,6 +472,88 @@ def _paths():
                               **_errors(400, 401, 500)},
             },
         },
+        "/me/apply/queue": {"get": {
+            "tags": ["Account"],
+            "summary": "Your auto apply queue",
+            "description": "The jobs waiting for the browser extension, in the order it applies to them. "
+                           "source is where each job was first added from, set by the server from how it "
+                           "was added (board, alert, mcp, extension, matches or other; null for jobs added "
+                           "before 28 October 2026). sources lists every place that tried to add it.",
+            "security": [{"bearerAuth": []}],
+            "responses": {"200": _json({"type": "object", "properties": {
+                "queue": {"type": "array", "items": {"type": "object", "properties": {
+                    "job_id": {"type": "string"},
+                    "added_at": {"type": "string", "format": "date-time"},
+                    "position": {"type": "integer"},
+                    "title": {"type": "string"}, "company": {"type": "string"}, "ats": {"type": "string"},
+                    "link": {"type": "string"}, **ORIGIN}}}}}),
+                **_errors(401, 500)},
+        }},
+        "/me/apply/queue/{job_id}": {
+            "put": {
+                "tags": ["Account"],
+                "summary": "Queue a job for auto apply",
+                "description": "Queues a job once. A job already in the queue stays one entry and keeps its "
+                               "first source; the new source is added to sources. A job being applied to now, "
+                               "or already Submitted or Submission unconfirmed, is refused with 409. A personal "
+                               "access token's source comes from the token. A signed-in session may send "
+                               "{\"source\": \"board\"} or {\"source\": \"alert\"}; board is the default. "
+                               "requeue: true puts back a job you removed or answered questions for, keeping its sources.",
+                "security": [{"bearerAuth": []}],
+                "parameters": [{"name": "job_id", "in": "path", "required": True,
+                                "schema": {"type": "string"}, "example": "0a1b2c3d4e5f6a7b"}],
+                "requestBody": {"required": False, "content": {"application/json": {"schema": {
+                    "type": "object", "properties": {"source": {"type": "string", "enum": ["board", "alert"]},
+                                                     "requeue": {"type": "boolean"}}}}}},
+                "responses": {"204": {"description": "Queued, or already in the queue."},
+                              **_errors(400, 401, 403, 404, 409, 422, 500)},
+            },
+            "delete": {
+                "tags": ["Account"],
+                "summary": "Remove a job from the auto apply queue",
+                "security": [{"bearerAuth": []}],
+                "parameters": [{"name": "job_id", "in": "path", "required": True,
+                                "schema": {"type": "string"}, "example": "0a1b2c3d4e5f6a7b"}],
+                "responses": {"204": {"description": "Success with no content returned."},
+                              **_errors(400, 401, 500)},
+            },
+        },
+        "/me/apply/history": {"get": {
+            "tags": ["Account"],
+            "summary": "Your auto apply history",
+            "description": "Every job the extension worked on, newest first. status is the extension's: "
+                           "submitted means the site confirmed it, unconfirmed means it was sent or may have "
+                           "been without a confirmation, sent means you sent it with the site's own button and "
+                           "the site didn't confirm it. outcome is what you marked after applying, null until "
+                           "you mark one, and only on submitted, unconfirmed or sent rows. It never changes status.",
+            "security": [{"bearerAuth": []}],
+            "parameters": [_q("limit", "How many rows, 1 to 500. Default 50.", schema={"type": "integer"})],
+            "responses": {"200": _json({"type": "object", "properties": {
+                "applied": {"type": "array", "items": {"type": "object", "properties": {
+                    "job_id": {"type": "string"}, "attempt_id": {"type": ["string", "null"]},
+                    "title": {"type": "string"}, "company": {"type": "string"}, "link": {"type": ["string", "null"]},
+                    "status": {"type": "string", "enum": ["submitted", "unconfirmed", "sent", "filled", "in_progress", "needs_input",
+                                                          "failed", "skipped", "abandoned", "not_sent_disputed"]},
+                    "reason": {"type": "string"}, "at": {"type": "string", "format": "date-time"},
+                    **ORIGIN, **OUTCOME}}}}}),
+                **_errors(401, 500)},
+        }},
+        "/me/apply/history/{job_id}": {"patch": {
+            "tags": ["Account"],
+            "summary": "Mark what happened after applying",
+            "description": "Sets the outcome you report for a submitted, unconfirmed or sent application, or "
+                           "clears it with none. It changes nothing else: not the status, not your credits. 404 "
+                           "when the job has no submitted, unconfirmed or sent application.",
+            "security": [{"bearerAuth": []}],
+            "parameters": [{"name": "job_id", "in": "path", "required": True,
+                            "schema": {"type": "string"}, "example": "0a1b2c3d4e5f6a7b"}],
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "required": ["outcome"],
+                "properties": {"outcome": {"type": "string", "enum": ["interview", "offer", "rejected", "no_reply", "none"]}},
+                "example": {"outcome": "interview"}}}}},
+            "responses": {"200": _json({"type": "object", "properties": {"job_id": {"type": "string"}, **OUTCOME}}),
+                          **_errors(400, 401, 404, 500)},
+        }},
         "/health": {"get": {
             "tags": ["System"],
             "summary": "Database connectivity, job counts, scrape metrics and data quality warnings",
