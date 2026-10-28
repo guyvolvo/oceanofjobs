@@ -204,7 +204,7 @@ body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit
    card with a long description doesn't leave it up by the title. */
 [data-kumo-part="item-label"].border-b { align-items: center; }
 
-/* Danger options (Send without review, Apply automatically): a red check
+/* Danger options (Use new answers without approval, Apply automatically): a red check
    when chosen, on top of Kumo's red border for the "error" variant. */
 .oj-danger [data-checked] { background-color: var(--color-kumo-danger) !important; border-color: var(--color-kumo-danger) !important; }
 /* The confirm button of a danger option: a deep red in both themes, white text (5.6:1), as on Cloudflare.

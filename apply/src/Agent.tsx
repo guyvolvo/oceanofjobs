@@ -242,7 +242,7 @@ function TryIt({ editable }: { editable: boolean }) {
           <div className="oj-stack oj-tight" role="status">
             <p className="oj-try-answer">{result.source === "ai" ? `AI Agent answer: ${result.answer}` : result.answer}</p>
             <span className="oj-note">{result.source === "ai" ? "Used 1 AI credit." : SOURCE[result.source || ""] || result.source}</span>
-            {result.review ? <span className="oj-note">A draft about why you want this job. It always waits for your review, even with Send without review on.</span> : null}
+            {result.review ? <span className="oj-note">A draft about why you want this job. It always waits for your approval, even with Use new answers without approval on.</span> : null}
           </div>
         )
       ) : null}
@@ -323,12 +323,12 @@ export function Agent() {
             <Radio.Group appearance="card" value={form.review}
               onValueChange={(v) => (v === "use" ? setAsking(true) : set("review", v as Form["review"]))}>
               <Radio.Legend className="sr-only">When the AI writes a new answer</Radio.Legend>
-              <Radio.Item value="pause" label="Review before sending" />
-              <Radio.Item value="use" label="Send without review" variant={form.review === "use" ? "error" : "default"} className="oj-danger"
+              <Radio.Item value="pause" label="Approve new answers first" />
+              <Radio.Item value="use" label="Use new answers without approval" variant={form.review === "use" ? "error" : "default"} className="oj-danger"
                 disabled={!resume && form.review !== "use"} />
             </Radio.Group>
             {!resume && form.review !== "use" ? <NeedsResume /> : null}
-            <ConfirmDanger open={asking} title="Send AI answers without review?" confirm="Send without review"
+            <ConfirmDanger open={asking} title="Use new AI answers without your approval?" confirm="Use without approval"
               onConfirm={() => { set("review", "use"); setAsking(false); }} onCancel={() => setAsking(false)} />
           </Card>
         </div>

@@ -43,7 +43,7 @@ export function Overview({ s, ext, queue, reload }: { s: Summary; ext: Ext; queu
       </LayerCard>
 
       <div className="oj-grid">
-        <Tile label="Applications filled today" value={s.filled_today} />
+        <Tile label="Forms filled today" value={s.filled_today} />
         <Tile label="In your queue" value={s.queued}>
           <a className="oj-link" href="#queue">View queue</a>
         </Tile>
