@@ -19,15 +19,18 @@ import { useLeaveGuard } from "./unsaved";
 
 const SECTIONS = ["overview", "queue", "needs", "history", "settings", "agent"] as const;
 type Section = (typeof SECTIONS)[number];
+// "#history?source=mcp" opens History showing one source (the Overview's breakdown links).
 const fromHash = (): Section => {
-  const h = location.hash.slice(1);
+  const h = location.hash.slice(1).split("?")[0];
   return (SECTIONS as readonly string[]).includes(h) ? (h as Section) : "overview";
 };
+const hashSource = () => new URLSearchParams(location.hash.split("?")[1] || "").get("source") || undefined;
 
 type Data = { summary?: Summary; queue?: QueueItem[]; needs?: Need[]; history?: HistoryRow[] };
 
 export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   const [section, setSection] = useState<Section>(fromHash);
+  const [, setHash] = useState(location.hash);
   // The setup guide changes the settings, so Settings reads them again after it.
   const [settingsKey, setSettingsKey] = useState(0);
   const [data, setData] = useState<Data>({});
@@ -36,7 +39,8 @@ export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
   const { guard, dialog } = useLeaveGuard();
 
   useEffect(() => {
-    const on = () => setSection(fromHash());
+    // The hash too, so "#queue?source=mcp" to "#queue" renders again.
+    const on = () => { setSection(fromHash()); setHash(location.hash); };
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
@@ -103,10 +107,10 @@ export function Dashboard({ onSignedOut }: { onSignedOut: () => void }) {
         <Tabs variant="segmented" tabs={tabs} value={section} onValueChange={go} />
       </div>
       <Suspense fallback={waiting}><div role="tabpanel">
-        {section === "overview" && (s ? <Overview s={s} ext={ext} queue={data.queue} reload={load} /> : waiting)}
-        {section === "queue" && (data.queue ? <Queue items={data.queue} ext={ext} reload={load} /> : waiting)}
+        {section === "overview" && (s ? <Overview s={s} ext={ext} queue={data.queue} needs={data.needs} history={data.history} reload={load} /> : waiting)}
+        {section === "queue" && (data.queue ? <Queue key={hashSource()} items={data.queue} ext={ext} reload={load} source={hashSource()} /> : waiting)}
         {section === "needs" && (data.needs && data.history ? <Attention needs={data.needs} history={data.history} disputesLeft={s?.disputes_left ?? 0} reload={load} /> : waiting)}
-        {section === "history" && (data.history ? <History rows={data.history} /> : waiting)}
+        {section === "history" && (data.history ? <History key={hashSource()} rows={data.history} source={hashSource()} reload={load} /> : waiting)}
         {section === "settings" && <>
           <Onboarding plan={s?.plan} ext={ext} onDone={() => setSettingsKey((k) => k + 1)} />
           <Settings key={settingsKey} ext={ext} />

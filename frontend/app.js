@@ -266,7 +266,7 @@ async function syncQueueFromServer() {
     const [queue, history] = await Promise.all([
       authedFetch("/me/apply/queue"), authedFetch("/me/apply/history").catch(() => null)]);
     applyQueue = new Set((queue?.queue || []).map((r) => r.job_id));
-    appliedAt = new Map((history?.applied || []).filter((r) => r.status === "submitted" && r.at).map((r) => [r.job_id, r.at]));
+    appliedAt = new Map((history?.applied || []).filter((r) => (r.status === "submitted" || r.status === "sent") && r.at).map((r) => [r.job_id, r.at]));
   } catch {
     return; // same as the saved sync: nothing on screen changes
   }
@@ -323,10 +323,10 @@ async function toggleQueue(id) {
     paintQueue(id);
     const errEl = document.getElementById("jobs-error");
     if (!errEl) return;
-    // A 403 or 422 carries a reason written for people (api/handler.py
+    // A 403, 409 or 422 carries a reason written for people (api/handler.py
     // route_apply); anything else is a status code or a dropped connection.
     errEl.textContent = on
-      ? `Couldn't queue that job. ${err.status === 403 || err.status === 422 ? err.message : "Try again."}`
+      ? `Couldn't queue that job. ${[403, 409, 422].includes(err.status) ? err.message : "Try again."}`
       : "Couldn't take that job off your queue. Try again.";
     errEl.style.display = "block";
   }

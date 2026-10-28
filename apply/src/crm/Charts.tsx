@@ -6,7 +6,7 @@ import * as echarts from "echarts/core";
 import { BarChart, LineChart, PieChart } from "echarts/charts";
 import { AriaComponent, GridComponent, TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { Chart, ChartPalette, type KumoChartOption } from "@cloudflare/kumo/components/chart";
+import { Chart, ChartLegend, ChartPalette, type KumoChartOption } from "@cloudflare/kumo/components/chart";
 
 echarts.use([LineChart, BarChart, PieChart, GridComponent, TooltipComponent, AriaComponent, CanvasRenderer]);
 
@@ -22,6 +22,10 @@ function tokens() {
     brand: v("--color-kumo-brand", ChartPalette.categorical(0, dark)),
     overlay: v("--color-kumo-overlay", dark ? "#1b1d22" : "#fff"),
     font: v("--font-sans", "sans-serif"),
+    success: v("--color-kumo-success", ChartPalette.semantic("Success", dark)),
+    warning: v("--color-kumo-warning", ChartPalette.semantic("Warning", dark)),
+    danger: v("--color-kumo-danger", ChartPalette.semantic("Attention", dark)),
+    info: ChartPalette.categorical(0, dark),
   };
 }
 type T = ReturnType<typeof tokens>;
@@ -30,7 +34,6 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 // A bucket is an hour ("2026-10-28T09") or a day ("2026-10-28").
 const at = (b: string) => (b.length > 10 ? new Date(b + ":00:00Z").toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
   : new Date(b + "T12:00:00Z").toLocaleDateString(undefined, { day: "numeric", month: "short" }));
-const month = (m: string) => new Date(m + "-15T12:00:00Z").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
 const tip = (t: T) => ({
   backgroundColor: t.overlay, borderColor: t.line, borderWidth: 1, padding: [6, 10],
   textStyle: { color: t.strong, fontFamily: t.font, fontSize: 12 }, extraCssText: "box-shadow:none;border-radius:8px;",
@@ -107,16 +110,53 @@ export function ShareChart({ parts, name }: { parts: [string, number][]; name: s
   return <Chart echarts={echarts} options={options} height={200} />;
 }
 
-// Applications sent per month, from the monthly credit ledgers.
-export function AppsChart({ months }: { months: [string, number][] }) {
+// Application outcomes, kept apart: [label, confirmed, unconfirmed, sent by the user, failed].
+type Split = [string, number, number, number, number];
+const OUTCOMES = ["Confirmed", "Unconfirmed", "Sent by user, not confirmed", "Failed"];
+const colours = (t: T) => [t.success, t.warning, t.info, t.danger];
+const val = (r: Split, i: number) => r[i + 1] as number;
+
+function Legend({ rows }: { rows: Split[] }) {
+  const t = tokens();
+  return (
+    <div className="crm-legend">
+      {OUTCOMES.map((name, i) => <ChartLegend.SmallItem key={name} name={name} color={colours(t)[i]}
+        value={rows.reduce((n, r) => n + val(r, i), 0).toLocaleString()} />)}
+    </div>
+  );
+}
+
+const splitTip = (title: string, r: Split) => `${esc(title)}<br>` + OUTCOMES.map((name, i) => `${name}: <b>${val(r, i)}</b>`).join("<br>");
+
+// Outcomes per hour or day, stacked.
+export function OutcomesChart({ buckets }: { buckets: Split[] }) {
   const t = tokens();
   const options: KumoChartOption = {
     backgroundColor: "transparent", grid,
-    aria: { enabled: true, label: { description: `Applications sent per month: ${months.map(([m, n]) => `${month(m)} ${n}`).join(", ")}.` } },
+    aria: { enabled: true, label: { description: "Applications by outcome." } },
     tooltip: { trigger: "axis", ...tip(t), axisPointer: { type: "shadow" },
-      dangerousHtmlFormatter: (p: unknown) => { const x = first(p); return `${esc(month(months[x.dataIndex][0]))}: <b>${x.value}</b>`; } },
-    xAxis: axisX(t, months.map(([m]) => month(m))), yAxis: axisY(t),
-    series: [{ type: "bar", data: months.map(([, n]) => n), barMaxWidth: 28, itemStyle: { color: t.brand, borderRadius: [3, 3, 0, 0] } }],
+      dangerousHtmlFormatter: (p: unknown) => { const r = buckets[first(p).dataIndex]; return splitTip(at(r[0]), r); } },
+    xAxis: axisX(t, buckets.map(([b]) => at(b))), yAxis: axisY(t),
+    series: OUTCOMES.map((name, i) => ({ type: "bar" as const, name, stack: "all", data: buckets.map((r) => val(r, i)), barMaxWidth: 18,
+      itemStyle: { color: colours(t)[i] } })),
   };
-  return <Chart echarts={echarts} options={options} height={200} />;
+  return <><Legend rows={buckets} /><Chart echarts={echarts} options={options} height={200} /></>;
+}
+
+// Outcomes per hiring system, stacked across.
+export function SystemsChart({ systems }: { systems: Split[] }) {
+  const t = tokens();
+  const rows = [...systems].reverse();
+  const options: KumoChartOption = {
+    backgroundColor: "transparent", grid: { ...grid, right: 16 },
+    aria: { enabled: true, label: { description: systems.map((r) => `${r[0]}: ${OUTCOMES.map((n, i) => `${n} ${val(r, i)}`).join(", ")}`).join("; ") + "." } },
+    tooltip: { trigger: "axis", ...tip(t), axisPointer: { type: "shadow" },
+      dangerousHtmlFormatter: (p: unknown) => { const r = rows[first(p).dataIndex]; return splitTip(r[0], r); } },
+    xAxis: { ...axisY(t), splitLine: { show: false } },
+    yAxis: { type: "category", data: rows.map(([n]) => n), axisLine: { show: false }, axisTick: { show: false },
+      axisLabel: { color: t.text, fontFamily: t.font } },
+    series: OUTCOMES.map((name, i) => ({ type: "bar" as const, name, stack: "all", data: rows.map((r) => val(r, i)), barMaxWidth: 18,
+      itemStyle: { color: colours(t)[i] } })),
+  };
+  return <><Legend rows={systems} /><Chart echarts={echarts} options={options} height={Math.max(120, systems.length * 34)} /></>;
 }

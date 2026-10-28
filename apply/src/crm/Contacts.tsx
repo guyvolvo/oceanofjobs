@@ -16,7 +16,8 @@ import { Failed, FilterFields, useLoad } from "./App";
 import { MailPreview } from "./Emails";
 import { ImagePicker } from "./ImagePicker";
 
-type Detail = { contact: Contact; activity: { alerts: number; active_alerts: number; saved: number; applications: number };
+type Detail = { contact: Contact; activity: { alerts: number; active_alerts: number; saved: number; confirmed: number; unconfirmed: number;
+  sent: number; failed: number; older: number };
   notes: { sk: string; text: string }[]; billing: Billing; emails: DirectEmail[]; billing_url: string };
 
 const PLAN = { free: "Free", basic: "Basic", pro: "Pro" } as Record<string, string>;
@@ -166,7 +167,10 @@ function Member({ id, sending, onClose, onChange }: { id: string; sending: boole
                 : c.unsubscribed_at ? `Unsubscribed ${day(c.unsubscribed_at)}` : "Not subscribed"}</dd>
               <dt>Waitlist</dt><dd>{c.waitlist.length ? c.waitlist.join(", ") : "None"}</dd>
               <dt>Terms</dt><dd>{c.agreed_version ? `Agreed to ${c.agreed_version} on ${day(c.agreed_at)}` : "Not agreed yet"}</dd>
-              <dt>Activity</dt><dd>{[plural(d.activity.applications, "application"), plural(d.activity.alerts, "alert"), plural(d.activity.saved, "saved job")].join(" · ")}</dd>
+              <dt>Applications</dt><dd>{[`${d.activity.confirmed.toLocaleString()} confirmed`, `${d.activity.unconfirmed.toLocaleString()} unconfirmed`,
+                `${d.activity.sent.toLocaleString()} sent by user, not confirmed`, `${d.activity.failed.toLocaleString()} failed`,
+                ...(d.activity.older ? [`${d.activity.older.toLocaleString()} older`] : [])].join(" · ")}</dd>
+              <dt>Activity</dt><dd>{[plural(d.activity.alerts, "alert"), plural(d.activity.saved, "saved job")].join(" · ")}</dd>
             </dl>
             <BillingSection id={id} d={d} setBilling={(billing) => { setD({ ...d, billing }); onChange(id, { plan: billing.plan,
               license: billing.license ? { plan: billing.license.plan, until: billing.license.until } : null }); }} />

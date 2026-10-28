@@ -46,7 +46,7 @@ function route(prefix, status, body, headers = PUBLIC) {
 }
 
 globalThis.fetch = async (url, init) => {
-  calls.push({ url: String(url), headers: init && init.headers });
+  calls.push({ url: String(url), headers: init && init.headers, method: init && init.method, body: init && init.body });
   const path = String(url).replace("https://box.oceanofjobs.com", "");
   const r = routes.find((x) => path.startsWith(x.prefix));
   if (!r) return new Response("{}", { status: 404, headers: PUBLIC });
@@ -114,9 +114,12 @@ test("tools/list has the three public read-only tools, then the account's saved-
   assert.deepEqual(body.result.tools.map((t) => t.name),
     ["search_jobs", "get_job", "get_company", "save_job", "list_saved_jobs", "remove_saved_job",
       "queue_for_auto_apply", "list_auto_apply_queue", "remove_from_auto_apply_queue",
+      "list_auto_apply_history", "set_application_outcome",
       "list_alerts", "create_alert", "update_alert", "delete_alert", "get_preferences", "update_preferences"]);
   const hints = Object.fromEntries(body.result.tools.map((t) => [t.name, t.annotations]));
-  for (const n of ["search_jobs", "get_job", "get_company", "list_saved_jobs", "list_auto_apply_queue"]) assert.equal(hints[n].readOnlyHint, true, n);
+  for (const n of ["search_jobs", "get_job", "get_company", "list_saved_jobs", "list_auto_apply_queue", "list_auto_apply_history"]) assert.equal(hints[n].readOnlyHint, true, n);
+  assert.equal(hints.set_application_outcome.readOnlyHint, false);
+  assert.equal(hints.set_application_outcome.destructiveHint, false);
   assert.equal(hints.queue_for_auto_apply.readOnlyHint, false);
   assert.equal(hints.remove_from_auto_apply_queue.destructiveHint, true);
   assert.equal(hints.save_job.readOnlyHint, false);
@@ -136,6 +139,7 @@ const BOX_URL = "https://box.oceanofjobs.com";
 test("saved-job tools need a token and say how to get one", async () => {
   for (const [name, args] of [["save_job", { id: "67ff4ef965d91ef7" }], ["list_saved_jobs", {}], ["remove_saved_job", { id: "67ff4ef965d91ef7" }],
     ["queue_for_auto_apply", { id: "67ff4ef965d91ef7" }], ["list_auto_apply_queue", {}], ["remove_from_auto_apply_queue", { id: "67ff4ef965d91ef7" }],
+    ["list_auto_apply_history", {}], ["set_application_outcome", { id: "67ff4ef965d91ef7", outcome: "interview" }],
     ["list_alerts", {}], ["create_alert", { filter: { search: "devops" } }], ["get_preferences", {}], ["update_preferences", { cadence: "daily" }]]) {
     const { result } = await call(name, args);
     assert.equal(result.isError, true, name);
@@ -169,7 +173,8 @@ test("save, list and remove send the token to the box and are never cached", asy
 
 test("queue, list and remove send the token to the box, and a refusal reads as the box's reason", async () => {
   route("/api/me/apply/queue/", 204, null);
-  route("/api/me/apply/queue", 200, { queue: [{ job_id: "67ff4ef965d91ef7", added_at: "2026-10-20T10:00:00+00:00" }] }, { "content-type": "application/json" });
+  route("/api/me/apply/queue", 200, { queue: [{ job_id: "67ff4ef965d91ef7", added_at: "2026-10-20T10:00:00+00:00", source: "mcp",
+    sources: [{ source: "mcp", at: "2026-10-20T10:00:00+00:00" }, { source: "board", at: "2026-10-21T10:00:00+00:00" }] }] }, { "content-type": "application/json" });
   route("/api/jobs/67ff4ef965d91ef7", 200, job());
   const auth = { authorization: "Bearer " + TOKEN };
   const tool = async (id, name, args) => (await (await post({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }, auth)).json()).result;
@@ -178,7 +183,8 @@ test("queue, list and remove send the token to the box, and a refusal reads as t
   assert.equal(calls[0].url, "https://box.oceanofjobs.com/api/me/apply/queue/67ff4ef965d91ef7");
   assert.equal(calls[0].headers.authorization, "Bearer " + TOKEN);
   const list = await tool(71, "list_auto_apply_queue", {});
-  assert.deepEqual(list.structuredContent.jobs.map((j) => [j.id, j.added_at]), [["67ff4ef965d91ef7", "2026-10-20T10:00:00+00:00"]]);
+  assert.deepEqual(list.structuredContent.jobs.map((j) => [j.id, j.added_at, j.source, j.sources.map((x) => x.source)]),
+    [["67ff4ef965d91ef7", "2026-10-20T10:00:00+00:00", "mcp", ["mcp", "board"]]]);
   const removed = await tool(72, "remove_from_auto_apply_queue", { id: "67ff4ef965d91ef7" });
   assert.deepEqual(removed.structuredContent, { id: "67ff4ef965d91ef7", queued: false });
   assert.ok(![...store.keys()].some((k) => k.includes("/api/me/")), "nothing personal is in the shared cache");
@@ -190,6 +196,32 @@ test("queue, list and remove send the token to the box, and a refusal reads as t
   const unfillable = await tool(74, "queue_for_auto_apply", { id: "97602f3e8d77ca9a" });
   assert.equal(unfillable.isError, true);
   assert.equal(unfillable.content[0].text, "Ocean of Jobs refused that: The extension can't apply on this job's site (workday) yet. It fills Greenhouse forms for now.");
+});
+
+test("history lists status, source and outcome, and an outcome is set by PATCH", async () => {
+  route("/api/me/apply/history/", 200, { job_id: "67ff4ef965d91ef7", outcome: "interview", outcome_at: "2026-10-28T09:00:00+00:00" }, { "content-type": "application/json" });
+  route("/api/me/apply/history", 200, { applied: [
+    { job_id: "67ff4ef965d91ef7", title: "SRE", company: "Acme", status: "unconfirmed", reason: "", at: "2026-10-27T10:00:00+00:00", link: "/job/67ff4ef965d91ef7",
+      source: "mcp", sources: [{ source: "mcp", at: "2026-10-26T10:00:00+00:00" }], outcome: null, outcome_at: null, ai_answers: [{ question: "q" }] },
+    { job_id: "deadbeefdeadbeef", title: "", company: "", status: "submitted", reason: "", at: "2026-10-01T10:00:00+00:00", link: "https://jobs.example.com/1",
+      source: null, sources: [], outcome: "rejected", outcome_at: "2026-10-10T10:00:00+00:00" },
+  ] }, { "content-type": "application/json" });
+  const auth = { authorization: "Bearer " + TOKEN };
+  const tool = async (id, name, args) => (await (await post({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }, auth)).json()).result;
+  const hist = (await tool(80, "list_auto_apply_history", { limit: 5 })).structuredContent.applications;
+  assert.equal(calls[0].url, "https://box.oceanofjobs.com/api/me/apply/history?limit=5");
+  assert.deepEqual(hist[0], { id: "67ff4ef965d91ef7", title: "SRE", company: "Acme", status: "unconfirmed", reason: "", at: "2026-10-27T10:00:00+00:00",
+    url: "https://oceanofjobs.com/job/67ff4ef965d91ef7?ref=mcp", source: "mcp", sources: [{ source: "mcp", at: "2026-10-26T10:00:00+00:00" }],
+    outcome: null, outcome_at: null });
+  assert.deepEqual([hist[1].url, hist[1].source, hist[1].outcome], ["https://jobs.example.com/1", null, "rejected"]);
+  const set = await tool(81, "set_application_outcome", { id: "67ff4ef965d91ef7", outcome: "interview" });
+  assert.deepEqual(set.structuredContent, { id: "67ff4ef965d91ef7", outcome: "interview", outcome_at: "2026-10-28T09:00:00+00:00" });
+  const patch = calls.find((c) => c.url.endsWith("/api/me/apply/history/67ff4ef965d91ef7"));
+  assert.equal(patch.method, "PATCH");
+  assert.deepEqual(JSON.parse(patch.body), { outcome: "interview" });
+  const bad = await tool(82, "set_application_outcome", { id: "67ff4ef965d91ef7", outcome: "hired" });
+  assert.equal(bad.isError, true);
+  assert.match(bad.content[0].text, /outcome must be one of interview, offer, rejected, no_reply or none/);
 });
 
 test("alert and preference tools: the token goes to the box, bodies are JSON, preferences merge", async () => {

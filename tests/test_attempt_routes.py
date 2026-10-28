@@ -321,6 +321,112 @@ with mock_aws():
     s, _ = call("jay", "DELETE", "")
     check("account deletion past 1 MB removes every row", s == 204 and not rows("jay", "#attempt#"))
 
+    # Phase 1: a job's source from the caller's token, one entry per job
+    # across surfaces, and outcomes the user reports.
+    import sqlite3  # noqa: E402
+    board = sqlite3.connect(":memory:", check_same_thread=False)
+    board.execute("CREATE TABLE jobs (id TEXT PRIMARY KEY, title TEXT, ats TEXT, company_domain TEXT, url TEXT)")
+    board.executemany("INSERT INTO jobs VALUES (?, ?, 'greenhouse', 'acme.com', ?)", [(job(n)["job_id"], "Engineer", job(n)["url"]) for n in (60, 61, 62, 64, 65, 66)])
+    handler.get_connection = lambda: board
+    SESSION = {"sub": "kim", "token_use": "id"}
+    MCP = {"sub": "kim", "token_use": "ooj", "scope": "mcp"}
+    EXT = {"sub": "kim", "token_use": "ooj", "scope": "extension"}
+
+    def as_(claims, method, sub, body=None):
+        event = {"body": json.dumps(body or {}), "requestContext": {"authorizer": {"jwt": {"claims": claims}}}}
+        resp = handler.route_apply("kim", method, sub, event, {})
+        return resp["statusCode"], json.loads(resp["body"] or "null")
+
+    apply.put_profile(table, "kim", {"settings": {"sources": ["board", "mcp"]}})
+    j60, j61, j62 = (job(n)["job_id"] for n in (60, 61, 62))
+    s, b = as_(SESSION, "PUT", "queue/" + j60, {"source": "mcp"})
+    check("a website session can't say a job came from MCP", s == 400 and not rows("kim", "#queue#"), repr((s, b)))
+    s, _ = as_(MCP, "PUT", "queue/" + j60, {"source": "board"})
+    check("an MCP token's job is from MCP, whatever the body says", s == 204 and apply.origins(table, "kim")[j60]["source"] == "mcp")
+    s, _ = as_(SESSION, "PUT", "queue/" + j60)
+    q = as_(SESSION, "GET", "queue")[1]["queue"]
+    check("the board adding the same job keeps one entry, labelled MCP, with the board beside it",
+          s == 204 and len(q) == 1 and q[0]["source"] == "mcp" and [x["source"] for x in q[0]["sources"]] == ["mcp", "board"], repr(q))
+    s, _ = as_(SESSION, "PUT", "queue/" + j61, {"source": "alert"})
+    s2, _ = as_(EXT, "PUT", "queue/" + j62)
+    got = apply.origins(table, "kim")
+    check("a session may say alert; the extension's token only ever re-queues, so it guesses no source",
+          s == s2 == 204 and got[j61]["source"] == "alert" and j62 not in got and rows("kim", "#queue#" + j62), repr(got))
+
+    # The extension applies the MCP job: History shows it Submitted, from MCP.
+    s, _ = as_(EXT, "POST", "attempts", {"attempt_id": "kim-00001", **job(60)})
+    as_(EXT, "POST", "attempts/kim-00001/submission-started")
+    as_(EXT, "POST", "attempts/kim-00001/settle", {"outcome": "submitted"})
+    as_(EXT, "DELETE", "queue/" + j60)
+    hist = [r for r in as_(SESSION, "GET", "history")[1]["applied"] if r["job_id"] == j60]
+    check("the queued job's source carries into History", s == 200 and len(hist) == 1 and hist[0]["status"] == "submitted"
+          and hist[0]["source"] == "mcp" and hist[0]["outcome"] is None, repr(hist))
+    for claims in (MCP, SESSION, EXT):
+        s, b = as_(claims, "PUT", "queue/" + j60)
+        check(f"once Submitted, it isn't queued again ({claims['token_use']}/{claims.get('scope')})",
+              s == 409 and "already applied" in b["error"] and not rows("kim", "#queue#" + j60), repr((s, b)))
+    s, _ = as_(EXT, "POST", "attempts", {"attempt_id": "kim-00002", **job(61)})
+    s, b = as_(MCP, "PUT", "queue/" + j61)
+    check("a queued job in progress isn't queued a second time", s == 204 and len([r for r in rows("kim", "#queue#") if r["job_id"] == j61]) == 1)
+    as_(EXT, "DELETE", "queue/" + j61)
+    s, b = as_(MCP, "PUT", "queue/" + j61)
+    check("and once it has left the queue, an open attempt refuses it", s == 409 and "being applied" in b["error"], repr((s, b)))
+    s, _ = as_(EXT, "POST", "attempts", {"attempt_id": "kim-00003", **job(63)})
+    check("a job the extension starts itself is from the extension", s == 200 and apply.origins(table, "kim")[job(63)["job_id"]]["source"] == "extension")
+
+    # Outcomes: reported by the user, never a status or a credit.
+    month = A._get("kim", attempts.ATTEMPT + "kim-00001")["month"]
+    led = A.ledger("kim", attempts.LEDGER_MONTH + month)
+    attempt = A._get("kim", attempts.ATTEMPT + "kim-00001")
+    s, b = as_(SESSION, "PATCH", "history/" + j60, {"outcome": "interview"})
+    hist = [r for r in as_(SESSION, "GET", "history")[1]["applied"] if r["job_id"] == j60][0]
+    check("the user marks an outcome on a submitted application", s == 200 and b["outcome"] == "interview"
+          and hist["outcome"] == "interview" and hist["outcome_at"] and hist["status"] == "submitted", repr((s, b, hist)))
+    check("and no credit, attempt or lock changes", A.ledger("kim", attempts.LEDGER_MONTH + month) == led
+          and A._get("kim", attempts.ATTEMPT + "kim-00001") == attempt and rows("kim", "#joblock#"))
+    s, b = as_(MCP, "PATCH", "history/" + j60, {"outcome": "none"})
+    check("an MCP token clears it", s == 200 and b["outcome"] is None and not rows("kim", "#outcome#"), repr((s, b)))
+    s, b = as_(SESSION, "PATCH", "history/" + j60, {"outcome": "hired"})
+    check("an outcome outside the list is a 400", s == 400 and not rows("kim", "#outcome#"), repr((s, b)))
+    s, b = as_(SESSION, "PATCH", "history/" + j61, {"outcome": "interview"})
+    check("an application not sent takes no outcome", s == 404 and not rows("kim", "#outcome#"), repr((s, b)))
+
+    # Putting a job back isn't finding it again: Undo, or the extension once
+    # its questions are answered, keep the sources it had.
+    j64, j65, j66 = (job(n)["job_id"] for n in (64, 65, 66))
+    srcs = lambda j: [x["source"] for x in apply.origins(table, "kim")[j]["sources"]]  # noqa: E731
+    as_(SESSION, "PUT", "queue/" + j64, {"source": "alert"})
+    as_(SESSION, "DELETE", "queue/" + j64)
+    s, _ = as_(SESSION, "PUT", "queue/" + j64, {"source": "board", "requeue": True})
+    check("Undo puts the job back with its sources as they were", s == 204 and srcs(j64) == ["alert"]
+          and rows("kim", "#queue#" + j64), repr(srcs(j64)))
+    as_(SESSION, "DELETE", "queue/" + j64)
+    s, _ = as_(EXT, "PUT", "queue/" + j64)
+    check("the extension re-queueing after answers adds no source", s == 204 and srcs(j64) == ["alert"], repr(srcs(j64)))
+    s, _ = as_(MCP, "PUT", "queue/" + j64)
+    check("a job that really arrives from somewhere new is still added", s == 204 and srcs(j64) == ["alert", "mcp"], repr(srcs(j64)))
+    s, _ = as_(SESSION, "PUT", "queue/" + j65, {"requeue": True})
+    check("a re-queue of a job with no source records none, not a guess",
+          s == 204 and j65 not in apply.origins(table, "kim") and rows("kim", "#queue#" + j65), repr(apply.origins(table, "kim").get(j65)))
+
+    # A form the user sent with the site's own button: its own status, never Submitted, and it takes an outcome.
+    as_(EXT, "POST", "filled", {"attempt_id": "kim-00004", **job(66)})
+    s, _ = as_(EXT, "POST", "attempts/kim-00004/sent", {"how": "request"})
+    hist = [r for r in as_(SESSION, "GET", "history")[1]["applied"] if r["job_id"] == j66]
+    check("History shows the user's own send as sent, not submitted", s == 200 and len(hist) == 1 and hist[0]["status"] == "sent", repr(hist))
+    s, b = as_(SESSION, "PATCH", "history/" + j66, {"outcome": "rejected"})
+    hist = [r for r in as_(SESSION, "GET", "history")[1]["applied"] if r["job_id"] == j66][0]
+    check("and takes an outcome, which leaves it sent", s == 200 and hist["outcome"] == "rejected" and hist["status"] == "sent", repr((s, b, hist)))
+    s, b = as_(MCP, "PATCH", "history/" + j66, {"outcome": "interview"})
+    hist = [r for r in as_(MCP, "GET", "history")[1]["applied"] if r["job_id"] == j66][0]
+    check("an MCP token marking it leaves it sent too", s == 200 and hist["outcome"] == "interview" and hist["status"] == "sent", repr((s, b, hist)))
+    s, b = as_(MCP, "PUT", "queue/" + j66)
+    check("and it isn't queued again", s == 409 and "already applied" in b["error"], repr((s, b)))
+
+    as_(SESSION, "PATCH", "history/" + j60, {"outcome": "offer"})
+    s, _ = call("kim", "DELETE", "")
+    check("deleting the account removes sources and outcomes", s == 204 and not rows("kim", "#origin#") and not rows("kim", "#outcome#"))
+
 print()
 if failures:
     print("%d failed:" % len(failures))

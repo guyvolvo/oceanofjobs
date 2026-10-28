@@ -33,7 +33,7 @@ from botocore.exceptions import ClientError
 import apply
 
 ATTEMPT = "#attempt#"
-JOBLOCK = "#joblock#"
+JOBLOCK = apply.JOBLOCK
 LEDGER_MONTH = "#ledger#month#"
 LEDGER_DAY = "#ledger#day#"
 HOLD = timedelta(minutes=30)
@@ -565,7 +565,8 @@ class Attempts:
     def history(self, user_id: str, now: datetime | None = None) -> list[dict]:
         """Every attempt as a History row, in the shape apply.history uses."""
         now = _utc(now)
-        shown = {RESERVED: "in_progress", STARTED: "in_progress", SENT: SUBMITTED}
+        # SENT stays "sent": the user pressed the site's own button and nothing confirmed it.
+        shown = {RESERVED: "in_progress", STARTED: "in_progress"}
         rows = []
         for a in self._attempts(user_id):
             state = a["state"]

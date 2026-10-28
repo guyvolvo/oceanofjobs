@@ -7,14 +7,17 @@ import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { ArrowDown, ArrowUp, Trash, Tray } from "@phosphor-icons/react";
 import { apply, send, type QueueItem } from "./api";
 import type { Ext } from "./ext";
-import { ATS, ExtensionAction, JobCell, fmtDate, plural } from "./shared";
+import { ATS, ExtensionAction, JobCell, SOURCE, SourceLabel, fmtDate, plural } from "./shared";
 
 const setOrder = (ids: string[]) => apply("queue-order", send("POST", { job_ids: ids }));
 
-export function Queue({ items, ext, reload }: { items: QueueItem[]; ext: Ext; reload: () => void }) {
+export function Queue({ items, ext, reload, source }: { items: QueueItem[]; ext: Ext; reload: () => void; source?: string }) {
   const toasts = useKumoToastManager();
   const [rows, setRows] = useState(items);
   useEffect(() => setRows(items), [items]);
+  // From the Overview's breakdown: one source only, so no reordering.
+  const only = source && source in SOURCE ? (source as keyof typeof SOURCE) : null;
+  const shown = only ? rows.filter((r) => r.source === only) : rows;
 
   const move = async (i: number, d: -1 | 1) => {
     const next = rows.slice();
@@ -40,7 +43,7 @@ export function Queue({ items, ext, reload }: { items: QueueItem[]; ext: Ext; re
     // Undo puts it back where it was, not at the end.
     const undo = async () => {
       try {
-        await apply(`queue/${encodeURIComponent(item.job_id)}`, send("PUT"));
+        await apply(`queue/${encodeURIComponent(item.job_id)}`, send("PUT", { source: item.source === "alert" ? "alert" : "board", requeue: true }));
         await setOrder(before.map((r) => r.job_id));
       } catch (e) {
         toasts.add({ variant: "error", title: "Couldn't put the job back", description: (e as Error).message });
@@ -54,7 +57,10 @@ export function Queue({ items, ext, reload }: { items: QueueItem[]; ext: Ext; re
   return (
     <div className="oj-stack">
       <div className="oj-row oj-row-between">
-        <p className="oj-note">{rows.length ? `${plural(rows.length, "job")}, applied in this order.` : ""}</p>
+        <p className="oj-note">
+          {only ? <>{plural(shown.length, "job")} from {SOURCE[only].from}. <a className="oj-link" href="#queue">Show the whole queue</a></>
+            : rows.length ? `${plural(rows.length, "job")}, applied in this order.` : ""}
+        </p>
         <ExtensionAction ext={ext} queue={rows} onOpened={reload} />
       </div>
       {rows.length ? (
@@ -69,15 +75,17 @@ export function Queue({ items, ext, reload }: { items: QueueItem[]; ext: Ext; re
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {rows.map((r, i) => (
+              {shown.map((r, i) => (
                 <Table.Row key={r.job_id}>
-                  <Table.Cell><JobCell title={r.title} link={r.link} sub={r.company} /></Table.Cell>
+                  <Table.Cell><JobCell title={r.title} link={r.link} sub={r.company} /><SourceLabel row={r} /></Table.Cell>
                   <Table.Cell className="oj-hide-sm">{ATS[r.ats] || r.ats || ""}</Table.Cell>
                   <Table.Cell className="oj-hide-sm oj-num">{fmtDate(r.added_at)}</Table.Cell>
                   <Table.Cell>
                     <div className="oj-actions">
-                      <Button size="sm" shape="square" variant="ghost" icon={<ArrowUp />} aria-label={`Move ${r.title} up`} disabled={i === 0} onClick={() => move(i, -1)} />
-                      <Button size="sm" shape="square" variant="ghost" icon={<ArrowDown />} aria-label={`Move ${r.title} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)} />
+                      {only ? null : <>
+                        <Button size="sm" shape="square" variant="ghost" icon={<ArrowUp />} aria-label={`Move ${r.title} up`} disabled={i === 0} onClick={() => move(i, -1)} />
+                        <Button size="sm" shape="square" variant="ghost" icon={<ArrowDown />} aria-label={`Move ${r.title} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)} />
+                      </>}
                       <Button size="sm" shape="square" variant="ghost" icon={<Trash />} aria-label={`Remove ${r.title}`} onClick={() => remove(r)} />
                     </div>
                   </Table.Cell>

@@ -273,6 +273,24 @@ status, _ = call("/api/me/apply/queue/aaaaaaaaaaaaaaaa", "PUT", live)
 check("and an unknown job is 404", status.startswith("404"), status)
 status, _ = call("/api/me/apply/queue/0123456789abcdef", "DELETE", live)
 check("and can take it off again", status.startswith("204") and ("u-serve", "#queue#0123456789abcdef") not in table.items, status)
+check("a job an MCP token queued is from MCP", handler.apply.origins(table, "u-serve")["0123456789abcdef"]["source"] == "mcp")
+# History and outcomes come under the queue permission.
+table.items[("u-serve", "#applied#0123456789abcdef")] = {"user_id": "u-serve", "alert_id": "#applied#0123456789abcdef", "job_id": "0123456789abcdef",
+                                                        "status": "submitted", "reason": "", "at": "2026-10-20T12:00:00+00:00"}
+status, body = call("/api/me/apply/history", auth=live)
+row = json.loads(body)["applied"][0] if status.startswith("200") else {}
+check("an MCP token reads the history with source and outcome", row.get("source") == "mcp" and row.get("outcome") is None, status + repr(row))
+status, body = call("/api/me/apply/history/0123456789abcdef", "PATCH", live, {"outcome": "interview"})
+check("and marks an outcome", status.startswith("200") and json.loads(body)["outcome"] == "interview", status + body.decode()[:200])
+queue_reader = tokens.create(table, "u-serve", "queue reader", 30, permissions={"queue": "read"})["token"]
+status, _ = call("/api/me/apply/history", auth=queue_reader)
+status2, body = call("/api/me/apply/history/0123456789abcdef", "PATCH", queue_reader, {"outcome": "none"})
+check("queue read sees the history but can't mark an outcome", status.startswith("200") and status2.startswith("403")
+      and b"auto apply history" in body, status + status2)
+status, _ = call("/api/me/apply/history", auth=reader["token"])
+check("no queue permission, no history", status.startswith("403"), status)
+status, _ = call("/api/me/apply/historyx", auth=live)
+check("and nothing beside it", status.startswith("403"), status)
 ext = tokens.create(table, "u-ext", "Chrome extension", None, scope="extension")["token"]
 status, body = call("/api/me/apply/usage", auth=ext)
 check("an extension token reaches the auto-apply routes", status.startswith("200") and b'"plan": "free"' in body, status + body.decode()[:120])

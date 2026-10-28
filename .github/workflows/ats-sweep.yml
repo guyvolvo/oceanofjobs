@@ -1,0 +1,100 @@
+name: ats-sweep
+
+# Weekly check of the extension's fill on live postings, per hiring system.
+# tests/e2e/ats_sweep.mjs fills a few live postings per system with a test
+# profile and our API stubbed. Every write leaving the browser is aborted and
+# nothing is submitted. It compares the run with tests/e2e/ats_baseline.json
+# and with the previous run, writes the report to the run's summary page, and
+# fails, so GitHub emails, only on a regression against the baseline or on
+# any demographic question sent to the AI. Closed postings, walls and changed
+# forms are listed in the report but never fail the run.
+#
+# On the schedule: GitHub's own cron is unreliable on this repo (see
+# scrape-fast.yml and discover-companies.yml). A weekly check that slips a
+# day loses nothing, so this keeps the cron, as build-salary-matrix.yml does.
+# If weeks go by without a run, add a rate(7 days) rule for this file in
+# infra/dispatch_workflow_lambda.tf, the way discover-companies.yml is fired.
+#
+# After a deliberate change (a fix, or a site that changed its form for
+# good), refresh the baseline from a run's ats-sweep artifact:
+#   node tests/e2e/ats_sweep.mjs --from results.json out --write-baseline
+# then commit tests/e2e/ats_baseline.json.
+
+on:
+  schedule:
+    - cron: "23 6 * * 1" # Mondays, off the hour
+  workflow_dispatch:
+    inputs:
+      per_ats:
+        description: "Live postings per hiring system"
+        required: false
+        default: "2"
+
+permissions:
+  contents: read
+  actions: read # to download the previous run's results
+
+concurrency:
+  group: ats-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      # The full Chromium, not the headless shell: the harness launches it
+      # with channel "chromium", whose new headless mode loads extensions.
+      - name: Install Playwright and Chromium
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps --no-shell chromium
+
+      - name: Fetch the previous run's results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for id in $(gh run list --workflow ats-sweep.yml --status completed --limit 5 --json databaseId --jq '.[].databaseId'); do
+            gh run download "$id" --name ats-sweep --dir prev && break
+          done
+          ls prev 2>/dev/null || echo "No previous results, comparing with the baseline only."
+
+      - name: Sweep live postings
+        env:
+          PER_ATS: ${{ inputs.per_ats || '2' }}
+          MAX_MINUTES: "35"
+          PREVIOUS: prev/results.json
+        run: node tests/e2e/ats_sweep.mjs sweep-out
+
+      - name: Write the report to the summary page
+        if: always()
+        run: cat sweep-out/summary.md >> "$GITHUB_STEP_SUMMARY" || echo "The sweep stopped before writing a report. See the step log." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ats-sweep
+          path: |
+            sweep-out/results.json
+            sweep-out/summary.md
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ats-sweep-screenshots
+          path: sweep-out/*.png
+          retention-days: 14
+          if-no-files-found: ignore
