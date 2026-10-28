@@ -55,6 +55,9 @@ POOL_NAME = os.environ["POOL_NAME"]  # e.g. "iljobs-users"
 SITE_ORIGIN = os.environ["SITE_ORIGIN"]  # https://openmarket.guyvoloshin.com, no trailing slash
 
 cognito = boto3.client("cognito-idp")
+dynamodb = boto3.client("dynamodb")
+# The CRM's table (crm/, scripts/setup_crm_aws.py), for its Sign-in codes log.
+CRM_TABLE = os.environ.get("CRM_TABLE", "ooj-crm")
 
 # Not passed in as an env var: infra/cognito.tf's user pool needs this
 # Lambda's ARN for its triggers, and this Lambda needing the pool's ID
@@ -167,7 +170,21 @@ def _handle_email_start(event: dict) -> dict:
     # only the real owner can read. Worst case for a wrong email here is
     # an unusable pending account row, not an account takeover.
     _ensure_cognito_user(pool_id, email, email)
+    _log_signin(email)
     return _json_response(200, {"ok": True})
+
+
+def _log_signin(email: str) -> None:
+    """One row in the CRM's Sign-in codes log. The browser asks Cognito for
+    the code right after this answers and Cognito sends it, so the row means
+    a code was asked for, not that it arrived. Never fails the sign-in."""
+    from datetime import datetime, timezone
+    at = datetime.now(timezone.utc).isoformat()
+    try:
+        dynamodb.put_item(TableName=CRM_TABLE, Item={"pk": {"S": "signin"}, "sk": {"S": f"{at}#{secrets.token_hex(4)}"},
+                                                     "at": {"S": at}, "email": {"S": email}})
+    except Exception as e:  # noqa: BLE001 -- a log row is never worth a failed sign-in
+        print(f"signin log: {e}")
 
 
 def _handle_callback(event: dict) -> dict:

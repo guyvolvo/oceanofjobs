@@ -359,6 +359,9 @@ async function api(request, env, who, path) {
           const c = contacts.find((x) => x.id === (a.detail || {}).contact);
           out.push({ at: a.sk.split("#")[0], to: c ? c.email : (a.detail || {}).contact || "", what: (a.detail || {}).subject || "" });
         }
+      } else if (more === "signin") {
+        // github_auth_handler.py writes one row per code asked for; Cognito sends it.
+        for (const r of await S.list(env, "signin", { limit: 50 })) out.push({ at: r.at, to: r.email, what: "Code requested" });
       } else if (more === "replies") {
         for (const m of await S.list(env, "inbox", { limit: 500 })) if (m.dir === "out") out.push({ at: m.sk.split("#")[0], to: m.email, what: m.subject });
       } else if (more === "notices") {

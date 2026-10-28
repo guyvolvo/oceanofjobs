@@ -45,7 +45,7 @@ const QUICK: { name: string; flow: Omit<Flow, "enabled" | "conditions"> & { cond
 // each is in its code (Cognito, alerts.py, worker.mjs, Dodo).
 type Default = { id: string; name: string; line: string; log?: string; link?: string };
 const DEFAULTS: Default[] = [
-  { id: "signin", name: "Sign-in codes", line: "Login codes for email sign-in. Sent by Cognito." },
+  { id: "signin", name: "Sign-in codes", line: "Login codes for email sign-in. Sent by Cognito.", log: "signin" },
   { id: "alerts", name: "Job alerts", line: "New matches for a member's alerts, from alerts@.", log: "alerts" },
   { id: "direct", name: "Emails to one member", line: "What you send from a member's page.", log: "direct" },
   { id: "replies", name: "Inbox replies", line: "Your replies to mail sent to info@.", log: "replies" },
@@ -80,7 +80,8 @@ function DefaultLog({ kind }: { kind: string }) {
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
   return (
     <div className="crm-stack">
-      {kind === "alerts" ? <p className="crm-note">Latest send per alert.</p> : null}
+      {kind === "alerts" ? <p className="crm-note">Latest send per alert.</p>
+        : kind === "signin" ? <p className="crm-note">When a code was asked for. Cognito sends it.</p> : null}
       {!data.entries.length ? <p className="crm-note">Nothing sent yet.</p> : (
         <div className="crm-table"><Table className="crm-log"><Table.Body>
           {data.entries.map((e, i) => (

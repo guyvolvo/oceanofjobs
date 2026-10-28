@@ -560,6 +560,9 @@ test("default flows: logs from what's already recorded", async () => {
   assert.deepEqual(r.entries, [{ at: "2026-10-27T09:00:00Z", to: "a@example.com", what: "Alert on" }], "only alerts that sent a digest");
   r = await (await call("/api/flows/builtin/replies")).json();
   assert.deepEqual(r.entries, []);
-  assert.equal((await call("/api/flows/builtin/signin")).status, 404, "no log for what isn't recorded");
+  state.crm.push({ pk: { S: "signin" }, sk: { S: "2026-10-28T09:00:00Z#ab12" }, at: { S: "2026-10-28T09:00:00Z" }, email: { S: "a@example.com" } });
+  r = await (await call("/api/flows/builtin/signin")).json();
+  assert.deepEqual(r.entries, [{ at: "2026-10-28T09:00:00Z", to: "a@example.com", what: "Code requested" }], "the sign-in Lambda's rows");
+  assert.equal((await call("/api/flows/builtin/nope")).status, 404, "no log for what isn't recorded");
   globalThis.fetch = realFetch;
 });

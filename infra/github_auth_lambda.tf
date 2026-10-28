@@ -53,6 +53,15 @@ resource "aws_iam_role_policy" "github_auth_lambda" {
         Resource = "*"
       },
       {
+        # The CRM's Sign-in codes log (github_auth_handler.py _log_signin):
+        # one row per code asked for. The table is the CRM's own
+        # (scripts/setup_crm_aws.py), not managed here.
+        Sid      = "LogSignInCodes"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/ooj-crm"
+      },
+      {
         Sid      = "Logs"
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
@@ -87,6 +96,7 @@ resource "aws_lambda_function" "github_auth" {
       GITHUB_CLIENT_SECRET = var.github_oauth_client_secret
       POOL_NAME            = "${var.project_name}-users" # matches aws_cognito_user_pool.main's name; see github_auth_handler.py's lookup comment
       SITE_ORIGIN          = "https://${var.domain_name}"
+      CRM_TABLE            = "ooj-crm"
     }
   }
 
