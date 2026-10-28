@@ -37,7 +37,7 @@ SECTIONS = [
     ("jobs", "Jobs", [("All jobs", "/board?roles=all"), ("Tech jobs", "/board?roles=tech"), ("Remote jobs", "/board?roles=all&workplace=remote"),
                       ("Jobs by role", "/jobs"), ("Saved jobs", "/board?starred=1")]),
     ("companies", "Companies", [("Directory", "/companies"), ("A to Z", "/companies/a"), ("Statistics", "/stats")]),
-    ("docs", "Docs", [("API", "/docs/api"), ("MCP", "/docs/mcp"), ("Extension", "/docs/extension"), ("Changelog", "/docs/changelog")]),
+    ("docs", "Docs", [("API", "/docs/api"), ("MCP", "/docs/mcp"), ("Extension", "/docs/extension"), ("Product updates", "/docs/changelog")]),
     ("pricing", "Pricing", "/pricing"),
     ("contact", "Contact", "/contact"),
 ]
