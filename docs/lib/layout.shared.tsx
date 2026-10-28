@@ -1,12 +1,12 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import { HomeLink } from '@/components/home-link';
-import { SiteLinks } from '@/components/site-links';
 import { gitConfig } from './shared';
 
+// The site header (app/layout.tsx) carries the brand, the site's menus and
+// the theme button, so the sidebar keeps only the docs' own title and search.
 export function baseOptions(): BaseLayoutProps {
   return {
-    nav: { title: HomeLink },
-    links: [{ type: 'custom', children: <SiteLinks /> }],
+    nav: { title: 'Docs' },
+    themeSwitch: { enabled: false },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
 }
