@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ocean of Jobs Auto Apply",
-  "version": "1.9.15",
+  "version": "1.9.16",
   "description": "Applies to jobs for you on Workday, Greenhouse, Lever, and 11 other hiring sites, and fills in other application forms.",
   "icons": {
     "16": "icons/icon-16.png",
