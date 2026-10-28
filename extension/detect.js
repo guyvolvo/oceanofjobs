@@ -166,8 +166,26 @@
       ready = true;
       return first;
     };
-    fab.addEventListener('click', async () => {
-      if (open()) card(root, await send({ type: 'offerHere', url: target.url }) || { blocked: UNEXPECTED }, target);
+    // A card that said what stands in the way (not connected, no resume)
+    // asks again when reopened and when the account changes, so
+    // connecting in another tab clears it without a page reload.
+    let blocked = false;
+    const ask = async () => {
+      const offer = await send({ type: 'offerHere', url: target.url }) || { blocked: UNEXPECTED };
+      const go = root.querySelector('.go');
+      const fresh = go.cloneNode(false); // drops the old click handler
+      fresh.hidden = fresh.disabled = false;
+      fresh.textContent = 'Fill application';
+      go.replaceWith(fresh);
+      const msg = root.querySelector('.msg');
+      msg.className = 'msg';
+      msg.textContent = '';
+      blocked = !!offer.blocked;
+      card(root, offer, target);
+    };
+    fab.addEventListener('click', () => { if (open() || blocked) ask(); });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (blocked && area === 'local' && (changes.token || changes.authError || changes.cv)) ask();
     });
     // Drawn inside a form's frame only when the page around it has no
     // Ocean of Jobs access, which Settings can grant.
