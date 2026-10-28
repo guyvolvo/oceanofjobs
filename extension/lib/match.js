@@ -467,7 +467,7 @@
     'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     // Why Full automatic stopped after filling (autoSubmit).
     'full automatic needs a paid plan': 'Full automatic needs the Basic or Pro plan.',
-    'bot check': 'This site requires you to submit the form yourself.',
+    'bot check': "This site has a human check, so Full automatic didn't submit it.",
     'no submit button': "Couldn't find the form's Submit button.",
     'needs input': "Some fields need your answer, so it wasn't submitted.",
     'limit reached': "You have no applications left on your plan, so it wasn't submitted.",
