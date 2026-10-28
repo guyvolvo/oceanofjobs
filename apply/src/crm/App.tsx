@@ -7,6 +7,7 @@ import { Select } from "@cloudflare/kumo/components/select";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { Banner } from "@cloudflare/kumo/components/banner";
+import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Table } from "@cloudflare/kumo/components/table";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { crm, day, describe, plural, type Campaign, type Filter, type Segment } from "./api";
@@ -37,9 +38,10 @@ export function Failed({ error, retry }: { error: string; retry: () => void }) {
   return <Banner variant="error" title={error} action={<Button onClick={retry}>Try again</Button>} />;
 }
 
-type Dash = { complete: boolean; members: number; new_7: number; new_30: number; newsletter: number; agreed: number;
-  waitlist: { basic: number; pro: number }; plans: Record<string, number>; by_day: [string, number][];
-  growth?: [string, number][]; funnel?: [string, number][]; providers?: Record<string, number>; mcp?: number; apps_by_month?: [string, number][] };
+type Range = "24h" | "7d" | "30d" | "90d";
+type Dash = { complete: boolean; range: Range; members: number; new: number; newsletter: number; waitlist: { basic: number; pro: number };
+  mcp: number; signups: [string, number][]; total: [string, number][]; funnel: [string, number][]; providers: Record<string, number>;
+  plans: Record<string, number>; apps_by_month: [string, number][] };
 // Imported on first use, so ECharts loads with the overview, not the CRM.
 const Charts = () => import("./Charts");
 const SignupsChart = lazy(() => Charts().then((m) => ({ default: m.SignupsChart })));
@@ -49,49 +51,44 @@ const ShareChart = lazy(() => Charts().then((m) => ({ default: m.ShareChart })))
 const AppsChart = lazy(() => Charts().then((m) => ({ default: m.AppsChart })));
 const PROVIDER: Record<string, string> = { google: "Google", github: "GitHub", email: "Email" };
 const PLAN: Record<string, string> = { free: "Free", basic: "Basic", pro: "Pro" };
+const RANGES: Record<Range, string> = { "24h": "24h", "7d": "7d", "30d": "30d", "90d": "90d" };
 
-function ChartCard({ title, note, children, wide }: { title: string; note?: string; children: ReactNode; wide?: boolean }) {
+function ChartCard({ title, children, wide }: { title: string; children: ReactNode; wide?: boolean }) {
   return (
     <LayerCard className={wide ? "crm-wide" : undefined}><div className="crm-card">
       <h2>{title}</h2>
-      {note ? <p className="crm-note">{note}</p> : null}
       <Suspense fallback={<p className="crm-note"><Loader /> Loading</p>}>{children}</Suspense>
     </div></LayerCard>
   );
 }
 
 function Overview({ sending }: { sending: boolean }) {
-  const { data, error, load } = useLoad<Dash>("/dashboard");
+  const [range, setRange] = useState<Range>("30d");
+  const { data, error, load } = useLoad<Dash>(`/dashboard?range=${range}`);
   if (error) return <Failed error={error} retry={load} />;
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
   const stats: [number, string][] = [
-    [data.members, "users"], [data.new_7, "joined in the last 7 days"], [data.new_30, "joined in the last 30 days"],
-    [data.newsletter, "subscribed to product updates"], [data.waitlist.basic, "on the Basic waitlist"], [data.waitlist.pro, "on the Pro waitlist"],
-    [data.mcp ?? 0, "connected an AI agent"],
+    [data.members, "Users"], [data.new, `New in ${RANGES[range]}`], [data.newsletter, "Product updates"],
+    [data.waitlist.basic, "Basic waitlist"], [data.waitlist.pro, "Pro waitlist"], [data.mcp, "AI agent"],
   ];
+  const parts = (m: Record<string, number>, names: Record<string, string>): [string, number][] => Object.entries(m).map(([k, n]) => [names[k] || k, n]);
   return (
     <div className="crm-stack">
       {!sending ? <Banner variant="default" title="Sending to users is off"
         description="Test emails to you work. To send to users, set SENDING to on in the Worker's settings." /> : null}
       {!data.complete ? <Banner variant="default" title="Some users aren't counted" description="The user list is longer than one read covers." /> : null}
+      <div><Tabs variant="segmented" value={range} onValueChange={(v) => setRange(v as Range)}
+        tabs={(Object.keys(RANGES) as Range[]).map((r) => ({ value: r, label: RANGES[r] }))} /></div>
       <div className="crm-stats">
         {stats.map(([n, label]) => <LayerCard key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span></div></LayerCard>)}
       </div>
       <div className="crm-charts">
-        <ChartCard title="New users, last 30 days" note={plural(data.new_30, "new user")}>
-          <SignupsChart days={data.by_day} />
-        </ChartCard>
-        {data.growth ? <ChartCard title="Users in total, last 90 days"><GrowthChart days={data.growth} /></ChartCard> : null}
-        {data.funnel ? <ChartCard title="From sign-up to paying" note="Share of everyone who signed up." wide><FunnelChart steps={data.funnel} /></ChartCard> : null}
-        {data.providers ? <ChartCard title="How they sign in">
-          <ShareChart name="Sign-in method" parts={Object.entries(data.providers).map(([k, n]) => [PROVIDER[k] || k, n])} />
-        </ChartCard> : null}
-        <ChartCard title="Plans">
-          <ShareChart name="Plans" parts={Object.entries(data.plans).map(([k, n]) => [PLAN[k] || k, n])} />
-        </ChartCard>
-        {data.apps_by_month ? <ChartCard title="Applications per month" note="Charged applications, last six months." wide>
-          <AppsChart months={data.apps_by_month} />
-        </ChartCard> : null}
+        <ChartCard title="Sign-ups"><SignupsChart buckets={data.signups} /></ChartCard>
+        <ChartCard title="Total users"><GrowthChart buckets={data.total} /></ChartCard>
+        <ChartCard title="Funnel" wide><FunnelChart steps={data.funnel} /></ChartCard>
+        <ChartCard title="Sign-in method"><ShareChart name="Sign-in method" parts={parts(data.providers, PROVIDER)} /></ChartCard>
+        <ChartCard title="Plans"><ShareChart name="Plans" parts={parts(data.plans, PLAN)} /></ChartCard>
+        <ChartCard title="Applications per month" wide><AppsChart months={data.apps_by_month} /></ChartCard>
       </div>
     </div>
   );

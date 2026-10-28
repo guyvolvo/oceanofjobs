@@ -84,34 +84,39 @@ async function api(request, env, who, path) {
 
   if (area === "dashboard" && method === "GET") {
     const { contacts, complete } = await S.contacts(env, { fresh: q.fresh === "1" });
-    const since = (days) => new Date(Date.now() - days * 864e5).toISOString();
+    // The range picked on the overview: hourly buckets for a day, daily ones otherwise.
+    const RANGES = { "24h": [24, 36e5], "7d": [7, 864e5], "30d": [30, 864e5], "90d": [90, 864e5] };
+    const range = RANGES[q.range] ? q.range : "30d";
+    const [n, step] = RANGES[range];
+    const now = Date.now();
+    const start = new Date(now - n * step).toISOString();
+    const key = (t) => (step < 864e5 ? t.slice(0, 13) : t.slice(0, 10));
+    const buckets = Array.from({ length: n }, (_, i) => key(new Date(now - (n - 1 - i) * step).toISOString()));
+    const cohort = contacts.filter((c) => c.created && c.created >= start);
+    const count = (list, f) => list.filter(f).length;
+    const tally = (list, k) => list.reduce((m, c) => ({ ...m, [c[k]]: (m[c[k]] || 0) + 1 }), {});
     return json(200, {
-      complete,
+      complete, range,
       members: contacts.length,
-      new_7: contacts.filter((c) => c.created >= since(7)).length,
-      new_30: contacts.filter((c) => c.created >= since(30)).length,
-      newsletter: contacts.filter((c) => c.newsletter).length,
-      agreed: contacts.filter((c) => c.agreed_version).length,
-      waitlist: { basic: contacts.filter((c) => c.waitlist.includes("basic")).length, pro: contacts.filter((c) => c.waitlist.includes("pro")).length },
-      plans: contacts.reduce((m, c) => ({ ...m, [c.plan]: (m[c.plan] || 0) + 1 }), {}),
-      // Every one of the 30 days, so a day with no sign-ups shows as a gap, not as missing.
-      by_day: Array.from({ length: 30 }, (_, i) => since(29 - i).slice(0, 10))
-        .map((d) => [d, contacts.filter((c) => (c.created || "").startsWith(d)).length]),
-      // Users in total at the end of each of the last 90 days.
-      growth: Array.from({ length: 90 }, (_, i) => since(89 - i).slice(0, 10))
-        .map((d) => [d, contacts.filter((c) => c.created && c.created.slice(0, 10) <= d).length]),
+      new: cohort.length,
+      newsletter: count(contacts, (c) => c.newsletter),
+      waitlist: { basic: count(contacts, (c) => c.waitlist.includes("basic")), pro: count(contacts, (c) => c.waitlist.includes("pro")) },
+      mcp: count(contacts, (c) => c.tokens.some((t) => t.scope === "mcp")),
+      signups: buckets.map((b) => [b, count(cohort, (c) => key(c.created) === b)]),
+      total: buckets.map((b) => [b, count(contacts, (c) => c.created && key(c.created) <= b)]),
+      // The rest are about who signed up in the range.
       funnel: [
-        ["Signed up", contacts.length],
-        ["Connected the extension", contacts.filter((c) => c.tokens.some((t) => t.scope === "extension")).length],
-        ["Added a resume", contacts.filter((c) => c.resume).length],
-        ["Sent an application", contacts.filter((c) => Object.values(c.ledgers).some((n) => n > 0)).length],
-        ["Paid plan", contacts.filter((c) => c.paid && ["active", "trialing", "past_due"].includes(c.paid.status)).length],
+        ["Signed up", cohort.length],
+        ["Extension", count(cohort, (c) => c.tokens.some((t) => t.scope === "extension"))],
+        ["Resume", count(cohort, (c) => c.resume)],
+        ["Applied", count(cohort, (c) => Object.values(c.ledgers).some((x) => x > 0))],
+        ["Paid", count(cohort, (c) => c.paid && ["active", "trialing", "past_due"].includes(c.paid.status))],
       ],
-      providers: contacts.reduce((m, c) => ({ ...m, [c.provider]: (m[c.provider] || 0) + 1 }), {}),
-      mcp: contacts.filter((c) => c.tokens.some((t) => t.scope === "mcp")).length,
-      // Applications charged per month (the monthly credit ledgers), last six months.
+      providers: tally(cohort, "provider"),
+      plans: tally(cohort, "plan"),
+      // Applications charged per month (monthly credit ledgers), last six months.
       apps_by_month: Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 5 + i); return d.toISOString().slice(0, 7); })
-        .map((m) => [m, contacts.reduce((n, c) => n + Object.entries(c.ledgers).filter(([k]) => k.startsWith(m)).reduce((a, [, v]) => a + v, 0), 0)]),
+        .map((m) => [m, contacts.reduce((t, c) => t + Object.entries(c.ledgers).filter(([k]) => k.startsWith(m)).reduce((a, [, v]) => a + v, 0), 0)]),
     });
   }
 

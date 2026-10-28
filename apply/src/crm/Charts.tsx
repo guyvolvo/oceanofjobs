@@ -27,7 +27,9 @@ function tokens() {
 type T = ReturnType<typeof tokens>;
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-const day = (d: string) => new Date(d + "T12:00:00Z").toLocaleDateString(undefined, { day: "numeric", month: "short" });
+// A bucket is an hour ("2026-10-28T09") or a day ("2026-10-28").
+const at = (b: string) => (b.length > 10 ? new Date(b + ":00:00Z").toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+  : new Date(b + "T12:00:00Z").toLocaleDateString(undefined, { day: "numeric", month: "short" }));
 const month = (m: string) => new Date(m + "-15T12:00:00Z").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
 const tip = (t: T) => ({
   backgroundColor: t.overlay, borderColor: t.line, borderWidth: 1, padding: [6, 10],
@@ -41,28 +43,28 @@ const grid = { left: 4, right: 12, top: 12, bottom: 4, containLabel: true };
 const first = (p: unknown) => (Array.isArray(p) ? p[0] : p) as { name: string; value: number; dataIndex: number };
 
 // Sign-ups per day: one bar a day, a day with none at zero.
-export function SignupsChart({ days }: { days: [string, number][] }) {
+export function SignupsChart({ buckets: days }: { buckets: [string, number][] }) {
   const t = tokens();
   const options: KumoChartOption = {
     backgroundColor: "transparent", grid,
-    aria: { enabled: true, label: { description: `New users per day, last ${days.length} days.` } },
+    aria: { enabled: true, label: { description: "Sign-ups." } },
     tooltip: { trigger: "axis", ...tip(t), axisPointer: { type: "shadow" },
-      dangerousHtmlFormatter: (p: unknown) => { const x = first(p); return `${esc(day(days[x.dataIndex][0]))}: <b>${x.value}</b>`; } },
-    xAxis: axisX(t, days.map(([d]) => day(d))), yAxis: axisY(t),
+      dangerousHtmlFormatter: (p: unknown) => { const x = first(p); return `${esc(at(days[x.dataIndex][0]))}: <b>${x.value}</b>`; } },
+    xAxis: axisX(t, days.map(([d]) => at(d))), yAxis: axisY(t),
     series: [{ type: "bar", data: days.map(([, n]) => n), barMaxWidth: 18, itemStyle: { color: t.brand, borderRadius: [3, 3, 0, 0] } }],
   };
   return <Chart echarts={echarts} options={options} height={200} />;
 }
 
 // Users in total at the end of each day.
-export function GrowthChart({ days }: { days: [string, number][] }) {
+export function GrowthChart({ buckets: days }: { buckets: [string, number][] }) {
   const t = tokens();
   const options: KumoChartOption = {
     backgroundColor: "transparent", grid,
-    aria: { enabled: true, label: { description: `Total users over the last ${days.length} days, from ${days[0]?.[1]} to ${days[days.length - 1]?.[1]}.` } },
+    aria: { enabled: true, label: { description: `Total users, from ${days[0]?.[1]} to ${days[days.length - 1]?.[1]}.` } },
     tooltip: { trigger: "axis", ...tip(t), axisPointer: { type: "line", lineStyle: { color: t.line } },
-      dangerousHtmlFormatter: (p: unknown) => { const x = first(p); return `${esc(day(days[x.dataIndex][0]))}: <b>${x.value}</b> users`; } },
-    xAxis: axisX(t, days.map(([d]) => day(d)), false), yAxis: { ...axisY(t), scale: true },
+      dangerousHtmlFormatter: (p: unknown) => { const x = first(p); return `${esc(at(days[x.dataIndex][0]))}: <b>${x.value}</b>`; } },
+    xAxis: axisX(t, days.map(([d]) => at(d)), false), yAxis: { ...axisY(t), scale: true },
     series: [{ type: "line", data: days.map(([, n]) => n), smooth: 0.3, showSymbol: false, lineStyle: { color: t.brand, width: 2 },
       areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: t.brand + "55" }, { offset: 1, color: t.brand + "00" }]) } }],
   };
