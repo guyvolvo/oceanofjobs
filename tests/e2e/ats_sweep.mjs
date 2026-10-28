@@ -117,8 +117,9 @@ const CLASSES = ["regression", "site changed", "site unavailable", "improved", "
 // Demographic wording, kept apart from the extension's own match.isEeo so a
 // question the extension misses is still caught here. Either one fails the run.
 const DEMOGRAPHIC = /\b(gender|sex|sexual|orientation|lgbtq?|transgender|pronouns?|race|racial|ethnic(ity)?|hispanic|latin[oax]|veterans?|disab\w*|religio\w*|marital|age|how old|date of birth|birth ?date|caste|pregnan\w*|national origin|indigenous|aboriginal|neurodiver\w*)\b|(^|[^\u0590-\u05FF])(מגדר|מין|מוגבלות|דת|גיל)([^\u0590-\u05FF]|$)/i;
-// "Are you 18 or older?" is legal working age, answered from the user's facts, not a demographic.
-const OF_AGE = /\b(1[6-9]|21) (years )?(of age )?or older\b|\bover (the age of )?(1[6-9]|21)\b|\bat least (1[6-9]|21)( years)?( old| of age)?\b/i;
+// The one exception: the whole question is "Are you 18 or older?" or a close equivalent, legal working
+// age answered from the user's facts. Any other wording about age or birth stays demographic.
+const OF_AGE = /^\s*(are you|i am|i confirm (that )?i am)\s+(at least |over (the age of )?)?(16|17|18|19|21)\+?( years)?( old| of age)?( or older| or over)?\s*[?.]?\s*$/i;
 const isDemographic = (question, options) =>
   match.isEeo({ label: question, name: "", type: "", options: options || [] })
   || (DEMOGRAPHIC.test(String(question || "")) && !OF_AGE.test(String(question || "")));
@@ -168,10 +169,31 @@ function diff(cur, ref) {
   return items.sort((a, b) => CLASSES.indexOf(a.cls) - CLASSES.indexOf(b.cls));
 }
 
-function report(rows, base, prev) {
+// What happened to each system this run. Only "Tested" means its checks ran.
+function testStatus(ats, s, changed) {
+  if (!s) return "Not tested: no live postings";
+  if (s.form) return changed.has(ats) ? "Site changed, needs a look" : "Tested";
+  if (s.outcomes["sign-in"]) return "Not tested: sign-in page";
+  if (s.outcomes.captcha) return "Not tested: CAPTCHA";
+  if (s.outcomes["no-form"]) return changed.has(ats) ? "Site changed, needs a look" : "Not tested: no form found";
+  return "Site unavailable";
+}
+
+// firstRun: the first run in a new environment (GitHub's runners) records
+// what that environment sees. Differences from the baseline are listed, not
+// failed; demographic questions to the AI and credits claimed still fail.
+function report(rows, base, prev, firstRun = false) {
   const stats = statsOf(rows);
   const vsBase = base ? diff(stats, base.stats) : [];
   const regressions = vsBase.filter((i) => i.cls === "regression");
+  const claims = Object.values(stats).reduce((n, s) => n + s.claims, 0);
+  const changed = new Set(vsBase.filter((i) => i.cls === "site changed").map((i) => i.ats));
+  const systems = [...new Set([...Object.keys(stats), ...Object.keys(base ? base.stats : {})])];
+  const status = Object.fromEntries(systems.map((a) => [a, testStatus(a, stats[a], changed)]));
+  const groups = {};
+  for (const [a, st] of Object.entries(status)) (groups[st] ||= []).push(a);
+  const ORDER = ["Tested", "Site changed, needs a look", "Not tested: sign-in page", "Not tested: CAPTCHA", "Not tested: no form found",
+    "Not tested: no live postings", "Site unavailable"];
   const demographics = Object.entries(stats).filter(([, s]) => s.demographicsToAi);
   const line = (i) => `- **${i.cls}**, ${i.ats}: ${i.text}`;
   const total = (k) => Object.values(stats).reduce((n, s) => n + s[k], 0);
@@ -185,6 +207,11 @@ function report(rows, base, prev) {
     "",
     `${regressions.length} regressions. ${rows.length} pages on ${Object.keys(stats).length} hiring systems. Credits claimed: ${total("claims")}.`,
     "",
+    ...(firstRun ? ["**First run in this environment: a baseline, not a verdict.** Differences from the baseline are listed below and don't fail this run. Demographic questions sent to the AI and credits claimed still do.", ""] : []),
+    "## What was tested",
+    "",
+    ...ORDER.filter((st) => groups[st]).map((st) => `- **${st}** (${groups[st].length}): ${groups[st].sort().join(", ")}`),
+    "",
     base ? `## Against the baseline recorded ${base.recorded}` : "## Against the baseline",
     "",
     ...(base ? (vsBase.length ? vsBase.map(line) : ["No differences."]) : ["No baseline file, so nothing to compare with."]),
@@ -192,12 +219,12 @@ function report(rows, base, prev) {
     ...(prev ? [`## Since the previous run, ${prev.when}`, "", ...(() => { const d = diff(stats, prev.stats); return d.length ? d.map(line) : ["No differences."]; })(), ""] : []),
     "## Per hiring system",
     "",
-    "| System | Pages | Forms found | Fields filled | Required filled | Fill errors | Lists left open | Page errors | Demographics to AI | Not filled |",
-    "|---|---|---|---|---|---|---|---|---|---|",
-    ...Object.entries(stats).map(([ats, s]) => `| ${ats} | ${s.tried} | ${s.form} | ${cell(s.filled, s.fields)} | ${cell(s.required - s.missing, s.required)} | ${s.form ? s.fillErrors : ""} | ${s.form ? s.openLists : ""} | ${s.form ? s.pageErrors : ""} | ${s.demographicsToAi} | ${notFilled(s)} |`),
+    "| System | Status | Pages | Forms found | Fields filled | Required filled | Fill errors | Lists left open | Page errors | Demographics to AI | Not filled |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
+    ...Object.entries(stats).map(([ats, s]) => `| ${ats} | ${status[ats]} | ${s.tried} | ${s.form} | ${cell(s.filled, s.fields)} | ${cell(s.required - s.missing, s.required)} | ${s.form ? s.fillErrors : ""} | ${s.form ? s.openLists : ""} | ${s.form ? s.pageErrors : ""} | ${s.demographicsToAi} | ${notFilled(s)} |`),
     "",
   ].join("\n");
-  return { stats, failed: regressions.length > 0 || demographics.length > 0 || !rows.length, md };
+  return { stats, status, failed: (!firstRun && regressions.length > 0) || demographics.length > 0 || claims > 0 || !rows.length, md };
 }
 
 function selfCheck() {
@@ -217,9 +244,26 @@ function selfCheck() {
   assert.ok(report([{ ats: "x", draftList: [{ question: "Gender", eeo: true }], claims: 0 }], null, null).failed, "demographics to the AI always fail");
   for (const q of ["Sexual orientation", "What is your date of birth?", "Are you a protected veteran?", "Your pronouns", "Race / Ethnicity", "מגדר"])
     assert.ok(isDemographic(q, []), q);
-  assert.ok(isDemographic("What is your age?", []), "age itself is demographic");
-  for (const q of ["Are you 18 years of age or older?", "Why do you want to work here?", "How did you hear about us?", "Years of experience with Kubernetes", "Which agency referred you?", "Page URL"])
+  for (const q of ["What is your age?", "How old are you?", "Please provide your date of birth", "Date of birth (you must be 18 or older)",
+    "Are you 18 or older? Please enter your date of birth", "Are you over 40?", "Are you over the age of 40?", "Age range"])
+    assert.ok(isDemographic(q, []), `still demographic: ${q}`);
+  for (const q of ["Are you 18 years of age or older?", "Are you at least 18 years old?", "Are you over the age of 18?", "Are you 18 or older?",
+    "I confirm I am 18 or older.", "Are you 21+?"])
+    assert.ok(!isDemographic(q, []), `legal working age: ${q}`);
+  for (const q of ["Why do you want to work here?", "How did you hear about us?", "Years of experience with Kubernetes", "Which agency referred you?", "Page URL"])
     assert.ok(!isDemographic(q, []), q);
+  const walled = [{ ats: "w", error: "x", why: "sign-in first" }, { ats: "c", error: "x", why: "captcha" }, { ats: "g", fields: 10, filled: 10, required: 2 }];
+  const base3 = { stats: statsOf([...walled.slice(2), { ats: "w", fields: 5, filled: 5 }, { ats: "c", fields: 5, filled: 5 }, { ats: "gone", fields: 5, filled: 5 }]) };
+  const r3 = report(walled, base3, null);
+  assert.deepEqual(r3.status, { g: "Tested", w: "Not tested: sign-in page", c: "Not tested: CAPTCHA", gone: "Not tested: no live postings" },
+    "a system behind a wall, or missing, never reads as tested");
+  assert.ok(!r3.failed, "walls alone don't fail the run");
+  const worse = [{ ats: "g", fields: 10, filled: 1, required: 2, missing: ["a", "b"] }, { ats: "g", fields: 10, filled: 1, required: 2, missing: ["a", "b"] }];
+  const base4 = { stats: statsOf([{ ats: "g", fields: 10, filled: 10, required: 2 }, { ats: "g", fields: 10, filled: 10, required: 2 }]) };
+  assert.ok(report(worse, base4, null).failed, "a regression fails a normal run");
+  assert.ok(!report(worse, base4, null, true).failed, "and is only listed on a first run");
+  assert.ok(report([{ ats: "g", draftList: [{ question: "Gender", eeo: true }] }], base4, null, true).failed, "demographics to the AI fail a first run too");
+  assert.ok(report([{ ats: "g", claims: 1, fields: 1, filled: 1 }], null, null, true).failed, "so do credits claimed");
   console.log("self-check passed");
 }
 
@@ -237,7 +281,9 @@ const rows = fromAt >= 0 ? rowsOf(readJson(args[fromAt + 1])) : await sweep(rest
 const base = fs.existsSync(BASELINE) ? readJson(BASELINE) : null;
 const prevFile = process.env.PREVIOUS;
 const prev = prevFile && fs.existsSync(prevFile) ? ((j) => ({ when: j.when || "an earlier run", stats: statsOf(rowsOf(j)) }))(readJson(prevFile)) : null;
-const { stats, failed, md } = report(rows, writeBaseline ? null : base, prev);
+// On GitHub, no earlier run to download means this environment's first run.
+const firstRun = process.env.GITHUB_ACTIONS === "true" && !prev;
+const { stats, failed, md } = report(rows, writeBaseline ? null : base, prev, firstRun);
 const when = new Date().toISOString().slice(0, 10);
 fs.writeFileSync(path.join(out, "results.json"), JSON.stringify({ when, perAts: N, stats, rows }, null, 1));
 fs.writeFileSync(path.join(out, "summary.md"), md);
