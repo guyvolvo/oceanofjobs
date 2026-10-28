@@ -816,7 +816,6 @@ const NO_CV = 'Add your resume in Settings before applying.';
 const ALREADY = "You've already applied to this job with Ocean of Jobs.";
 const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
 const READ_ERROR = "Couldn't read the application form on this page.";
-const BOT_CHECK = "This site requires you to submit the form yourself. Review your answers and use the site's Submit button.";
 const UNREACHABLE = "Couldn't load your Ocean of Jobs account. Try again in a minute.";
 async function offerHere(url) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
@@ -1287,7 +1286,9 @@ async function assistHere(msg, sender) {
   const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
   if (r.error) return r;
   const submit = r.submitInfo;
-  const out = { ...r, frameId, url, submit: submit && !submit.botCheck && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
+  // A page with a human check still gets the card's Submit for the user to
+  // press; Full automatic leaves it to them (autoWhy).
+  const out = { ...r, frameId, url, submit: submit && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
   // The card that asked went with the old page. detect.js on the new one
   // may still be starting, so try for a few seconds.
   for (let i = 0; moved && i < 10; i++) {
@@ -1305,7 +1306,6 @@ async function submitHere(msg, sender) {
   await setWatch(tabId, null); // the card's own attempt records this send
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
   const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
-  if (info && info.botCheck) return { error: BOT_CHECK };
   if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);

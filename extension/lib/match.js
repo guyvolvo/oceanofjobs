@@ -521,6 +521,9 @@
     if (s && s.submitted) return SUBMITTED;
     if (s && s.unknown) return UNCONFIRMED;
     if (s && s.review) return reviewText(s.review);
+    if (s && s.failed && /^captcha: human check/.test(s.failed)) {
+      return "Not submitted. The site's human check stopped it. This attempt doesn't count toward your application limit. Use the site's Submit button.";
+    }
     if (s && s.failed) return `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This attempt doesn't count toward your application limit. Fix the issue on the form, then try again.`;
     return reasonText((s && s.error) || 'Something went wrong. Reload the page and try again.');
   }

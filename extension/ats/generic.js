@@ -646,12 +646,12 @@
   // The button for the card and the logs, not the element.
   function submitInfo() {
     const f = markedForm() || findForm();
-    if (f && botCheck(f.ownerDocument)) return { botCheck: true };
+    const bot = !!f && botCheck(f.ownerDocument);
     const b = submitButton();
-    if (!b) return null;
+    if (!b) return bot ? { botCheck: true } : null;
     const sel = b.tagName.toLowerCase() + (b.id ? '#' + CSS.escape(b.id) : '') + (b.getAttribute('type') ? `[type="${b.getAttribute('type')}"]` : '')
       + [...b.classList].slice(0, 2).map((c) => '.' + CSS.escape(c)).join('');
-    return { text: caption(b).slice(0, 60), selector: sel };
+    return { text: caption(b).slice(0, 60), selector: sel, ...(bot ? { botCheck: true } : {}) };
   }
 
   // A wizard's way to its next page: the form's one button with step
@@ -705,6 +705,10 @@
   // "thank you for your interest" before anything is sent.
   const SENT = /thank(s| you)( so much)? for (applying|your application|your interest|submitting)|application (was |has been )?(successfully )?(received|submitted|sent)|we('ve| have) received your application|we.?ll be in touch|vielen dank für ihre bewerbung|ihre bewerbung (wurde|ist) (erfolgreich )?(eingegangen|versendet|übermittelt|gesendet)|bedankt voor (je|uw) sollicitatie|(je|uw) sollicitatie is (verzonden|ontvangen)|merci (pour|de) votre candidature|votre candidature a (bien )?été (envoyée|reçue|transmise)|gracias por (tu|su) (postulación|candidatura|solicitud)|(tu|su) (candidatura|solicitud|postulación) (ha sido|fue) (enviada|recibida)|תודה על (פנייתך|הגשת|מועמדותך|ההגשה)|מועמדותך (נשלחה|התקבלה)|קורות החיים (נשלחו|התקבלו)/giu;
   const sentCount = (text) => (String(text || '').match(SENT) || []).length;
+  // A human check refusing the click: "session verification failed due to
+  // a human check error" (Comeet, 2026-10-20).
+  const REFUSED = /human check|verification failed|captcha (error|failed)|(confirm|verify) (that )?you('re| are) (a )?human|are you a robot/gi;
+  const refusedCount = (text) => (String(text || '').match(REFUSED) || []).length;
   const SENT_URL = /thank|success|confirm|submitted|applied/i;
 
   // Presses submitButton(); what it returns is what outcome() compares with.
@@ -716,7 +720,7 @@
     // The browser itself holds back a form with an empty required field.
     const checked = b.type === 'submit' && b.form && !b.form.noValidate && !b.formNoValidate;
     const held = checked ? [...b.form.querySelectorAll(':invalid')].filter((el) => el.matches(CONTROLS) && usable(el)).map((el) => tidy(labelOf(el, b.form))) : [];
-    const before = { url: doc.defaultView.location.href, sent: sentCount(doc.body.innerText), errors: fieldErrors(f), held };
+    const before = { url: doc.defaultView.location.href, sent: sentCount(doc.body.innerText), refused: refusedCount(doc.body.innerText), errors: fieldErrors(f), held };
     b.click();
     return before;
   }
@@ -752,6 +756,7 @@
       const u = new URL(href);
       if (before.url && href !== before.url && SENT_URL.test(u.pathname + u.hash)) return 'submitted';
       if (sentCount(doc.body ? doc.body.innerText : '') > (before.sent || 0)) return 'submitted';
+      if (refusedCount(doc.body ? doc.body.innerText : '') > (before.refused || 0)) return { failed: 'captcha: human check refused the click' };
       // A form can hide while it sends and come back; a sent one stays gone.
       const there = f && f.isConnected && shown(f);
       if (f && !there) {

@@ -366,6 +366,7 @@ test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left f
 test('sentText: what a Submit came to, for the card and the popup', () => {
   assert.equal(m.sentText({ submitted: true }), m.SUBMITTED);
   assert.equal(m.sentText({ unknown: true }), m.UNCONFIRMED);
+  assert.match(m.sentText({ failed: 'captcha: human check refused the click' }), /human check stopped it.*Use the site's Submit button/);
   assert.equal(m.sentText({ review: ['Why do you want to work here?'] }), 'Check the AI answer to "Why do you want to work here?", then submit the application.');
   assert.equal(m.sentText({ review: ['A?', 'B?'] }), 'Check the AI answers to "A?", "B?", then submit the application.');
   assert.match(m.sentText({ failed: 'form errors: Phone' }), /^Not submitted: The form needs your attention: Phone\. This attempt doesn't count/);
