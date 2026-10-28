@@ -363,8 +363,8 @@ const generalRun = (job) => GENERAL_ATS.has(job.ats) && !dedicatedRun(job);
 // Whether a run can apply to job at all.
 const canRun = (job) => dedicatedRun(job) || generalRun(job);
 
-// Into a Workday application: Apply, then Apply Manually, then signed in
-// with the profile's email and the Workday password from the extension's
+// Into a Workday application: Apply, then Autofill with Resume (or Apply
+// Manually), then signed in with the profile's email and the Workday password from the extension's
 // options, or a new account made with them. null once on the form's first
 // page, else the reason it stopped.
 async function intoWorkday(tabId, ctx, job) {
