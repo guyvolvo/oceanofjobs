@@ -662,7 +662,9 @@ test("the overview's applications: confirmed and unconfirmed apart, failed apart
   const recent = (sub, email) => ({ ...user(sub, email), UserCreateDate: Math.floor(Date.now() / 1000) - 2 * 86400 });
   state.users = [user("u1", "owner@example.com"), recent("u4", "c@example.com"), recent("u5", "d@example.com")];
   state.alerts = [attempt("u4", "d1", "submitted", "https://jobs.lever.co/acme/9", 5), attempt("u5", "e1", "unconfirmed", "https://jobs.lever.co/acme/10", 5),
-    row("u5", "#ledger#month#2026-10", { held: { N: "1" }, charged: { N: "1" } }), row("u5", "#applied#old2", { status: { S: "submitted" }, at: { S: ago(5) } })];
+    row("u5", "#ledger#month#2026-10", { held: { N: "1" }, charged: { N: "1" } }), row("u5", "#applied#old2", { status: { S: "submitted" }, at: { S: ago(5) } }),
+    // A skip today's extensions still record on the old path: not an older application.
+    row("u5", "#applied#skip1", { status: { S: "skipped" }, at: { S: ago(5) } })];
   const fresh = await dash("30d");
   assert.deepEqual([fresh.funnel[0], fresh.funnel.find(([s]) => s.startsWith("Applied"))], [["Signed up", 2], ["Applied (confirmed)", 1]]);
   assert.equal(fresh.applications.older, 1, "an #applied# row in the range shows the note");

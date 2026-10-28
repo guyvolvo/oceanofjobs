@@ -495,7 +495,7 @@ def _paths():
                 "summary": "Queue a job for auto apply",
                 "description": "Queues a job once. A job already in the queue stays one entry and keeps its "
                                "first source; the new source is added to sources. A job being applied to now, "
-                               "or already Submitted or Submission unconfirmed, is refused with 409. A personal "
+                               "or already Submitted, Submission unconfirmed or sent by you, is refused with 409. A personal "
                                "access token's source comes from the token. A signed-in session may send "
                                "{\"source\": \"board\"} or {\"source\": \"alert\"}; board is the default. "
                                "requeue: true puts back a job you removed or answered questions for, keeping its sources.",

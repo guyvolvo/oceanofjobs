@@ -94,7 +94,7 @@ export async function contacts(env, { fresh = false } = {}) {
         system: hiringSystem(r.url, r.canon) });
       continue;
     }
-    if (k.startsWith("#applied#")) { older.push(r.at || ""); continue; }
+    if (k.startsWith("#applied#")) { if (r.status === "submitted") older.push(r.at || ""); continue; }
     const x = (extra[r.user_id] ||= { tokens: [], ledgers: {}, resume: false });
     if (k.startsWith("#token#")) x.tokens.push({ scope: r.scope || "", created_at: r.created_at || "" });
     else if (k.startsWith("#ledger#month#")) x.ledgers[k.slice(14)] = Number(r.charged || 0);

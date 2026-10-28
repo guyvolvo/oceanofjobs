@@ -42,6 +42,8 @@ const OUTCOME_WORDS = { closed: "posting closed", captcha: "captcha", "sign-in":
   "no-form": "no form found", "load-failed": "page failed to load", "not-run": "out of time" };
 const NOISE = new Set(["closed", "captcha", "load-failed", "not-run"]);
 function outcome(x) {
+  if (x.walls && x.walls.password) return "sign-in";
+  if (x.walls && x.walls.captcha) return "captcha";
   if (!x.error) return "form";
   if (/^test: not run/.test(x.error)) return "not-run";
   if (x.why === "posting closed") return "closed";
@@ -377,6 +379,8 @@ async function sweep(urls) {
         return r.fulfill({ json: { answer: body.options.length ? body.options[0] : "Test answer" } });
       }
       if (p === "/api/me/apply/claim") { page && page.claims.push(p); return r.fulfill({ json: { remaining: 49 } }); }
+      // Extensions 1.9 and later reserve a credit by starting an attempt. Filling a page never should.
+      if (req.method() === "POST" && /^\/api\/me\/apply\/attempts(\/[^/]+\/submission-started)?$/.test(p)) page && page.claims.push(p);
       return r.fulfill({ status: 204, body: "" });
     }
     // The CV upload some forms make the moment a file is attached (Workable,

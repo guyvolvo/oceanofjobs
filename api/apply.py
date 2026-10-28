@@ -600,16 +600,16 @@ def enqueue(table, user_id: str, job_id: str, source: str, url: str | None = Non
     (by id or canonical identity, as attempts.py locks it) already queued
     keeps its place and False comes back. One with an open attempt raises
     InProgress; one Submitted or Submission unconfirmed raises
-    AlreadyApplied. The source is noted in every case, except a requeue
-    (the job put back by Undo or after its questions were answered) of a
-    job that already has an origin: that keeps the sources it had."""
+    AlreadyApplied. The source is noted in every case except a requeue
+    (the job put back by Undo or after its questions were answered): that
+    keeps the sources it had, or none, rather than a guess."""
     if not JOB_ID.match(job_id):
         raise ValueError("not a job id")
     if source not in ORIGINS:
         raise ValueError(f"source must be one of {', '.join(ORIGINS)}")
     canon = canonical_job(url) or "id:" + job_id
     # Every surface that tries is remembered, even one refused below.
-    if not (requeue and table.get_item(Key={"user_id": user_id, "alert_id": ORIGIN + job_id}).get("Item")):
+    if not requeue:
         note_origin(table, user_id, job_id, source, now)
     if any(r["job_id"] == job_id or r.get("canon") == canon for r in query_all(table, user_id, QUEUE)):
         return False

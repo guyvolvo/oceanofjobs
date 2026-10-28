@@ -903,6 +903,9 @@ def _history_view(rows: list[dict]) -> list[dict]:
             r["link"] = r.get("url") or None
         if r.get("status") == "failed" and (r.get("reason") or "").strip().lower() in apply.UNCONFIRMED:
             r["status"] = "unconfirmed"
+        # A claim an extension before 1.9 never reported back on.
+        if r.get("status") == "claimed":
+            r["status"] = "in_progress"
         r["reason"] = apply.reason_text(r.get("reason") or "")
         out.append(r)
     return out

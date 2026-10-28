@@ -192,7 +192,7 @@ These tools need a personal access token. Without one they answer with an error 
 
 ## Auto apply queue
 
-Five tools hand jobs to the Ocean of Jobs Chrome extension and read back what happened, which applies to them with your profile and resume: "queue the top three for auto apply". The extension picks up queued jobs on its next check, every 15 minutes, so it has to be installed and connected. Only jobs on Greenhouse, Ashby and Workable can be queued. Others are refused.
+Five tools hand jobs to the Ocean of Jobs Chrome extension, which applies to them with your profile and resume, and read back what happened: "queue the top three for auto apply". The extension picks up queued jobs on its next check, every 15 minutes, so it has to be installed and connected. Only jobs on the hiring systems the extension can fill can be queued. Others are refused.
 
 | Tool | What it does |
 |---|---|
@@ -200,7 +200,7 @@ Five tools hand jobs to the Ocean of Jobs Chrome extension and read back what ha
 | `list_auto_apply_queue` | Lists the jobs waiting in your queue, oldest first, with `source`, where each was first added from, and `sources`, every place that tried to add it. A job leaves the queue once the extension has tried it. |
 | `remove_from_auto_apply_queue` | Takes a job out of the queue before the extension gets to it. |
 | `list_auto_apply_history` | Lists the jobs the extension worked on, newest first, with `status`, `source` and `outcome`. `submitted` means the site confirmed it. `unconfirmed` means it was sent or may have been, without a confirmation. `sent` means the user sent it with the site's own button and the site didn't confirm it. |
-| `set_application_outcome` | Marks what you say happened after applying: `interview`, `offer`, `rejected` or `no_reply`, or `none` to clear it. Only on a submitted or unconfirmed application. It doesn't change the status or your credits. |
+| `set_application_outcome` | Marks what you say happened after applying: `interview`, `offer`, `rejected` or `no_reply`, or `none` to clear it. Only on a submitted, unconfirmed or sent application. It doesn't change the status or your credits. |
 
 `source` is `board`, `alert`, `mcp`, `extension`, `matches` or `other`, and `null` for jobs added before 28 October 2026. Ocean of Jobs sets it from how the job was added: a job your assistant queues is always `mcp`. `outcome` is `null` until you mark one. Nothing is marked for you, so silence never becomes `no_reply`.
 

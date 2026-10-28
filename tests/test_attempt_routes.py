@@ -350,8 +350,8 @@ with mock_aws():
     s, _ = as_(SESSION, "PUT", "queue/" + j61, {"source": "alert"})
     s2, _ = as_(EXT, "PUT", "queue/" + j62)
     got = apply.origins(table, "kim")
-    check("a session may say alert, and the extension's token means extension",
-          s == s2 == 204 and got[j61]["source"] == "alert" and got[j62]["source"] == "extension", repr(got))
+    check("a session may say alert; the extension's token only ever re-queues, so it guesses no source",
+          s == s2 == 204 and got[j61]["source"] == "alert" and j62 not in got and rows("kim", "#queue#" + j62), repr(got))
 
     # The extension applies the MCP job: History shows it Submitted, from MCP.
     s, _ = as_(EXT, "POST", "attempts", {"attempt_id": "kim-00001", **job(60)})
@@ -406,7 +406,8 @@ with mock_aws():
     s, _ = as_(MCP, "PUT", "queue/" + j64)
     check("a job that really arrives from somewhere new is still added", s == 204 and srcs(j64) == ["alert", "mcp"], repr(srcs(j64)))
     s, _ = as_(SESSION, "PUT", "queue/" + j65, {"requeue": True})
-    check("a re-queue of a job with no source yet records one", s == 204 and srcs(j65) == ["board"], repr(srcs(j65)))
+    check("a re-queue of a job with no source records none, not a guess",
+          s == 204 and j65 not in apply.origins(table, "kim") and rows("kim", "#queue#" + j65), repr(apply.origins(table, "kim").get(j65)))
 
     # A form the user sent with the site's own button: its own status, never Submitted, and it takes an outcome.
     as_(EXT, "POST", "filled", {"attempt_id": "kim-00004", **job(66)})
