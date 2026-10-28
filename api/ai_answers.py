@@ -242,7 +242,7 @@ def _report(total: float) -> None:
 
 def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_report,
           now: datetime | None = None, save: bool = True, posting: dict | None = None) -> dict:
-    """An answer to one form question. save=False is /apply's "Try it"
+    """An answer to one form question. save=False is /apply's "Test an answer"
     (agent/preview): the same pipeline and the same count, nothing saved.
     posting is the job's own listing ({title, company_name, description}),
     for a company-motivation question (agent.MOTIVATION)."""

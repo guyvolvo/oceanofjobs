@@ -144,7 +144,7 @@ with mock_aws():
                                                "Yes | needs_visa_sponsorship_outside_those_countries: true", options=["Yes", "No"])["answer"] == "Yes")
     check("a question that isn't yes/no needs no citation", draft("Which city are you in?", "Haifa")["answer"] == "Haifa")
 
-    # "Try it" on /apply: the same pipeline, nothing saved, an AI answer still counted.
+    # "Test an answer" on /apply: the same pipeline, nothing saved, an AI answer still counted.
     before_n, before_month = len(apply.get_profile(table, "u")["answers"]), month()
     out = ai_answers.draft(table, "u", {"question": "Which streaming tool do you use most?"}, {"skills": ["Python"]}, run=model("Kafka"),
                            report=lambda total: None, now=NOW, save=False)
