@@ -351,8 +351,8 @@ export function Agent() {
               {TOPICS.map(([t, label, placeholder]) => {
                 const jobTopic = JOB_TOPICS.includes(t);
                 const items: Record<string, string> = jobTopic
-                  ? { ai: "Let the AI answer from my facts", ask: "Ask me every time" }
-                  : { ai: "Let the AI answer from my facts", answer: "Use my answer", ask: "Ask me every time" };
+                  ? { ai: "AI answer", ask: "Ask me every time" }
+                  : { ai: "AI answer", answer: "Use my answer", ask: "Ask me every time" };
                 return (
                   <div key={t} className="oj-form oj-topic">
                     <Select className="oj-select" label={label} value={form.topics[t].action} items={items}
