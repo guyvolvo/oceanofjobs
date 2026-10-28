@@ -114,6 +114,19 @@ resource "aws_cognito_identity_provider" "google" {
     picture        = "picture"
     name           = "name"
   }
+
+  # Cognito fills in Google's own endpoints after every apply; without
+  # this, each apply removed them and Cognito put them straight back.
+  lifecycle {
+    ignore_changes = [
+      provider_details["attributes_url"],
+      provider_details["attributes_url_add_attributes"],
+      provider_details["authorize_url"],
+      provider_details["oidc_issuer"],
+      provider_details["token_request_method"],
+      provider_details["token_url"],
+    ]
+  }
 }
 
 resource "aws_cognito_user_pool_client" "web" {
