@@ -110,20 +110,36 @@
     </symbol>
   </svg>
 
-  <!-- The companies directory: the board's frame (board.html, style.css
+  <!-- site-header:companies --><div class="home site-header">
+  <header class="home-bar hero-bar-head">
+    <a class="home-brand" href="/" aria-label="Ocean of Jobs home">
+      <img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" />
+      <span translate="no">Ocean of Jobs</span>
+    </a>
+    <nav class="site-menus home-nav" aria-label="Main"><div class="site-menu" data-menu="jobs"><button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-jobs">Jobs<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="site-menu-panel" id="site-menu-jobs" hidden><a class="site-menu-item" href="/board?roles=all"><span class="site-menu-name">All jobs</span></a><a class="site-menu-item" href="/board?roles=tech"><span class="site-menu-name">Tech jobs</span></a><a class="site-menu-item" href="/board?roles=all&amp;workplace=remote"><span class="site-menu-name">Remote jobs</span></a><a class="site-menu-item" href="/jobs"><span class="site-menu-name">Jobs by role</span></a><a class="site-menu-item" href="/board?starred=1"><span class="site-menu-name">Saved jobs</span></a></div></div><div class="site-menu is-current" data-menu="companies"><button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-companies">Companies<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="site-menu-panel" id="site-menu-companies" hidden><a class="site-menu-item" href="/companies"><span class="site-menu-name">Directory</span></a><a class="site-menu-item" href="/companies/a"><span class="site-menu-name">A to Z</span></a><a class="site-menu-item" href="/stats"><span class="site-menu-name">Statistics</span></a></div></div><div class="site-menu" data-menu="docs"><button type="button" class="site-menu-btn" aria-expanded="false" aria-controls="site-menu-docs">Docs<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="site-menu-panel" id="site-menu-docs" hidden><a class="site-menu-item site-menu-item-icon" href="/docs/api"><span class="site-menu-name">API</span><svg class="site-menu-icon" viewBox="0 -960 960 960" aria-hidden="true"><path d="M320-240 80-480l240-240 57 57-184 184 183 183-56 56Zm320 0-57-57 184-184-183-183 56-56 240 240-240 240Z"/></svg></a><a class="site-menu-item site-menu-item-icon" href="/docs/mcp"><span class="site-menu-name">MCP</span><svg class="site-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.85 0a4.16 4.16 0 0 0-2.95 1.217L1.456 10.66a.835.835 0 0 0 0 1.18.835.835 0 0 0 1.18 0l9.442-9.442a2.49 2.49 0 0 1 3.541 0 2.49 2.49 0 0 1 0 3.541L8.59 12.97l-.1.1a.835.835 0 0 0 0 1.18.835.835 0 0 0 1.18 0l.1-.098 7.03-7.034a2.49 2.49 0 0 1 3.542 0l.049.05a2.49 2.49 0 0 1 0 3.54l-8.54 8.54a1.96 1.96 0 0 0 0 2.755l1.753 1.753a.835.835 0 0 0 1.18 0 .835.835 0 0 0 0-1.18l-1.753-1.753a.266.266 0 0 1 0-.394l8.54-8.54a4.185 4.185 0 0 0 0-5.9l-.05-.05a4.16 4.16 0 0 0-2.95-1.218c-.2 0-.401.02-.6.048a4.17 4.17 0 0 0-1.17-3.552A4.16 4.16 0 0 0 13.85 0m0 3.333a.84.84 0 0 0-.59.245L6.275 10.56a4.186 4.186 0 0 0 0 5.902 4.186 4.186 0 0 0 5.902 0L19.16 9.48a.835.835 0 0 0 0-1.18.835.835 0 0 0-1.18 0l-6.985 6.984a2.49 2.49 0 0 1-3.54 0 2.49 2.49 0 0 1 0-3.54l6.983-6.985a.835.835 0 0 0 0-1.18.84.84 0 0 0-.59-.245"/></svg></a><a class="site-menu-item site-menu-item-icon" href="/docs/extension"><span class="site-menu-name">Extension</span><svg class="site-menu-icon" viewBox="0 -960 960 960" aria-hidden="true"><path d="M352-120H200q-33 0-56.5-23.5T120-200v-152q48 0 84-30.5t36-77.5q0-47-36-77.5T120-568v-152q0-33 23.5-56.5T200-800h160q0-42 29-71t71-29q42 0 71 29t29 71h160q33 0 56.5 23.5T800-720v160q42 0 71 29t29 71q0 42-29 71t-71 29v160q0 33-23.5 56.5T720-120H568q0-50-31.5-85T460-240q-45 0-76.5 35T352-120Z"/></svg></a><a class="site-menu-item site-menu-item-icon" href="/docs/changelog"><span class="site-menu-name">Product updates</span><svg class="site-menu-icon" viewBox="0 -960 960 960" aria-hidden="true"><path d="M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z"/></svg></a></div></div><a class="site-menu-link" href="/pricing">Pricing</a><a class="site-menu-link" href="/contact">Contact</a></nav>
+    <div class="hero-bar-right" id="hero-bar-right">
+      <button type="button" class="hero-theme" id="hero-theme">Dark</button>
+      <div class="hero-account" id="hero-account"><a class="hero-bar-name" href="/account">Log in</a></div>
+      <script>
+        // Signed in: say so before hero_account.js loads, so a reload doesn't flash Log in.
+        try {
+          if ((JSON.parse(localStorage.getItem("iljobs_auth_tokens") || "null") || {}).id_token) {
+            document.querySelector("#hero-account .hero-bar-name").textContent = "My account";
+            document.getElementById("hero-theme").hidden = true;
+          }
+        } catch (e) {}
+      </script>
+    </div>
+  </header>
+</div><!-- /site-header -->
+
+<!-- The companies directory: the board's frame (board.html, style.css
        "The board's frame") with its own groups, list and panel. Who has
        open roles under the chosen filters, busiest first, and one
        company's own numbers when picked. #<domain> opens with that
        company selected, so a company has a shareable address. -->
   <div class="board-shell">
     <aside class="site-side" id="site-side" aria-label="Site">
-      <div class="side-brand-row">
-        <a class="side-brand" href="/"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /><span translate="no">oceanofjobs.com</span></a>
-        <button type="button" class="side-fold" id="side-fold" aria-label="Collapse the sidebar" aria-expanded="true" title="Collapse">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M3 6h2.5M10.5 6H21M3 12h10.5M18.5 12H21M3 18h2.5M10.5 18H21"/><circle cx="8" cy="6" r="2.5" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="2.5" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="2.5" fill="currentColor" stroke="none"/></svg>
-        </button>
-      </div>
-      <!-- side-nav:companies --><nav class="side-group side-nav" aria-label="Primary"><a href="/board" title="Jobs"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M160-120q-33 0-56.5-23.5T80-200v-440q0-33 23.5-56.5T160-720h160v-80q0-33 23.5-56.5T400-880h160q33 0 56.5 23.5T640-800v80h160q33 0 56.5 23.5T880-640v440q0 33-23.5 56.5T800-120H160Zm0-80h640v-440H160v440Zm240-520h160v-80H400v80ZM160-200v-440 440Z"/></svg><span>Jobs</span></a><a href="/jobs" title="Jobs by role"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M360-200v-80h480v80H360Zm0-240v-80h480v80H360Zm0-240v-80h480v80H360ZM200-160q-33 0-56.5-23.5T120-240q0-33 23.5-56.5T200-320q33 0 56.5 23.5T280-240q0 33-23.5 56.5T200-160Zm0-240q-33 0-56.5-23.5T120-480q0-33 23.5-56.5T200-560q33 0 56.5 23.5T280-480q0 33-23.5 56.5T200-400Zm0-240q-33 0-56.5-23.5T120-720q0-33 23.5-56.5T200-800q33 0 56.5 23.5T280-720q0 33-23.5 56.5T200-640Z"/></svg><span>Jobs by role</span></a><a href="/companies" class="current" aria-current="page" title="Companies"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M80-120v-720h400v160h400v560H80Zm80-80h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm0-160h240v-80H160v80Zm320 480h320v-400H480v400Zm80-240v-80h160v80H560Zm0 160v-80h160v80H560Z"/></svg><span>Companies</span></a><a href="/stats" title="Statistics"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m140-220-60-60 300-300 160 160 284-320 56 56-340 384-160-160-240 240Z"/></svg><span>Statistics</span></a><a href="/apply" title="Auto apply"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/></svg><span>Auto apply</span></a><a href="/docs" title="Docs"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></svg><span>Docs</span></a><a href="/pricing" title="Pricing"><svg viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM513-160l286-286-353-354H160v286l353 354ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Zm220 160Z"/></svg><span>Pricing</span></a></nav><!-- /side-nav -->
       <div class="side-group side-section">
         <div class="side-title">Browse</div>
         <div class="side-cats" id="dir-browse"></div>
@@ -133,13 +149,6 @@
       <div class="side-group side-section">
         <div class="side-title">Hiring system</div>
         <div class="side-cats" id="dir-systems"></div>
-      </div>
-      <div class="side-foot">
-        <div class="side-account" id="side-account"></div>
-        <div class="side-links">
-          <a class="side-source" href="https://github.com/guyvolvo/oceanofjobs" target="_blank" rel="noopener" aria-label="Source code on GitHub" title="Source code on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
-          <a class="side-contact" href="/contact">Contact</a>
-        </div>
       </div>
     </aside>
     <div class="side-scrim" id="side-scrim" aria-hidden="true"></div>
@@ -151,10 +160,6 @@
         <div class="topbar-search" role="search">
           <svg class="topbar-search-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           <input type="text" id="dir-search" name="q" autocomplete="off" aria-label="Search companies" placeholder="Search companies, domains or hiring systems…" />
-        </div>
-        <div class="board-corner">
-          <a class="dir-login" href="/account">Log in</a>
-          <button type="button" class="theme-toggle" id="theme-toggle" role="switch" aria-checked="false" aria-label="Dark mode"><span class="theme-knob" aria-hidden="true"></span><svg class="theme-ico theme-ico-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="theme-ico theme-ico-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></button>
         </div>
       </div>
 
@@ -189,9 +194,13 @@
   </div>
 
   <script src="auth.js"></script>
-    <script src="side.js"></script>
+  <script src="signin_dialog.js"></script>
+  <script src="side.js"></script>
   <script src="companies.js"></script>
+  <script src="hero_account.js"></script>
+  <script src="hero_nav.js"></script>
   <script src="/tabbar.js"></script>
+  <script src="mobile_nav.js"></script>
   <script src="upstream.js"></script>
 </body>
 </html>
