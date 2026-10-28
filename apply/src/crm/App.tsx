@@ -1,6 +1,6 @@
 // The CRM's shell: the bar, the tabs and the small pages (overview,
 // segments, activity). Contacts, emails and the changelog have their own files.
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Input } from "@cloudflare/kumo/components/input";
 import { Select } from "@cloudflare/kumo/components/select";
@@ -38,17 +38,36 @@ export function Failed({ error, retry }: { error: string; retry: () => void }) {
 }
 
 type Dash = { complete: boolean; members: number; new_7: number; new_30: number; newsletter: number; agreed: number;
-  waitlist: { basic: number; pro: number }; plans: Record<string, number>; by_day: [string, number][] };
+  waitlist: { basic: number; pro: number }; plans: Record<string, number>; by_day: [string, number][];
+  growth?: [string, number][]; funnel?: [string, number][]; providers?: Record<string, number>; mcp?: number; apps_by_month?: [string, number][] };
+// Imported on first use, so ECharts loads with the overview, not the CRM.
+const Charts = () => import("./Charts");
+const SignupsChart = lazy(() => Charts().then((m) => ({ default: m.SignupsChart })));
+const GrowthChart = lazy(() => Charts().then((m) => ({ default: m.GrowthChart })));
+const FunnelChart = lazy(() => Charts().then((m) => ({ default: m.FunnelChart })));
+const ShareChart = lazy(() => Charts().then((m) => ({ default: m.ShareChart })));
+const AppsChart = lazy(() => Charts().then((m) => ({ default: m.AppsChart })));
+const PROVIDER: Record<string, string> = { google: "Google", github: "GitHub", email: "Email" };
+const PLAN: Record<string, string> = { free: "Free", basic: "Basic", pro: "Pro" };
+
+function ChartCard({ title, note, children, wide }: { title: string; note?: string; children: ReactNode; wide?: boolean }) {
+  return (
+    <LayerCard className={wide ? "crm-wide" : undefined}><div className="crm-card">
+      <h2>{title}</h2>
+      {note ? <p className="crm-note">{note}</p> : null}
+      <Suspense fallback={<p className="crm-note"><Loader /> Loading</p>}>{children}</Suspense>
+    </div></LayerCard>
+  );
+}
 
 function Overview({ sending }: { sending: boolean }) {
   const { data, error, load } = useLoad<Dash>("/dashboard");
   if (error) return <Failed error={error} retry={load} />;
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
-  const max = Math.max(1, ...data.by_day.map(([, n]) => n));
   const stats: [number, string][] = [
     [data.members, "users"], [data.new_7, "joined in the last 7 days"], [data.new_30, "joined in the last 30 days"],
     [data.newsletter, "subscribed to product updates"], [data.waitlist.basic, "on the Basic waitlist"], [data.waitlist.pro, "on the Pro waitlist"],
-    [data.agreed, "agreed to the current terms"],
+    [data.mcp ?? 0, "connected an AI agent"],
   ];
   return (
     <div className="crm-stack">
@@ -58,15 +77,22 @@ function Overview({ sending }: { sending: boolean }) {
       <div className="crm-stats">
         {stats.map(([n, label]) => <LayerCard key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span></div></LayerCard>)}
       </div>
-      <LayerCard>
-        <div className="crm-card">
-          <h2>New users, last 30 days</h2>
-          <p className="crm-note">{Object.entries(data.plans).map(([p, n]) => `${plural(n, "user")} on ${p}`).join(" · ")}</p>
-          <div className="crm-bars" role="img" aria-label="New users per day">
-            {data.by_day.map(([d, n]) => <i key={d} title={`${day(d)}: ${n}`} style={{ height: `${(n / max) * 100}%` }} />)}
-          </div>
-        </div>
-      </LayerCard>
+      <div className="crm-charts">
+        <ChartCard title="New users, last 30 days" note={plural(data.new_30, "new user")}>
+          <SignupsChart days={data.by_day} />
+        </ChartCard>
+        {data.growth ? <ChartCard title="Users in total, last 90 days"><GrowthChart days={data.growth} /></ChartCard> : null}
+        {data.funnel ? <ChartCard title="From sign-up to paying" note="Share of everyone who signed up." wide><FunnelChart steps={data.funnel} /></ChartCard> : null}
+        {data.providers ? <ChartCard title="How they sign in">
+          <ShareChart name="Sign-in method" parts={Object.entries(data.providers).map(([k, n]) => [PROVIDER[k] || k, n])} />
+        </ChartCard> : null}
+        <ChartCard title="Plans">
+          <ShareChart name="Plans" parts={Object.entries(data.plans).map(([k, n]) => [PLAN[k] || k, n])} />
+        </ChartCard>
+        {data.apps_by_month ? <ChartCard title="Applications per month" note="Charged applications, last six months." wide>
+          <AppsChart months={data.apps_by_month} />
+        </ChartCard> : null}
+      </div>
     </div>
   );
 }

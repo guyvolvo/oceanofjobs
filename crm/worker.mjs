@@ -97,6 +97,21 @@ async function api(request, env, who, path) {
       // Every one of the 30 days, so a day with no sign-ups shows as a gap, not as missing.
       by_day: Array.from({ length: 30 }, (_, i) => since(29 - i).slice(0, 10))
         .map((d) => [d, contacts.filter((c) => (c.created || "").startsWith(d)).length]),
+      // Users in total at the end of each of the last 90 days.
+      growth: Array.from({ length: 90 }, (_, i) => since(89 - i).slice(0, 10))
+        .map((d) => [d, contacts.filter((c) => c.created && c.created.slice(0, 10) <= d).length]),
+      funnel: [
+        ["Signed up", contacts.length],
+        ["Connected the extension", contacts.filter((c) => c.tokens.some((t) => t.scope === "extension")).length],
+        ["Added a resume", contacts.filter((c) => c.resume).length],
+        ["Sent an application", contacts.filter((c) => Object.values(c.ledgers).some((n) => n > 0)).length],
+        ["Paid plan", contacts.filter((c) => c.paid && ["active", "trialing", "past_due"].includes(c.paid.status)).length],
+      ],
+      providers: contacts.reduce((m, c) => ({ ...m, [c.provider]: (m[c.provider] || 0) + 1 }), {}),
+      mcp: contacts.filter((c) => c.tokens.some((t) => t.scope === "mcp")).length,
+      // Applications charged per month (the monthly credit ledgers), last six months.
+      apps_by_month: Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 5 + i); return d.toISOString().slice(0, 7); })
+        .map((m) => [m, contacts.reduce((n, c) => n + Object.entries(c.ledgers).filter(([k]) => k.startsWith(m)).reduce((a, [, v]) => a + v, 0), 0)]),
     });
   }
 

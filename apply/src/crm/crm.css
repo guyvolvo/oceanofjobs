@@ -33,12 +33,13 @@ body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-
 .crm-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .crm-row.between { justify-content: space-between; align-items: center; }
 .crm-grow { flex: 1 1 220px; min-width: 0; }
-.crm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.crm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
 .crm-stat { padding: 16px 18px; }
 .crm-stat b { display: block; font: 500 28px/1.1 var(--font-sans); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .crm-stat span { color: var(--text-color-kumo-subtle); font-size: 13px; }
-.crm-bars { display: flex; align-items: flex-end; gap: 3px; height: 90px; margin-top: 12px; }
-.crm-bars i { flex: 1; min-width: 4px; border-radius: 2px 2px 0 0; background: var(--color-kumo-brand, #2fae60); opacity: 0.85; }
+.crm-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.crm-charts .crm-wide { grid-column: 1 / -1; }
+@media (max-width: 860px) { .crm-charts { grid-template-columns: 1fr; } }
 .crm-table { overflow-x: auto; }
 .crm-click { cursor: pointer; }
 .crm-click:hover { background: var(--color-kumo-tint); }
