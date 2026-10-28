@@ -25,7 +25,15 @@ on:
   # By hand as well: some of this config reads repository secrets rather
   # than files (the Google and GitHub OAuth credentials), so adding one
   # has to be appliable without an infra/ file changing to carry it.
+  # plan_only: the plan with the deploy role's access and the repository's
+  # secrets, nothing applied. A pull request's plan can't take the role,
+  # which trusts main only.
   workflow_dispatch:
+    inputs:
+      plan_only:
+        description: "Plan only, apply nothing"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -38,7 +46,7 @@ env:
 
 jobs:
   plan:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.plan_only)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,7 +74,12 @@ jobs:
           TF_VAR_origin_secret: ${{ secrets.OTJ_ORIGIN_SECRET }}
           TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
 
-      - uses: actions/github-script@v7
+      - if: github.event_name != 'pull_request'
+        run: |
+          { echo '### terraform plan'; echo '```'; cat plan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
@@ -79,7 +92,7 @@ jobs:
             });
 
   apply:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.plan_only)
     runs-on: ubuntu-latest
     defaults:
       run:
