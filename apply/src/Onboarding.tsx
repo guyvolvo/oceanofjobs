@@ -109,12 +109,10 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) skip(); }}>
       <Dialog className="oj-dialog oj-setup">
-        <div className="oj-setup-top">
-          {step !== "welcome" && step !== "done" ? <span className="oj-note">Step {at} of {steps.length - 2}</span> : null}
-        </div>
+        {step !== "welcome" && step !== "done" ? <div className="oj-setup-top"><span className="oj-note">Step {at} of {steps.length - 2}</span></div> : null}
         {step === "welcome" ? <>
           {head("rocket_launch", "Set up auto apply")}
-          <p className="oj-note">Answer one question and we'll set up the extension for you.</p>
+          <p className="oj-note">Use this onboarding menu to set up your auto apply extension based on your preferences.</p>
           {actions(<Button variant="primary" onClick={next}>Next</Button>, <Button variant="secondary" onClick={skip}>Skip</Button>)}
         </> : null}
 
