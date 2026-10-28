@@ -372,3 +372,20 @@ test('unattended, a required demographic question with no saved answer takes "I 
   assert.deepEqual(plan({ fill: 'half', mode: 'queue' }).missing.map((f) => f.name), ['q9', 'q10'], 'Half automatic leaves both for the user');
   assert.ok(m.isEeo ? m.isEeo(lgbt) : true, '2SLGBTQIA+ counts as demographic');
 });
+
+test('demographic questions in other wordings are recognised; ordinary questions are not', () => {
+  const eeo = (label) => m.isEeo({ label, type: 'select', options: [] });
+  for (const label of ['What is your sex?', 'Sex', 'Legal sex', 'Sex assigned at birth', 'מגדר', 'מין',
+    'Do you have a long-term health condition or impairment?', 'Have you served in the UK Armed Forces?', 'מוגבלות',
+    'Date of birth', 'Age', 'What is your age range?', 'Are you over 40?', 'Religion or belief', 'Marital status',
+    'What is your caste?', 'Do you identify as Indigenous?', 'Aboriginal or Torres Strait Islander', 'Are you neurodivergent?',
+    'Are you the first in your family to attend university?', 'Socio-economic background', 'Did you receive free school meals?',
+    'גיל', 'תאריך לידה', 'דת', 'מצב משפחתי']) assert.ok(eeo(label), label);
+  for (const label of ['Salary expectations', 'Do you require visa sponsorship?', 'Nationality', 'Citizenship', 'Military service',
+    'Years of experience', 'Why do you want to work here?', 'Manager name', 'Message', 'Sexual harassment training completed?',
+    'Are you legally able to work in Israel?', 'שירות צבאי', 'משרה רגילה', 'Language', 'Page', 'Average order value']) {
+    assert.ok(!eeo(label), label);
+  }
+  assert.equal(m.classify({ label: 'What is your sex?' }), 'gender', 'a saved gender answer fills "Sex"');
+  assert.equal(m.classify({ label: 'Do you have a long-term health condition or impairment?' }), 'disability');
+});

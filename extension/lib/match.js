@@ -51,11 +51,13 @@
     [/^cover letter$/, 'cover_letter'],
     [/^(personal |other )?(website|portfolio|blog)( url| link)?$|^website blog or portfolio$/, 'website'],
     // Anywhere in the label: "I identify my gender as", "What is your ethnicity?".
-    [/\bgender\b/, 'gender'],
+    // "Sex" only as the whole question or plainly about it, never "sexual".
+    [/\bgender\b|^(what is your |your |legal )?sex$|\bsex (assigned|at birth)\b|(^| )מגדר( |$)|^מין$/, 'gender'],
     [/hispanic|latino/, 'hispanic'],
     [/\b(race|ethnicity|ethnic (origin|background|group))\b/, 'race'],
-    [/\bveteran\b/, 'veteran'],
-    [/\bdisability\b/, 'disability'],
+    // "Armed forces", not "military service": in Israel that is an ordinary question.
+    [/\bveteran\b|\bserved in the (\w+ )?armed forces\b/, 'veteran'],
+    [/\bdisability\b|\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
     // Contact fields by label alone, for forms whose field names mean nothing.
     // Anchored, so a custom question that mentions an email is left alone.
     // Also in French, Spanish, Italian, Portuguese, German, Dutch, Polish
@@ -230,12 +232,29 @@
     return { fills, missing };
   }
 
+  // Equal-opportunity questions with no profile key: age, religion, marital
+  // status, caste, Indigenous identity, neurodivergence, first-generation
+  // and socioeconomic background, in English and Hebrew. Narrow on purpose:
+  // "nationality" and "citizenship" are about work permits and stay out.
+  const OTHER_EEO = new RegExp([
+    String.raw`\b(date of birth|birth date|your age|age range|age group|over 40|over the age of 40)\b|^age$`,
+    String.raw`\b(religion|religious|belief|faith)\b`,
+    String.raw`\bmarital( status)?\b|\bmarried\b`,
+    String.raw`\bcaste\b`,
+    String.raw`\b(indigenous|aboriginal|first nations|torres strait|metis|inuit)\b`,
+    String.raw`\bneuro ?divergen`,
+    String.raw`\bfirst (generation|in (your|my) family)\b`,
+    String.raw`\bsocio ?economic\b|\bparents? (occupation|education)\b|\bfree school meals\b`,
+    String.raw`(^| )(גיל|תאריך לידה|דת|מצב משפחתי)( |$)`,
+  ].join('|'));
+
   // Demographic questions are answered only from what the user set, never
   // by AI. Some have no profile key to map to; their wording marks them.
   function isEeo(field) {
     return EEO.has(field.key || classify(field))
       // "lgbt" anywhere: "2SLGBTQIA+" has no word break before it.
-      || /\b(sexual orientation|transgender|queer|pronouns?)\b|lgbt/.test(normalise(field.label));
+      || /\b(sexual orientation|transgender|queer|pronouns?)\b|lgbt/.test(normalise(field.label))
+      || OTHER_EEO.test(normalise(field.label));
   }
 
   // The user isn't checking each form before it goes: Fill application on
