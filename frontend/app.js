@@ -4717,8 +4717,7 @@ function renderSavedSearches() {
         <span class="side-cat-n${s.fresh > 0 ? " fresh" : ""}">${s.fresh == null ? "" : `${fmtInt(s.fresh)} new`}</span>
       </button>
       <button type="button" class="side-saved-x" data-forget="${escapeHtml(s.id)}" aria-label="Forget ${escapeHtml(s.name)}">&#10005;</button>
-    </div>`).join("")
-    || '<div class="side-hint">Filter the board, then save the search to find it here. Saved searches stay in this browser.</div>';
+    </div>`).join("");
   const q = currentSearchQuery();
   save.hidden = !q || list.some((s) => s.query === q);
 }
@@ -5354,11 +5353,12 @@ function applySearchNow(raw) {
   loadJobs();
 }
 
-// The search bar's second half: where. Typing offers the places the
-// location facet counts (the Location pill's list), and picking one makes
-// it the whole location filter, as a job site's place box does. The pill
-// still takes several at once; this box then names the first and "+2".
-const PLACE_SUGGESTIONS = 8;
+// The search bar's second half: where. Its list is the location filter
+// itself: every country with a tick box, a caret that opens its cities,
+// and several places can be on at once. Typing narrows the list to the
+// countries and cities whose names match. Ticking a place keeps the list
+// open, so a reader can pick Tel Aviv and then Herzliya.
+const PLACE_MATCHES = 40;
 
 function locationText() {
   const loose = state.country.filter((c) => !state.city.some((t) => cityCountry(t) === c));
@@ -5380,23 +5380,45 @@ function paintLocationBox() {
   document.getElementById("f-location-clear").hidden = !(state.country.length || state.city.length);
 }
 
-// Names that start with what was typed first, then the most jobs. With
-// nothing typed, the biggest countries.
+// Countries opened or shut by their caret. One with a ticked city opens
+// on its own until its caret shuts it.
+const placeOpen = new Set();
+const placeShut = new Set();
+
+// With nothing typed: every country, the ones that are on first, each
+// followed by its cities when open. Typed: the countries and cities whose
+// names contain it, names that start with it first, then the most jobs.
 function placeMatches(raw) {
   const q = raw.trim().toLowerCase();
+  const countries = railFacets.locations || [];
+  const cityOn = (c) => (c.cities || []).some((t) => state.city.includes(cityKey(c, t)));
+  const row = (kind, c, t, extra) => {
+    const value = t ? cityKey(c, t) : c.value;
+    const mixed = !t && cityOn(c);
+    return { kind, value, label: t ? t.label || t.value : c.label || countryLabel(c.value), n: (t || c).n,
+             on: !mixed && (t ? state.city : state.country).includes(value), mixed, ...extra };
+  };
+  if (!q) {
+    const isOn = (c) => state.country.includes(c.value) || cityOn(c);
+    const out = [];
+    for (const c of [...countries.filter(isOn), ...countries.filter((c) => !isOn(c))]) {
+      const open = !placeShut.has(c.value) && (placeOpen.has(c.value) || cityOn(c));
+      out.push(row("country", c, null, { open, caret: (c.cities || []).length > 0 }));
+      if (open) for (const t of c.cities || []) out.push(row("city", c, t, { indent: true }));
+    }
+    return out;
+  }
   const out = [];
-  for (const c of railFacets.locations || []) {
+  for (const c of countries) {
     const name = c.label || countryLabel(c.value);
     const at = name.toLowerCase().indexOf(q);
-    if (at >= 0) out.push({ kind: "country", value: c.value, label: name, sub: "", n: c.n, at });
-    if (!q) continue;
+    if (at >= 0) out.push({ ...row("country", c, null), at });
     for (const t of c.cities || []) {
-      const city = t.label || t.value;
-      const i = city.toLowerCase().indexOf(q);
-      if (i >= 0) out.push({ kind: "city", value: cityKey(c, t), label: city, sub: name, n: t.n, at: i });
+      const i = (t.label || t.value).toLowerCase().indexOf(q);
+      if (i >= 0) out.push({ ...row("city", c, t, { sub: name }), at: i });
     }
   }
-  return out.sort((a, b) => (a.at > 0) - (b.at > 0) || b.n - a.n).slice(0, PLACE_SUGGESTIONS);
+  return out.sort((a, b) => (a.at > 0) - (b.at > 0) || b.n - a.n).slice(0, PLACE_MATCHES);
 }
 
 function wireLocationBox() {
@@ -5409,39 +5431,52 @@ function wireLocationBox() {
 
   const mark = () => {
     [...list.querySelectorAll("[data-i]")].forEach((li) => li.setAttribute("aria-selected", String(+li.dataset.i === active)));
-    if (active >= 0) input.setAttribute("aria-activedescendant", `f-place-${active}`);
-    else input.removeAttribute("aria-activedescendant");
+    if (active >= 0) {
+      input.setAttribute("aria-activedescendant", `f-place-${active}`);
+      document.getElementById(`f-place-${active}`)?.scrollIntoView({ block: "nearest" });
+    } else input.removeAttribute("aria-activedescendant");
   };
   const close = () => {
     list.hidden = true;
     input.setAttribute("aria-expanded", "false");
     input.removeAttribute("aria-activedescendant");
   };
-  const show = (q) => {
+  const show = (q, keep = false) => {
+    const top = list.scrollTop;
     items = placeMatches(q);
-    active = items.length ? 0 : -1;
+    active = keep ? Math.min(active, items.length - 1) : items.length ? 0 : -1;
+    const caret = (p, i) => p.caret
+      ? `<button type="button" class="topbar-place-caret" data-caret="${i}" tabindex="-1" aria-label="${p.open ? "Hide" : "Show"} cities in ${escapeHtml(p.label)}">`
+        + `<svg viewBox="0 0 10 6" aria-hidden="true"${p.open ? "" : ' style="transform:rotate(-90deg)"'}><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+      : p.kind === "country" && !q.trim() ? '<span class="topbar-place-caret" aria-hidden="true"></span>' : "";
     list.innerHTML = items.length
-      ? items.map((p, i) => `<li role="option" id="f-place-${i}" class="topbar-place" data-i="${i}">`
+      ? items.map((p, i) => `<li role="option" id="f-place-${i}" class="topbar-place${p.on || p.mixed ? " on" : ""}${p.indent ? " city" : ""}" data-i="${i}" aria-checked="${p.mixed ? "mixed" : p.on}">`
+          + caret(p, i)
+          + `<span class="rail-box" aria-hidden="true">${p.mixed ? RAIL_DASH_SVG : RAIL_CHECK_SVG}</span>`
           + `<span class="topbar-place-name">${railMark(p.label, q.trim())}${p.sub ? `<span class="topbar-place-sub">, ${escapeHtml(p.sub)}</span>` : ""}</span>`
           + `<span class="topbar-place-n">${fmtInt(p.n)}</span></li>`).join("")
       : q.trim() ? '<li class="topbar-place-none">No places with listings match.</li>' : "";
     list.hidden = !list.innerHTML;
+    if (keep) list.scrollTop = top;
     input.setAttribute("aria-expanded", String(!list.hidden));
     mark();
   };
-  const pick = (p) => {
-    state.country = [p.kind === "country" ? p.value : cityCountry(p.value)];
-    state.city = p.kind === "city" ? [p.value] : [];
-    close();
-    input.blur();
-    railApply();
+  const toggle = (p) => {
+    railToggle(p.kind, p.value, !p.on);
+    show(typed, true);
+  };
+  const fold = (p) => {
+    (p.open ? placeOpen : placeShut).delete(p.value);
+    (p.open ? placeShut : placeOpen).add(p.value);
+    show(typed, true);
   };
 
   input.addEventListener("focus", () => { input.select(); show(typed = ""); });
   input.addEventListener("input", () => show(typed = input.value));
-  placesRefresh = () => show(typed);
+  placesRefresh = () => show(typed, true);
   input.addEventListener("blur", () => { close(); paintLocationBox(); });
   input.addEventListener("keydown", (e) => {
+    const p = items[active];
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       if (list.hidden) return show(input.value);
@@ -5449,7 +5484,10 @@ function wireLocationBox() {
       mark();
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (items[active]) pick(items[active]);
+      if (p) toggle(p);
+    } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && p && p.caret && !input.value && p.open === (e.key === "ArrowLeft")) {
+      e.preventDefault();
+      fold(p);
     } else if (e.key === "Escape") {
       // Closes the list before the handler that closes the open listing.
       e.stopPropagation();
@@ -5459,8 +5497,13 @@ function wireLocationBox() {
   // mousedown, not click: a click would blur the box and close the list first.
   list.addEventListener("mousedown", (e) => {
     e.preventDefault();
+    const caret = e.target.closest("[data-caret]");
+    if (caret) return fold(items[+caret.dataset.caret]);
     const li = e.target.closest("[data-i]");
-    if (li) pick(items[+li.dataset.i]);
+    if (li) {
+      active = +li.dataset.i;
+      toggle(items[active]);
+    }
   });
   document.getElementById("f-location-clear").addEventListener("click", () => {
     state.country = [];

@@ -412,6 +412,15 @@ button, input, select {
 .topbar-place-sub { color: var(--grey); }
 .topbar-place-n { margin-left: auto; color: var(--grey); font-size: 13px; font-variant-numeric: tabular-nums; }
 .topbar-place-none { padding: 10px; color: var(--grey); font: 400 14px var(--font-ui); }
+/* Tick boxes as in the filter lists; a country's caret opens its cities. */
+.topbar-place { gap: 10px; }
+.topbar-place.on .rail-box { background: var(--black); border-color: var(--black); }
+.topbar-place.on .rail-tick { opacity: 1; }
+.topbar-place.city { padding-left: 36px; }
+.topbar-place-caret { flex: none; display: grid; place-items: center; width: 16px; height: 16px; margin-right: -2px; padding: 0;
+  border: 0; background: none; color: var(--grey); cursor: pointer; }
+.topbar-place-caret svg { width: 10px; height: 6px; }
+.topbar-place-caret:hover { color: var(--black); }
 /* The phone's bar: a little tighter. */
 @media (max-width: 800px) {
   .board-head .topbar-search.split { width: auto; height: 40px; }
@@ -7310,7 +7319,6 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
 .side-nav a.current,
 .site-side .view-switch .seg-btn.active,
 .side-cat.on { background: color-mix(in srgb, var(--black) 18%, transparent); color: var(--black); font-weight: 600; }
-.site-side .view-switch { border: 0; border-radius: 10px; }
 .site-side .view-switch .seg-btn { border-right: 0; }
 .side-title { padding: 6px 8px 6px; font: 400 12px var(--font); color: var(--grey); }
 .side-cats { display: flex; flex-direction: column; gap: 2px; }
