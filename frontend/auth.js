@@ -437,10 +437,9 @@ function consentAgreedHere() {
 function rememberConsent(newsletter) {
   try { localStorage.setItem(CONSENT_PENDING_KEY, JSON.stringify({ version: CONSENT_VERSION, newsletter: !!newsletter })); } catch {}
 }
-// After sign-in: the choices from the sign-in window go to the account. A
-// member who signed in before the window asked gets asked here
-// (hero_account.js shows the prompt). Resolves to the server's state, or
-// null when it is already known to be agreed.
+// After sign-in: the choices from the sign-in window go to the account.
+// Resolves to the server's state, or null when it is already known to be
+// agreed.
 async function syncConsent() {
   let pending = null;
   try { pending = JSON.parse(localStorage.getItem(CONSENT_PENDING_KEY) || "null"); } catch {}

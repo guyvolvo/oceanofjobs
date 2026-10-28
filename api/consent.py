@@ -16,26 +16,19 @@ at once; deleting an account gives its place back.
 None of them carries `active`, so the alert evaluator, which scans for
 that attribute, never sees them.
 
-The terms are agreed in the sign-in window or, for members who signed up
-before it asked, in a window on their next visit. Until LOCK_FROM they are
-only asked; after it, the routes that start something new (BLOCKED) answer
-"agreement required" until they agree. Reading, deleting and leaving stay
-open, so nobody is held in an account they can't close.
+The terms are agreed in the sign-in window when an account is made. A later
+change is announced by email (the CRM's account notice) and accepted by
+using the service after it takes effect (terms section 13), so nobody is
+asked to agree again and no route waits on it.
 
 The newsletter is opt-in: the sign-in window's box, the account switch, or
 joining a waitlist. Only the account switch and a mail's unsubscribe link
 turn it off; signing in again with the box unticked changes nothing.
 """
-import os
-import time
 from datetime import datetime, timezone
 
 # The terms and privacy policy members agree to; bump it with the policy.
 VERSION = "2026-10-25"
-# When members who haven't agreed lose the routes in BLOCKED. Off (far
-# future) until the website's agreement window ships; then set the date,
-# seven days after that release, here or in the box's environment.
-LOCK_FROM = os.environ.get("OOJ_CONSENT_LOCK_FROM", "9999-12-31")
 PLANS = ("basic", "pro")
 CONSENT, EMAIL = "#consent", "#email"
 WAITLIST = "#waitlist#"
@@ -46,24 +39,6 @@ COUNTER = {"user_id": "#waitlist", "alert_id": "#count#pro"}
 
 class WaitlistFull(Exception):
     pass
-REQUIRED = "Agree to the updated Terms of Service and Privacy Policy on oceanofjobs.com to keep using this."
-
-# (method, path prefix): what an account that hasn't agreed can't start.
-BLOCKED = (
-    ("POST", "/me/apply"), ("PUT", "/me/apply"), ("PATCH", "/me/apply"),
-    ("POST", "/me/alerts"), ("PATCH", "/me/alerts/"),
-    ("PUT", "/me/saved/"),
-    ("POST", "/me/tokens"),
-)
-
-# Finishing what already started stays open: an attempt in flight is
-# settled, or its credit would never come back, and a refund can be asked.
-FINISHING = ("/settle", "/sent", "/result", "/dispute")
-
-_seen: dict[str, float] = {}  # user_id -> when their agreement was last read as current
-_SEEN_FOR = 300
-
-
 def _now(now=None) -> str:
     return (now or datetime.now(timezone.utc)).isoformat()
 
@@ -87,7 +62,6 @@ def state(table, user_id: str) -> dict:
         "agreed_version": c.get("version"),
         "agreed_at": c.get("agreed_at"),
         "version": VERSION,
-        "lock_from": LOCK_FROM,
         "newsletter": bool(rows[EMAIL].get("newsletter")),
         "waitlist": sorted(str(w["plan"]) for w in waiting),
     }
@@ -98,7 +72,6 @@ def agree(table, user_id: str, newsletter=None, via: str = "signin", email=None,
     subscribes; an unticked one is left alone (it isn't an unsubscribe)."""
     via = via if via in ("signin", "prompt") else "signin"
     table.put_item(Item={"user_id": user_id, "alert_id": CONSENT, "version": VERSION, "agreed_at": _now(now), "via": via})
-    _seen[user_id] = time.time()
     if newsletter is True:
         set_newsletter(table, user_id, True, source="signup" if via == "signin" else "prompt", email=email, now=now)
     return state(table, user_id)
@@ -250,22 +223,4 @@ def forget(table, user_id: str) -> None:
     with table.batch_writer() as batch:
         for key in keys:
             batch.delete_item(Key={"user_id": user_id, "alert_id": key})
-    _seen.pop(user_id, None)
 
-
-def blocked(table, user_id: str, method: str, path: str, today=None) -> bool:
-    """True when this request starts something new on an account that
-    hasn't agreed to the current terms, after LOCK_FROM."""
-    if (today or datetime.now(timezone.utc).date().isoformat()) < LOCK_FROM:
-        return False
-    if not any(method == m and (path == p.rstrip("/") or path.startswith(p)) for m, p in BLOCKED):
-        return False
-    if path.endswith(FINISHING):
-        return False
-    if time.time() - _seen.get(user_id, 0) < _SEEN_FOR:
-        return False
-    c = table.get_item(Key={"user_id": user_id, "alert_id": CONSENT}).get("Item") or {}
-    if c.get("version") == VERSION:
-        _seen[user_id] = time.time()
-        return False
-    return True

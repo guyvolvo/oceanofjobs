@@ -626,13 +626,6 @@ def lambda_handler(event, context):
             resp = _response(200, json.dumps(route_geo(event)))
             resp["headers"]["Cache-Control"] = "no-store"
             return resp
-        if path.startswith("/me/"):
-            # An account that hasn't agreed to the current terms can read,
-            # delete and leave, but after consent.LOCK_FROM can't start
-            # anything new (consent.BLOCKED).
-            who = (event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}) or {}).get("sub")
-            if who and consent.blocked(_alerts_table, who, method, path):
-                return _response(403, json.dumps({"error": consent.REQUIRED, "code": "consent_required", "retryable": False}))
         if path in ("/me/storage", "/me/storage/secrets", "/me/cv"):
             # The extension's settings on the account (user_files.py). The
             # secrets go back only to the extension's own token; the website

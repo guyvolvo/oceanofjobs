@@ -1,4 +1,4 @@
-"""Agreeing to the terms, the newsletter choice, paid plan waitlists, the
+"""Agreeing to the terms, the newsletter choice, paid plan waitlists, no
 lock on accounts that haven't agreed, and the newsletter's unsubscribe link
 (api/consent.py and its routes in api/handler.py).
 
@@ -13,8 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "api"))
 for k, v in {"ALERTS_TABLE": "consent-test", "DATA_BUCKET": "test-bucket", "DATA_KEY": "jobs.db", "AWS_DEFAULT_REGION": "il-central-1",
-             "AWS_ACCESS_KEY_ID": "testing", "AWS_SECRET_ACCESS_KEY": "testing", "ALERTS_UNSUBSCRIBE_SECRET": "s3cret",
-             "OOJ_CONSENT_LOCK_FROM": "2026-11-02"}.items():
+             "AWS_ACCESS_KEY_ID": "testing", "AWS_SECRET_ACCESS_KEY": "testing", "ALERTS_UNSUBSCRIBE_SECRET": "s3cret"}.items():
     os.environ[k] = v
 
 import boto3  # noqa: E402
@@ -108,19 +107,10 @@ with mock_aws():
     s, out = call(None, "POST", "/alerts/unsubscribe", query="u=cy&a=%23email&t=" + "0" * 32)
     check("a wrong signature changes nothing", s == 403, (s, out))
 
-    # The lock.
-    B = lambda user, m, p, today: consent.blocked(table, user, m, p, today=today)  # noqa: E731
-    check("before the lock date nothing is blocked", not B("nobody", "POST", "/me/apply/attempts", "2026-11-01"))
-    check("after it, a new attempt is blocked", B("nobody", "POST", "/me/apply/attempts", "2026-11-02"))
-    check("and a new alert, a star and a token", all(B("nobody", m, p, "2026-12-01") for m, p in
-                                                   [("POST", "/me/alerts"), ("PATCH", "/me/alerts/a1"), ("PUT", "/me/saved/abc"), ("POST", "/me/tokens")]))
-    check("but reading, deleting and leaving are not", not any(B("nobody", m, p, "2026-12-01") for m, p in
-                                                         [("GET", "/me/alerts"), ("DELETE", "/me/apply"), ("DELETE", "/me/saved/abc"),
-                                                          ("GET", "/me/apply/history"), ("DELETE", "/me/tokens/t1"), ("POST", "/me/consent")]))
-    check("nor finishing an attempt already in flight", not any(B("nobody", "POST", f"/me/apply/attempts/x/{a}", "2026-12-01")
-                                                                for a in ("settle", "sent", "dispute")))
-    check("an account that agreed is never blocked", not B("ann", "POST", "/me/apply/attempts", "2026-12-01"))
-    check("nor one that agreed a moment ago", (call("old", "POST", "/me/consent", {}), not B("old", "POST", "/me/apply/attempts", "2026-12-01"))[1])
+    # No lock: a change to the terms is announced by email, not agreed again.
+    s, out = call("nobody", "POST", "/me/alerts", {"name": "x", "filter": {}})
+    check("an account that never agreed can still start something new", s != 403 and out.get("code") != "consent_required", (s, out))
+    check("and the state no longer carries a lock date", "lock_from" not in call("nobody", "GET", "/me/consent")[1])
 
     # The Pro waitlist's cap: counted in the same transaction as the join.
     consent.CAPS["pro"] = 3
