@@ -155,7 +155,8 @@ async function reserve(job) {
 // automatic run sends the answers it filled ({answers, mode: 'auto'}): the
 // server holds back AI answers the user hasn't approved (needs_review,
 // {review: questions}; the caller pauses the job) and keeps a copy of what
-// was sent. The card sends mode 'card': the user pressed Submit themselves.
+// was sent. The card sends mode 'card' when the user pressed Submit
+// themselves, 'auto' when Full automatic pressed it (cardGate).
 async function gate(attemptId, sent = {}) {
   const r = await attemptCall(`/me/apply/attempts/${attemptId}/submission-started`, sent);
   if (r.data && r.data.submit === true) {
@@ -962,11 +963,34 @@ async function fillHere(msg, tabId, frameId) {
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: true };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
-  // Filling costs nothing (R8); a credit is reserved only when the user
-  // presses Submit on the card (startSubmit).
+  // Filling costs nothing (R8); a credit is reserved only when Submit is
+  // pressed on the card, by the user or by Full automatic (startSubmit).
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
   await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email);
-  return result;
+  // The dedicated filler presses its own button and handles a CAPTCHA
+  // (ats outcome), as in automatic runs: reCAPTCHA sits on every
+  // Greenhouse and Ashby form, so generic's bot check isn't asked here.
+  const why = autoWhy(a, job, msg.url, result, { text: 'Submit' });
+  return { ...result, auto: why === null, held: why || '' };
+}
+
+// Full automatic: whether a fill goes on to submit, or why it stops (oojMatch.autoSubmit).
+function autoWhy(a, job, url, result, info) {
+  const s = a.profile.settings || {};
+  const screen = { history: a.history, guardrails: s.guardrails || {}, now: Date.now(), retrySkipped: true, minMatch: null };
+  // Never apply to holds domains: the company the page names, or the page's own host.
+  const screened = oojMatch.screenJob(job, screen) || oojMatch.screenJob({ ...job, company_domain: new URL(url).hostname }, screen);
+  return oojMatch.autoSubmit({ fill: s.fill, plan: a.usage.plan, botCheck: !!(info && info.botCheck), submit: !!(info && info.text) && result.filled > 0,
+    missing: result.missing, errors: result.errors, remaining: a.usage.remaining, screened });
+}
+
+// The gate for a Submit from the card: mode 'card' when the user pressed
+// it, 'auto' when Full automatic did, so AI answers need what an automatic
+// run needs. Held for review, the credit goes back and the card says which.
+async function cardGate(attemptId, tabId, auto) {
+  const ok = await gate(attemptId, { mode: auto ? 'auto' : 'card', answers: await cardAnswers(tabId) });
+  if (ok.review) await settle(attemptId, 'skipped', 'check AI answers: ' + ok.review.join('; '));
+  return ok;
 }
 
 // "Submit application" on the card: reserve a credit and pass the gate
@@ -976,7 +1000,7 @@ async function startSubmit(msg, tabId) {
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
-  const ok = await gate(held.attemptId, { mode: 'card', answers: await cardAnswers(tabId) });
+  const ok = await cardGate(held.attemptId, tabId, msg.auto);
   if (!ok.ok) return ok;
   const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
   pendingHere[tabId] = { attemptId: held.attemptId, jobId: job.board ? job.id : null };
@@ -1090,7 +1114,7 @@ async function frameWithForm(tabId, ms) {
 // "Fill application" in the popup, on whatever site the tab shows. The
 // popup's click grants activeTab for the page; a form in an iframe is
 // reached through the host permissions. No credit is claimed: the user
-// reviews and submits the form themselves.
+// reviews and submits the form themselves, unless Full automatic submits it.
 async function fillTab(tabId) {
   const st = await chrome.storage.local.get(['token', 'authError', 'cv']);
   if (!st.token || st.authError) return { error: st.authError ? EXPIRED : NOT_CONNECTED };
@@ -1137,7 +1161,11 @@ async function fillTab(tabId) {
     moved = true;
   }
   if (!page || page.openUrl) return { error: 'Application page opened. Click Fill application again to continue.' };
-  return assist(tabId, frameId, name, page, tab.url, tab.title);
+  const r = await assist(tabId, frameId, name, page, tab.url, tab.title);
+  if (!r.auto) return r;
+  // Full automatic: the card's Submit (submitHere), pressed for the user.
+  return { ...r, sent: await submitHere({ url: tab.url, frameId, title: tab.title, company: new URL(tab.url).hostname, auto: true },
+    { tab: { id: tabId }, frameId }) };
 }
 
 // Plans and fills a form the user will check and send themselves.
@@ -1158,7 +1186,10 @@ async function assist(tabId, frameId, name, page, url, title) {
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
   await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email);
-  return { ...result, ats: name, frameId, fields: page.fields.length, required: page.fields.filter((f) => f.required).length };
+  const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  const why = autoWhy(a, job, url, result, submit);
+  return { ...result, ats: name, frameId, fields: page.fields.length, required: page.fields.filter((f) => f.required).length,
+    submitInfo: submit, auto: why === null, held: why || '' };
 }
 
 // What the popup's fill button offers on a tab, before any click: opening
@@ -1255,7 +1286,7 @@ async function assistHere(msg, sender) {
   if (!page || page.openUrl) return { error: READ_ERROR };
   const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
   if (r.error) return r;
-  const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  const submit = r.submitInfo;
   const out = { ...r, frameId, url, submit: submit && !submit.botCheck && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
   // The card that asked went with the old page. detect.js on the new one
   // may still be starting, so try for a few seconds.
@@ -1279,7 +1310,8 @@ async function submitHere(msg, sender) {
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
-  const ok = await gate(held.attemptId, { mode: 'card', answers: await cardAnswers(tabId) });
+  const ok = await cardGate(held.attemptId, tabId, msg.auto);
+  if (ok.review) return { review: ok.review };
   if (!ok.ok) return { error: ok.error };
   accountCache = null;
   // Past the gate: every way out settles, and an uncertain one is

@@ -63,6 +63,12 @@ check("a new user has a neutral profile: queue mode, nothing guarded, no demogra
       and all(v is None for v in empty["eeo"].values()))
 check("a new user drafts unknown answers with AI and has agreed to no privacy boxes",
       empty["settings"]["unknowns"] == "ai" and empty["settings"]["consent"] is True)
+check("Fill application is Half automatic until the user picks Full", empty["settings"]["fill"] == "half")
+check("Full automatic is kept; anything else is Half automatic",
+      apply.clean_profile({"settings": {"fill": "full"}})["settings"]["fill"] == "full"
+      and all(apply.clean_profile({"settings": {"fill": v}})["settings"]["fill"] == "half" for v in ("auto", "FULL", None, 1, ["full"])))
+both = apply.clean_profile({"settings": {"mode": "auto", "fill": "full"}})["settings"]
+check("Fill application and Auto-apply mode are independent: both can be on", both["mode"] == "auto" and both["fill"] == "full")
 check("required privacy boxes are always ticked, for extension 1.9.10",
       apply.clean_profile({"settings": {"consent": False}})["settings"]["consent"] is True)
 

@@ -25,7 +25,7 @@ type Form = {
   linkedin: string; github: string; website: string;
   countries: string; sponsorship: "yes" | "no" | "skip"; notice: string; salary: string;
   eeo: Record<EeoKey, { pick: "skip" | "decline" | "answer"; text: string }>;
-  mode: "queue" | "auto"; sources: string[]; unknowns: "skip" | "ai";
+  mode: "queue" | "auto"; fill: "half" | "full"; sources: string[]; unknowns: "skip" | "ai";
   min_match: string; daily: string; per_company: string; blocked: string;
   answers: { id: number; question: string; answer: string; job_id?: string }[];
 };
@@ -44,7 +44,7 @@ function toForm(p: Profile): Form {
       const v = p.eeo[k];
       return [k, { pick: v === null ? "skip" : v === "decline" ? "decline" : "answer", text: v && v !== "decline" ? v : "" }];
     })) as Form["eeo"],
-    mode: p.settings.mode, sources: p.settings.sources, unknowns: p.settings.unknowns,
+    mode: p.settings.mode, fill: p.settings.fill, sources: p.settings.sources, unknowns: p.settings.unknowns,
     min_match: str(g.min_match), daily: str(g.daily_limit), per_company: str(g.one_per_company_days),
     blocked: g.blocked_companies.join("\n"),
     answers: p.answers.map((a) => ({ id: nextId++, ...a })),
@@ -69,7 +69,7 @@ function fromForm(f: Form): Profile {
     answers: f.answers.map((a) => ({ question: a.question.trim(), answer: a.answer.trim(), ...(a.job_id ? { job_id: a.job_id } : {}) }))
       .filter((a) => a.question && a.answer),
     settings: {
-      mode: f.mode, sources: f.sources, unknowns: f.unknowns,
+      mode: f.mode, fill: f.fill, sources: f.sources, unknowns: f.unknowns,
       guardrails: {
         min_match: num(f.min_match), daily_limit: num(f.daily), one_per_company_days: num(f.per_company),
         blocked_companies: f.blocked.split(/\s+/).filter(Boolean),
@@ -104,10 +104,14 @@ export function Settings({ ext }: { ext: Ext }) {
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
-  // Apply automatically needs a resume first (null while it's being checked).
+  const [askingFill, setAskingFill] = useState(false);
+  // Auto-apply mode and Full automatic need a resume first (null while it's
+  // being checked). Full automatic needs Basic or Pro, the plans that can edit the agent.
   const [hasResume, setHasResume] = useState<boolean | null>(null);
+  const [paid, setPaid] = useState<boolean | null>(null);
   useEffect(() => {
-    apply<{ agent: { resume: unknown } }>("agent").then((r) => setHasResume(!!r.agent.resume)).catch(() => setHasResume(null));
+    apply<{ agent: { resume: unknown; editable: boolean } }>("agent")
+      .then((r) => { setHasResume(!!r.agent.resume); setPaid(r.agent.editable); }).catch(() => setHasResume(null));
   }, []);
 
   const load = useCallback(() => {
@@ -205,15 +209,29 @@ export function Settings({ ext }: { ext: Ext }) {
 
       <section id="aa-settings">
         <Card title="Application settings">
+          <Radio.Group legend="Fill application" appearance="card" value={form.fill}
+            onValueChange={(v) => (v === "full" ? setAskingFill(true) : set("fill", v as Form["fill"]))}>
+            <Radio.Item value="half" label="Half automatic" description="Fills the form. You review and submit." />
+            <Radio.Item value="full" label="Full automatic" variant={form.fill === "full" ? "error" : "default"} className="oj-danger"
+              disabled={(paid === false || hasResume === false) && form.fill !== "full"}
+              description="Fills the form and submits it. New AI answers are used without your approval." />
+          </Radio.Group>
+          {paid === false ? (
+            <p className="oj-note">Full automatic needs Basic or Pro. <a className="oj-link" href="/pricing">Compare plans</a></p>
+          ) : hasResume === false && form.fill !== "full" ? <NeedsResume /> : null}
+          <ConfirmDanger open={askingFill} title="Turn on Full automatic?" confirm="Turn on Full automatic"
+            onConfirm={() => { set("fill", "full"); setAskingFill(false); }} onCancel={() => setAskingFill(false)}>
+            Fill application will fill in the form and submit it without asking you. New AI answers are used without your approval, except answers about why you want to work at the company.
+          </ConfirmDanger>
           <Radio.Group legend="Mode" appearance="card" value={form.mode}
             onValueChange={(v) => (v === "auto" ? setAsking(true) : set("mode", v as Form["mode"]))}>
             <Radio.Item value="queue" label="Only jobs I queue" description="The extension applies only to jobs you add to your queue." />
-            <Radio.Item value="auto" label="Apply automatically" variant={form.mode === "auto" ? "error" : "default"} className="oj-danger"
+            <Radio.Item value="auto" label="Auto-apply mode" variant={form.mode === "auto" ? "error" : "default"} className="oj-danger"
               disabled={hasResume === false && form.mode !== "auto"}
               description="The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below." />
           </Radio.Group>
           {hasResume === false && form.mode !== "auto" ? <NeedsResume /> : null}
-          <ConfirmDanger open={asking} title="Apply automatically?" confirm="Apply automatically"
+          <ConfirmDanger open={asking} title="Turn on Auto-apply mode?" confirm="Turn on Auto-apply mode"
             onConfirm={() => { set("mode", "auto"); setAsking(false); }} onCancel={() => setAsking(false)}>
             The auto apply extension will start applying to jobs automatically based on your preferences, up to your account limits.
           </ConfirmDanger>
@@ -225,7 +243,7 @@ export function Settings({ ext }: { ext: Ext }) {
             <Checkbox.Item value="mcp" label="Jobs queued by my AI assistant through MCP" />
           </Checkbox.Group>
           <Radio.Group legend="If a form asks a question I haven't answered" appearance="card" value={form.unknowns} onValueChange={(v) => set("unknowns", v as Form["unknowns"])}>
-            <Radio.Item value="ai" label="Draft an answer with AI" description={<>AI drafts an answer from my details and saves it. A new AI answer waits in Needs attention for me to check, unless I change that in <a className="oj-link" href="#agent">AI agent</a>. Uses your monthly AI answers: 50 on Free, 300 on Basic, 3,000 on Pro. After that, the extension uses your own AI key if you added one in its options.</>} />
+            <Radio.Item value="ai" label="Draft an answer with AI" description={<>AI drafts an answer from my details and saves it. A new AI answer waits in Needs attention for me to check, unless Fill application is set to Full automatic. Uses your monthly AI answers: 50 on Free, 300 on Basic, 3,000 on Pro. After that, the extension uses your own AI key if you added one in its options.</>} />
             <Radio.Item value="skip" label="Skip the job" description="Leave it for me to review." />
           </Radio.Group>
         </Card>

@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const ACCOUNT = 'https://oceanofjobs.com/apply';
-const { plural, reasonText, filledText } = oojMatch;
+const { plural, reasonText, filledText, sentText } = oojMatch;
 
 // Settings open in the popup itself, in place of the main view.
 let settingsMounted = false;
@@ -68,6 +68,7 @@ const FILL = {
   filling: ['Filling application…', true],
   review: ['Review answers', false],
   done: ['Ready to review', true],
+  sent: ['Application sent', true],
 };
 let fillState = 'checking';
 function setFill(state) {
@@ -84,7 +85,7 @@ async function detect() {
   const tab = await activeTab();
   if (!tab) return setFill('none');
   const { [filledKey(tab)]: filled } = await chrome.storage.session.get(filledKey(tab));
-  if (filled && filled.url === tab.url) return setFill(filled.review ? 'review' : 'done');
+  if (filled && filled.url === tab.url) return setFill(filled.sent ? 'sent' : filled.review ? 'review' : 'done');
   const r = await chrome.runtime.sendMessage({ type: 'pageState', tabId: tab.id }).catch(() => null);
   setFill((r && r.state) || 'none');
 }
@@ -122,14 +123,18 @@ $('fill').addEventListener('click', async () => {
   out.hidden = true;
   const tab = await activeTab();
   const r = tab ? await chrome.runtime.sendMessage({ type: 'fillTab', tabId: tab.id }) : { error: 'No application form found on this page.' };
-  out.className = !r || r.error ? 'note error' : 'note ok';
-  out.textContent = !r || r.error ? reasonText((r && r.error) || "Couldn't fill in this page. Reload it and try again.") : filledText(r);
+  out.className = !r || r.error || (r.sent && !r.sent.submitted) ? 'note error' : 'note ok';
+  // Full automatic: why it stopped after filling (held), or what the submit came to (sent).
+  out.textContent = !r || r.error ? reasonText((r && r.error) || "Couldn't fill in this page. Reload it and try again.")
+    : [filledText(r), r.held && reasonText(r.held), r.sent && sentText(r.sent)].filter(Boolean).join(' ');
   out.hidden = false;
   if (!r || r.error) return detect();
-  const needsLook = r.missing.length > 0 || r.suggested > 0;
+  // Sent or maybe sent: pressing again could send it twice.
+  const sent = !!(r.sent && (r.sent.submitted || r.sent.unknown));
+  const needsLook = !sent && (r.missing.length > 0 || r.suggested > 0);
   const now = await activeTab();
-  await chrome.storage.session.set({ [filledKey(now)]: { url: now.url, frameId: r.frameId || 0, review: needsLook } });
-  setFill(needsLook ? 'review' : 'done');
+  await chrome.storage.session.set({ [filledKey(now)]: { url: now.url, frameId: r.frameId || 0, review: needsLook, sent } });
+  setFill(sent ? 'sent' : needsLook ? 'review' : 'done');
 });
 
 let paused = false;

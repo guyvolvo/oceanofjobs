@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Input, InputArea } from "@cloudflare/kumo/components/input";
 import { Select } from "@cloudflare/kumo/components/select";
-import { Radio } from "@cloudflare/kumo/components/radio";
 import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Banner } from "@cloudflare/kumo/components/banner";
@@ -14,7 +13,7 @@ import { Loader } from "@cloudflare/kumo/components/loader";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { FileArrowUp, Info, Plus, WarningCircle, X } from "@phosphor-icons/react";
 import { apply, send, ApiError } from "./api";
-import { ConfirmDanger, NeedsResume, RESUME_FOCUS } from "./shared";
+import { RESUME_FOCUS } from "./shared";
 import { useUnsaved } from "./unsaved";
 
 type Topic = "referral_source" | "start_date" | "relocation" | "onsite_days" | "why_company" | "why_role";
@@ -25,7 +24,6 @@ type AgentData = {
   facts: { id: string; text: string }[];
   topics: Record<Topic, { action: Action; value: string }>;
   never_claim: string[];
-  review: "pause" | "use";
   editable: boolean;
   resume: Resume;
 };
@@ -58,7 +56,7 @@ let nextKey = 0;
 const rows = (texts: string[]): Row[] => texts.map((text) => ({ key: nextKey++, text }));
 
 function toForm(a: AgentData): Form {
-  return { version: a.version, style: a.style, topics: a.topics, review: a.review, facts: rows(a.facts.map((f) => f.text)), never: rows(a.never_claim) };
+  return { version: a.version, style: a.style, topics: a.topics, facts: rows(a.facts.map((f) => f.text)), never: rows(a.never_claim) };
 }
 
 function Card({ title, note, children }: { title: string; note?: ReactNode | ReactNode[]; children: ReactNode }) {
@@ -242,7 +240,7 @@ function TryIt({ editable }: { editable: boolean }) {
           <div className="oj-stack oj-tight" role="status">
             <p className="oj-try-answer">{result.source === "ai" ? `AI Agent answer: ${result.answer}` : result.answer}</p>
             <span className="oj-note">{result.source === "ai" ? "Used 1 AI credit." : SOURCE[result.source || ""] || result.source}</span>
-            {result.review ? <span className="oj-note">A draft about why you want this job. It always waits for your approval, even with Use new answers without approval on.</span> : null}
+            {result.review ? <span className="oj-note">A draft about why you want this job. It always waits for your approval, even in Full automatic.</span> : null}
           </div>
         )
       ) : null}
@@ -260,7 +258,6 @@ export function Agent() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [asking, setAsking] = useState(false);
 
   const load = useCallback(() => {
     setLoadFailed(false);
@@ -290,7 +287,7 @@ export function Agent() {
     setBusy(true);
     try {
       const body = {
-        version: form.version, style: { ...form.style, notes: form.style.notes.trim() }, topics: form.topics, review: form.review,
+        version: form.version, style: { ...form.style, notes: form.style.notes.trim() }, topics: form.topics,
         facts: form.facts.map((r) => ({ text: r.text.trim() })).filter((f) => f.text),
         never_claim: form.never.map((r) => r.text.trim()).filter(Boolean),
       };
@@ -317,22 +314,9 @@ export function Agent() {
         <Banner variant="alert" icon={<WarningCircle weight="fill" />} title="Your agent was changed in another tab"
           description="Reload to see the latest version, then make your changes again." action={<Button onClick={load}>Reload</Button>} />
       ) : null}
-      <fieldset className="oj-fieldset" disabled={!editable}>
-        <div className="oj-stack">
-          <Card title="AI answers">
-            <Radio.Group appearance="card" value={form.review}
-              onValueChange={(v) => (v === "use" ? setAsking(true) : set("review", v as Form["review"]))}>
-              <Radio.Legend className="sr-only">When the AI writes a new answer</Radio.Legend>
-              <Radio.Item value="pause" label="Approve new answers first" />
-              <Radio.Item value="use" label="Use new answers without approval" variant={form.review === "use" ? "error" : "default"} className="oj-danger"
-                disabled={!resume && form.review !== "use"} />
-            </Radio.Group>
-            {!resume && form.review !== "use" ? <NeedsResume /> : null}
-            <ConfirmDanger open={asking} title="Use new AI answers without your approval?" confirm="Use without approval"
-              onConfirm={() => { set("review", "use"); setAsking(false); }} onCancel={() => setAsking(false)} />
-          </Card>
-        </div>
-      </fieldset>
+      <Card title="AI answers">
+        <p className="oj-note">New AI answers wait for your approval unless Fill application is set to Full automatic in <a className="oj-link" href="#settings">Settings</a>.</p>
+      </Card>
 
           <Card title="About you" note={["Add facts the AI can use when answering questions. Only include things that are true. For example: \"I led a team of five engineers at Acme from 2021 to 2024.\"",
             <>Salary, notice period, work authorization, and location are managed in <a className="oj-link" href="#settings">Settings</a>.</>]}>

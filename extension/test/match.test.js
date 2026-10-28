@@ -332,3 +332,31 @@ test('contact labels in the languages SmartRecruiters and Breezy forms come in',
   for (const [label, key] of Object.entries(want)) assert.equal(m.classify({ label, type: 'text', name: '' }), key, label);
   assert.equal(m.classify({ label: 'Nom du poste actuel', type: 'text', name: '' }), null, 'a longer question is left alone');
 });
+
+test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left for the user', () => {
+  const ready = { fill: 'full', plan: 'pro', botCheck: false, submit: true, missing: [], errors: [], remaining: 5, screened: null };
+  assert.equal(m.autoSubmit(ready), null);
+  assert.equal(m.autoSubmit({ ...ready, plan: 'basic' }), null);
+  assert.equal(m.autoSubmit({ ...ready, remaining: null }), null, 'no limit known is no reason to stop');
+  assert.equal(m.autoSubmit({ ...ready, fill: 'half' }), '', 'Half automatic only fills');
+  assert.equal(m.autoSubmit({ ...ready, fill: undefined }), '', 'a profile saved before the setting is Half automatic');
+  assert.equal(m.autoSubmit({ ...ready, plan: 'free' }), 'full automatic needs a paid plan');
+  assert.equal(m.autoSubmit({ ...ready, botCheck: true }), 'bot check');
+  assert.equal(m.autoSubmit({ ...ready, submit: false }), 'no submit button');
+  assert.equal(m.autoSubmit({ ...ready, missing: ['Phone'] }), 'needs input');
+  assert.equal(m.autoSubmit({ ...ready, errors: ['Country: no option matches "Mars"'] }), 'needs input');
+  assert.equal(m.autoSubmit({ ...ready, remaining: 0 }), 'limit reached');
+  assert.equal(m.autoSubmit({ ...ready, screened: 'blocked company' }), 'blocked company');
+  for (const why of ['full automatic needs a paid plan', 'bot check', 'no submit button', 'needs input', 'limit reached', 'blocked company']) {
+    assert.match(m.reasonText(why), /^[A-Z].*\.$/, `"${why}" reads as a sentence`);
+  }
+});
+
+test('sentText: what a Submit came to, for the card and the popup', () => {
+  assert.equal(m.sentText({ submitted: true }), m.SUBMITTED);
+  assert.equal(m.sentText({ unknown: true }), m.UNCONFIRMED);
+  assert.equal(m.sentText({ review: ['Why do you want to work here?'] }), 'Check the AI answer to "Why do you want to work here?", then submit the application.');
+  assert.equal(m.sentText({ review: ['A?', 'B?'] }), 'Check the AI answers to "A?", "B?", then submit the application.');
+  assert.match(m.sentText({ failed: 'form errors: Phone' }), /^Not submitted: The form needs your attention: Phone\. This attempt doesn't count/);
+  assert.equal(m.sentText({ error: 'blocked company' }), 'This company is on your Never apply to list.');
+});

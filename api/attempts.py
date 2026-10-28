@@ -92,8 +92,8 @@ class Expired(Exception):
 
 
 class NeedsReview(Exception):
-    """An AI answer the user hasn't approved is in the form, and their agent
-    says new AI answers wait for review: no submit."""
+    """An AI answer the user hasn't approved is in the form, and nothing
+    else allows it (Half automatic, Free, or a motivation draft): no submit."""
 
     def __init__(self, questions):
         super().__init__("new AI answers wait for your review before this application is sent")
@@ -269,14 +269,15 @@ class Attempts:
         """The AI answers in a form about to be submitted, as they are now,
         each with what allowed it: the user approved that text ("approved"),
         the user pressed Submit on the card themselves ("user_submit"), or
-        their agent uses AI answers automatically ("automatic"). NeedsReview
+        they chose Full automatic on Basic or Pro ("automatic"). NeedsReview
         when none applies. Which answers are the AI's comes from the saved
         answers where they match; the client's word only for one that isn't
         saved (a suggestion on the card)."""
         import agent  # noqa: PLC0415 -- agent imports ai_answers, which imports apply; kept out of module load
         profile = apply.get_profile(self.table, user_id)
         saved = {apply.answer_key(a): a for a in profile["answers"]}
-        review = agent.load(self.table, user_id)["review"]
+        # Full automatic on Basic or Pro: the user chose to send AI answers without approving each one.
+        auto = profile["settings"]["fill"] == "full" and apply.plan_of(self.table, user_id) in agent.PLANS
         out, waiting = [], []
         for given in (answers or [])[:50]:
             if not isinstance(given, dict):
@@ -288,10 +289,11 @@ class Attempts:
             if not (mine and mine["source"] == "ai") and not (mine is None and given.get("source") == "ai"):
                 continue
             approval = mine["approval"] if mine else "pending"
-            # A company-motivation draft is never sent unreviewed (agent.MOTIVATION).
-            always = bool(mine and mine.get("always_review"))
+            # A company-motivation draft is never sent unreviewed (agent.MOTIVATION),
+            # saved or only suggested on the card.
+            always = bool(mine.get("always_review")) if mine else agent.is_motivation(question)
             allowed = ("approved" if approval == "approved" else "user_submit" if mode == "card"
-                       else "automatic" if review == "use" and approval != "rejected" and not always else None)
+                       else "automatic" if auto and approval != "rejected" and not always else None)
             if allowed is None:
                 waiting.append(question)
             out.append({"question": question, "answer": text, "source": "ai", "approval": approval, "allowed_by": allowed,

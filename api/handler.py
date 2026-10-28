@@ -1001,8 +1001,9 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
                             "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
         if method == "PUT":
             new = body.get("profile") or {}
-            if ((new.get("settings") or {}).get("mode") == "auto" and apply.get_profile(_alerts_table, user_id)["settings"]["mode"] != "auto"
-                    and not agent.get_resume(_alerts_table, user_id)):
+            want, had = new.get("settings") or {}, apply.get_profile(_alerts_table, user_id)["settings"]
+            turning_on = (want.get("mode") == "auto" and had["mode"] != "auto") or (want.get("fill") == "full" and had["fill"] != "full")
+            if turning_on and not agent.get_resume(_alerts_table, user_id):
                 return ok(400, {"error": agent.NEEDS_RESUME, "code": "needs_resume"})
             return ok(200, {"profile": apply.put_profile(_alerts_table, user_id, new)})
     if sub == "agent/resume" and method in ("PUT", "DELETE"):

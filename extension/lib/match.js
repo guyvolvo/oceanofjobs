@@ -335,6 +335,20 @@
     return Math.max(0, left);
   }
 
+  // Whether Fill application goes on to submit the form it filled. Full
+  // automatic does, on Basic and Pro, once nothing is left for the user.
+  // null: submit. '': Half automatic, fill only. Otherwise the reason it
+  // stopped, for reasonText. screened is screenJob's reason for the job.
+  function autoSubmit({ fill, plan, botCheck, submit, missing, errors, remaining, screened }) {
+    if (fill !== 'full') return '';
+    if (plan !== 'basic' && plan !== 'pro') return 'full automatic needs a paid plan';
+    if (botCheck) return 'bot check';
+    if (!submit) return 'no submit button';
+    if ((missing || []).length || (errors || []).length) return 'needs input';
+    if (remaining != null && remaining <= 0) return 'limit reached';
+    return screened || null;
+  }
+
   // The frame holding the application form, from executeScript results
   // over every frame of a tab ({frameId, result: generic formHere()}).
   // The highest score wins; null when no frame has a form.
@@ -388,6 +402,12 @@
     'Workday account form not found': "Couldn't find the form to create a Workday account.",
     'ready to submit': 'Ready to submit. This site requires you to submit the form yourself. Open it and click Submit.',
     'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
+    // Why Full automatic stopped after filling (autoSubmit).
+    'full automatic needs a paid plan': 'Full automatic needs the Basic or Pro plan.',
+    'bot check': 'This site requires you to submit the form yourself.',
+    'no submit button': "Couldn't find the form's Submit button.",
+    'needs input': "Some fields need your answer, so it wasn't submitted.",
+    'limit reached': "You have no applications left on your plan, so it wasn't submitted.",
   };
   const PREFIXES = [
     ['form errors: ', 'The form needs your attention: '],
@@ -428,6 +448,20 @@
     return s.join(' ');
   }
 
+  // What a Submit from the card or a Full automatic fill came to (background
+  // submitHere, startSubmit), for the card and the popup.
+  const SUBMITTED = 'Application submitted. You can find it in your application history.';
+  const UNCONFIRMED = "We couldn't confirm that the site received your application, so it counts as one application for now. If it wasn't submitted, you can dispute it on your Auto apply page.";
+  const quoted = (qs) => qs.map((q) => `"${q}"`).join(', ');
+  const reviewText = (qs) => `Check the AI ${plural(qs.length, 'answer')} to ${quoted(qs)}, then submit the application.`;
+  function sentText(s) {
+    if (s && s.submitted) return SUBMITTED;
+    if (s && s.unknown) return UNCONFIRMED;
+    if (s && s.review) return reviewText(s.review);
+    if (s && s.failed) return `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This attempt doesn't count toward your application limit. Fix the issue on the form, then try again.`;
+    return reasonText((s && s.error) || 'Something went wrong. Reload the page and try again.');
+  }
+
   // Sites that are never a job application, however often a page says
   // "apply": a GitHub folder named apply showed the card, and its Fill
   // button opened the folder.
@@ -442,7 +476,7 @@
 
   const api = {
     notJobSite, jobish, pickFrame, normalise, classify, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, mustAnswer, suggestable,
-    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, countryOf, plural, reasonText, filledText,
+    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.oojMatch = api;

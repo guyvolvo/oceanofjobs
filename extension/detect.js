@@ -11,10 +11,10 @@
   if (window.__oojDetect) return;
   window.__oojDetect = true;
   const all = globalThis.oojAts || {};
-  const { reasonText, filledText, plural } = globalThis.oojMatch;
+  const { reasonText, filledText, sentText, plural, SUBMITTED, UNCONFIRMED: UNCONFIRMED_TEXT } = globalThis.oojMatch;
   const UNEXPECTED = 'Something went wrong. Reload the page and try again.';
-  const SUBMITTED = 'Application submitted. You can find it in your application history.';
-  const UNCONFIRMED_TEXT = "We couldn't confirm that the site received your application, so it counts as one application for now. If it wasn't submitted, you can dispute it on your Auto apply page.";
+  // Why Full automatic stopped after filling, as a sentence before what to do next.
+  const held = (r) => (r.held ? reasonText(r.held) + ' ' : '');
   const send = (msg) => chrome.runtime.sendMessage(msg).catch(() => null);
   const site = Object.keys(all).find((n) => n !== 'generic' && all[n].onSite(location.href));
 
@@ -234,7 +234,8 @@
 
   // After a fill on a site no dedicated filler knows. With one clear
   // submit button on the form, the card sends it: the credit is claimed
-  // first and given back unless the site confirms within 20 seconds.
+  // first and given back unless the site confirms within 20 seconds. In
+  // Full automatic (r.auto) the card presses its own Submit once.
   function filled(root, r, target) {
     const msg = root.querySelector('.msg');
     const old = root.querySelector('.go');
@@ -242,37 +243,32 @@
     old.replaceWith(go);
     const to = { frameId: r.frameId != null ? r.frameId : target.frameId, url: r.url || target.url };
     msg.className = 'msg ok';
-    msg.textContent = filledText(r) + ' '
+    msg.textContent = filledText(r) + ' ' + held(r)
       + (r.submit ? 'Review your answers, then submit the application here.'
         : r.botCheck ? "Review your answers, then use the site's Submit button."
           : 'Review your answers, then submit the application on the page.');
     go.hidden = !r.submit;
     go.disabled = false;
     go.textContent = 'Submit application';
+    let auto = !!r.auto;
     go.addEventListener('click', async () => {
       if (go.disabled) return;
       go.disabled = true;
       go.textContent = 'Submitting…';
       const title = String(heading() || document.title).trim().slice(0, 300);
-      const s = await send({ type: 'submitHere', url: to.url, frameId: to.frameId, title, company: location.hostname });
-      if (s && s.submitted) {
-        msg.className = 'msg ok';
-        msg.textContent = SUBMITTED;
+      const s = await send({ type: 'submitHere', url: to.url, frameId: to.frameId, title, company: location.hostname, auto });
+      auto = false; // a press after this one is the user's own
+      msg.className = s && s.submitted ? 'msg ok' : 'msg warn';
+      msg.textContent = sentText(s);
+      // Pressing again could send it twice.
+      if (s && (s.submitted || s.unknown)) {
         go.hidden = true;
         return;
       }
-      msg.className = 'msg warn';
-      if (s && s.unknown) {
-        // Pressing again could send it twice.
-        msg.textContent = UNCONFIRMED_TEXT;
-        go.hidden = true;
-        return;
-      }
-      msg.textContent = s && s.failed ? `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This attempt doesn't count toward your application limit. Fix the issue on the form, then try again.`
-        : reasonText((s && s.error) || UNEXPECTED);
       go.disabled = false;
       go.textContent = 'Submit application';
     });
+    if (auto) go.click();
   }
 
   function dedicatedCard(root, offer, title, msg, go) {
@@ -281,6 +277,7 @@
     msg.textContent = 'Fill in the application with your profile, review your answers, then submit it here.'
       + (offer.remaining != null ? ` ${offer.remaining} ${plural(offer.remaining, 'application')} left on your plan.` : '');
     let submitting = false;
+    let auto = false;
     go.addEventListener('click', async () => {
       if (submitting) return;
       go.disabled = true;
@@ -296,11 +293,14 @@
         return;
       }
       msg.className = 'msg ok';
-      msg.textContent = filledText(r) + ' Review your answers, then submit the application here.';
+      msg.textContent = filledText(r) + ' ' + held(r) + 'Review your answers, then submit the application here.';
       // The same button now submits; one listener, so a second click can't fill again.
       submitting = true;
       go.disabled = false;
       go.textContent = 'Submit application';
+      // Full automatic: Submit is pressed once for the user.
+      auto = !!r.auto;
+      if (auto) go.click();
     });
     go.addEventListener('click', async () => {
       if (!submitting || go.disabled) return;
@@ -309,10 +309,11 @@
       // The server reserves a credit and must acknowledge before the site's
       // button is pressed. No acknowledgement, no click.
       const company = new URL(location.href).searchParams.get('for') || location.pathname.split('/')[1] || '';
-      const ok = await send({ type: 'startSubmit', url: location.href, title, company });
+      const ok = await send({ type: 'startSubmit', url: location.href, title, company, auto });
+      auto = false;
       if (!ok || !ok.ok) {
         msg.className = 'msg warn';
-        msg.textContent = reasonText((ok && ok.error) || UNEXPECTED);
+        msg.textContent = ok && ok.review ? sentText(ok) : reasonText((ok && ok.error) || UNEXPECTED);
         go.disabled = false;
         go.textContent = 'Submit application';
         return;

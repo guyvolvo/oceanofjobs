@@ -48,7 +48,7 @@ with mock_aws():
 
     # Defaults and the plan gate.
     a = agent.get(table, "free")
-    check("a new agent is the defaults at version 0", a["version"] == 0 and a["review"] == "pause" and a["style"]["tone"] == "plain"
+    check("a new agent is the defaults at version 0", a["version"] == 0 and "review" not in a and a["style"]["tone"] == "plain"
           and set(a["topics"]) == set(agent.TOPICS) and all(t["action"] == "ai" for t in a["topics"].values()))
     check("and can't be changed on Free", a["editable"] is False and refused(lambda: agent.put(table, "free", {"version": 0}), agent.NotIncluded))
     table.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
@@ -60,14 +60,14 @@ with mock_aws():
                       {"id": "f2", "text": "I worked on Visa's payments team."}],
             "topics": {"referral_source": {"action": "answer", "value": "LinkedIn"}, "relocation": {"action": "ask"}},
             "never_claim": ["security clearance", "  ", "a PhD"], "review": "use"}
-    check("Send without review can't be turned on without a resume", refused(lambda: agent.put(table, "u", body), says="resume"))
     agent.put_resume(table, "u", {"name": "cv.md", "text": "A resume long enough to keep, about a data engineer.", "consent": True})
     saved = agent.put(table, "u", body)
     agent.delete_resume(table, "u")
     check("a save is stored as sent, cleaned, at version 1", saved["version"] == 1 and saved["style"]["tone"] == "warm"
           and saved["topics"]["referral_source"] == {"action": "answer", "value": "LinkedIn"}
           and saved["topics"]["relocation"] == {"action": "ask", "value": ""} and saved["never_claim"] == ["security clearance", "a PhD"]
-          and saved["review"] == "use" and len(saved["facts"]) == 2, repr(saved))
+          and "review" not in saved and len(saved["facts"]) == 2, repr(saved))
+    check("a review setting from an old page is dropped: Fill application decides that now", "review" not in agent.load(table, "u"))
     check("a fact about work at a company named Visa isn't mistaken for a visa", saved["facts"][1]["text"] == "I worked on Visa's payments team.")
     check("a second tab saving the version it loaded gets a conflict", refused(lambda: agent.put(table, "u", body), agent.Conflict))
     check("so does a tab that never loaded it", refused(lambda: agent.put(table, "u", {"version": 0}), agent.Conflict))
@@ -90,8 +90,7 @@ with mock_aws():
             ("a fixed answer with nothing in it", {"topics": {"start_date": {"action": "answer", "value": ""}}}, "value is required"),
             ("an unknown action", {"topics": {"start_date": {"action": "guess"}}}, "action"),
             ("more than 30 never-claim phrases", {"never_claim": ["x"] * 31}, "never_claim"),
-            ("a never-claim phrase over 100 characters", {"never_claim": ["x" * 101]}, "never_claim[0]"),
-            ("an unknown review setting", {"review": "never"}, "review")):
+            ("a never-claim phrase over 100 characters", {"never_claim": ["x" * 101]}, "never_claim[0]")):
         check(f"refused: {name}", refused(lambda: agent.put(table, "u", {"version": v, **patch}), says=says))
     check("and nothing refused was saved", agent.get(table, "u")["version"] == 2)
 
@@ -107,12 +106,12 @@ with mock_aws():
     check("but not change it", s == 403 and b["code"] == "forbidden" and agent.get(table, "u")["version"] == 2)
     s, b = call("PUT", "agent", {"version": 1})
     check("a stale version is 409 conflict", s == 409 and b["code"] == "conflict")
-    s, b = call("PUT", "agent", {"version": 2, "review": "never"})
-    check("a bad field is 400 naming it", s == 400 and b["code"] == "invalid" and "review" in b["error"])
+    s, b = call("PUT", "agent", {"version": 2, "style": {"tone": "sarcastic"}})
+    check("a bad field is 400 naming it", s == 400 and b["code"] == "invalid" and "style.tone" in b["error"])
     s, b = call("PUT", "agent", {"version": 0}, user="free")
     check("Free is 402 not_included", s == 402 and b["code"] == "not_included")
-    s, b = call("PUT", "agent", {"version": 2, "review": "pause"})
-    check("a good save is 200 with the new version", s == 200 and b["agent"]["version"] == 3 and b["agent"]["review"] == "pause")
+    s, b = call("PUT", "agent", {"version": 2})
+    check("a good save is 200 with the new version", s == 200 and b["agent"]["version"] == 3)
 
     # Who wrote a saved answer, and whether the user approved that text.
     apply.add_answer(table, "u", "How did you hear about us?", "LinkedIn", source="ai")
@@ -214,10 +213,17 @@ with mock_aws():
     check("the AI gets the resume as facts and can cite it", out["answer"] == "Yes" and "Built a Kafka pipeline" in seen[-1][1]["content"])
     s, _ = call("DELETE", "agent/resume")
     check("removing it deletes the text", s == 204 and agent.get_resume(table, "u") is None and agent.get(table, "u")["resume"] is None)
+    # Full automatic (Fill application) uses AI answers without approval, so turning it on needs a resume.
+    full = lambda: {**apply.get_profile(table, "u"), "settings": {**apply.get_profile(table, "u")["settings"], "fill": "full"}}  # noqa: E731
+    s, b = call("PUT", "profile", {"profile": full()})
+    check("Full automatic can't be turned on without a resume", s == 400 and b["code"] == "needs_resume"
+          and apply.get_profile(table, "u")["settings"]["fill"] == "half", repr((s, b)))
     call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True})
-    agent.put(table, "u", {**agent.get(table, "u"), "review": "use"})
+    s, b = call("PUT", "profile", {"profile": full()})
+    check("with a resume it can", s == 200 and b["profile"]["settings"]["fill"] == "full")
     agent.delete_resume(table, "u")
-    check("Send without review, once on, stays on when the resume goes", agent.put(table, "u", {**agent.get(table, "u")})["review"] == "use")
+    s, b = call("PUT", "profile", {"profile": full()})
+    check("Full automatic, once on, stays on when the resume goes", s == 200 and b["profile"]["settings"]["fill"] == "full")
     call("PUT", "agent/resume", {"name": "dana.pdf", "text": text, "consent": True})
     handler.route_apply("u", "DELETE", "", {"body": ""}, {})
     left = [i["alert_id"] for i in table.scan()["Items"] if i["user_id"] == "u" and i["alert_id"].startswith(("#agent", "#ai_rate"))]

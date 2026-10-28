@@ -44,6 +44,9 @@ CLAIM_HOLD_S = 1800
 FILLABLE_ATS = frozenset({"greenhouse", "ashby", "workable", "workday", "smartrecruiters", "bamboohr", "jazzhr", "recruitee", "lever", "teamtailor", "pinpoint", "breezy", "personio", "comeet"})
 
 MODES = ("queue", "auto")
+# What Fill application does: fill only, or fill and submit (Basic and Pro;
+# attempts.snapshot then uses new AI answers without approval).
+FILLS = ("half", "full")
 SOURCES = ("board", "matches", "ats_pages", "mcp")
 UNKNOWNS = ("skip", "ai")
 EEO_FIELDS = ("gender", "race", "veteran", "disability")
@@ -62,7 +65,7 @@ def empty_profile() -> dict:
         "work": {"authorized_countries": [], "needs_sponsorship": None, "notice_period": "", "salary": ""},
         "eeo": {k: None for k in EEO_FIELDS},
         "answers": [],
-        "settings": {"mode": "queue", "sources": ["board", "matches"], "unknowns": "ai", "consent": True,
+        "settings": {"mode": "queue", "fill": "half", "sources": ["board", "matches"], "unknowns": "ai", "consent": True,
                      "guardrails": {"min_match": None, "daily_limit": None, "blocked_companies": [],
                                     "one_per_company_days": None}},
     }
@@ -159,6 +162,8 @@ def clean_profile(body: dict) -> dict:
     st = out["settings"]
     if s.get("mode") in MODES:
         st["mode"] = s["mode"]
+    if s.get("fill") in FILLS:
+        st["fill"] = s["fill"]
     if "sources" in s:
         st["sources"] = [x for x in SOURCES if x in (s.get("sources") or [])]
     if s.get("unknowns") in UNKNOWNS:

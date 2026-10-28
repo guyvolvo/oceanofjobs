@@ -1,6 +1,7 @@
 """The custom AI agent's settings (api/AI_AGENT_DESIGN.md, step 1): how
 answers sound, facts the user states about themselves, fixed answers by
-topic, things never to claim, and whether new AI answers wait for review.
+topic and things never to claim. Whether new AI answers wait for review is
+the profile's Fill application setting (apply.FILLS, attempts.snapshot).
 
 One row per agent, #agent#<agent_id>; v1 has "default" only, so profiles
 can point at agents later without moving anything. Saves are conditional
@@ -26,7 +27,6 @@ LENGTHS = ("short", "medium")
 LANGUAGE_NAMES = {"en": "English", "he": "Hebrew", "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
                   "it": "Italian", "nl": "Dutch"}
 LANGUAGES = ("question", *LANGUAGE_NAMES)
-REVIEW = ("pause", "use")
 ACTIONS = ("answer", "ai", "ask")
 # v1's topics: the most common unanswered questions. why_company and why_role
 # are job-specific (apply.job_specific), so they can't have one fixed answer.
@@ -57,7 +57,7 @@ def defaults() -> dict:
     return {"version": 0, "updated_at": None,
             "style": {"tone": "plain", "length": "medium", "language": "question", "notes": ""},
             "facts": [], "topics": {t: {"action": "ai", "value": ""} for t in TOPICS},
-            "never_claim": [], "review": "pause"}
+            "never_claim": []}
 
 
 def _choice(value, allowed, field):
@@ -110,7 +110,6 @@ def clean(body: dict) -> dict:
     if len(never) > MAX_NEVER:
         raise ValueError(f"never_claim can have at most {MAX_NEVER} entries")
     out["never_claim"] = [t for t in (_text(n, MAX_NEVER_LEN, f"never_claim[{i}]") for i, n in enumerate(never)) if t]
-    out["review"] = _choice(body.get("review", "pause"), REVIEW, "review")
     return out
 
 
@@ -123,9 +122,9 @@ def get(table, user_id: str, agent_id: str = DEFAULT_ID) -> dict:
     return {**agent, "editable": apply.plan_of(table, user_id) in PLANS, "resume": resume_view(get_resume(table, user_id, agent_id))}
 
 
-# Turning on a setting that acts without the user checking first needs a
-# resume: answers and matches are then drawn from it, not from a few facts.
-# A setting already on stays on.
+# Turning on a setting that acts without the user checking first (Auto-apply
+# mode, Full automatic) needs a resume: answers and matches are then drawn
+# from it, not from a few facts. A setting already on stays on (handler.py).
 NEEDS_RESUME = "Add your resume on the AI agent tab to use this setting"
 
 
@@ -140,8 +139,6 @@ def put(table, user_id: str, body: dict, now: datetime | None = None, agent_id: 
     except (TypeError, ValueError):
         raise ValueError("version is required: the one the agent was loaded at") from None
     item = {**clean(body), "version": expected + 1, "updated_at": now.isoformat(), "user_id": user_id, "alert_id": AGENT + agent_id}
-    if item["review"] == "use" and load(table, user_id, agent_id)["review"] != "use" and not get_resume(table, user_id, agent_id):
-        raise ValueError(NEEDS_RESUME)
     cond = ({"ConditionExpression": "attribute_not_exists(alert_id)"} if expected == 0 else
             {"ConditionExpression": "version = :v", "ExpressionAttributeValues": {":v": expected}})
     try:
@@ -393,7 +390,7 @@ def check_answer(text: str, *, options: list, allowed: str, never_claim: list, l
 # Questions about what draws the applicant to this company or role. The AI
 # may draft these from the job posting (what the company says about its
 # product, team and work), never from generic praise, and the draft always
-# waits for the user's review, even with "Send without review" on: it puts
+# waits for the user's review, even in Full automatic: it puts
 # a motivation in their mouth. "Why are you a good fit?" isn't one of these:
 # it's about the applicant, and quotes their facts (EVIDENCE).
 MOTIVATION = re.compile(r"\bwhat do you like about\b|\bwhy (do|would) you (want|like|wish) to (work|join)\b|\bwhy (this|our) (company|team)\b"

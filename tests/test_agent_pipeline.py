@@ -75,7 +75,15 @@ with mock_aws():
                            "facts": [{"text": "I led a team of five engineers at Acme from 2021 to 2024."}],
                            "topics": {"referral_source": {"action": "answer", "value": "LinkedIn"}, "relocation": {"action": "ask"},
                                       "start_date": {"action": "ai"}},
-                           "never_claim": ["security clearance", "PhD"], "review": "pause"}, now=NOW)
+                           "never_claim": ["security clearance", "PhD"]}, now=NOW)
+
+    def fill(value):
+        """Fill application: "half" keeps new AI answers waiting, "full" uses them (Basic and Pro)."""
+        p = apply.get_profile(table, "u")
+        apply.put_profile(table, "u", {**p, "settings": {**p["settings"], "fill": value}}, now=NOW)
+
+    def plan(name):
+        table.put_item(Item={"user_id": "u", "alert_id": apply.PLAN_ROW, "plan": name, "status": "active"})
 
     # Fixed answers and "ask me": no model, nothing counted.
     out = draft("How did you hear about this job?")
@@ -237,21 +245,27 @@ with mock_aws():
 
     s, b = gate(reserve(3), [{"question": "Why are you a great fit?", "answer": "I like shipping things.", "source": "ai"}])
     check("an AI answer that was never saved counts as pending", s == 409 and b["code"] == "needs_review")
-    # Turning it on needs a resume; out again at once, so the prompts stay as they were.
-    agent.put_resume(table, "u", {"name": "cv.md", "text": "A resume long enough to keep, about a data engineer.", "consent": True}, now=NOW)
-    agent.put(table, "u", {**agent.get(table, "u"), "review": "use"}, now=NOW)
-    agent.delete_resume(table, "u")
+    fill("full")
     s, b = gate(reserve(4), [{"question": "Why are you a great fit?", "answer": "I like shipping things.", "source": "ai"}])
-    check("with automatic use on, it passes, marked automatic", s == 200 and b["attempt"]["ai_answers"][0]["allowed_by"] == "automatic")
+    check("in Full automatic on Basic, it passes, marked automatic", s == 200 and b["attempt"]["ai_answers"][0]["allowed_by"] == "automatic")
+    plan("free")
+    s, b = gate(reserve(31), [{"question": "Why are you a great fit?", "answer": "I like shipping things.", "source": "ai"}])
+    check("Full automatic on Free doesn't approve it: the plan is checked where approval is decided", s == 409 and b["code"] == "needs_review")
+    plan("pro")
+    s, b = gate(reserve(32), [{"question": "Why are you a great fit?", "answer": "I like shipping things.", "source": "ai"}])
+    check("on Pro it passes", s == 200 and b["attempt"]["ai_answers"][0]["allowed_by"] == "automatic")
+    plan("basic")
+    s, b = gate(reserve(33), [{"question": "Why do you want to work here?", "answer": "The posting's SOC work.", "source": "ai"}])
+    check("a motivation answer the card only suggested is held in Full automatic", s == 409 and b["questions"] == ["Why do you want to work here?"])
     draft("Do you have experience with Python?", "Yes | skills: Python")
     apply.approve(table, "u", "Do you have experience with Python?", None, "Yes", "rejected")
     s, b = gate(reserve(5), [{"question": "Do you have experience with Python?", "answer": "Yes"}])
-    check("a rejected answer stops the run even with automatic use", s == 409 and b["code"] == "needs_review")
+    check("a rejected answer stops the run even in Full automatic", s == 409 and b["code"] == "needs_review")
     s, b = handler.route_apply("u", "POST", f"attempts/{reserve(6)}/submission-started", {"body": "{}"}, {})["statusCode"], None
     check("a client that sends no answers (1.9.3 and older) still passes the gate", s == 200)
 
     # The client can't approve an answer by saying so.
-    agent.put(table, "u", {**agent.get(table, "u"), "review": "pause"}, now=NOW)
+    fill("half")
     draft("Which cloud do you use most?", "AWS")
     s, b = gate(reserve(7), [{"question": "Which cloud do you use most?", "answer": "AWS", "approval": "approved", "source": "user",
                               "allowed_by": "approved"}])
@@ -313,10 +327,7 @@ with mock_aws():
         check("with no posting, nothing is drafted", False)
     except ai_answers.CantAnswer as e:
         check("with no posting, nothing is drafted, and the model isn't asked", "no job posting" in str(e) and len(sent) == calls)
-    # Turning it on needs a resume; out again at once, so the prompts stay as they were.
-    agent.put_resume(table, "u", {"name": "cv.md", "text": "A resume long enough to keep, about a data engineer.", "consent": True}, now=NOW)
-    agent.put(table, "u", {**agent.get(table, "u"), "review": "use"}, now=NOW)
-    agent.delete_resume(table, "u")
+    fill("full")
     motive_q = "What do you like about this company?"
     ai_answers.draft(table, "u", {"question": motive_q, "job": {"id": "f6f6f6f6f6f6f6f6"}}, {}, run=model(
         "I like that Cyera is building a security operating model for the age of AI and an AI-assisted SOC from the ground up."),
@@ -326,12 +337,12 @@ with mock_aws():
     s, b = handler.route_apply("u", "POST", f"attempts/{aid}/submission-started", {"body": json.dumps({"mode": "auto", "answers": [
         {"question": motive_q, "answer": "I like that Cyera is building a security operating model for the age of AI and an AI-assisted SOC from the ground up.",
          "job_id": "f6f6f6f6f6f6f6f6"}]})}, {})["statusCode"], None
-    check("a motivation draft is held at the gate even with Send without review on", s == 409)
+    check("a motivation draft is held at the gate even in Full automatic", s == 409)
     s = handler.route_apply("u", "POST", f"attempts/{aid}/submission-started", {"body": json.dumps({"mode": "card", "answers": [
         {"question": motive_q, "answer": "I like that Cyera is building a security operating model for the age of AI and an AI-assisted SOC from the ground up.",
          "job_id": "f6f6f6f6f6f6f6f6"}]})}, {})["statusCode"]
     check("and passes when the user presses Submit on the card", s == 200)
-    agent.put(table, "u", {**agent.get(table, "u"), "review": "pause"}, now=NOW)
+    fill("half")
 
 print()
 if failures:
