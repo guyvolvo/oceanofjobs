@@ -185,6 +185,14 @@ export async function resetCredits(env, uid, key, charged, who) {
   }
 }
 
+// Each alert's latest digest: alerts.py keeps only last_digest_at on the
+// alert's row (set even when SES refused the address), no history.
+export async function alertDigests(env) {
+  const r = await all(env, "Scan", { TableName: env.ALERTS_TABLE, FilterExpression: "attribute_exists(#n2)",
+    ...projection(["user_id", "alert_id", "last_digest_at", "email", "active"]) }, 20);
+  return r.items.filter((a) => a.last_digest_at).sort((a, b) => b.last_digest_at.localeCompare(a.last_digest_at));
+}
+
 // The Pro waitlist's places: the counter api/consent.py keeps.
 export async function waitlistCounts(env) {
   const r = await ddb(env, "GetItem", { TableName: env.ALERTS_TABLE, Key: item({ user_id: "#waitlist", alert_id: "#count#pro" }) });
@@ -243,6 +251,8 @@ export async function saveCampaign(env, body) {
   if (old && old.status !== "draft") throw Object.assign(new Error("This email was already sent and can't be changed."), { status: 409 });
   const c = {
     pk: "campaign", sk: old ? old.sk : id(), status: "draft",
+    // "notice": terms and privacy updates, to every member as account email.
+    kind: ["update", "notice"].includes(body.kind) ? body.kind : (old && old.kind) || "update",
     subject: String(body.subject || "").trim().slice(0, 150),
     body: String(body.body || "").slice(0, 50000),
     segment: body.segment ? String(body.segment) : "",

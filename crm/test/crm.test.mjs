@@ -463,3 +463,103 @@ test("bulk changes: tags, licenses and waitlists for many users at once", async 
   assert.equal((await call({ ids: ["u2"], op: "delete" })).error, "Pick users and a change.");
   globalThis.fetch = realFetch;
 });
+
+test("an account notice goes to every member, newsletter or not, as account email", async () => {
+  _resetKeys();
+  dropCache();
+  const state = {
+    users: [user("u1", "owner@example.com"), user("u2", "a@example.com"), user("u3", "b@example.com"), { ...user("u4", "off@example.com"), Enabled: false }],
+    alerts: [row("u2", "#email", { newsletter: { BOOL: true } }), row("u3", "#email", { newsletter: { BOOL: false } })],
+    crm: [], sent: [],
+  };
+  globalThis.fetch = fakeAws(state);
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm", UNSUBSCRIBE_SECRET: "s3cret" };
+  const tok = await jwt(good());
+  const H = { "Cf-Access-Jwt-Assertion": tok, "X-CRM": "1", "Content-Type": "application/json" };
+  const call = (path, init = {}, e = env) => worker.fetch(new Request("https://crm.oceanofjobs.com" + path, { ...init, headers: { ...H, ...(init.headers || {}) } }), e);
+  let r = await call("/api/campaigns", { method: "POST", body: JSON.stringify({ subject: "New terms", body: "We updated the terms.", kind: "notice", to: ["u2"] }) });
+  const { campaign } = await r.json();
+  assert.equal(campaign.kind, "notice", "the kind is stored");
+  r = await call(`/api/campaigns/${campaign.sk}/recipients`);
+  assert.deepEqual(await r.json(), { count: 3, sample: ["owner@example.com", "a@example.com", "b@example.com"] }, "enabled members, newsletter on or off");
+  await call(`/api/campaigns/${campaign.sk}/test`, { method: "POST" });
+  assert.ok(!state.sent[0].Content.Simple.Headers, "the test is account email too");
+  r = await call(`/api/campaigns/${campaign.sk}/send`, { method: "POST", body: JSON.stringify({ confirm: 3 }) });
+  assert.equal(r.status, 403, "still needs sending on");
+  r = await call(`/api/campaigns/${campaign.sk}/send`, { method: "POST", body: JSON.stringify({ confirm: 3 }) }, { ...env, SENDING: "on" });
+  assert.equal((await r.json()).sent, 3);
+  const notices = state.sent.slice(1);
+  assert.deepEqual(notices.map((m) => m.Destination.ToAddresses[0]).sort(), ["a@example.com", "b@example.com", "owner@example.com"]);
+  for (const m of notices) {
+    assert.ok(!m.Content.Simple.Headers, "no newsletter unsubscribe header");
+    assert.match(m.Content.Simple.Body.Html.Data, /because of your Ocean of Jobs account/);
+  }
+  r = await call("/api/campaigns", { method: "POST", body: JSON.stringify({ subject: "Update", body: "B" }) });
+  assert.equal((await r.json()).campaign.kind, "update", "a product update by default");
+  const log = await (await call("/api/flows/builtin/notices")).json();
+  assert.deepEqual(log.entries.map((e) => [e.to, e.what]), [["3 members", "New terms"]]);
+  globalThis.fetch = realFetch;
+});
+
+test("flows: one log row per run, failed and resumed runs too, read from the log route", async () => {
+  _resetKeys();
+  dropCache();
+  const A = await import("../lib/auto.mjs");
+  const state = { users: [user("u1", "owner@example.com"), user("u2", "a@example.com")], alerts: [], crm: [], sent: [] };
+  const aws = fakeAws(state);
+  let slackStatus = 200;
+  globalThis.fetch = async (url, init) => (String(url).startsWith("https://hooks.slack.com/") ? new Response("x", { status: slackStatus }) : aws(url, init));
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm",
+    UNSUBSCRIBE_SECRET: "s3cret", SENDING: "on" };
+  const tok = await jwt(good());
+  const H = { "Cf-Access-Jwt-Assertion": tok, "X-CRM": "1", "Content-Type": "application/json" };
+  const call = (path, init = {}) => worker.fetch(new Request("https://crm.oceanofjobs.com" + path, { ...init, headers: { ...H, ...(init.headers || {}) } }), env);
+  const { flow } = await (await call("/api/flows", { method: "POST", body: JSON.stringify({ name: "Tagged", trigger: "tag_added", tag: "vip", enabled: true,
+    actions: [{ type: "email", subject: "Hi", body: "Hello" }, { type: "wait", days: 1 }, { type: "slack", url: "https://hooks.slack.com/services/T/B/X", text: "later" }] }) })).json();
+  await call("/api/contacts/u2/tags", { method: "PUT", body: JSON.stringify({ tags: ["vip"] }) });
+  let { entries } = await (await call(`/api/flows/${flow.id}/log`)).json();
+  assert.equal(entries.length, 1, "one row for the run");
+  assert.equal(entries[0].email, "a@example.com");
+  assert.equal(entries[0].trigger, "tag_added");
+  assert.deepEqual(entries[0].steps.map((s) => s[1]).slice(0, 1), ["done"]);
+  assert.match(entries[0].steps[1][1], /^until /, "parked at the wait");
+  slackStatus = 500;
+  await A.run(env, { now: Date.now() + 2 * 864e5, log: () => {} });
+  ({ entries } = await (await call(`/api/flows/${flow.id}/log`)).json());
+  assert.equal(entries.length, 2, "the resumed run has its own row");
+  const resumed = entries.find((e) => e.from > 0);
+  assert.deepEqual(resumed.steps, [["slack", "failed"]]);
+  assert.match(resumed.error, /hooks\.slack\.com answered 500/, "the failure is on the row");
+  slackStatus = 200;
+  await call(`/api/flows/${flow.id}/test`, { method: "POST" });
+  ({ entries } = await (await call(`/api/flows/${flow.id}/log`)).json());
+  assert.equal(entries.filter((e) => e.test).length, 1, "a test run is logged and marked");
+  assert.equal((await call("/api/flows/nope/log")).status, 404);
+  globalThis.fetch = realFetch;
+});
+
+test("default flows: logs from what's already recorded", async () => {
+  _resetKeys();
+  dropCache();
+  const state = {
+    users: [user("u1", "owner@example.com"), user("u2", "a@example.com")],
+    alerts: [row("u2", "a1b2", { email: { S: "a@example.com" }, active: { BOOL: true }, last_digest_at: { S: "2026-10-27T09:00:00Z" } }),
+      row("u2", "c3d4", { email: { S: "a@example.com" }, active: { BOOL: true } })],
+    crm: [], sent: [],
+  };
+  globalThis.fetch = fakeAws(state);
+  const env = { ...ENV, AWS_ACCESS_KEY_ID: "k", AWS_SECRET_ACCESS_KEY: "s", USER_POOL_ID: "pool", ALERTS_TABLE: "alerts", CRM_TABLE: "crm",
+    UNSUBSCRIBE_SECRET: "s3cret", SENDING: "on" };
+  const tok = await jwt(good());
+  const H = { "Cf-Access-Jwt-Assertion": tok, "X-CRM": "1", "Content-Type": "application/json" };
+  const call = (path, init = {}) => worker.fetch(new Request("https://crm.oceanofjobs.com" + path, { ...init, headers: { ...H, ...(init.headers || {}) } }), env);
+  await call("/api/contacts/u2/email", { method: "POST", body: JSON.stringify({ subject: "Your plan", body: "Hi" }) });
+  let r = await (await call("/api/flows/builtin/direct")).json();
+  assert.deepEqual(r.entries.map((e) => [e.to, e.what]), [["a@example.com", "Your plan"]]);
+  r = await (await call("/api/flows/builtin/alerts")).json();
+  assert.deepEqual(r.entries, [{ at: "2026-10-27T09:00:00Z", to: "a@example.com", what: "Alert on" }], "only alerts that sent a digest");
+  r = await (await call("/api/flows/builtin/replies")).json();
+  assert.deepEqual(r.entries, []);
+  assert.equal((await call("/api/flows/builtin/signin")).status, 404, "no log for what isn't recorded");
+  globalThis.fetch = realFetch;
+});

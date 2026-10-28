@@ -44,9 +44,11 @@ async function body(request) {
 }
 
 // Who gets a campaign: the members picked by hand, or the segment's, and
-// of those only the ones with the newsletter on.
+// of those only the ones with the newsletter on. An account notice (terms
+// and privacy updates) goes to every member, newsletter or not.
 async function recipients(env, campaign) {
   const { contacts } = await S.contacts(env);
+  if (campaign.kind === "notice") return contacts.filter((c) => c.enabled && c.email).sort((a, b) => a.id.localeCompare(b.id));
   const picked = campaign.to && campaign.to.length ? new Set(campaign.to) : null;
   const seg = !picked && campaign.segment ? await S.get(env, "segment", campaign.segment) : null;
   return contacts.filter((c) => c.newsletter && c.enabled && c.email && (picked ? picked.has(c.id) : S.matches(c, seg ? seg.filter : {})))
@@ -253,7 +255,8 @@ async function api(request, env, who, path) {
       if (!c.subject || !c.body) return fail(400, "Write a subject and a message first.");
       const { contacts } = await S.contacts(env);
       const me = contacts.find((x) => x.email === who);
-      await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + c.subject, md: c.body, image: c.image }));
+      await sesSend(env, await message(env, { to: who, userId: me ? me.id : "owner-test", subject: "[Test] " + c.subject, md: c.body, image: c.image,
+        kind: c.kind === "notice" ? "account" : "newsletter" }));
       await S.audit(env, who, "test email", { campaign: sub });
       return json(200, { sent_to: who });
     }
@@ -280,7 +283,8 @@ async function api(request, env, who, path) {
           if (e.type && e.type.includes("ConditionalCheckFailed")) continue;
           throw e;
         }
-        await sesSend(env, await message(env, { to: r.email, userId: r.id, subject: c.subject, md: c.body, image: c.image }));
+        await sesSend(env, await message(env, { to: r.email, userId: r.id, subject: c.subject, md: c.body, image: c.image,
+          kind: c.kind === "notice" ? "account" : "newsletter" }));
         sent++;
       }
       day.count += sent;
@@ -345,6 +349,27 @@ async function api(request, env, who, path) {
         actions: A.ACTIONS });
     }
     if (sub === "run" && method === "POST") return json(200, await A.run(env));
+    if (sub === "builtin" && more && method === "GET") {
+      // What's already recorded about the emails that aren't flows, as { at, to, what }.
+      const out = [];
+      if (more === "direct") {
+        const { contacts } = await S.contacts(env);
+        for (const a of await S.list(env, "audit", { limit: 1000 })) {
+          if (a.action !== "email member") continue;
+          const c = contacts.find((x) => x.id === (a.detail || {}).contact);
+          out.push({ at: a.sk.split("#")[0], to: c ? c.email : (a.detail || {}).contact || "", what: (a.detail || {}).subject || "" });
+        }
+      } else if (more === "replies") {
+        for (const m of await S.list(env, "inbox", { limit: 500 })) if (m.dir === "out") out.push({ at: m.sk.split("#")[0], to: m.email, what: m.subject });
+      } else if (more === "notices") {
+        for (const c of await S.list(env, "campaign")) {
+          if (c.kind === "notice" && c.status !== "draft") out.push({ at: c.sent_at || c.updated, to: `${c.sent || 0} members`, what: c.subject });
+        }
+      } else if (more === "alerts") {
+        for (const a of await S.alertDigests(env)) out.push({ at: a.last_digest_at, to: a.email || a.user_id, what: a.active ? "Alert on" : "Alert off" });
+      } else return fail(404, "No such log.");
+      return json(200, { entries: out.sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50) });
+    }
     if (!sub && method === "POST") {
       const b = await body(request);
       const old = b.id ? await S.get(env, "flow", String(b.id)) : null;
@@ -371,9 +396,10 @@ async function api(request, env, who, path) {
       // get a test post; steps that change data are skipped.
       const { contacts } = await S.contacts(env);
       const me = contacts.find((x) => x.email === who) || { id: "owner", email: who, plan: "free", waiting: {}, tags: [] };
-      const log = await A.runSteps(env, f, me, A.vars(me, await S.waitlistCounts(env), { tag: f.tag || "", from: who, subject: "Test", message: "A test message." }), { test: true });
+      const log = await A.runLogged(env, f, me, A.vars(me, await S.waitlistCounts(env), { tag: f.tag || "", from: who, subject: "Test", message: "A test message." }), { test: true });
       return json(200, { log });
     }
+    if (sub && more === "log" && method === "GET") return json(200, { entries: await S.list(env, "flowlog#" + sub, { limit: 50 }) });
     if (sub && more === "preview" && method === "GET") {
       const { contacts } = await S.contacts(env);
       const list = A.matches(f, contacts);
@@ -403,9 +429,10 @@ async function api(request, env, who, path) {
       // Gives each their waitlist's plan as a license until the date, marks
       // them approved and runs the "Approved from the waitlist" flows now
       // rather than on the next scheduled run (the key they leave keeps that
-      // run from starting them again). Eight at a time.
+      // run from starting them again). Six at a time: with a flow log row
+      // each, eight could pass a free Worker's 50 subrequests.
       const b = await body(request);
-      const people = (Array.isArray(b.people) ? b.people : []).slice(0, 8);
+      const people = (Array.isArray(b.people) ? b.people : []).slice(0, 6);
       const until = String(b.until || "");
       if (!people.length) return fail(400, "Pick someone to approve.");
       const flows = await A.flowsFor(env, "waitlist_approved");

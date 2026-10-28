@@ -184,9 +184,27 @@ export async function runSteps(env, flow, contact, v, { from = 0, test = false, 
       log.push([a.type, `until ${fmt(new Date(now + a.days * DAY).toISOString())}`]);
       return log;
     }
-    log.push([a.type, await step(env, a, { contact, vars: v, flow, test })]);
+    try { log.push([a.type, await step(env, a, { contact, vars: v, flow, test })]); }
+    catch (e) { log.push([a.type, "failed"]); throw Object.assign(e, { steps: log }); }
   }
   return log;
+}
+
+// runSteps, plus one row in the flow's log (flowlog#<flow>, keyed by time)
+// for this run: who, which trigger, each step's result, or the error. One
+// PutItem per run: a scheduled run has 50 subrequests for up to MAX_RUNS.
+export async function runLogged(env, flow, contact, v, opts = {}) {
+  const at = new Date(opts.now ?? Date.now()).toISOString();
+  const row = { pk: "flowlog#" + flow.sk, sk: at + "#" + S.id(), at, trigger: flow.trigger, test: !!opts.test, from: opts.from || 0,
+    email: (contact && contact.email) || "", user: (contact && contact.id) || "" };
+  try {
+    const steps = await runSteps(env, flow, contact, v, opts);
+    await S.put(env, { ...row, steps });
+    return steps;
+  } catch (e) {
+    await S.put(env, { ...row, steps: e.steps || [], error: String(e && e.message).slice(0, 300) }).catch(() => {});
+    throw e;
+  }
 }
 
 const enabledFlows = async (env) => (await S.list(env, "flow", { newest: false })).filter((f) => f.enabled && byId[f.trigger] && Array.isArray(f.actions));
@@ -204,7 +222,7 @@ export async function fire(env, trigger, contact, extra = {}, { key = "", flows 
       try { await S.put(env, { pk: "flow-done", sk: `${f.sk}#${contact ? contact.id : ""}#${key}`, at: S.now() }, true); }
       catch (e) { if (e.type && e.type.includes("ConditionalCheckFailed")) continue; throw e; }
     }
-    await runSteps(env, f, contact, vars(contact, counts, extra));
+    await runLogged(env, f, contact, vars(contact, counts, extra));
     await S.put(env, { ...f, runs: (f.runs || 0) + 1, last_run_at: S.now() });
     n++;
   }
@@ -231,7 +249,7 @@ export async function run(env, { now = Date.now(), log = console.log } = {}) {
     const f = flows.find((x) => x.sk === p.flow);
     if (!f) continue;
     const c = contacts.find((x) => x.id === p.user) || (p.email ? { email: p.email } : null);
-    try { await runSteps(env, f, c, p.vars || vars(c, counts), { from: p.step, now }); ran++; } catch (e) { log("flow step failed", f.name, e && e.message); }
+    try { await runLogged(env, f, c, p.vars || vars(c, counts), { from: p.step, now }); ran++; } catch (e) { log("flow step failed", f.name, e && e.message); }
   }
   const seen = new Set(done.items.map((i) => i.sk));
   for (const f of flows.filter((x) => byId[x.trigger].when)) {
@@ -255,7 +273,7 @@ export async function run(env, { now = Date.now(), log = console.log } = {}) {
       try { await S.put(env, { pk: "flow-done", sk: m.key, at: new Date(now).toISOString() }, true); }
       catch (e) { if (e.type && e.type.includes("ConditionalCheckFailed")) continue; throw e; }
       try {
-        await runSteps(env, f, m.contact, vars(m.contact, counts), { now });
+        await runLogged(env, f, m.contact, vars(m.contact, counts), { now });
         f.runs = (f.runs || 0) + 1;
         await S.put(env, { ...f, last_run_at: new Date(now).toISOString() });
         ran++;

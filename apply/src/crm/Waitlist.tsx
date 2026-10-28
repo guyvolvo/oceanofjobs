@@ -53,8 +53,8 @@ export function Waitlist({ onEmail }: { onEmail: (c: Campaign) => void }) {
   const approve = run("approve", async () => {
     const people = chosen.map((p) => ({ id: p.id, plan: p.waitlist }));
     let emailed = 0;
-    for (let i = 0; i < people.length; i += 8) {
-      emailed += (await crm<{ emailed: number }>("/waitlist/approve", "POST", { people: people.slice(i, i + 8), until })).emailed || 0;
+    for (let i = 0; i < people.length; i += 6) {
+      emailed += (await crm<{ emailed: number }>("/waitlist/approve", "POST", { people: people.slice(i, i + 6), until })).emailed || 0;
     }
     setPicked(new Set());
     return `${plural(people.length, "person", "people")} approved, licensed until ${day(until + "T12:00:00")}`

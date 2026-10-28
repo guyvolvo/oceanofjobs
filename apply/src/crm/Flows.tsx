@@ -9,6 +9,7 @@ import { Select } from "@cloudflare/kumo/components/select";
 import { Switch } from "@cloudflare/kumo/components/switch";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Loader } from "@cloudflare/kumo/components/loader";
+import { Table } from "@cloudflare/kumo/components/table";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { crm, day, describe, plural, type Filter } from "./api";
 import { Failed, FilterFields, useLoad } from "./App";
@@ -40,6 +41,78 @@ const QUICK: { name: string; flow: Omit<Flow, "enabled" | "conditions"> & { cond
   { name: "Give Pro when tagged beta", flow: { name: "Beta tag gives Pro", trigger: "tag_added", tag: "beta", actions: [{ type: "license", plan: "pro", days: 60 }, { type: "email" }] } },
   { name: "Follow up a week after sign-up", flow: { name: "One week in", trigger: "signup", actions: [{ type: "wait", days: 7 }, { type: "email", subscribers: true }] } },
 ];
+// The emails the system sends that aren't the owner's flows. Each claim is
+// from the code that sends it (named in the comment beside it).
+type Default = { id: string; name: string; chip: string; when: string; to: string; by: string; updates: string; log?: string; none?: string; link?: string };
+const DEFAULTS: Default[] = [
+  // infra/cognito.tf EMAIL_OTP, /api/auth/email/start in github_auth_handler.py
+  { id: "signin", name: "Sign-in codes", chip: "Built in, always on", when: "Someone signs in with their email address, not with Google or GitHub.",
+    to: "That person.", by: "Amazon Cognito, the sign-in service. It sends the code itself, not through this CRM.",
+    updates: "Product updates don't affect it.", none: "Not logged here. Cognito keeps no list of these that the CRM can read." },
+  // alerts.py: one digest per alert, from ALERTS_FROM_EMAIL
+  { id: "alerts", name: "Job alerts", chip: "Built in, always on", when: "New jobs match an alert a member made, on the member's schedule: instant, daily or weekly.",
+    to: "The member who made the alert.", by: "alerts@oceanofjobs.com, from the alert check that runs after each scrape.",
+    updates: "Product updates don't affect it. Each email has an unsubscribe link for that one alert.", log: "alerts" },
+  // worker.mjs POST /api/contacts/<id>/email, kind account
+  { id: "direct", name: "Emails to one member", chip: "Built in, always on", when: "You send an email from a member's page in Users.",
+    to: "That member.", by: "This CRM, from info@oceanofjobs.com, as account email.", updates: "Product updates don't affect it.", log: "direct" },
+  // worker.mjs POST /api/inbox/reply
+  { id: "replies", name: "Inbox replies", chip: "Built in, always on", when: "You reply to a message sent to info@oceanofjobs.com.",
+    to: "The person who wrote.", by: "This CRM, from info@oceanofjobs.com, as a plain reply in their thread.", updates: "Product updates don't affect it.", log: "replies" },
+  // api/dodo.py only makes checkouts and portal links; Dodo sends its own mail
+  { id: "payments", name: "Payment emails", chip: "Built in, set in Dodo", when: "A payment, a trial about to end, a renewal coming up or a failed payment.",
+    to: "The buyer, at the email on their checkout.",
+    by: "Dodo Payments, not us. Which ones go out is set in Dodo under Communication preferences. Failed payment and renewal emails are off there by default.",
+    updates: "Product updates don't affect it.", none: "Not logged here. See Dodo's dashboard.", link: "https://app.dodopayments.com" },
+  // worker.mjs recipients(): kind "notice"
+  { id: "notices", name: "Account notices", chip: "Built in, always on", when: "You send an email of the kind Account notice from Emails.",
+    to: "Every member with an account.", by: "This CRM, from info@oceanofjobs.com, as account email.",
+    updates: "Goes out whether product updates are on or off. Use it only for terms of service and privacy policy updates.", log: "notices" },
+];
+
+type RunLog = { sk: string; at: string; email: string; test: boolean; from: number; steps: [string, string][]; error?: string };
+
+function FlowLog({ id, actions }: { id: string; actions: Data["actions"] }) {
+  const { data, error, load } = useLoad<{ entries: RunLog[] }>(`/flows/${id}/log`);
+  if (error) return <Failed error={error} retry={load} />;
+  if (!data) return <p className="crm-note"><Loader /> Loading</p>;
+  if (!data.entries.length) return <p className="crm-note">No runs yet.</p>;
+  return (
+    <div className="crm-table"><Table className="crm-log"><Table.Body>
+      {data.entries.map((e) => (
+        <Table.Row key={e.sk}>
+          <Table.Cell><span className="crm-sub">{new Date(e.at).toLocaleString()}</span></Table.Cell>
+          <Table.Cell>{e.email || "No user"}{e.test ? <span className="crm-sub">Test</span> : null}{e.from ? <span className="crm-sub">After a wait</span> : null}</Table.Cell>
+          <Table.Cell><span className="crm-sub">{e.steps.map(([t, r]) => `${actions[t]?.name || t}: ${r}`).join(", then ") || "No steps"}</span>
+            {e.error ? <span className="crm-error">{e.error}</span> : null}</Table.Cell>
+        </Table.Row>
+      ))}
+    </Table.Body></Table></div>
+  );
+}
+
+function DefaultLog({ kind }: { kind: string }) {
+  const { data, error, load } = useLoad<{ entries: { at: string; to: string; what: string }[] }>(`/flows/builtin/${kind}`);
+  if (error) return <Failed error={error} retry={load} />;
+  if (!data) return <p className="crm-note"><Loader /> Loading</p>;
+  return (
+    <div className="crm-stack">
+      {kind === "alerts" ? <p className="crm-note">The latest digest of each alert. The alert check keeps no history.</p> : null}
+      {!data.entries.length ? <p className="crm-note">Nothing sent yet.</p> : (
+        <div className="crm-table"><Table className="crm-log"><Table.Body>
+          {data.entries.map((e, i) => (
+            <Table.Row key={i}>
+              <Table.Cell><span className="crm-sub">{new Date(e.at).toLocaleString()}</span></Table.Cell>
+              <Table.Cell>{e.to}</Table.Cell>
+              <Table.Cell><span className="crm-sub">{e.what}</span></Table.Cell>
+            </Table.Row>
+          ))}
+        </Table.Body></Table></div>
+      )}
+    </div>
+  );
+}
+
 const VARS = "{{email}} {{plan}} {{waitlist}} {{license_until}} {{pro_left}} {{tag}} {{from}} {{subject}} {{message}}";
 
 function StepEditor({ s, spec, set }: { s: Step; spec: { name: string; fields: string[] }; set: (s: Step) => void }) {
@@ -173,9 +246,12 @@ export function Flows() {
   const toasts = useKumoToastManager();
   const { data, error, load } = useLoad<Data>("/flows");
   const [open, setOpen] = useState<Flow | null>(null);
+  const [log, setLog] = useState("");
   if (error) return <Failed error={error} retry={load} />;
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
   if (open) return <Editor start={open} data={data} onDone={() => { setOpen(null); load(); }} />;
+  const toggle = (k: string) => setLog(log === k ? "" : k);
+  const welcome = data.flows.filter((f) => f.trigger === "signup" && f.actions.some((a) => a.type === "email"));
   const name = (id: string) => data.triggers.find((t) => t.id === id)?.name || id;
   const blank: Flow = { name: "New flow", trigger: "signup", enabled: false, conditions: {}, actions: [] };
   const remove = async (f: Flow) => {
@@ -192,6 +268,38 @@ export function Flows() {
           </div>
         </div>
         {!data.sending ? <p className="crm-error">Sending is off, so flows don't run.</p> : null}
+        <h3 className="crm-h3">Default flows</h3>
+        <p className="crm-note">Emails the system sends on its own. You can't turn these off here.</p>
+        <div className="crm-defaults">
+          {DEFAULTS.map((d) => (
+            <div key={d.id} className="crm-flow">
+              <div className="crm-grow">
+                <b>{d.name}</b> <span className="crm-chip ok">{d.chip}</span>
+                <span className="crm-sub">When: {d.when}</span>
+                <span className="crm-sub">To: {d.to}</span>
+                <span className="crm-sub">Sent by: {d.by}</span>
+                <span className="crm-sub">{d.updates}</span>
+                {d.none ? <span className="crm-sub">{d.none}{d.link ? <> <a href={d.link} target="_blank" rel="noreferrer">Open Dodo</a></> : null}</span> : null}
+              </div>
+              {d.log ? <Button variant="ghost" size="sm" onClick={() => toggle("builtin:" + d.log)}>{log === "builtin:" + d.log ? "Hide log" : "Log"}</Button> : null}
+            </div>
+          ))}
+          <div className="crm-flow">
+            <div className="crm-grow">
+              <b>Welcome email</b> <span className="crm-chip">Your flow</span>
+              <span className="crm-sub">When: Signed up. It isn't built in. It's a flow you make, for example from Welcome new users in Quick starts.</span>
+              <span className="crm-sub">To: Everyone the flow runs for. An email step goes to everyone, unless "Only if they get product updates (for nudges and promotions)" is ticked.</span>
+              <span className="crm-sub">{welcome.length ? `Yours: ${welcome.map((f) => `${f.name}, ${f.enabled ? "on" : "off"}`).join("; ")}. Its log is on the flow.` : "You don't have one yet."}</span>
+            </div>
+          </div>
+        </div>
+        {log.startsWith("builtin:") ? (
+          <div className="crm-stack">
+            <b>{DEFAULTS.find((d) => "builtin:" + d.log === log)?.name}</b>
+            <DefaultLog key={log} kind={log.slice(8)} />
+          </div>
+        ) : null}
+        <h3 className="crm-h3">Your flows</h3>
         {!data.flows.length ? <p className="crm-note">No flows yet. Start from one below or make your own.</p> : data.flows.map((f) => (
           <div key={f.id} className="crm-flow">
             <div className="crm-grow">
@@ -200,8 +308,10 @@ export function Flows() {
                 {Object.keys(f.conditions || {}).length ? `, for ${describe(f.conditions)}` : ""} · {f.actions.map((a) => data.actions[a.type]?.name).join(", then ") || "no steps"}</span>
               <span className="crm-sub">{plural(f.runs || 0, "run")}{f.last_run_at ? `, last ${day(f.last_run_at)}` : ""}{f.last_error ? ` · Last error: ${f.last_error}` : ""}</span>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => toggle(f.id || "")}>{log === f.id ? "Hide log" : "Log"}</Button>
             <Button variant="secondary" size="sm" onClick={() => setOpen(f)}>Edit</Button>
             <Button variant="ghost" size="sm" onClick={() => remove(f)}>Delete</Button>
+            {f.id && log === f.id ? <div className="crm-flow-log"><FlowLog id={f.id} actions={data.actions} /></div> : null}
           </div>
         ))}
       </div></LayerCard>

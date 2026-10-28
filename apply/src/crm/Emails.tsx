@@ -1,6 +1,7 @@
 // Product update emails: write in Markdown with a live preview, send a test
 // to yourself, then send to a segment's subscribers after typing how many
 // people it goes to. The Worker sends in small batches; this page loops.
+// An account notice (terms and privacy updates only) goes to every member.
 import { useEffect, useState } from "react";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Input, InputArea } from "@cloudflare/kumo/components/input";
@@ -56,7 +57,7 @@ function SendDialog({ c, onClose, onDone }: { c: Campaign; onClose: () => void; 
         <Dialog.Title className="crm-card-title">Send "{c.subject}"</Dialog.Title>
         {count === null && !error ? <p className="crm-note"><Loader /> Counting who gets it</p> : count !== null ? (
           <div className="crm-stack">
-            <p>This goes to {plural(count, "person", "people")} subscribed to product updates{sample.length ? `, including ${sample.slice(0, 3).join(", ")}` : ""}.</p>
+            <p>This goes to {plural(count, "person", "people")} {c.kind === "notice" ? "with an account" : "subscribed to product updates"}{sample.length ? `, including ${sample.slice(0, 3).join(", ")}` : ""}.</p>
             <Input label={`Type ${count} to send it`} value={typed} onChange={(e) => setTyped(e.target.value)} inputMode="numeric" />
             {progress ? <p className="crm-note" role="status">{progress}</p> : null}
           </div>
@@ -77,11 +78,12 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
   const [body, setBody] = useState(c.body || "");
   const [segment, setSegment] = useState(c.segment || "");
   const [image, setImage] = useState(c.image || "");
+  const [kind, setKind] = useState(c.kind || "update");
   const [busy, setBusy] = useState("");
   const [sendOpen, setSendOpen] = useState<Campaign | null>(null);
   const draft = c.status === undefined || c.status === "draft";
   const save = async () => {
-    const r = await crm<{ campaign: Campaign }>("/campaigns", "POST", { id: c.sk, subject, body, segment, image, changelog: c.changelog });
+    const r = await crm<{ campaign: Campaign }>("/campaigns", "POST", { id: c.sk, subject, body, segment, image, kind, changelog: c.changelog });
     onSaved(r.campaign);
     return r.campaign;
   };
@@ -95,7 +97,12 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
       <div className="crm-split">
         <div className="crm-stack">
           <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!draft} maxLength={150} />
-          {c.to?.length ? <p className="crm-note">Goes to the {plural(c.to.length, "user")} you picked in Users, if they're subscribed to product updates.</p> : (
+          <div>
+            <Select label="Kind" value={kind} onValueChange={(v) => setKind(v === "notice" ? "notice" : "update")} disabled={!draft}
+              items={{ update: "Product update", notice: "Account notice" }} />
+            <p className="crm-note">Use Account notice only for terms of service and privacy policy updates. It goes to every member, product updates on or off.</p>
+          </div>
+          {kind === "notice" ? null : c.to?.length ? <p className="crm-note">Goes to the {plural(c.to.length, "user")} you picked in Users, if they're subscribed to product updates.</p> : (
           <Select label="Send to" value={segment} onValueChange={(v) => setSegment(String(v ?? ""))} disabled={!draft}
             items={{ "": "Everyone subscribed to product updates", ...Object.fromEntries(segments.map((s) => [s.sk, s.name])) }} />)}
           <InputArea label="Message" description="Markdown: # headings, **bold**, [links](https://…) and - lists" className="crm-md"
@@ -104,7 +111,7 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
         </div>
         <div className="crm-stack">
           <span className="crm-note">Preview</span>
-          <MailPreview subject={subject} body={body} image={image} />
+          <MailPreview subject={subject} body={body} image={image} kind={kind === "notice" ? "account" : "newsletter"} />
         </div>
       </div>
       {draft ? (
@@ -134,14 +141,14 @@ export function Emails({ sending, initial, onOpened }: { sending: boolean; initi
   return (
     <LayerCard><div className="crm-card crm-stack">
       <div className="crm-row between">
-        <div><h2>Emails</h2><p className="crm-note">Product updates for users who subscribed. {sending ? "" : "Sending to users is off; tests to you work."}</p></div>
+        <div><h2>Emails</h2><p className="crm-note">Product updates for users who subscribed, and account notices for everyone. {sending ? "" : "Sending to users is off; tests to you work."}</p></div>
         <Button variant="primary" onClick={() => setEditing({})}>New email</Button>
       </div>
       {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.campaigns.length ? <p className="crm-note">No emails yet.</p> : (
         <div className="crm-table"><Table className="crm-list"><Table.Body>
           {data.campaigns.map((c) => (
             <Table.Row key={c.sk} className="crm-click" onClick={() => setEditing(c)}>
-              <Table.Cell><b>{c.subject || "No subject"}</b><span className="crm-sub">Updated {day(c.updated)}</span></Table.Cell>
+              <Table.Cell><b>{c.subject || "No subject"}</b><span className="crm-sub">{c.kind === "notice" ? "Account notice" : "Product update"} · Updated {day(c.updated)}</span></Table.Cell>
               <Table.Cell><Badge variant={c.status === "sent" ? "secondary" : "outline"}>{c.status === "draft" ? "Draft" : c.status === "sending" ? "Sending" : "Sent"}</Badge></Table.Cell>
               <Table.Cell>{c.status === "draft" ? "" : plural(c.sent || 0, "recipient")}</Table.Cell>
             </Table.Row>
