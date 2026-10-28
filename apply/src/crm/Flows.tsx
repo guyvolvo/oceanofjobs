@@ -41,33 +41,16 @@ const QUICK: { name: string; flow: Omit<Flow, "enabled" | "conditions"> & { cond
   { name: "Give Pro when tagged beta", flow: { name: "Beta tag gives Pro", trigger: "tag_added", tag: "beta", actions: [{ type: "license", plan: "pro", days: 60 }, { type: "email" }] } },
   { name: "Follow up a week after sign-up", flow: { name: "One week in", trigger: "signup", actions: [{ type: "wait", days: 7 }, { type: "email", subscribers: true }] } },
 ];
-// The emails the system sends that aren't the owner's flows. Each claim is
-// from the code that sends it (named in the comment beside it).
-type Default = { id: string; name: string; chip: string; when: string; to: string; by: string; updates: string; log?: string; none?: string; link?: string };
+// The emails the system sends that aren't the owner's flows: who sends
+// each is in its code (Cognito, alerts.py, worker.mjs, Dodo).
+type Default = { id: string; name: string; line: string; log?: string; link?: string };
 const DEFAULTS: Default[] = [
-  // infra/cognito.tf EMAIL_OTP, /api/auth/email/start in github_auth_handler.py
-  { id: "signin", name: "Sign-in codes", chip: "Built in, always on", when: "Someone signs in with their email address, not with Google or GitHub.",
-    to: "That person.", by: "Amazon Cognito, the sign-in service. It sends the code itself, not through this CRM.",
-    updates: "Product updates don't affect it.", none: "Not logged here. Cognito keeps no list of these that the CRM can read." },
-  // alerts.py: one digest per alert, from ALERTS_FROM_EMAIL
-  { id: "alerts", name: "Job alerts", chip: "Built in, always on", when: "New jobs match an alert a member made, on the member's schedule: instant, daily or weekly.",
-    to: "The member who made the alert.", by: "alerts@oceanofjobs.com, from the alert check that runs after each scrape.",
-    updates: "Product updates don't affect it. Each email has an unsubscribe link for that one alert.", log: "alerts" },
-  // worker.mjs POST /api/contacts/<id>/email, kind account
-  { id: "direct", name: "Emails to one member", chip: "Built in, always on", when: "You send an email from a member's page in Users.",
-    to: "That member.", by: "This CRM, from info@oceanofjobs.com, as account email.", updates: "Product updates don't affect it.", log: "direct" },
-  // worker.mjs POST /api/inbox/reply
-  { id: "replies", name: "Inbox replies", chip: "Built in, always on", when: "You reply to a message sent to info@oceanofjobs.com.",
-    to: "The person who wrote.", by: "This CRM, from info@oceanofjobs.com, as a plain reply in their thread.", updates: "Product updates don't affect it.", log: "replies" },
-  // api/dodo.py only makes checkouts and portal links; Dodo sends its own mail
-  { id: "payments", name: "Payment emails", chip: "Built in, set in Dodo", when: "A payment, a trial about to end, a renewal coming up or a failed payment.",
-    to: "The buyer, at the email on their checkout.",
-    by: "Dodo Payments, not us. Which ones go out is set in Dodo under Communication preferences. Failed payment and renewal emails are off there by default.",
-    updates: "Product updates don't affect it.", none: "Not logged here. See Dodo's dashboard.", link: "https://app.dodopayments.com" },
-  // worker.mjs recipients(): kind "notice"
-  { id: "notices", name: "Account notices", chip: "Built in, always on", when: "You send an email of the kind Account notice from Emails.",
-    to: "Every member with an account.", by: "This CRM, from info@oceanofjobs.com, as account email.",
-    updates: "Goes out whether product updates are on or off. Use it only for terms of service and privacy policy updates.", log: "notices" },
+  { id: "signin", name: "Sign-in codes", line: "Login codes for email sign-in. Sent by Cognito." },
+  { id: "alerts", name: "Job alerts", line: "New matches for a member's alerts, from alerts@.", log: "alerts" },
+  { id: "direct", name: "Emails to one member", line: "What you send from a member's page.", log: "direct" },
+  { id: "replies", name: "Inbox replies", line: "Your replies to mail sent to info@.", log: "replies" },
+  { id: "payments", name: "Payment emails", line: "Receipts and billing emails. Sent by Dodo.", link: "https://app.dodopayments.com" },
+  { id: "notices", name: "Account notices", line: "Terms and privacy updates, to every member.", log: "notices" },
 ];
 
 type RunLog = { sk: string; at: string; email: string; test: boolean; from: number; steps: [string, string][]; error?: string };
@@ -97,7 +80,7 @@ function DefaultLog({ kind }: { kind: string }) {
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
   return (
     <div className="crm-stack">
-      {kind === "alerts" ? <p className="crm-note">The latest digest of each alert. The alert check keeps no history.</p> : null}
+      {kind === "alerts" ? <p className="crm-note">Latest send per alert.</p> : null}
       {!data.entries.length ? <p className="crm-note">Nothing sent yet.</p> : (
         <div className="crm-table"><Table className="crm-log"><Table.Body>
           {data.entries.map((e, i) => (
@@ -251,7 +234,6 @@ export function Flows() {
   if (!data) return <p className="crm-note"><Loader /> Loading</p>;
   if (open) return <Editor start={open} data={data} onDone={() => { setOpen(null); load(); }} />;
   const toggle = (k: string) => setLog(log === k ? "" : k);
-  const welcome = data.flows.filter((f) => f.trigger === "signup" && f.actions.some((a) => a.type === "email"));
   const name = (id: string) => data.triggers.find((t) => t.id === id)?.name || id;
   const blank: Flow = { name: "New flow", trigger: "signup", enabled: false, conditions: {}, actions: [] };
   const remove = async (f: Flow) => {
@@ -269,29 +251,16 @@ export function Flows() {
         </div>
         {!data.sending ? <p className="crm-error">Sending is off, so flows don't run.</p> : null}
         <h3 className="crm-h3">Default flows</h3>
-        <p className="crm-note">Emails the system sends on its own. You can't turn these off here.</p>
         <div className="crm-defaults">
           {DEFAULTS.map((d) => (
             <div key={d.id} className="crm-flow">
               <div className="crm-grow">
-                <b>{d.name}</b> <span className="crm-chip ok">{d.chip}</span>
-                <span className="crm-sub">When: {d.when}</span>
-                <span className="crm-sub">To: {d.to}</span>
-                <span className="crm-sub">Sent by: {d.by}</span>
-                <span className="crm-sub">{d.updates}</span>
-                {d.none ? <span className="crm-sub">{d.none}{d.link ? <> <a href={d.link} target="_blank" rel="noreferrer">Open Dodo</a></> : null}</span> : null}
+                <b>{d.name}</b>
+                <span className="crm-sub">{d.line}{d.link ? <> <a href={d.link} target="_blank" rel="noreferrer">Open Dodo</a></> : null}</span>
               </div>
               {d.log ? <Button variant="ghost" size="sm" onClick={() => toggle("builtin:" + d.log)}>{log === "builtin:" + d.log ? "Hide log" : "Log"}</Button> : null}
             </div>
           ))}
-          <div className="crm-flow">
-            <div className="crm-grow">
-              <b>Welcome email</b> <span className="crm-chip">Your flow</span>
-              <span className="crm-sub">When: Signed up. It isn't built in. It's a flow you make, for example from Welcome new users in Quick starts.</span>
-              <span className="crm-sub">To: Everyone the flow runs for. An email step goes to everyone, unless "Only if they get product updates (for nudges and promotions)" is ticked.</span>
-              <span className="crm-sub">{welcome.length ? `Yours: ${welcome.map((f) => `${f.name}, ${f.enabled ? "on" : "off"}`).join("; ")}. Its log is on the flow.` : "You don't have one yet."}</span>
-            </div>
-          </div>
         </div>
         {log.startsWith("builtin:") ? (
           <div className="crm-stack">
