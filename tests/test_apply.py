@@ -63,6 +63,14 @@ check("a new user has a neutral profile: queue mode, nothing guarded, no demogra
       and all(v is None for v in empty["eeo"].values()))
 check("a new user drafts unknown answers with AI and has agreed to no privacy boxes",
       empty["settings"]["unknowns"] == "ai" and empty["settings"]["consent"] is True)
+# A LinkedIn or GitHub left blank is read from the resume; a typed one is kept.
+_cv = "Guy V | linkedin.com/in/guy-v | github.com/guyv | https://www.linkedin.com/company/acme"
+check("a blank LinkedIn and GitHub come from the resume, as https addresses",
+      apply.with_resume_links(empty, _cv)["links"] == {**empty["links"], "linkedin": "https://linkedin.com/in/guy-v", "github": "https://github.com/guyv"})
+check("a link the user typed is never replaced",
+      apply.with_resume_links({**empty, "links": {**empty["links"], "linkedin": "https://linkedin.com/in/mine"}}, _cv)["links"]["linkedin"] == "https://linkedin.com/in/mine")
+check("a company page or a repository is not a profile",
+      apply.with_resume_links(empty, "linkedin.com/company/acme github.com/guyv/repo")["links"] == empty["links"])
 check("Fill application is Half automatic until the user picks Full", empty["settings"]["fill"] == "half")
 check("Full automatic is kept; anything else is Half automatic",
       apply.clean_profile({"settings": {"fill": "full"}})["settings"]["fill"] == "full"

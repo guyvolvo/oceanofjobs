@@ -185,6 +185,28 @@ def clean_profile(body: dict) -> dict:
     return out
 
 
+# Profile links the user left blank, read from their resume's text. Only
+# the user's own profile addresses, never a company page or a feed post.
+RESUME_LINKS = {
+    "linkedin": re.compile(r"(?:https?://)?(?:[a-z]{2,3}\.)?linkedin\.com/in/[A-Za-z0-9\-_%]+/?", re.I),
+    "github": re.compile(r"(?:https?://)?(?:www\.)?github\.com/[A-Za-z0-9](?:[A-Za-z0-9\-]{0,38})(?![A-Za-z0-9\-/])", re.I),
+}
+
+
+def with_resume_links(profile: dict, resume_text: str | None) -> dict:
+    """The profile with any blank LinkedIn or GitHub address taken from the
+    resume, as https URLs. A link the user typed is never replaced."""
+    links = dict(profile.get("links") or {})
+    for key, pattern in RESUME_LINKS.items():
+        if links.get(key) or not resume_text:
+            continue
+        hit = pattern.search(resume_text)
+        if hit:
+            url = hit.group(0).rstrip("/")
+            links[key] = url if url.lower().startswith("http") else "https://" + url
+    return {**profile, "links": links}
+
+
 def get_profile(table, user_id: str) -> dict:
     item = table.get_item(Key={"user_id": user_id, "alert_id": PROFILE_ROW}).get("Item") or {}
     return clean_profile(item.get("profile") or {})

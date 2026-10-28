@@ -992,6 +992,9 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         if method == "GET":
             prefs = route_get_profile(user_id).get("profile") or {}
             profile = apply.get_profile(_alerts_table, user_id)
+            # A LinkedIn or GitHub left blank comes from the resume, so the
+            # extension can fill it (and Settings shows it, to keep or change).
+            profile = apply.with_resume_links(profile, (agent.get_resume(_alerts_table, user_id) or {}).get("text"))
             # The extension fills forms from these; /apply's settings (a
             # signed-in session) shows them all so they can be removed.
             claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
