@@ -37,6 +37,8 @@ await p.route("https://oceanofjobs.com/**", (r) => {
   const local = u.pathname === "/apply" ? "index.html" : u.pathname.replace(/^\/apply\//, "");
   const file = path.join(DIST, local);
   if (fs.existsSync(file) && fs.statSync(file).isFile()) return r.fulfill({ path: file });
+  const site = path.resolve("frontend", u.pathname.slice(1));
+  if (fs.existsSync(site) && fs.statSync(site).isFile()) return r.fulfill({ path: site });
   return r.continue();
 });
 
