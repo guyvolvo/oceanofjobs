@@ -251,6 +251,8 @@ def publish(s3, payloads: dict, version: str, mode: str) -> list[str]:
 
 
 def metric(name: str, value: float, unit: str, mode: str) -> None:
+    if mode != "live":
+        return  # only live has an alarm (precompute_stale); shadow points were billed for nothing
     import boto3
 
     boto3.client("cloudwatch").put_metric_data(Namespace="OceanOfJobs", MetricData=[{

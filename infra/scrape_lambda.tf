@@ -244,7 +244,10 @@ resource "aws_cloudwatch_event_rule" "scrape_fast_schedule" {
   # size at all -- back to 5 minutes is projected CHEAPER than the 20-
   # minute interim cut was (partition-merge.html §03: 156,000 vs 286,000
   # GB-s/mo), not a tradeoff this time.
-  schedule_expression = "rate(5 minutes)"
+  # 15 minutes since 2026-11-01: at 5 the sweep alone was ~$23/month
+  # past the free tier. Boards keep their own 3-20 minute intervals
+  # (scrape_state.due); a due board now waits for the next sweep.
+  schedule_expression = "rate(15 minutes)"
 }
 
 resource "aws_cloudwatch_event_target" "scrape_fast_schedule" {

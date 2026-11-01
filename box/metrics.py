@@ -23,6 +23,9 @@ NAMESPACE = "OceanOfJobs"
 # The sources whose silence means something. Each is polled every few
 # minutes and posts many times an hour in normal times.
 SOURCES = ("greenhouse", "ashby", "smartrecruiters", "lever", "comeet", "workday")
+# Only the sources infra/alarms.tf watches are sent: each metric is billed
+# monthly past the free ten.
+ALARMED = ("greenhouse", "ashby", "smartrecruiters")
 FRAGMENT_PREFIX = "deltas/"
 
 
@@ -77,7 +80,7 @@ def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None
     pending = pending_fragments(s3, bucket) if bucket else None
 
     data = [{"MetricName": "SourceFreshnessMinutes", "Dimensions": [{"Name": "ats", "Value": ats}],
-             "Value": round(minutes, 1), "Unit": "None"} for ats, minutes in sorted(fresh.items())]
+             "Value": round(minutes, 1), "Unit": "None"} for ats, minutes in sorted(fresh.items()) if ats in ALARMED]
     if pending is not None:
         data.append({"MetricName": "PendingFragments", "Value": pending, "Unit": "Count"})
     if data:

@@ -48,7 +48,7 @@ name: scrape-discover
 
 on:
   schedule:
-    - cron: "17 3 * * *" # once/day, offset from midnight UTC
+    - cron: "17 3 */3 * *" # every 3 days: each run pulls the 5.5 GB DB out of AWS (billed egress)
   workflow_dispatch:
     inputs:
       domains:
