@@ -256,6 +256,15 @@ GUESS_SHARD: tuple[int, int] | None = None
 # and writes what it has beats a run that does more work and writes none
 # of it.
 BATCH_DEADLINE: float | None = None
+# The deadline only stops new domains starting. One already in progress
+# (a big board's descriptions) ran on past it: 26 to 31 October 2026 the
+# probe reached the job's 5.5-hour limit every day and saved nothing.
+# This long after the deadline, whatever is unfinished is handed back
+# deferred and the run moves on to writing what it has.
+DEADLINE_GRACE_S = 600
+# Set when run_and_report left workers running; main() then exits without
+# waiting for them.
+ABANDONED = False
 
 # ATSes whose per-job detail fetch runs even with FETCH_FULL_DESCRIPTIONS
 # off. A global flag is the wrong lever here because the two gated
@@ -5012,11 +5021,16 @@ def run_and_report(items: list, resolve_one, json_mode: bool, sink=None) -> list
     board's jobs at a time, and what was polled before a crash or the
     deadline is already written.
     """
+    global ABANDONED
     results = []
     t0 = time.time()
-    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        futs = {ex.submit(resolve_one, item): item for item in items}
-        for f in as_completed(futs):
+    ex = ThreadPoolExecutor(max_workers=WORKERS)
+    futs = {ex.submit(resolve_one, item): item for item in items}
+    wait = None if BATCH_DEADLINE is None else max(0, BATCH_DEADLINE + DEADLINE_GRACE_S - time.monotonic())
+    done = set()
+    try:
+        for f in as_completed(futs, timeout=wait):
+            done.add(f)
             r = f.result()
             if sink is not None:
                 sink(r)
@@ -5024,6 +5038,16 @@ def run_and_report(items: list, resolve_one, json_mode: bool, sink=None) -> list
             results.append(r)
             if not json_mode:
                 print_row(r)
+    except TimeoutError:
+        for f, item in futs.items():
+            if f not in done:
+                r = _deferred(Resolution(domain=item if isinstance(item, str) else item["domain"]),
+                              "batch deadline reached while this domain was being probed")
+                if sink is not None:
+                    sink(r)
+                results.append(r)
+        ABANDONED = True
+    ex.shutdown(wait=not ABANDONED, cancel_futures=True)
     results.sort(key=lambda r: r.domain)
     if not json_mode:
         hits = [r for r in results if r.ats]
@@ -5241,6 +5265,11 @@ def main() -> int:
               file=sys.stderr)
     if args.json:
         print(json.dumps([asdict(r) for r in results], indent=2, ensure_ascii=False))
+    if ABANDONED:
+        # Python waits for pool threads at exit, so the abandoned ones would hold the run open.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
     return 0
 
 

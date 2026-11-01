@@ -81,6 +81,32 @@ class FakeS3:
             raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "PutObject")
         return {"ETag": self._put(Key, Body.read())}
 
+    # Multipart, as S3 does it: parts are stored apart from the object and
+    # only the completing request, with its condition, replaces it.
+    uploads = {}
+    aborted = []
+
+    def create_multipart_upload(self, Bucket, Key):
+        upload_id = f"up{len(self.uploads)}"
+        self.uploads[upload_id] = {}
+        return {"UploadId": upload_id}
+
+    def upload_part(self, Bucket, Key, UploadId, PartNumber, Body):
+        self.uploads[UploadId][PartNumber] = Body
+        return {"ETag": f'"p{PartNumber}"'}
+
+    def complete_multipart_upload(self, Bucket, Key, UploadId, MultipartUpload, IfMatch=None, IfNoneMatch=None):
+        current = self.objects.get(Key)
+        if (IfMatch is not None and (current is None or current[1] != IfMatch)) or (IfNoneMatch == "*" and current is not None):
+            raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "CompleteMultipartUpload")
+        parts = self.uploads.pop(UploadId)
+        data = b"".join(parts[p["PartNumber"]] for p in sorted(MultipartUpload["Parts"], key=lambda p: p["PartNumber"]))
+        return {"ETag": self._put(Key, data)}
+
+    def abort_multipart_upload(self, Bucket, Key, UploadId):
+        self.uploads.pop(UploadId, None)
+        self.aborted.append(UploadId)
+
 
 fake = FakeS3()
 boto3.client = lambda *a, **k: fake
@@ -125,6 +151,21 @@ with tempfile.TemporaryDirectory() as td:
     ok = load_to_sqlite.s3_push_conditional("b", "jobs-read.db", local, stale)
     check("a push that loses the race reports it", ok is False)
     check("and leaves no marker behind", not (Path(td) / "jobs-read.db.etag").exists())
+
+    # Over the part size (5 GiB in production; 16 bytes here): uploaded in parts.
+    load_to_sqlite.PART_BYTES = 16
+    big = bytes(range(256)) * 3 + b"tail"
+    _, etag4 = load_to_sqlite.s3_pull("b", "jobs-read.db", local)
+    local.write_bytes(big)
+    ok = load_to_sqlite.s3_push_conditional("b", "jobs-read.db", local, etag4)
+    check("a file over the part size goes up in parts, whole and in order",
+          ok and fake.objects["jobs-read.db"][0] == big and not fake.uploads, repr(ok))
+    check("and leaves its marker", (Path(td) / "jobs-read.db.etag").read_text() == fake.objects["jobs-read.db"][1])
+    held = fake.objects["jobs-read.db"]
+    ok = load_to_sqlite.s3_push_conditional("b", "jobs-read.db", local, '"v-stale"')
+    check("a multipart push that loses the race reports it, changes nothing and keeps no parts",
+          ok is False and fake.objects["jobs-read.db"] == held and not fake.uploads and len(fake.aborted) == 1, repr((ok, fake.aborted)))
+    load_to_sqlite.PART_BYTES = 64 * 1024 * 1024
 
     check("a missing object is still reported as missing",
           load_to_sqlite.s3_pull("b", "nothing-here.db", Path(td) / "nothing.db") == (False, None))
