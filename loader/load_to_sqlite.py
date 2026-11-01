@@ -2031,6 +2031,43 @@ def s3_push(bucket: str, key: str, src: Path) -> None:
     boto3.client("s3").upload_file(str(src), bucket, key)
 
 
+# One PUT stops at 5 GiB (jobs-full-discover.db passed it on 2026-11-01:
+# EntityTooLarge). Above this size the push goes up in parts instead. Not
+# upload_file: its managed transfer refuses IfMatch and IfNoneMatch, and
+# the condition is the point of s3_push_conditional.
+PART_BYTES = 64 * 1024 * 1024
+
+
+def _put_multipart(s3, src: Path, kwargs: dict) -> dict:
+    """A multipart upload of src, with kwargs' IfMatch or IfNoneMatch on
+    the completing request, so a conflict still fails the whole upload.
+    Any failure aborts it, and no part is left stored."""
+    from concurrent.futures import ThreadPoolExecutor
+    from botocore.exceptions import ClientError
+
+    where = {"Bucket": kwargs["Bucket"], "Key": kwargs["Key"]}
+    upload_id = s3.create_multipart_upload(**where)["UploadId"]
+
+    def part(n: int) -> dict:
+        with open(src, "rb") as fh:
+            fh.seek((n - 1) * PART_BYTES)
+            body = fh.read(PART_BYTES)
+        return {"PartNumber": n, "ETag": s3.upload_part(**where, UploadId=upload_id, PartNumber=n, Body=body)["ETag"]}
+
+    try:
+        count = max(1, -(-src.stat().st_size // PART_BYTES))
+        # 8 parts in flight: about 512 MB held at once.
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            parts = list(ex.map(part, range(1, count + 1)))
+        return s3.complete_multipart_upload(**kwargs, UploadId=upload_id, MultipartUpload={"Parts": parts})
+    except BaseException:
+        try:
+            s3.abort_multipart_upload(**where, UploadId=upload_id)
+        except ClientError:
+            pass  # the bucket's abort-incomplete-uploads rule (infra/s3.tf) clears it in 3 days
+        raise
+
+
 def s3_push_conditional(bucket: str, key: str, src: Path, etag: str | None) -> bool:
     """Same upload as s3_push, except it fails cleanly (returns False)
     instead of overwriting anything if `key` has changed in S3 since the
@@ -2068,10 +2105,14 @@ def s3_push_conditional(bucket: str, key: str, src: Path, etag: str | None) -> b
     marker = _etag_marker(src)
     marker.unlink(missing_ok=True)
     try:
-        with open(src, "rb") as fh:
-            resp = s3.put_object(Body=fh, **kwargs)
+        if src.stat().st_size > PART_BYTES:
+            resp = _put_multipart(s3, src, kwargs)
+        else:
+            with open(src, "rb") as fh:
+                resp = s3.put_object(Body=fh, **kwargs)
     except ClientError as e:
-        if e.response["Error"]["Code"] in ("PreconditionFailed", "412"):
+        # 409 ConditionalRequestConflict: another conditional write to the key finished first.
+        if e.response["Error"]["Code"] in ("PreconditionFailed", "412", "ConditionalRequestConflict", "409"):
             return False
         raise
     # What S3 now holds is exactly this file, so the next s3_pull of it
