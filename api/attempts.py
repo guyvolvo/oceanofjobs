@@ -61,6 +61,9 @@ SETTLE = {
     (RESERVED, ABANDONED): "release",
     (STARTED, SUBMITTED): "charge", (STARTED, UNCONFIRMED): "charge", (STARTED, FAILED): "release",
     (UNCONFIRMED, SUBMITTED): "none",
+    # Only an unconfirmed the expiry made (reason "expired"): the start was
+    # acknowledged, then the failure report came after the hold ran out.
+    (UNCONFIRMED, FAILED): "refund",
 }
 
 
@@ -322,11 +325,14 @@ class Attempts:
         try:
             self.table.update_item(
                 Key={"user_id": user_id, "alert_id": ATTEMPT + attempt_id},
-                UpdateExpression="SET #s = :started, started_at = :t, audit = list_append(audit, :ev)"
+                # The hold restarts here: a long fill must not run the expiry
+                # down before the outcome can be reported (R6, R9).
+                UpdateExpression="SET #s = :started, started_at = :t, expires_at = :exp, audit = list_append(audit, :ev)"
                                  + (", ai_answers = :snap" if snap else ""),
                 ConditionExpression="#s = :reserved AND expires_at > :t",
                 ExpressionAttributeNames={"#s": "state"},
                 ExpressionAttributeValues={":started": STARTED, ":reserved": RESERVED, ":t": now.isoformat(),
+                                           ":exp": (now + HOLD).isoformat(),
                                            ":ev": [self._audit("submission_started", now)], **({":snap": snap} if snap else {})})
         except ClientError as e:
             if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
@@ -335,7 +341,7 @@ class Attempts:
             if again["state"] == STARTED:
                 return self.view(again)  # started by a racing report
             raise Expired("the reservation expired; don't submit")
-        a["state"], a["started_at"] = STARTED, now.isoformat()
+        a["state"], a["started_at"], a["expires_at"] = STARTED, now.isoformat(), (now + HOLD).isoformat()
         if snap:
             a["ai_answers"] = snap
         return self.view(a)
@@ -357,6 +363,8 @@ class Attempts:
         effect = SETTLE.get((a["state"], outcome))
         if effect is None:
             raise Conflict(f"an attempt that is {a['state']} can't become {outcome}")
+        if effect == "refund" and a.get("reason") != "expired":
+            raise Conflict("an unconfirmed submission the extension reported can only be disputed")
         key = {"user_id": user_id, "alert_id": ATTEMPT + attempt_id}
         upd = {"TableName": self.name, "Key": self._key(**key),
                "UpdateExpression": "SET #s = :to, reason = :r, settled_at = :t, questions = :q, audit = list_append(audit, :ev)",
@@ -369,6 +377,11 @@ class Attempts:
         if effect == "release":
             items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, 0),
                       self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, 0),
+                      {"Delete": {"TableName": self.name, "Key": lock, "ConditionExpression": "attempt_id = :a",
+                                  "ExpressionAttributeValues": ({":a": attempt_id})}}]
+        elif effect == "refund":
+            items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, -1),
+                      self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, -1),
                       {"Delete": {"TableName": self.name, "Key": lock, "ConditionExpression": "attempt_id = :a",
                                   "ExpressionAttributeValues": ({":a": attempt_id})}}]
         elif effect == "charge":
