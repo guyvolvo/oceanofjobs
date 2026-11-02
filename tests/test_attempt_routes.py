@@ -295,6 +295,18 @@ with mock_aws():
     s, b = call("hank", "POST", "attempts", {"attempt_id": "hank-00001", **job(60)})
     check("the free limit used the old way: a new reservation is refused", s == 402 and b["code"] == "limit_reached", repr((s, b)))
 
+    # The account's time zone decides the ledger day, not each request
+    # (2026-11-02 review): Kiritimati and Pago Pago sit on different dates.
+    s1, b1 = call("tzu", "POST", "attempts", {"attempt_id": "tzu-000001", **job(70), "tz": "Pacific/Kiritimati"})
+    s2, b2 = call("tzu", "POST", "attempts", {"attempt_id": "tzu-000002", **job(71), "tz": "Pacific/Pago_Pago"})
+    days = {table.get_item(Key={"user_id": "tzu", "alert_id": attempts.ATTEMPT + i})["Item"]["day"] for i in ("tzu-000001", "tzu-000002")}
+    check("switching time zones between reservations doesn't move the ledger day", s1 == 200 and s2 == 200 and len(days) == 1,
+          repr((s1, s2, days)))
+    check("the first zone sent is kept on the account",
+          table.get_item(Key={"user_id": "tzu", "alert_id": attempts.TZ_ROW})["Item"]["tz"] == "Pacific/Kiritimati")
+    s, summ = call("tzu", "GET", "summary")
+    check("and the summary reads the same day", s == 200 and summ.get("tz") == "Pacific/Kiritimati", repr(summ.get("tz")))
+
     # An answer the extension drafted with the user's own AI key waits for review.
     s, _ = call("ivy", "POST", "answers", {"question": "Years of Go?", "answer": "Four", "source": "ai"})
     got = apply.get_profile(table, "ivy")["answers"][0]

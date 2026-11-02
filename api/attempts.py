@@ -123,6 +123,27 @@ def _zone(tz: str | None) -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
+TZ_ROW = "#tz"
+
+
+def account_tz(table, user_id: str, sent: str | None, save: bool = True) -> str:
+    """The account's time zone, which decides the day and month a credit
+    counts in. Set by the first request that sends one and kept, so a client
+    can't spread reservations over two calendar days by switching zones
+    (2026-11-02 review). save=False for reads, which never write."""
+    row = table.get_item(Key={"user_id": user_id, "alert_id": TZ_ROW}).get("Item")
+    if row or not save:
+        return row["tz"] if row else str(_zone(sent))
+    tz = str(_zone(sent))
+    try:
+        table.put_item(Item={"user_id": user_id, "alert_id": TZ_ROW, "tz": tz}, ConditionExpression="attribute_not_exists(alert_id)")
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
+        return table.get_item(Key={"user_id": user_id, "alert_id": TZ_ROW})["Item"]["tz"]  # set by a racing request
+    return tz
+
+
 def periods(now: datetime, tz: str | None) -> tuple[str, str]:
     """(YYYY-MM, YYYY-MM-DD) of now in the user's time zone. R13."""
     local = now.astimezone(_zone(tz))

@@ -87,9 +87,12 @@ billing period; that is an allowance of requests, not a promise of 5
 refunds. A refund for one attempt can happen once. Submitted (confirmed by
 the site) is not disputable.
 
-R13. **Periods.** The period and the user's time zone are fixed on the
-attempt when it is reserved. A later report, a delayed settle or a time
-zone change never moves the charge to another period.
+R13. **Periods.** The user's time zone belongs to the account: the first
+request that sends one sets it, and later requests can't change it, so a
+client can't spread reservations across two calendar days by switching
+zones. The period and that time zone are fixed on the attempt when it is
+reserved. A later report, a delayed settle or a time zone change never
+moves the charge to another period.
 
 R14. **Limits.**
 - Free: 30 per calendar month. Basic: 100 per calendar month. Pro: 50 per
