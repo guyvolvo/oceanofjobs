@@ -296,12 +296,20 @@ def reusable_answers(answers: list[dict]) -> list[dict]:
     return [a for a in answers if (not job_specific(a["question"]) or a.get("job_id")) and a.get("approval") != "rejected"]
 
 
+# Dodo statuses under which a paid plan is in force (past_due is its grace period).
+PAID_STATUSES = ("active", "trialing", "past_due")
+
+
 def plan_of(table, user_id: str, now: datetime | None = None) -> str:
-    """The plan in force, the higher of: a paid plan while Dodo says it
-    is active or in its grace period (dodo.py keeps the row), and a plan given in
-    the CRM, through its end date (YYYY-MM-DD, UTC; none means no end)."""
-    item = table.get_item(Key={"user_id": user_id, "alert_id": PLAN_ROW}).get("Item") or {}
-    paid = item["plan"] if item.get("plan") in LIMITS and item.get("status") in ("active", "trialing", "past_due") else "free"
+    """The plan in force, the higher of: the best paid plan among the
+    account's subscriptions that Dodo says are active or in their grace
+    period (dodo.py keeps one #plan#<subscription id> row each), and a plan
+    given in the CRM, through its end date (YYYY-MM-DD, UTC; none means no
+    end). Accounts whose payments predate those rows have only #plan."""
+    rows = query_all(table, user_id, PLAN_ROW)
+    subs = [r for r in rows if r["alert_id"] != PLAN_ROW]
+    paid = max((r["plan"] for r in (subs or rows) if r.get("plan") in LIMITS and r.get("status") in PAID_STATUSES),
+               key=list(LIMITS).index, default="free")
     grant = table.get_item(Key={"user_id": user_id, "alert_id": GRANT_ROW}).get("Item") or {}
     today = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     given = grant["plan"] if grant.get("plan") in LIMITS and (not grant.get("until") or grant["until"] >= today) else "free"
