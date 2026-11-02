@@ -26,7 +26,6 @@ SOURCES = ("greenhouse", "ashby", "smartrecruiters", "lever", "comeet", "workday
 # Only the sources infra/alarms.tf watches are sent: each metric is billed
 # monthly past the free ten.
 ALARMED = ("greenhouse", "ashby", "smartrecruiters")
-FRAGMENT_PREFIX = "deltas/"
 
 
 def _parse(stamp: str) -> datetime | None:
@@ -57,11 +56,11 @@ def freshness_minutes(conn, now: datetime | None = None) -> dict[str, float]:
     return out
 
 
-def pending_fragments(s3, bucket: str) -> int:
-    """How many fragments the applier has not yet taken. One page: past a
-    thousand the exact number stops mattering."""
-    page = s3.list_objects_v2(Bucket=bucket, Prefix=FRAGMENT_PREFIX, MaxKeys=1000)
-    return int(page.get("KeyCount") or 0)
+def pending_fragments(spool: Path) -> int:
+    """How many fetched fragments wait for an apply. Counted in the box's
+    spool: S3 keeps every fragment for 7 days now (a log, see
+    box/shadow_apply.py), so its count no longer means a backlog."""
+    return sum(1 for _ in spool.glob("*.json"))
 
 
 def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None) -> dict:
@@ -76,8 +75,7 @@ def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None
         fresh = freshness_minutes(conn, now)
     finally:
         conn.close()
-    s3 = s3 or boto3.client("s3")
-    pending = pending_fragments(s3, bucket) if bucket else None
+    pending = pending_fragments(db.parent / "deltas") if bucket else None
 
     data = [{"MetricName": "SourceFreshnessMinutes", "Dimensions": [{"Name": "ats", "Value": ats}],
              "Value": round(minutes, 1), "Unit": "None"} for ats, minutes in sorted(fresh.items()) if ats in ALARMED]

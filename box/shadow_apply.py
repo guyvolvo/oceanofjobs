@@ -45,7 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 for _p in (ROOT, ROOT / "api", ROOT / "loader"):
     sys.path.insert(0, str(_p))
 
-from deltas import PREFIX as DELTA_PREFIX, delete_fragments, unpack, unpacked_size  # noqa: E402
+from deltas import PREFIX as DELTA_PREFIX, unpack, unpacked_size  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lock import clear_waiting, exclusive, note_waiting, someone_waiting  # noqa: E402
@@ -389,7 +389,8 @@ def _apply_batch(pending: list[Path]) -> tuple[int, list[Path]]:
     logos = DB.with_name("company-logos.json")
     cmd = [sys.executable, str(ROOT / "loader" / "load_to_sqlite.py"),
            "--resolved", str(WORK), "--out", str(DB),
-           "--drop-description", "--skip-vacuum", "--skip-known", "--box"]
+           "--drop-description", "--skip-vacuum", "--skip-known", "--box",
+           "--last-fragment", DELTA_PREFIX + take[-1].name]
     if logos.exists():
         cmd += ["--logos", str(logos)]
     if PRIMARY and len(pending) - len(take) <= len(take):
@@ -423,13 +424,10 @@ def _apply_batch(pending: list[Path]) -> tuple[int, list[Path]]:
 
     for p in take:
         p.unlink(missing_ok=True)
-    cleared = 0
-    if PRIMARY:
-        # Only now, and only here: the rows are committed to a file that
-        # is not going anywhere, so the queue can be cleared. While the
-        # Lambda is still applying it owns this and the box must not,
-        # or the Lambda would lose fragments the way the box used to.
-        cleared = delete_fragments(BUCKET, [DELTA_PREFIX + p.name for p in take])
+    # Fragments stay in S3 (a lifecycle rule expires deltas/ after 7 days,
+    # infra/s3.tf), so S3 is a log rather than a queue: deleting here lost
+    # a batch whenever the disk died before Litestream shipped it (up to
+    # 30 s). A restore replays everything after meta.last_fragment_key.
     apply_s = time.monotonic() - started
     # The artifacts the site reads are built by box/publish.py on its own
     # timer, not here. They are not part of applying deltas, and their
@@ -437,8 +435,7 @@ def _apply_batch(pending: list[Path]) -> tuple[int, list[Path]]:
     # 433MB and 392s, which on top of the fragments this already holds
     # reached the cgroup limit and stopped applies finishing at all.
     print(f"applied {companies} companies from {len(take)} of {len(pending)} spooled fragments "
-          f"({total / 1048576:.0f}MB): read {read_s:.1f}s, apply {apply_s:.1f}s, "
-          f"cleared {cleared} (loader {loader_s:.0f}s)")
+          f"({total / 1048576:.0f}MB): read {read_s:.1f}s, apply {apply_s:.1f}s (loader {loader_s:.0f}s)")
     _write_status("idle", f"last apply: {companies} companies from {len(take)} fragments")
     return 0, take
 

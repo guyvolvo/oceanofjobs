@@ -2313,6 +2313,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--resolved", required=True, type=Path,
                      help="probe.py --json output (either --batch's full discovery run or --known's fast-poll run, same shape, loaded the same way)")
+    ap.add_argument("--last-fragment", help="the newest delta fragment in --resolved; kept in meta.last_fragment_key in the same transaction")
     ap.add_argument("--deep", type=Path, help="best-effort scraper output (optional)")
     ap.add_argument("--out", required=True, type=Path, help="local jobs.db path")
     ap.add_argument("--known-out", type=Path, default=None,
@@ -2432,6 +2433,11 @@ def main() -> int:
 
         with conn:
             current_domains = load_resolved(conn, args.resolved, args.drop_description)
+            if args.last_fragment:
+                # In this transaction, so the key always names exactly what the
+                # file holds: a restore replays the retained fragments after it.
+                conn.execute("INSERT INTO meta (key, value) VALUES ('last_fragment_key', ?) "
+                             "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (args.last_fragment,))
             lap("merge")
             sweep_due = (not args.box) or _box_sweep_due(conn)
             n_roles = classify_roles(conn)
