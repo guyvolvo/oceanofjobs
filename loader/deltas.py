@@ -128,9 +128,11 @@ def put_fragment(bucket: str, results: list[dict]) -> list[str]:
         # Joined from the per-company bytes rather than re-serializing
         # the batch, which would double this function's peak memory on
         # the very machine whose memory is the point of the exercise.
-        body = b"[" + b",".join(batch) + b"]"
+        # Gzipped: the box downloads every fragment, ~10x fewer bytes.
+        # Readers take either form (unpack), so the key keeps .json.
+        body = gzip.compress(b"[" + b",".join(batch) + b"]", 6)
         s3.put_object(Bucket=bucket, Key=key, Body=body,
-                      ContentType="application/json")
+                      ContentType="application/gzip")
         keys.append(key)
     return keys
 

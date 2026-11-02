@@ -85,7 +85,7 @@ with tempfile.TemporaryDirectory() as td:
             self.puts = []
 
         def put_object(self, Bucket=None, Key=None, Body=None, ContentType=None):
-            self.puts.append(json.loads(Body))
+            self.puts.append(json.loads(deltas.unpack(Body)))
 
     fake = FakeS3()
     deltas.boto3 = type("m", (), {"client": staticmethod(lambda *a, **k: fake)})()
