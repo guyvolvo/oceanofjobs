@@ -15,8 +15,12 @@ changes card and sees invoices.
 POST /api/dodo/webhook: Dodo's Standard Webhooks. webhook-signature holds
 "v1,<base64>" entries, each HMAC-SHA256 over "<id>.<timestamp>.<raw
 body>" keyed with the base64-decoded secret after "whsec_". Subscription
-events keep one #plan row per user (apply.plan_of reads it), with Dodo's
-statuses in the words that row has always used. A succeeded refund
+events keep one #plan#<subscription id> row per subscription (apply.plan_of
+reads them) and a #plan summary of them for the account page and the CRM,
+with Dodo's statuses in the words that row has always used. Keyed by
+subscription because one account can hold two: an upgrade bought through
+/pricing starts a new subscription, and cancelling the old one must not
+end the new plan. A succeeded refund
 cancels its subscription now, as the refund policy says. Events can
 arrive out of order: one older than the event the row was written from
 is ignored.
@@ -36,7 +40,11 @@ import time
 import urllib.error
 import urllib.request
 
+import apply
+
 PLAN_ROW = "#plan"
+# One row per subscription, "#plan#<subscription id>"; #plan is their summary.
+SUB_ROW = PLAN_ROW + "#"
 BILLING_ROW = "#billing"
 # Not a user: the partition that maps a Dodo customer to its account.
 CUSTOMERS = "#dodo-customers"
@@ -162,6 +170,14 @@ def _owner(table, data: dict) -> str | None:
     return (row or {}).get("owner")
 
 
+def _summary(rows: list[dict]) -> dict:
+    """The #plan row: the best plan among subscriptions in force, else the
+    latest subscription's state (a cancelled plan reads as canceled)."""
+    live = [r for r in rows if r.get("status") in apply.PAID_STATUSES and r.get("plan") in apply.LIMITS]
+    pick = max(live, key=lambda r: list(apply.LIMITS).index(r["plan"])) if live else max(rows, key=lambda r: r.get("event_at") or "")
+    return {**pick, "alert_id": PLAN_ROW, "event_at": max(r.get("event_at") or "" for r in rows)}
+
+
 def cancel(subscription_id: str, send=None) -> bool:
     """Cancels a subscription now. Dodo then sends subscription.cancelled,
     which is what moves the user to free."""
@@ -184,7 +200,13 @@ def apply_event(table, event: dict, send=None) -> str:
         if not user_id:
             return f"{kind}: no account for {data.get('subscription_id')}, ignored"
         plan = products().get(data.get("product_id") or "")
-        row = {"user_id": user_id, "alert_id": PLAN_ROW, "plan": plan or "free",
+        sub_id = data.get("subscription_id") or ""
+        if not apply.query_all(table, user_id, SUB_ROW):
+            # Paid before per-subscription rows: keep that subscription as its own row first.
+            old = table.get_item(Key={"user_id": user_id, "alert_id": PLAN_ROW}).get("Item") or {}
+            if old.get("subscription_id") and old["subscription_id"] != sub_id:
+                table.put_item(Item={**old, "alert_id": SUB_ROW + old["subscription_id"]})
+        row = {"user_id": user_id, "alert_id": SUB_ROW + sub_id, "plan": plan or "free",
                "status": STATUS.get(data.get("status") or "", data.get("status") or ""),
                "subscription_id": data.get("subscription_id") or "",
                "customer_id": (data.get("customer") or {}).get("customer_id") or "",
@@ -194,7 +216,9 @@ def apply_event(table, event: dict, send=None) -> str:
                            ExpressionAttributeValues={":at": at})
         except table.meta.client.exceptions.ConditionalCheckFailedException:
             return f"{kind}: older than the stored event, ignored"
-        return f"{kind}: {user_id} is {row['plan']} ({row['status']})"
+        summary = _summary(apply.query_all(table, user_id, SUB_ROW))
+        table.put_item(Item=summary)
+        return f"{kind}: {user_id} is {summary['plan']} ({summary['status']})"
     if kind == "refund.succeeded":
         # Dodo refunds a payment and leaves its subscription running: left
         # alone, a refunded customer keeps the plan and is charged again.

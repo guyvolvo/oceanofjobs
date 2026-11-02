@@ -25,6 +25,13 @@ resource "aws_dynamodb_table" "alerts" {
     type = "S"
   }
 
+  # The only record of credits, plans and disputes. Replication can't undo
+  # a bad write; this restores to any second of the last 35 days, for
+  # cents a month at this size (2026-11-02 review).
+  point_in_time_recovery {
+    enabled = true
+  }
+
   # No GSI on `active`: the evaluator Lambda does a full table Scan,
   # filtering active=true client-side, once per fast-poll cycle. Cheap at
   # this project's expected scale (a handful to low hundreds of alerts);

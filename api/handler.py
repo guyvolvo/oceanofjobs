@@ -935,7 +935,7 @@ def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict
     op = action or ("reserve" if method == "POST" else "get")
     try:
         if len(parts) == 1 and method == "POST":
-            return ok(200, {"attempt": A.reserve(user_id, str(body.get("attempt_id") or ""), body, tz=body.get("tz"))})
+            return ok(200, {"attempt": A.reserve(user_id, str(body.get("attempt_id") or ""), body, tz=attempts.account_tz(_alerts_table, user_id, body.get("tz")))})
         if len(parts) == 2 and method == "GET":
             row = A._get(user_id, attempts.ATTEMPT + attempt_id)
             if not row:
@@ -951,7 +951,7 @@ def _route_attempts(user_id: str, method: str, sub: str, body: dict, ok) -> dict
                 return ok(200, {"attempt": A.settle(user_id, attempt_id, str(body.get("outcome") or ""), str(body.get("reason") or ""),
                                                     questions=questions)})
             if action == "dispute":
-                return ok(200, {"attempt": A.dispute(user_id, attempt_id, tz=body.get("tz"))})
+                return ok(200, {"attempt": A.dispute(user_id, attempt_id, tz=attempts.account_tz(_alerts_table, user_id, body.get("tz")))})
             if action == "sent":
                 how = body.get("how") if body.get("how") in ("request", "page") else "page"
                 return ok(200, {"attempt": A.sent(user_id, attempt_id, how)})
@@ -984,13 +984,13 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
     if sub == "" and method == "DELETE":
         # Account deletion: the profile, the applied history and the queue.
         for r in apply.query_all(_alerts_table, user_id):
-            if r["alert_id"] in (apply.PROFILE_ROW, apply.ONBOARDED_ROW) or r["alert_id"].startswith(
+            if r["alert_id"] in (apply.PROFILE_ROW, apply.ONBOARDED_ROW, attempts.TZ_ROW) or r["alert_id"].startswith(
                     (apply.APPLIED, apply.QUEUE, apply.OUTCOME, apply.ORIGIN, attempts.ATTEMPT, attempts.JOBLOCK, attempts.LEDGER_MONTH, attempts.LEDGER_DAY,
                      agent.AGENT, agent.RESUME, ai_answers.RATE_ROW, ai_answers.MONTH_ROW)):
                 _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
         return ok(204)
     origin = _token_origin(event)
-    if sub in ("attempts", "filled", "claim") and method == "POST" and origin and apply.JOB_ID.match(str(body.get("job_id") or "")):
+    if sub in ("attempts", "filled") and method == "POST" and origin and apply.JOB_ID.match(str(body.get("job_id") or "")):
         # A job the extension starts itself, not from the queue: from the extension.
         apply.note_origin(_alerts_table, user_id, body["job_id"], origin, first_only=True)
     if sub == "attempts" or sub.startswith("attempts/"):
@@ -1069,12 +1069,12 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         return ok(204)
     if sub == "usage" and method == "GET":
         # The summary's numbers in the old shape, for clients that still ask here.
-        s = attempts.Attempts(_alerts_table).summary(user_id, tz=params.get("tz"))
+        s = attempts.Attempts(_alerts_table).summary(user_id, tz=attempts.account_tz(_alerts_table, user_id, params.get("tz"), save=False))
         return ok(200, {"plan": s["plan"], "period": s["period"], "limit": s["limit"],
                         "used": s["used"] + s["in_progress"], "remaining": s["remaining"]})
     if sub == "summary" and method == "GET":
         q = apply.queue(_alerts_table, user_id)
-        return ok(200, attempts.Attempts(_alerts_table).summary(user_id, tz=params.get("tz"), queued=len(q),
+        return ok(200, attempts.Attempts(_alerts_table).summary(user_id, tz=attempts.account_tz(_alerts_table, user_id, params.get("tz"), save=False), queued=len(q),
                                                                  queued_ids={r["job_id"] for r in q}))
     if sub == "needs" and method == "GET":
         q = {r["job_id"] for r in apply.queue(_alerts_table, user_id)}
@@ -1129,13 +1129,6 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             return resp
         except ai_answers.NotConfigured as e:
             return ok(503, {"error": str(e), "code": "unavailable", "retryable": True})
-    if sub == "claim" and method == "POST":
-        try:
-            return ok(200, apply.claim(_alerts_table, user_id, body))
-        except apply.LimitReached as e:
-            return ok(402, {"error": str(e)})
-        except apply.AlreadyApplied as e:
-            return ok(409, {"error": str(e)})
     if sub == "result" and method == "POST":
         apply.result(_alerts_table, user_id, body)
         return ok(204)

@@ -114,25 +114,24 @@ u = apply.usage(t, "u", NOW)
 check("free plan: 10 a month", u == {"plan": "free", "period": "month", "limit": 10, "used": 0, "remaining": 10}, repr(u))
 
 jobs = [f"{i:016x}" for i in range(1, 32)]
-r = apply.claim(t, "u", {"job_id": jobs[0], "company": "Acme", "title": "Engineer"}, NOW)
-check("a claim takes one credit", r == {"remaining": 9})
-try:
-    apply.claim(t, "u", {"job_id": jobs[0]}, NOW)
-    check("the same job cannot be claimed twice", False)
-except apply.AlreadyApplied:
-    check("the same job cannot be claimed twice", True)
+
+
+def legacy_claim(table, job_id, url="", at=NOW):
+    """The row the retired /claim route wrote. usage, result and History still read these."""
+    table.put_item(Item={"user_id": "u", "alert_id": apply.APPLIED + job_id, "job_id": job_id, "company": "Acme",
+                         "title": "Engineer", "url": url, "canon": apply.canonical_job(url), "status": "claimed",
+                         "reason": "", "at": at.isoformat()})
+
+
+legacy_claim(t, jobs[0])
+check("a legacy claim holds one credit", apply.usage(t, "u", NOW)["remaining"] == 9)
 apply.result(t, "u", {"job_id": jobs[0], "status": "skipped", "reason": "needs answer: Why us?"}, NOW)
 check("a skipped job gives its credit back", apply.usage(t, "u", NOW)["remaining"] == 10)
-check("and can be claimed again later", apply.claim(t, "u", {"job_id": jobs[0]}, NOW) == {"remaining": 9})
+legacy_claim(t, jobs[0])
 apply.result(t, "u", {"job_id": jobs[0], "status": "submitted"}, NOW)
 for j in jobs[1:10]:
-    apply.claim(t, "u", {"job_id": j}, NOW)
+    legacy_claim(t, j)
 check("ten used", apply.usage(t, "u", NOW)["used"] == 10)
-try:
-    apply.claim(t, "u", {"job_id": jobs[10]}, NOW)
-    check("the eleventh claim is refused on free", False)
-except apply.LimitReached:
-    check("the eleventh claim is refused on free", True)
 later = NOW + timedelta(seconds=apply.CLAIM_HOLD_S + 1)
 check("claims with no result free themselves after the hold", apply.usage(t, "u", later)["used"] == 1)
 check("a new month starts empty", apply.usage(t, "u", datetime(2026, 11, 1, tzinfo=timezone.utc))["used"] == 0)
@@ -239,7 +238,7 @@ for bad in ("hired", "", None, "submitted"):
 # skip, refunded, or claimed again, under its own id or another one.
 t2 = FakeTable()
 gh = "https://job-boards.greenhouse.io/embed/job_app?for=celonis&token=8015242003"
-apply.claim(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "url": gh, "company": "celonis.com", "title": "Engineer"}, NOW)
+legacy_claim(t2, "aaaaaaaaaaaaaaaa", gh)
 apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "submitted"}, NOW)
 used = apply.usage(t2, "u", NOW)["used"]
 apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "skipped", "reason": "You've already applied to this job."}, NOW)
@@ -248,27 +247,16 @@ check("a skip reported for a submitted job leaves it submitted", row["status"] =
 check("and refunds nothing", apply.usage(t2, "u", NOW)["used"] == used)
 apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "failed", "reason": "no confirmation"}, NOW)
 check("nor can a failure overwrite it", t2.items[("u", apply.APPLIED + "aaaaaaaaaaaaaaaa")]["status"] == "submitted")
-try:
-    apply.claim(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "url": gh}, NOW + timedelta(days=40))
-    check("a submitted job cannot be claimed again, even months later", False)
-except apply.AlreadyApplied:
-    check("a submitted job cannot be claimed again, even months later", True)
-try:
-    apply.claim(t2, "u", {"job_id": "bbbbbbbbbbbbbbbb", "url": "https://careers.celonis.com/open-roles?gh_jid=8015242003"}, NOW)
-    check("nor under another id, from the company's own careers page", False)
-except apply.AlreadyApplied:
-    check("nor under another id, from the company's own careers page", True)
+check("nor under another id, from the company's own careers page",
+      apply.submitted_already(t2, "u", "bbbbbbbbbbbbbbbb", "https://careers.celonis.com/open-roles?gh_jid=8015242003"))
 check("the queue guard sees it by id", apply.submitted_already(t2, "u", "aaaaaaaaaaaaaaaa"))
 check("and by the job itself", apply.submitted_already(t2, "u", "cccccccccccccccc", "https://boards.greenhouse.io/celonis/jobs/8015242003"))
 check("but not another job", not apply.submitted_already(t2, "u", "cccccccccccccccc", "https://boards.greenhouse.io/celonis/jobs/9999"))
 legacy = FakeTable()
 legacy.put_item(Item={"user_id": "u", "alert_id": apply.APPLIED + "dddddddddddddddd", "job_id": "dddddddddddddddd",
                       "url": "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808", "status": "submitted", "at": NOW.isoformat()})
-try:
-    apply.claim(legacy, "u", {"job_id": "eeeeeeeeeeeeeeee", "url": "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808/apply"}, NOW)
-    check("rows written before canonical ids still match by their url", False)
-except apply.AlreadyApplied:
-    check("rows written before canonical ids still match by their url", True)
+check("rows written before canonical ids still match by their url",
+      apply.submitted_already(legacy, "u", "eeeeeeeeeeeeeeee", "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808/apply"))
 
 # Regression, bug 2: a job skipped before any claim (a question the profile
 # can't answer) is recorded at no cost, so the next run sees it as tried.
@@ -277,7 +265,6 @@ apply.result(t3, "u", {"job_id": "ffffffffffffffff", "status": "skipped", "reaso
 row = t3.items.get(("u", apply.APPLIED + "ffffffffffffffff"))
 check("a skip with no claim is kept as a record", row and row["status"] == "skipped" and row["reason"] == "needs answer: Why us?", repr(row))
 check("and costs nothing", apply.usage(t3, "u", NOW)["used"] == 0)
-check("the job can still be claimed once the question is answered", apply.claim(t3, "u", {"job_id": "ffffffffffffffff"}, NOW) == {"remaining": 9})
 
 for url, want in [(gh, "greenhouse:8015242003"), ("https://boards.greenhouse.io/celonis/jobs/8015242003", "greenhouse:8015242003"),
                   ("https://jobs.ashbyhq.com/synthesia/ce402b96-d2c2-4651-bb20-2b8cf6166acc/application", "ashby:ce402b96-d2c2-4651-bb20-2b8cf6166acc"),
