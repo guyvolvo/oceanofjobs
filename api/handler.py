@@ -990,7 +990,7 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
                 _alerts_table.delete_item(Key={"user_id": user_id, "alert_id": r["alert_id"]})
         return ok(204)
     origin = _token_origin(event)
-    if sub in ("attempts", "filled", "claim") and method == "POST" and origin and apply.JOB_ID.match(str(body.get("job_id") or "")):
+    if sub in ("attempts", "filled") and method == "POST" and origin and apply.JOB_ID.match(str(body.get("job_id") or "")):
         # A job the extension starts itself, not from the queue: from the extension.
         apply.note_origin(_alerts_table, user_id, body["job_id"], origin, first_only=True)
     if sub == "attempts" or sub.startswith("attempts/"):
@@ -1129,13 +1129,6 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
             return resp
         except ai_answers.NotConfigured as e:
             return ok(503, {"error": str(e), "code": "unavailable", "retryable": True})
-    if sub == "claim" and method == "POST":
-        try:
-            return ok(200, apply.claim(_alerts_table, user_id, body))
-        except apply.LimitReached as e:
-            return ok(402, {"error": str(e)})
-        except apply.AlreadyApplied as e:
-            return ok(409, {"error": str(e)})
     if sub == "result" and method == "POST":
         apply.result(_alerts_table, user_id, body)
         return ok(204)

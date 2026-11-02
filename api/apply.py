@@ -386,38 +386,8 @@ def usage(table, user_id: str, now: datetime | None = None) -> dict:
     return {"plan": plan, "period": period, "limit": limit, "used": used, "remaining": max(0, limit - used)}
 
 
-class LimitReached(Exception):
-    pass
-
-
 class AlreadyApplied(Exception):
     pass
-
-
-def claim(table, user_id: str, body: dict, now: datetime | None = None) -> dict:
-    """Reserve one credit for one job before the extension submits it."""
-    now = now or datetime.now(timezone.utc)
-    job_id = str((body or {}).get("job_id") or "")
-    if not JOB_ID.match(job_id):
-        raise ValueError("job_id is not a job id")
-    existing = table.get_item(Key={"user_id": user_id, "alert_id": APPLIED + job_id}).get("Item")
-    if existing and _counts(existing, now):
-        raise AlreadyApplied("already applied to this job")
-    # The same job under another id: the board's listing and a careers page
-    # hashed by its address (extension/background.js pageJobId).
-    canon = canonical_job(body.get("url"))
-    if canon and any(_counts(r, now) and (r.get("canon") or canonical_job(r.get("url"))) == canon
-                     for r in _applied(table, user_id) if r.get("job_id") != job_id):
-        raise AlreadyApplied("already applied to this job")
-    u = usage(table, user_id, now)
-    if u["remaining"] <= 0:
-        when = "this month" if u["period"] == "month" else "today"
-        raise LimitReached(f"You've used all {u['limit']} applications on the {u['plan'].capitalize()} plan {when}.")
-    table.put_item(Item={"user_id": user_id, "alert_id": APPLIED + job_id, "job_id": job_id,
-                         "company": _text(body.get("company"), 200), "title": _text(body.get("title"), 300),
-                         "url": _text(body.get("url"), 1000), "canon": canon, "status": "claimed", "reason": "",
-                         "at": now.isoformat()})
-    return {"remaining": u["remaining"] - 1}
 
 
 def result(table, user_id: str, body: dict, now: datetime | None = None) -> None:

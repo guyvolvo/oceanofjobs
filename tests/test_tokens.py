@@ -312,12 +312,11 @@ got = json.loads(body)
 check("and reads it back with the search preferences", got["profile"]["contact"]["first_name"] == "Ada" and "preferences" in got, repr(got)[:200])
 status, _ = call("/api/me/apply/answers", "POST", ext, {"question": "Why us?", "answer": "Because"})
 check("saves an answer", status.startswith("204"), status)
-status, body = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef", "company": "Acme"})
-check("claims a credit", status.startswith("200") and json.loads(body)["remaining"] == handler.apply.LIMITS["free"][1] - 1, status + body.decode())
-status, _ = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef"})
-check("a second claim on the same job is 409", status.startswith("409"), status)
-status, _ = call("/api/me/apply/result", "POST", ext, {"job_id": "0123456789abcdef", "status": "submitted"})
-check("reports the result", status.startswith("204"), status)
+status, _ = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef", "company": "Acme"})
+check("the retired claim route is 404", status.startswith("404"), status)
+# A submission made through the retired route, as its row still sits in the table.
+table.put_item(Item={"user_id": "u-ext", "alert_id": handler.apply.APPLIED + "0123456789abcdef", "job_id": "0123456789abcdef",
+                     "status": "submitted", "reason": "", "at": datetime.now(timezone.utc).isoformat()})
 status, body = call("/api/me/apply/history", auth=ext)
 check("the history shows it submitted", json.loads(body)["applied"][0]["status"] == "submitted", body.decode()[:200])
 # Regression, bug 1: a submitted job can't be queued again by any caller,

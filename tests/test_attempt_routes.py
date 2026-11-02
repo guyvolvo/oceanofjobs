@@ -217,9 +217,12 @@ with mock_aws():
     check("and the stale run releases nothing again", first_run == 0 and held == [0, 0, 0, 0] and "failed" not in quiet.getvalue(),
           repr((first_run, held, quiet.getvalue())))
 
-    # 5. The old routes are unchanged and make no reservations.
-    s, b = call("frank", "POST", "claim", {"job_id": job(20)["job_id"], "url": job(20)["url"], "company": "acme.com"})
-    check("the old claim still answers as before", s == 200 and b == {"remaining": handler.apply.LIMITS["free"][1] - 1}, repr((s, b)))
+    # 5. /claim is retired (no calls since extension 1.9, 2026-11-02); a row it
+    # wrote still settles through /result and counts in usage.
+    s, _ = call("frank", "POST", "claim", {"job_id": job(20)["job_id"], "url": job(20)["url"], "company": "acme.com"})
+    check("the retired claim route answers 404", s == 404, repr(s))
+    table.put_item(Item={"user_id": "frank", "alert_id": apply.APPLIED + job(20)["job_id"], "job_id": job(20)["job_id"],
+                         "url": job(20)["url"], "status": "claimed", "reason": "", "at": datetime.now(timezone.utc).isoformat()})
     s, _ = call("frank", "POST", "result", {"job_id": job(20)["job_id"], "status": "submitted"})
     s2, b2 = call("frank", "GET", "usage")
     check("the old result and usage still work", s == 204 and b2["used"] == 1, repr((s, b2)))
@@ -247,8 +250,8 @@ with mock_aws():
     s2, b2 = call("bob", "POST", "attempts/sender-0001/sent", {"how": "request"})
     check("the user's own send of a filled form is recorded, and not by another user", s == 200 and b["attempt"]["state"] == "sent"
           and s2 == 404, repr((s, b, s2)))
-    call("gina", "POST", "claim", {"job_id": job(35)["job_id"], "url": job(35)["url"]})
-    call("gina", "POST", "result", {"job_id": job(35)["job_id"], "status": "submitted"})  # one through the old path
+    table.put_item(Item={"user_id": "gina", "alert_id": apply.APPLIED + job(35)["job_id"], "job_id": job(35)["job_id"],
+                         "url": job(35)["url"], "status": "submitted", "reason": "", "at": datetime.now(timezone.utc).isoformat()})  # one through the old path
     s, summ = call("gina", "GET", "summary")
     check("the summary counts submitted and unconfirmed as used, across both paths", s == 200 and summ["used"] == 3, repr(summ))
     check("and the open attempt as in progress, with the rest left", summ["in_progress"] == 1 and summ["remaining"] == handler.apply.LIMITS["free"][1] - 4, repr(summ))
@@ -287,7 +290,8 @@ with mock_aws():
 
     # Credits used through the old path count against the new one.
     for n in range(handler.apply.LIMITS["free"][1]):
-        handler.apply.claim(table, "hank", {"job_id": f"{100 + n:016x}"})
+        table.put_item(Item={"user_id": "hank", "alert_id": apply.APPLIED + f"{100 + n:016x}", "job_id": f"{100 + n:016x}",
+                             "status": "submitted", "reason": "", "at": datetime.now(timezone.utc).isoformat()})
     s, b = call("hank", "POST", "attempts", {"attempt_id": "hank-00001", **job(60)})
     check("the free limit used the old way: a new reservation is refused", s == 402 and b["code"] == "limit_reached", repr((s, b)))
 

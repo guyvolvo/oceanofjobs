@@ -2,9 +2,9 @@
 and disputes, as api/AUTO_APPLY_CONTRACT.md defines them.
 
 Extension 1.9 and later reserve, gate and settle through these, and call
-apply.result only to record a skip. 1.8 and earlier (1.7.0 is still the
-store's public version on 2026-10-22) use apply.claim and apply.result, so
-every reserve and summary counts those rows too.
+apply.result only to record a skip. The 1.8-era claim route is gone
+(no calls after 2026-10-21, removed 2026-11-02); the #applied rows it wrote
+still count in every reserve and summary for their period.
 
 Rows, all in the alerts table under the user's id:
 - #attempt#<id>: one attempt. Its job, the period and time zone fixed at
