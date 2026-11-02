@@ -296,6 +296,8 @@ _NEW_COMPANY_COLUMNS = {
     # haven't looked up yet.
     "logo_url": "TEXT",
     "logo_source": "TEXT",
+    # When the board entry last applied was polled (probe.py observed_at).
+    "observed_at": "TEXT",
 }
 
 
@@ -501,6 +503,19 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
         # and put it straight into known.json again.
         if domain in SAME_COMPANY:
             continue
+
+        # Apply order is fragment-key order, which is the time a fragment
+        # was written, not when its board was polled. A sweep killed after
+        # a hang writes its old poll after a newer one; applied, that old
+        # board would close the newer jobs and reopen closed ones, and the
+        # 304s that follow would keep it so. Skip anything older than what
+        # was applied. Entries without a stamp (older producers) apply as before.
+        polled = r.get("observed_at")
+        if polled:
+            row = conn.execute("SELECT observed_at FROM companies WHERE domain = ?", (domain,)).fetchone()
+            if row and row[0] and row[0] > polled:
+                continue  # still covered: the company is tracked, only this entry is stale
+            conn.execute("UPDATE companies SET observed_at = ? WHERE domain = ?", (polled, domain))
 
         # "unchanged": probe.py's conditional re-poll got a 304 (or the
         # normalized content hash matched), so it deliberately did NOT

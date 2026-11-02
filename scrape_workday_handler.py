@@ -399,6 +399,7 @@ def _poll_workday(sess, entry: dict, state_row: dict | None, known_ids: set[str]
         return miss
     return {"domain": entry["domain"], "ats": "workday", "token": token, "job_count": len(jobs),
             "tried": 1, "error": None, "retryable": False, "content_hash": fingerprint,
+            "observed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "jobs": [asdict(j) for j in probe._fill_classifications(jobs)]}
 
 

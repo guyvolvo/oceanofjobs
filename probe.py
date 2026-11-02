@@ -197,6 +197,11 @@ class Resolution:
     # company that has no logo from one we failed to look up.
     logo_url: str | None = None
     logo_source: str | None = None
+    # When this board's poll finished (UTC ISO), stamped as the result is
+    # written out. The applier skips an entry older than the one it already
+    # applied, so a hung sweep's late fragment can't reopen or close jobs
+    # behind a newer poll (2026-11-02 review).
+    observed_at: str | None = None
     # True when this board was checked and provably hasn't moved, either
     # a 304 or a matching normalized_job_hash. Critically NOT the same as
     # "the board is empty": jobs is [] in both cases, and
@@ -5152,6 +5157,7 @@ def main() -> int:
     sink = None
     if out_fh is not None:
         def sink(r):
+            r.observed_at = r.observed_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
             out_fh.write(json.dumps(asdict(r), ensure_ascii=False) + "\n")
             out_fh.flush()
 
