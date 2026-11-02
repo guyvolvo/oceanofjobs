@@ -100,6 +100,22 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
     }
   }
 
+  # Delta fragments are a 7-day log, not a queue: the box no longer deletes
+  # them after apply, so a database restored from Litestream can replay
+  # everything after meta.last_fragment_key (box/shadow_apply.py).
+  rule {
+    id     = "expire-delta-fragments"
+    status = "Enabled"
+
+    filter {
+      prefix = "deltas/"
+    }
+
+    expiration {
+      days = 7
+    }
+  }
+
   rule {
     id     = "abort-incomplete-uploads"
     status = "Enabled"

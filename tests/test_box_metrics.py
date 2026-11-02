@@ -52,8 +52,12 @@ with tempfile.TemporaryDirectory() as td:
 
     class FakeS3:
         def list_objects_v2(self, Bucket=None, Prefix=None, MaxKeys=None):
-            return {"KeyCount": 7, "Contents": []}
+            raise AssertionError("the backlog is counted in the spool, not in S3 (which keeps 7 days)")
 
+    spool = db.parent / "deltas"
+    spool.mkdir(exist_ok=True)
+    for i in range(7):
+        (spool / f"{i:03d}.json").write_text("[]", encoding="utf-8")
     cw = FakeCW()
     sent = metrics.publish(db, "bucket", cw=cw, s3=FakeS3(), now=NOW)
     check("one put carries every metric", len(cw.calls) == 1 and cw.calls[0]["Namespace"] == "OceanOfJobs")
