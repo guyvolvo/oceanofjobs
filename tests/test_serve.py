@@ -5,6 +5,7 @@ Needs PyJWT with crypto, as the box does:  pip install "pyjwt[crypto]"
 Run directly, no framework:  python tests/test_serve.py
 """
 import io
+import json
 import os
 import sys
 import time
@@ -53,6 +54,21 @@ serve.app({"PATH_INFO": "/api/geo", "REQUEST_METHOD": "GET", "HTTP_X_VIEWER_COUN
           lambda status, headers: geo.update(status=status, headers=dict(headers)))
 check("/api/geo tells every edge not to cache one viewer's country",
       geo["status"].startswith("200") and geo["headers"].get("Cache-Control") == "no-store", repr(geo))
+
+# Box egress is billed per GB: big text answers go out gzipped when asked.
+import gzip  # noqa: E402
+real_handler = serve.lambda_handler
+serve.lambda_handler = lambda e, c: {"statusCode": 200, "headers": {"Content-Type": "application/json"}, "body": json.dumps({"jobs": ["x" * 40] * 200})}
+for enc in ("gzip, br", ""):
+    got = {}
+    out = b"".join(serve.app({"PATH_INFO": "/api/jobs", "REQUEST_METHOD": "GET", "HTTP_ACCEPT_ENCODING": enc, "wsgi.input": Body()},
+                             lambda status, headers: got.update(headers=dict(headers))))
+    if enc:
+        check("a big JSON answer is gzipped for a gzip client", got["headers"].get("Content-Encoding") == "gzip"
+              and len(json.loads(gzip.decompress(out))["jobs"]) == 200 and int(got["headers"]["Content-Length"]) == len(out))
+    else:
+        check("a client without gzip gets plain JSON", "Content-Encoding" not in got["headers"] and json.loads(out)["jobs"])
+serve.lambda_handler = real_handler
 
 status, _ = call("/api/me/profile")
 check("/api/me without a token is 401 before the handler runs", status.startswith("401"), status)

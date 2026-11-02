@@ -55,10 +55,10 @@ check("a page can't send a server event", not events.record("alert_created"))
 check("the server can", events.record("alert_created", from_page=False))
 cw = FakeCW()
 sent = events.flush(cw)
-check("a flush sends what was counted", sent == {"apply": 2, "visit": 1, "alert_created": 1}, repr(sent))
+check("a flush sends the kept events only (alert_created is counted, never billed)", sent == {"apply": 2, "visit": 1}, repr(sent))
 datums = cw.calls[0]["MetricData"]
 check("one Events datum per name, in the OceanOfJobs namespace",
-      cw.calls[0]["Namespace"] == "OceanOfJobs" and len(datums) == 3
+      cw.calls[0]["Namespace"] == "OceanOfJobs" and len(datums) == 2
       and all(d["MetricName"] == "Events" and d["Dimensions"][0]["Name"] == "event" for d in datums), repr(datums))
 cw2 = FakeCW()
 check("a second flush with nothing counted sends nothing", events.flush(cw2) == {} and not cw2.calls)

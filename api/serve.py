@@ -24,6 +24,7 @@ Two things API Gateway did that a plain WSGI server does not:
 """
 
 import base64
+import gzip
 import json
 import os
 from http import HTTPStatus
@@ -137,6 +138,18 @@ def _permission_refusal(path: str, method: str, claims: dict) -> str | None:
     return None
 
 
+TEXT_TYPES = ("application/json", "text/", "application/xml", "application/javascript", "image/svg+xml")
+
+
+def _compressible(environ, headers, payload) -> bool:
+    if len(payload) < 1024 or "gzip" not in environ.get("HTTP_ACCEPT_ENCODING", "").lower():
+        return False
+    names = {k.lower(): v for k, v in headers}
+    if "content-encoding" in names:
+        return False
+    return names.get("content-type", "application/json").lower().startswith(TEXT_TYPES)
+
+
 def app(environ, start_response):
     # Every real body is a small JSON form; _event reads the whole thing
     # into memory, and nothing upstream caps it below Cloudflare's 100MB.
@@ -175,6 +188,12 @@ def app(environ, start_response):
     else:
         payload = body.encode("utf-8") if isinstance(body, str) else body
     headers = [(k, str(v)) for k, v in (result.get("headers") or {}).items()]
+    if _compressible(environ, headers, payload):
+        # Egress from the box is billed per GB and Cloudflare always asks for
+        # gzip, so uncompressed JSON was most of the AWS bill (2026-11-01).
+        payload = gzip.compress(payload, 5)
+        headers.append(("Content-Encoding", "gzip"))
+        headers.append(("Vary", "Accept-Encoding"))
     headers.append(("Content-Length", str(len(payload))))
     start_response(f"{status} {reason}", headers)
     return [payload]
