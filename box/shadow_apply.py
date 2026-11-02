@@ -45,7 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 for _p in (ROOT, ROOT / "api", ROOT / "loader"):
     sys.path.insert(0, str(_p))
 
-from deltas import PREFIX as DELTA_PREFIX, delete_fragments  # noqa: E402
+from deltas import PREFIX as DELTA_PREFIX, delete_fragments, unpack, unpacked_size  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lock import clear_waiting, exclusive, note_waiting, someone_waiting  # noqa: E402
@@ -268,7 +268,7 @@ def _read(paths: list[Path], out: Path) -> int:
     with out.open("w", encoding="utf-8") as fh:
         for p in paths:
             try:
-                results = json.loads(p.read_text(encoding="utf-8"))
+                results = json.loads(unpack(p.read_bytes()))
             except (OSError, ValueError) as e:
                 # A fragment that cannot be parsed will never parse. Moving
                 # it aside keeps the queue draining instead of retrying it
@@ -378,7 +378,8 @@ def _apply_batch(pending: list[Path]) -> tuple[int, list[Path]]:
     started = time.monotonic()
     take, total = [], 0
     for p in pending:
-        size = p.stat().st_size
+        # Uncompressed: the budget is about memory, and gzip shrinks a file ~10x.
+        size = unpacked_size(p)
         if take and total + size > MAX_APPLY_BYTES:
             break
         take.append(p)
