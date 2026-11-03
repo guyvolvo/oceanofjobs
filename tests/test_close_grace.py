@@ -125,6 +125,37 @@ with tempfile.TemporaryDirectory() as td:
           state(conn, 6)["missing_since"] == "2026-11-08T01:00:00+00:00", str(state(conn, 6)))
     conn.close()
 
+# Review checks (2026-11-03): incomplete reads leave running clocks alone,
+# a closed job that comes back resets both fields, and a job closed before
+# this change is neither reopened nor re-stamped.
+with tempfile.TemporaryDirectory() as td:
+    tmp = Path(td)
+    conn = open_db(tmp / "t.db")
+    read(conn, tmp, 0, [1, 2, 3])
+    conn.execute("UPDATE jobs SET closed_at = '2026-10-20T10:00:00+00:00' WHERE external_id = '3'")
+    conn.commit()
+
+    read(conn, tmp, 1, [2])
+    before = state(conn, 1)
+    read(conn, tmp, 2, [2], complete=False)
+    read(conn, tmp, 3, [], complete=False)
+    check("an incomplete read leaves an unseen job's running clock exactly as it was",
+          state(conn, 1) == before and before["missing_since"] is not None, f"{before} -> {state(conn, 1)}")
+
+    for h in (8, 9):
+        read(conn, tmp, h, [2])
+    check("that clock then runs on to a normal close", state(conn, 1)["closed_at"] is not None, str(state(conn, 1)))
+    read(conn, tmp, 10, [1, 2])
+    reopened = conn.execute("SELECT closed_at, reopened_at FROM jobs WHERE external_id = '1'").fetchone()
+    check("a closed job seen again reopens with both missing fields reset",
+          reopened["closed_at"] is None and state(conn, 1)["missing_since"] is None and state(conn, 1)["missing_reads"] == 0,
+          f"{dict(reopened)} {state(conn, 1)}")
+
+    check("a job closed before this change stays closed, closed_at untouched, no clock",
+          state(conn, 3) == {"closed_at": "2026-10-20T10:00:00+00:00", "missing_since": None, "missing_reads": None},
+          str(state(conn, 3)))
+    conn.close()
+
 # The scraper side: a board bigger than the cap reports itself incomplete.
 probe._cond_reset()
 saved = probe._workday_list, probe._workday_build_job
