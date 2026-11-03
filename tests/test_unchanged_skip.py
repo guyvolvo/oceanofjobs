@@ -26,6 +26,10 @@ sys.path.insert(0, str(ROOT / "loader"))
 os.environ.pop("DATA_BUCKET", None)
 
 import load_to_sqlite as lts  # noqa: E402
+import load_to_sqlite  # noqa: E402
+# This file tests what a read closes, not when: one missed read closes here.
+# The grace period itself is tests/test_close_grace.py.
+load_to_sqlite.CLOSE_AFTER, load_to_sqlite.CLOSE_AFTER_READS = load_to_sqlite.timedelta(0), 1
 
 # Descriptions "upload" without S3, so a stored hash survives the load.
 lts.DESCRIPTIONS_BUCKET = "test-bucket"

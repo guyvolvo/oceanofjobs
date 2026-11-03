@@ -289,6 +289,7 @@ def _poll_big_tech(sess, ats: str, domain: str, pin: dict, described: set[str],
     else:
         kwargs["description_budget"] = NEW_DESCRIPTIONS_PER_RUN
     try:
+        probe._cond.capped = False
         jobs = probe.FETCHERS[ats](sess, token, **kwargs)
         err = None
     except Exception as e:
@@ -315,7 +316,7 @@ def _poll_big_tech(sess, ats: str, domain: str, pin: dict, described: set[str],
     rows = [asdict(j) for j in jobs]
     del jobs
     return {"domain": domain, "ats": ats, "token": token, "job_count": len(rows), "tried": 1,
-            "error": None, "retryable": False, "jobs": rows}
+            "error": None, "retryable": False, "complete": not probe._cond.capped, "jobs": rows}
 
 
 def _workday_entries() -> list[dict]:
@@ -391,6 +392,7 @@ def _poll_workday(sess, entry: dict, state_row: dict | None, known_ids: set[str]
             return {"domain": entry["domain"], "ats": "workday", "token": token, "job_count": len(known_ids),
                     "tried": 1, "error": None, "retryable": False, "unchanged": True,
                     "content_hash": fingerprint, "jobs": []}
+        probe._cond.capped = False
         jobs = probe.f_workday(sess, tenant, wd, site, israel_facets=entry.get("israel_facets"),
                                known_external_ids=known_ids, page1=page1, describe_budget=WORKDAY_DESCRIBE_PER_TENANT)
     except Exception as e:
@@ -400,6 +402,8 @@ def _poll_workday(sess, entry: dict, state_row: dict | None, known_ids: set[str]
     return {"domain": entry["domain"], "ats": "workday", "token": token, "job_count": len(jobs),
             "tried": 1, "error": None, "retryable": False, "content_hash": fingerprint,
             "observed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            # Past WORKDAY_MAX_JOBS: the loader closes nothing from this read.
+            "complete": not probe._cond.capped,
             "jobs": [asdict(j) for j in probe._fill_classifications(jobs)]}
 
 

@@ -32,6 +32,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "loader"))
 
 from load_to_sqlite import load_resolved, open_db  # noqa: E402
+import load_to_sqlite  # noqa: E402
+# This file tests what a read closes, not when: one missed read closes here.
+# The grace period itself is tests/test_close_grace.py.
+load_to_sqlite.CLOSE_AFTER, load_to_sqlite.CLOSE_AFTER_READS = load_to_sqlite.timedelta(0), 1
 
 TS_OLD = "2026-09-01T00:00:00+00:00"
 

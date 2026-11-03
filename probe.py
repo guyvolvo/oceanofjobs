@@ -202,6 +202,10 @@ class Resolution:
     # applied, so a hung sweep's late fragment can't reopen or close jobs
     # behind a newer poll (2026-11-02 review).
     observed_at: str | None = None
+    # False when the read stopped at one of our caps (WORKDAY_MAX_JOBS and
+    # the like) on a board bigger than that: jobs it didn't reach are
+    # unknown, not closed, so the loader closes nothing from this read.
+    complete: bool = True
     # True when this board was checked and provably hasn't moved, either
     # a 304 or a matching normalized_job_hash. Critically NOT the same as
     # "the board is empty": jobs is [] in both cases, and
@@ -340,6 +344,14 @@ def _cond_reset(etag: str | None = None, last_modified: str | None = None,
     _cond.guessing = False
     _cond.new_etag = None
     _cond.new_last_modified = None
+    _cond.capped = False
+
+
+def _capped(total: int | None, cap: int) -> None:
+    """Note a board bigger than the cap its fetcher reads up to. What the
+    read didn't reach is unknown rather than closed (see Resolution.complete)."""
+    if total and total > cap:
+        _cond.capped = True
 
 
 _cond_reset()
@@ -1406,6 +1418,7 @@ def f_smartrecruiters(sess, token):
     # would read as a hundred roles closed.
     pages = [d]
     total = int(d.get("totalFound") or 0)
+    _capped(total, _SMARTRECRUITERS_MAX_JOBS)
     if total > len(d["content"]):
         offsets = list(range(len(d["content"]), min(total, _SMARTRECRUITERS_MAX_JOBS), 100))
         rest = _fetch_all(lambda off: get_json(sess, f"{base}?limit=100&offset={off}"), offsets, workers=4)
@@ -2893,6 +2906,7 @@ def f_oracle_cx(sess, token, known_ids=None, description_budget=None):
         rows.extend(page)
         if len(page) < ORACLE_PAGE:
             break
+    _capped(total, ORACLE_MAX_JOBS)
 
     budget = description_budget if description_budget is not None else 0
     wanted = [_txt(r.get("Id")) for r in rows if not (known_ids and _txt(r.get("Id")) in known_ids)][:budget]
@@ -2974,6 +2988,7 @@ def f_eightfold(sess, token, known_ids=None, description_budget=None):
         rows.extend(page)
         if len(rows) >= min(total, EIGHTFOLD_MAX_JOBS):
             break
+    _capped(total, EIGHTFOLD_MAX_JOBS)
 
     out = []
     for row in rows:
@@ -4247,6 +4262,7 @@ def f_workday(
     total, postings = _workday_list(sess, tenant, wd, site, None, max_jobs, page1)
     if total is None:
         return None
+    _capped(total, max_jobs)
     if israel_facets and total > max_jobs:
         il_total, il_postings = _workday_list(sess, tenant, wd, site, israel_facets, WORKDAY_MAX_JOBS)
         if il_total is None:
@@ -5030,7 +5046,15 @@ def run_and_report(items: list, resolve_one, json_mode: bool, sink=None) -> list
     results = []
     t0 = time.time()
     ex = ThreadPoolExecutor(max_workers=WORKERS)
-    futs = {ex.submit(resolve_one, item): item for item in items}
+    def one(item):
+        # Read in the worker thread that ran the fetch: _cond is per thread.
+        _cond.capped = False
+        r = resolve_one(item)
+        if _cond.capped:
+            r.complete = False
+        return r
+
+    futs = {ex.submit(one, item): item for item in items}
     wait = None if BATCH_DEADLINE is None else max(0, BATCH_DEADLINE + DEADLINE_GRACE_S - time.monotonic())
     done = set()
     try:
