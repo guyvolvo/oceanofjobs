@@ -279,6 +279,11 @@ _NEW_COLUMNS = {
     # reposts let through from 09:16 that day lost their old date.
     "first_posted_at": "TEXT",
     "reposts": "INTEGER",
+    # When a complete read of its board first came back without this open
+    # job, and how many complete reads in a row have since. NULL/0 while it
+    # keeps being seen. See close_missing_jobs.
+    "missing_since": "TEXT",
+    "missing_reads": "INTEGER",
 }
 
 
@@ -467,6 +472,9 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
     covered: set[str] = set()
     ts = now_iso()
     seen_ids_by_domain: dict[str, set[str]] = {}
+    # Boards whose read stopped at a cap (probe.py's Resolution.complete):
+    # what they did see counts, what they didn't proves nothing.
+    incomplete: set[str] = set()
     # (job_id, description) for descriptions genuinely new or changed
     # this run. Uploaded once after the transaction rather than inline
     # per job: an S3 round trip inside the row loop would dominate the
@@ -756,11 +764,13 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
                 # on a pass that changed nothing).
                 meta_before[jid] = (row["title"], row["location"], row["department"])
         seen_ids_by_domain[domain] = ids
+        if r.get("complete") is False:
+            incomplete.add(domain)
         if adopted_from:
             _adopt_job_ages(conn, domain, adopted_from)
 
     conn.executemany("UPDATE jobs SET last_seen = ? WHERE id = ?", seen_again)
-    close_missing_jobs(conn, seen_ids_by_domain, ts)
+    close_missing_jobs(conn, seen_ids_by_domain, ts, incomplete)
 
     if meta_before:
         changed = []
@@ -1745,19 +1755,60 @@ def demote_empty_boards(conn: sqlite3.Connection, ts: str, days: int) -> list[st
     return demoted
 
 
-def close_missing_jobs(conn: sqlite3.Connection, seen_ids_by_domain: dict[str, set[str]], ts: str) -> None:
-    """A job still open in the DB, for a domain we successfully re-probed
-    this run, that didn't come back in this run's results: mark it closed.
+# A job closes only once complete reads of its board have gone without it
+# for this long AND this many times in a row. One missed read used to close
+# it on the spot, and a missed read is common: Workday and SmartRecruiters
+# page by offset, a board that posts while being read shifts a job across
+# a page boundary, and that read never sees it. Verified 2026-11-03 against
+# the sources: 25 of 26 SmartRecruiters jobs and 19 of 29 checkable Workday
+# jobs closed in the previous 48 hours were still open. Each one went
+# noindex, dropped out of alerts and came back on a later read.
+# Time is the rule (a board read every 15 minutes passes 3 reads in 45);
+# the count stops a board read once in 6 hours from closing on one miss.
+CLOSE_AFTER = timedelta(hours=6)
+CLOSE_AFTER_READS = 3
+
+
+def close_missing_jobs(conn: sqlite3.Connection, seen_ids_by_domain: dict[str, set[str]], ts: str,
+                       incomplete: set[str] = frozenset()) -> dict[str, int]:
+    """Close the open jobs that complete reads have stopped returning.
+
+    Only domains this run read successfully are here at all: a failed read
+    (ats=None) and an "unchanged" 304 never reach this pass. A seen job's
+    missing clock resets. A domain in `incomplete` (the read stopped at a
+    cap) resets what it saw and starts no clock for what it didn't. Closing
+    sets closed_at once; re-running the same pass changes nothing.
     """
+    cutoff = (datetime.fromisoformat(ts) - CLOSE_AFTER).isoformat(timespec="seconds")
+    stats = {"closed": 0, "waiting": 0, "reset": 0, "incomplete_domains": 0}
     for domain, seen_ids in seen_ids_by_domain.items():
         rows = conn.execute(
-            "SELECT id FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)
+            "SELECT id, missing_since FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)
         ).fetchall()
-        missing = [row[0] for row in rows if row[0] not in seen_ids]
-        if missing:
-            conn.executemany(
-                "UPDATE jobs SET closed_at = ? WHERE id = ?", [(ts, jid) for jid in missing]
-            )
+        back = [(jid,) for jid, since in rows if since is not None and jid in seen_ids]
+        if back:
+            conn.executemany("UPDATE jobs SET missing_since = NULL, missing_reads = 0 WHERE id = ?", back)
+            stats["reset"] += len(back)
+        if domain in incomplete:
+            stats["incomplete_domains"] += 1
+            continue
+        missing = [(ts, jid) for jid, _ in rows if jid not in seen_ids]
+        if not missing:
+            continue
+        conn.executemany(
+            "UPDATE jobs SET missing_since = COALESCE(missing_since, ?),"
+            " missing_reads = COALESCE(missing_reads, 0) + 1 WHERE id = ?", missing)
+        # Seen jobs were reset above, so every clock still running here is a missing one.
+        closing = conn.execute(
+            "SELECT id FROM jobs WHERE company_domain = ? AND closed_at IS NULL"
+            " AND missing_since <= ? AND missing_reads >= ?",
+            (domain, cutoff, CLOSE_AFTER_READS)).fetchall()
+        conn.executemany("UPDATE jobs SET closed_at = ? WHERE id = ?", [(ts, jid) for (jid,) in closing])
+        stats["closed"] += len(closing)
+        stats["waiting"] += len(missing) - len(closing)
+    if any(stats.values()):
+        print("close pass: " + ", ".join(f"{v} {k}" for k, v in stats.items()), file=sys.stderr)
+    return stats
 
 
 def load_deep(conn: sqlite3.Connection, deep_path: Path) -> None:
