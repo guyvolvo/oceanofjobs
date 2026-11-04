@@ -4042,6 +4042,8 @@ WORKDAY_PAGE_SIZE = 20
 # request (see workday_page1), so a 1,600-posting tenant is 80 requests
 # in a few seconds once in a while rather than a wall every cycle.
 WORKDAY_MAX_JOBS = 3000
+# The most Workday's listing API will serve, whatever the board's size.
+WORKDAY_TOTAL_LIMIT = 2000
 # Measured live on 3M's board (2026-09-21): 16 pages at once all 200 in
 # 1.4s, 8 detail fetches at once in 0.7s, no 429 anywhere. Eight keeps
 # headroom under that and under session()'s per-host pool.
@@ -4262,8 +4264,13 @@ def f_workday(
     total, postings = _workday_list(sess, tenant, wd, site, None, max_jobs, page1)
     if total is None:
         return None
+    # Workday reports total as 2,000 for any bigger board and serves page 1
+    # again past offset 2,000 (checked 2026-11-04 on leidos, circlek, jll),
+    # so a total of 2,000 means "2,000 or more" and the read is not complete.
+    if total >= WORKDAY_TOTAL_LIMIT:
+        _cond.capped = True
     _capped(total, max_jobs)
-    if israel_facets and total > max_jobs:
+    if israel_facets and (total > max_jobs or total >= WORKDAY_TOTAL_LIMIT):
         il_total, il_postings = _workday_list(sess, tenant, wd, site, israel_facets, WORKDAY_MAX_JOBS)
         if il_total is None:
             return None
