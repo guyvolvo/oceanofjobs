@@ -81,10 +81,19 @@ def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None
              "Value": round(minutes, 1), "Unit": "None"} for ats, minutes in sorted(fresh.items()) if ats in ALARMED]
     if pending is not None:
         data.append({"MetricName": "PendingFragments", "Value": pending, "Unit": "Count"})
+    not_polled = None
+    if bucket:
+        try:
+            import known_gap
+
+            not_polled = known_gap.count(db, bucket, s3)
+            data.append({"MetricName": "CompaniesNotPolled", "Value": not_polled, "Unit": "Count"})
+        except Exception as e:  # noqa: BLE001 -- never costs the freshness numbers
+            print(f"known.json gap check failed: {e!r}", file=sys.stderr)
     if data:
         cw = cw or boto3.client("cloudwatch")
         cw.put_metric_data(Namespace=NAMESPACE, MetricData=data)
-    return {"freshness_minutes": fresh, "pending_fragments": pending}
+    return {"freshness_minutes": fresh, "pending_fragments": pending, "companies_not_polled": not_polled}
 
 
 def heartbeat(cw=None) -> None:

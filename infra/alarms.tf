@@ -167,3 +167,25 @@ resource "aws_cloudwatch_metric_alarm" "fragments_backlog" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
 }
+
+# Resolved companies the five-minute sweep never polls, because they are
+# not in known.json (box/known_gap.py). Nothing puts a company back once
+# it falls out of that file: on 2026-11-04, 1,372 boards (Buildots, Skai,
+# DriveNets, SolarEdge, ...) had gone unpolled since September. A day
+# above zero, so a company resolved by a discovery merge that reaches
+# the database before known.json never sends one.
+resource "aws_cloudwatch_metric_alarm" "companies_not_polled" {
+  alarm_name          = "${var.project_name}-companies-not-polled"
+  alarm_description   = "Resolved companies have been missing from known.json for a day, so the fast sweep never polls them. Run python box/known_gap.py on the box to list them."
+  namespace           = "OceanOfJobs"
+  metric_name         = "CompaniesNotPolled"
+  statistic           = "Minimum"
+  period              = 3600
+  evaluation_periods  = 24
+  datapoints_to_alarm = 24
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
