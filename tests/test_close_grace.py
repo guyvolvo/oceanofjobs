@@ -168,6 +168,10 @@ try:
     probe._workday_list = lambda *a, **k: (3, [{"externalPath": f"/job/x_{i}"} for i in range(3)])
     probe.f_workday(None, "acme", "wd1", "ext", max_jobs=3000)
     check("a board under the cap is not capped", probe._cond.capped is False)
+    probe._cond_reset()
+    probe._workday_list = lambda *a, **k: (2000, [{"externalPath": f"/job/x_{i}"} for i in range(3)])
+    probe.f_workday(None, "acme", "wd1", "ext", max_jobs=3000)
+    check("Workday's 2,000 total (its own ceiling) marks the read capped", probe._cond.capped is True)
 finally:
     probe._workday_list, probe._workday_build_job = saved
 
