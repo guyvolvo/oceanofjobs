@@ -1,0 +1,13 @@
+[Unit]
+Description=Ocean of Jobs: ask Workday about open jobs its listing can't show (box/workday_checks.py)
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/srv/otj/app
+EnvironmentFile=/etc/otj-api.env
+ExecStart=/srv/otj/venv/bin/python box/workday_checks.py --limit 2000
+# Mostly waiting on Workday; capped so it never competes with the API.
+Nice=15
+CPUQuota=40%
+IOReadIOPSMax=/dev/nvme0n1 300
+TimeoutStartSec=45min
