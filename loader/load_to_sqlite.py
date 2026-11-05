@@ -449,6 +449,11 @@ def iter_resolved(path: Path):
                 yield json.loads(line)
 
 
+# How recently a Comeet board must have been read for a job first seen on
+# it to count as just posted (see already_tracked in load_resolved).
+TRACKED_WITHIN = timedelta(days=2)
+
+
 def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
                   drop_description: bool = False) -> set[str]:
     """Upsert probe.py's --json output. Every company in this file was
@@ -634,8 +639,16 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
         # the exact "brand new company's backlog reads as all 1-minute-
         # old" bug this check exists to prevent, just reached a different
         # way than the original Dream Security case.
+        #
+        # And polled recently. A board nobody read for weeks is as unknown
+        # as a new one: on 2026-11-04, 242 Comeet companies that had fallen
+        # out of known.json since September came back and 2,629 old jobs
+        # all read "posted 6m ago".
         already_tracked = bool(
-            conn.execute("SELECT 1 FROM companies WHERE domain = ? AND ats = 'comeet'", (domain,)).fetchone()
+            conn.execute(
+                "SELECT 1 FROM companies WHERE domain = ? AND ats = 'comeet' AND last_checked >= ?",
+                (domain, (datetime.fromisoformat(ts) - TRACKED_WITHIN).isoformat(timespec="seconds")),
+            ).fetchone()
         )
         # jsonld is probe.py's own best-effort tier (schema.org JobPosting
         # scraped off the company's careers page, no live API to verify
