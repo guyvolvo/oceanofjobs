@@ -189,3 +189,54 @@ resource "aws_cloudwatch_metric_alarm" "companies_not_polled" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
 }
+
+# Boards the fast scraper's deadline stopped it reaching, every run for
+# two hours: the work due each tick has outgrown one run, and every board
+# waits in a queue that no longer drains. From 2026-11-02 to 11-08 a fixed
+# cap of 900 left 10,157 boards waiting each run, unnoticed for six days;
+# the cap is gone (loader/scrape_state.py), so this is now what would
+# catch the same thing coming back. One datapoint a run, from the JSON
+# line scrape_handler.py prints.
+resource "aws_cloudwatch_log_metric_filter" "scrape_fast_deferred" {
+  name           = "${var.project_name}-scrape-fast-deferred"
+  log_group_name = aws_cloudwatch_log_group.scrape_fast_lambda.name
+  pattern        = "{ $.sweep_deferred = * }"
+  metric_transformation {
+    name      = "ScrapeDeferredBoards"
+    namespace = "OceanOfJobs"
+    value     = "$.sweep_deferred"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "scrape_fast_backlog" {
+  alarm_name          = "${var.project_name}-scrape-fast-backlog"
+  alarm_description   = "The fast scraper has left boards unpolled at its deadline on every run for two hours."
+  namespace           = "OceanOfJobs"
+  metric_name         = "ScrapeDeferredBoards"
+  statistic           = "Minimum"
+  period              = 900
+  evaluation_periods  = 8
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
+# The box's disk past 85% for half an hour. box/watchdog.sh clears the
+# known leftovers by itself and trims the journal at 90%; this is the
+# email for growth it does not know about (2026-11-08: 88%, unnoticed).
+resource "aws_cloudwatch_metric_alarm" "box_disk_full" {
+  alarm_name          = "${var.project_name}-box-disk-full"
+  alarm_description   = "The box's data disk has been over 85% full for half an hour."
+  namespace           = "OceanOfJobs"
+  metric_name         = "DiskUsedPercent"
+  statistic           = "Maximum"
+  period              = 900
+  evaluation_periods  = 2
+  threshold           = 85
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}

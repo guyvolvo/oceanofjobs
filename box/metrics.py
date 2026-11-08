@@ -15,6 +15,7 @@ applied. infra/alarms.tf turns those into alarms. A source that has been
 quiet for three hours is not a quiet market, it is a stalled scraper.
 """
 
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -81,6 +82,8 @@ def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None
              "Value": round(minutes, 1), "Unit": "None"} for ats, minutes in sorted(fresh.items()) if ats in ALARMED]
     if pending is not None:
         data.append({"MetricName": "PendingFragments", "Value": pending, "Unit": "Count"})
+    disk = shutil.disk_usage(db.parent)
+    data.append({"MetricName": "DiskUsedPercent", "Value": round(100 * disk.used / disk.total, 1), "Unit": "Percent"})
     not_polled = None
     if bucket:
         try:
