@@ -1,0 +1,12 @@
+[Unit]
+Description=Ocean of Jobs: Indexing API experiment, send pending treatment URLs and read the cohort (box/seo_experiment.py)
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/srv/otj/app
+EnvironmentFile=/etc/otj-api.env
+# Both are no-ops until a cohort is enrolled by hand (see the script's docstring).
+ExecStart=/srv/otj/venv/bin/python box/seo_experiment.py notify
+ExecStart=/srv/otj/venv/bin/python box/seo_experiment.py inspect
+Nice=15
+TimeoutStartSec=30min
