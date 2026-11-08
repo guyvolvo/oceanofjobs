@@ -226,6 +226,25 @@ resource "aws_cloudwatch_metric_alarm" "scrape_fast_backlog" {
 # The box's disk past 85% for half an hour. box/watchdog.sh clears the
 # known leftovers by itself and trims the journal at 90%; this is the
 # email for growth it does not know about (2026-11-08: 88%, unnoticed).
+# Open listings whose company has no name, so the site shows a bare
+# domain. Sent once a day by box/apply_company_names.py. On 2026-11-08 it
+# was 49,750 and nobody knew; the resolver's fallbacks bring it to about
+# 3,000, so 10,000 means a resolver or the apply has stopped working.
+resource "aws_cloudwatch_metric_alarm" "unnamed_open_jobs" {
+  alarm_name          = "${var.project_name}-unnamed-open-jobs"
+  alarm_description   = "Over 10,000 open listings show a domain instead of a company name."
+  namespace           = "OceanOfJobs"
+  metric_name         = "UnnamedOpenJobs"
+  statistic           = "Maximum"
+  period              = 86400
+  evaluation_periods  = 1
+  threshold           = 10000
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
 resource "aws_cloudwatch_metric_alarm" "box_disk_full" {
   alarm_name          = "${var.project_name}-box-disk-full"
   alarm_description   = "The box's data disk has been over 85% full for half an hour."

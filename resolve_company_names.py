@@ -41,6 +41,15 @@ Coverage, measured live 2026-09-09 against real boards:
     personio         {token}.jobs.personio.de        <title> "Jobs at X" / "Jobs bei X"
     workday          first job's detail              hiringOrganization.name
 
+    pinpoint         {token}.pinpointhq.com          <title> "Jobs at X | ..."
+
+When a board gives nothing, fallback_name() asks the company's own
+pages (Workday sidebar and site id, homepage, Wikidata) and keeps an
+answer only if it agrees with the domain or tenant; a board that gave
+nothing is asked again after TRY_AGAIN instead of never. Added
+2026-11-08, when 881 companies with 49,511 open listings showed a bare
+domain; a dry run named 789 of them (46,668 listings).
+
 The last seven were added 2026-09-25. This file used to say Lever and
 Workday were "about 1% of tracked companies" and could stay unnamed;
 that was true on 2026-09-09 and stopped being true when Workday
@@ -66,8 +75,12 @@ import html
 import json
 import os
 import re
+import sqlite3
 import sys
+import threading
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -77,6 +90,11 @@ WORKERS = 12
 UA = "Mozilla/5.0 (compatible; Ocean of Jobs/1.0; +https://oceanofjobs.com)"
 
 NAMES_KEY = "company-names.json"
+# When each tried-empty company was last asked, beside the local names
+# file. "" used to be final, so a board that failed once stayed unnamed
+# for good: 494 of them on 2026-11-08, Capital One and Cadence among them.
+TRIED_FILE = "company-names-tried.json"
+TRY_AGAIN = timedelta(days=30)
 
 # Boards with no endpoint that says who they are: the single-vendor
 # scrapers and the Israeli custom boards. Applied without a request, and
@@ -186,6 +204,22 @@ STATIC_NAMES = {
     "rtx.com": "RTX",
     "abbott.com": "Abbott",
     "pae.com": "PAE",
+    # Workday tenant mckesson, domain guessed as mckesson.fr, whose homepage
+    # is a Bordeaux health guide called "Mckes'son" that passes every check.
+    "mckesson.fr": "McKesson",                   #    676
+    # Workday tenants nothing automatic can name (2026-11-08): the domain is
+    # a Workday host or a guess that matches nothing, and the tenant's own
+    # pages do not spell the name the tenant id abbreviates.
+    "mydpr.myworkdayjobs.com": "DPR Construction",            # 571
+    "biibhr.myworkdayjobs.com": "Biogen",                     # 279
+    "surbanajurong.myworkdayjobs.com": "Surbana Jurong",      # 240
+    "cbrands.com": "Constellation Brands",                    # 100
+    "andersonsinc.com": "The Andersons",                      #  88
+    "dodgeandcox.com": "Dodge & Cox",                         #  16
+    "bristow.myworkdayjobs.com": "Bristow Group",             #  16
+    # A Personio slug guessed into a domain that is one person's homepage.
+    # "" shows the domain, which is better than his name.
+    "jonathan.com": "",
 }
 
 LEGAL_SUFFIX = re.compile(
@@ -233,17 +267,28 @@ def _json(sess: requests.Session, url: str):
 HEAD_BYTES = 256 * 1024
 
 
-def _html(sess: requests.Session, url: str) -> str | None:
+def _host(url: str) -> str:
+    return (urllib.parse.urlsplit(url).hostname or "").removeprefix("www.")
+
+
+def _html(sess: requests.Session, url: str, same_site: bool = False) -> str | None:
+    """The head of a page. same_site refuses one that redirected to another
+    name (victoria.com lands on victoriassecret.com) but not to another
+    ending of the same one (aircall.com to aircall.io)."""
     try:
         with sess.get(url, timeout=TIMEOUT, headers={"Accept": "text/html"}, stream=True) as r:
-            if r.status_code != 200:
+            if r.status_code != 200 or (same_site and _host(r.url).split(".")[0] != _host(url).split(".")[0]):
                 return None
             raw = b""
             for chunk in r.iter_content(16 * 1024):
                 raw += chunk
                 if len(raw) >= HEAD_BYTES:
                     break
-            return raw.decode(r.encoding or "utf-8", errors="replace")
+            # requests calls an HTML page with no charset ISO-8859-1, which
+            # turned a UTF-8 "we’re" into "weâ€™re". Without a declared
+            # charset this is UTF-8, as nearly every page is now.
+            declared = "charset" in r.headers.get("Content-Type", "").lower()
+            return raw.decode(r.encoding if declared and r.encoding else "utf-8", errors="replace")
     except requests.RequestException:
         return None
 
@@ -420,6 +465,12 @@ def _teamtailor(sess, token):
     return _meta(_html(sess, f"https://{token}.teamtailor.com"), "og:site_name")
 
 
+def _pinpoint(sess, token):
+    # "Jobs at HOLT Group | HOLT Group Careers" (checked 2026-11-08).
+    m = re.match(r"(?i)\s*jobs at (.+?)\s+\|", _title(_html(sess, f"https://{token}.pinpointhq.com/")) or "")
+    return _txt(m.group(1)) if m else None
+
+
 def _personio(sess, token):
     return _from_title(_title(_html(sess, f"https://{token}.jobs.personio.de")))
 
@@ -490,6 +541,7 @@ RESOLVERS = {
     "jazzhr": _jazzhr,
     "teamtailor": _teamtailor,
     "personio": _personio,
+    "pinpoint": _pinpoint,
     "workday": _workday,
     "ashby": _ashby,
     "smartrecruiters": _smartrecruiters,
@@ -507,25 +559,224 @@ RESOLVERS = {
 GENERIC_NAMES = {"jobs", "job board", "job openings", "careers", "career site",
                  "open positions", "current openings", "home",
                  # Workday hiring organizations that are a page, not a company
-                 "sign in to your account", "companies", "external", "corporate"}
+                 "sign in to your account", "companies", "external", "corporate",
+                 # the login a board redirected to, not the board (eggfarmersofcanada: "OneLogin")
+                 "onelogin", "okta", "bamboohr", "microsoft", "sign in"}
 
 
-def resolve_one(entry: dict, sess: requests.Session) -> tuple[str, str | None]:
+# When the board itself gives nothing. Measured 2026-11-08: 462 companies
+# with 14,561 open listings showed a bare domain, Capital One, Oracle,
+# Cadence, ASML and BlackRock among them. Workday's hiringOrganization was
+# empty for Capital One, BlackRock and Caterpillar, and Oracle, Experis,
+# Deel, Matrix and Pinpoint have no resolver at all. Three more places a
+# company names itself, tried in order:
+#
+#   the Workday site id      Capital_One, CaterpillarCareers, Northrop_Grumman_External_Site
+#   the company's homepage   og:site_name, else a piece of <title>
+#   Wikidata                 the item whose official website is the domain
+#
+# Every answer has to agree with what we already know (the domain's own
+# label or the Workday tenant), because the domain is a guess for much of
+# Workday: mckesson.fr is a health guide in Bordeaux, and a parked or
+# challenge page has a title too. Agreeing means one name inside the
+# other, or the name's initials leading the label (Northrop Grumman, ngc).
+# A disagreement falls through to the next source; nothing is better than
+# the wrong company.
+_SITE_NOISE = {"external", "externalsite", "careers", "career", "careersite", "site", "jobs", "job", "search",
+               "portal", "professional", "professionals", "opportunities", "recruiting", "hiring", "talent",
+               "global", "ext", "en", "us", "usa", "uk", "emea", "apac", "intl", "international", "main",
+               "university", "campus", "students", "student", "early", "veterans", "internal", "employee",
+               "employees", "referral", "referrals", "experienced", "corporate", "home", "join", "joinus",
+               "admin", "administrative", "staff", "faculty", "externe", "extern", "externo", "externa"}
+_SITE_SUFFIX = re.compile(r"(?i)(?<=[a-z])(external|careers?|jobs|site|ext\d*)$")
+_PAGE_JUNK = re.compile(r"(?i)\b(for sale|domain|coming soon|under construction|parked|not found|forbidden"
+                        r"|access denied|just a moment|attention required|error|untitled|login|sign in)\b")
+_LABEL_TLD = re.compile(r"(?i)^(www\d?|careers?|jobs)\.")
+
+
+def _compact(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def _labels(entry: dict) -> set[str]:
+    """What the name has to agree with: the domain's first label and, on
+    Workday, the tenant. Short ones prove nothing and are left out."""
+    out = {_compact(_LABEL_TLD.sub("", entry.get("domain") or "").split(".")[0])}
+    if entry.get("ats") == "workday" and entry.get("token"):
+        out.add(_compact(entry["token"].split(":")[0]))
+    return {x for x in out if len(x) >= 3}
+
+
+def _agrees(name: str | None, labels: set[str]) -> bool:
+    if not name:
+        return False
+    c = _compact(name)
+    words = re.findall(r"[A-Za-z0-9]+", name)
+    initials = "".join(w[0] for w in words).lower() if len(words) >= 2 else ""
+    for label in labels:
+        # One starts the other: Flex and flextronics, Caterpillar and cat,
+        # not Spaces for livingspaces or Greg Johnson for johnson.io.
+        if len(c) >= 3 and (c.startswith(label) or label.startswith(c)):
+            return True
+        # Initials are the label, or the label less a last letter for the
+        # Inc or Corp: Northrop Grumman and ngc, Kontoor Brands and kbi.
+        if len(initials) >= 2 and initials in (label, label[:-1]):
+            return True
+    return False
+
+
+def _from_site(token: str | None) -> str | None:
+    """A Workday site id as words: "Capital_One", "CaterpillarCareers" ->
+    "Caterpillar". All-lowercase ids ("asmlext1") are slugs, not names."""
+    try:
+        site = token.split(":", 2)[2]
+    except (AttributeError, IndexError):
+        return None
+    words = []
+    for part in re.split(r"[_\-\s]+", site):
+        part = _SITE_SUFFIX.sub("", re.sub(r"\d+$", "", part))
+        if part and part.lower() not in _SITE_NOISE:
+            words.append(part)
+    name = " ".join(words)
+    return name if re.search(r"[A-Z]", name) and len(name) >= 2 else None
+
+
+_LEAD_IN = re.compile(r"(?i)^(?:join|welcome to|careers at|work at|jobs at|at|as|our|about|we are|home)\s+")
+_ATS_HOSTS = ("myworkdayjobs.com", "greenhouse.io", "lever.co", "ashbyhq.com", "smartrecruiters.com",
+              "workable.com", "bamboohr.com", "pinpointhq.com", "oraclecloud.com")
+
+
+def _clean_candidate(name: str | None) -> str | None:
+    name = _LEAD_IN.sub("", re.sub(r"\s*\([^)]*\)\s*$", "", re.sub(r"[®™©]", "", name or "").strip()))
+    name = _strip_legal(_txt(name))
+    name = re.sub(r"(?i)(?:[’']s|\s+(?:logo|careers|jobs))$", "", (name or "").rstrip(" &,-."))
+    name = _txt(name.rstrip(" &,-."))
+    if not name or len(name) > 60 or name.lower() in GENERIC_NAMES or name.lower() in _TITLE_NOISE:
+        return None
+    if _PAGE_JUNK.search(name) or re.search(r"\.[a-z]{2,}\b", name.lower()):
+        return None
+    return name
+
+
+# A title's separators, plus the colon, », slash, comma and full stop a
+# tagline hangs off ("Eco: Failsafe Execution for Onchain Money").
+_SEPARATORS = re.compile(r"\s+[-–—|:·•»/]\s+|[:»]\s+|,\s+|(?<=[a-z]{2})\.\s+")
+
+
+def _homepage_names(page: str | None) -> list[str]:
+    out = []
+    for whole in (_meta(page, "og:site_name"), _meta(page, "application-name"), _title(page)):
+        out += [x.strip(" -–—|:·") for x in _SEPARATORS.split(whole or "")]
+    return [n for n in (_clean_candidate(x) for x in out) if n]
+
+
+# Runs of capitalised words ("Rolls-Royce", "Levi Strauss & Co.") in the
+# career site's own sidebar copy, which a company writes about itself.
+_PHRASE = re.compile(r"[A-Z][\w'’.&-]*(?: (?:&|of|and|for|de|du|the) [A-Z][\w'’.&-]*| [A-Z][\w'’.&-]*){0,4}")
+# A full stop ends a phrase unless it follows an initial: "Indonesia. Cenovus"
+# is two, "T. Rowe Price" is one.
+_SENTENCE_END = re.compile(r"(?<![\s.][A-Z])(?<!^[A-Z])\.\s+")
+
+
+def _sidebar_names(sess, token: str | None) -> list[str]:
+    try:
+        tenant, wd, site = token.split(":", 2)
+        r = sess.get(f"https://{tenant}.{wd}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/sidebar",
+                     timeout=TIMEOUT, headers={"Accept": "application/json"})
+        items = r.json() if r.status_code == 200 else []
+    except (AttributeError, ValueError, requests.RequestException):
+        return []
+    # Fields and tags become line breaks, which a phrase never crosses:
+    # an image's altText "Logo" ran into "Rolls-Royce" otherwise.
+    text = "\n".join(html.unescape(re.sub(r"<[^>]{0,500}>", "\n", str(i.get(k) or "")))
+                     for i in items if isinstance(i, dict) for k in ("title", "altText", "text"))
+    pieces = [x for p in _PHRASE.findall(text[:20000]) for x in _SENTENCE_END.split(p)]
+    return [n for n in (_clean_candidate(x) for x in pieces) if n]
+
+
+def _pick(candidates: list[str], labels: set[str]) -> str | None:
+    """The agreeing candidate that is exactly a label first, then the one
+    said most often, then the shortest: a page says its name more than
+    once and a tagline once."""
+    ok = [c for c in candidates if _agrees(c, labels)]
+    return min(set(ok), key=lambda c: (_compact(c) not in labels, -ok.count(c), len(c), c)) if ok else None
+
+
+_WIKIDATA = "https://query.wikidata.org/sparql"
+_wikidata_gate = threading.Semaphore(2)  # their policy asks for few concurrent queries
+
+
+def _wikidata_names(sess, domain: str) -> list[str]:
+    urls = " ".join(f"<{p}{h}{d}>" for p in ("https://", "http://") for h in ("www.", "") for d in (domain + "/", domain))
+    q = ('SELECT ?l WHERE { VALUES ?u { %s } ?i wdt:P856 ?u . ?i rdfs:label ?l FILTER(LANG(?l) = "en") } LIMIT 10'
+         % urls)
+    with _wikidata_gate:
+        try:
+            r = sess.get(_WIKIDATA, params={"query": q, "format": "json"}, timeout=20,
+                         headers={"Accept": "application/sparql-results+json"})
+            rows = r.json()["results"]["bindings"] if r.status_code == 200 else []
+        except (requests.RequestException, ValueError, KeyError):
+            return []
+    return sorted({n for n in (_clean_candidate(b["l"]["value"]) for b in rows) if n}, key=len)
+
+
+def fallback_name(entry: dict, sess: requests.Session,
+                  board: str | None = None) -> tuple[str | None, str | None]:
+    """(name, source), or (None, None). board is Workday's own vote, tried
+    last and only when it agrees: on the boards that reach this it was
+    "Verizon Data Services", "Topgolf Payroll Services", "GPLA" for DPR."""
+    labels = _labels(entry)
+    domain = entry.get("domain") or ""
+    # On Workday the domain is a guess from the tenant (sefl.de's homepage
+    # is a German haulier, not Southeastern Freight Lines), so the tenant's
+    # own pages go first there: its sidebar copy, then its site id.
+    if entry.get("ats") == "workday":
+        name = _pick(_sidebar_names(sess, entry.get("token")), labels)
+        if name:
+            return name, "sidebar"
+        site = _from_site(entry.get("token"))
+        # Ungated only when the domain gives nothing to check against
+        # (cc.com, site ChanelCareers): the site id is the company's own.
+        if site and len(site) >= 3 and (_agrees(site, labels) or not labels):
+            return site, "site"
+    if labels and not domain.endswith(_ATS_HOSTS):
+        name = _pick(_homepage_names(_html(sess, f"https://{domain}/", same_site=True)), labels)
+        if name:
+            return name, "homepage"
+    if labels and not domain.endswith(_ATS_HOSTS):
+        name = _pick(_wikidata_names(sess, domain), labels)
+        if name:
+            return name, "wikidata"
+    if board and _agrees(board, labels):
+        return board, entry.get("ats")
+    return None, None
+
+
+def resolve_one(entry: dict, sess: requests.Session) -> tuple[str, str | None, str | None]:
+    """(domain, name, source): the board's own answer first, the fallbacks
+    when it has none. Workday is the exception: its answer is a legal
+    entity often enough that the fallbacks go first and it goes last."""
     known = REFERRAL_BOARDS.get(entry.get("domain") or "")
     if known:
-        return entry["domain"], known["name"]
+        return entry["domain"], known["name"], "referral"
     fn = RESOLVERS.get(entry.get("ats") or "")
     token = entry.get("token")
-    if not fn or not token:
-        return entry["domain"], None
+    name = None
+    if fn and token:
+        try:
+            name = fn(sess, token, entry.get("domain")) if fn is _workday else fn(sess, token)
+        except Exception:
+            name = None
+        name = _strip_legal(name)
+        if name and name.strip().lower() in GENERIC_NAMES:
+            name = None
+    if name and fn is not _workday:
+        return entry["domain"], name, entry.get("ats")
     try:
-        name = fn(sess, token, entry.get("domain")) if fn is _workday else fn(sess, token)
+        name, source = fallback_name(entry, sess, board=name)
     except Exception:
-        return entry["domain"], None
-    name = _strip_legal(name)
-    if name and name.strip().lower() in GENERIC_NAMES:
-        return entry["domain"], None
-    return entry["domain"], name
+        name, source = None, None
+    return entry["domain"], name, source
 
 
 def main() -> int:
@@ -579,13 +830,49 @@ def main() -> int:
             if t.get("domain") and t["domain"] not in have and t.get("tenant") and t.get("wd") and t.get("site"):
                 known.append({"domain": t["domain"], "ats": "workday",
                               "token": f"{t['tenant']}:{t['wd']}:{t['site']}"})
-    # Skip anything already tried, named or not: a board that answered
-    # with nothing is written as "" so the next batch moves on to
-    # companies nobody has asked yet, rather than asking the same first
-    # 1,500 every day. --refresh asks everyone again.
-    todo = [e for e in known
-            if e.get("ats") in RESOLVERS and (not args.ats or e.get("ats") == args.ats)
-            and (args.refresh or e.get("domain", "") not in names)]
+    # Every company with an open listing, from the database when this runs
+    # beside one. known.json and workday-tenants.json miss whole boards
+    # (Oracle, Experis, Deel, Matrix, Pinpoint, Workday tenants found some
+    # other way), and a company missing from both was never asked at all.
+    db = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db"))
+    if db.exists():
+        have = {e.get("domain") for e in known}
+        conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=30)
+        try:
+            for domain, ats, token in conn.execute(
+                    "SELECT domain, ats, token FROM companies c WHERE EXISTS "
+                    "(SELECT 1 FROM jobs j WHERE j.company_domain = c.domain AND j.closed_at IS NULL)"):
+                if domain not in have:
+                    known.append({"domain": domain, "ats": ats, "token": token})
+        finally:
+            conn.close()
+
+    # Skip anything named. A board that answered with nothing is written
+    # as "" so the next batch moves on to companies nobody has asked yet,
+    # rather than asking the same first 1,500 every day; it is asked again
+    # after TRY_AGAIN, since a board that failed once is not a company
+    # with no name. --refresh asks everyone again.
+    tried_path = (args.out.with_name(TRIED_FILE) if args.out else local.with_name(TRIED_FILE))
+    try:
+        tried = json.loads(tried_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        tried = {}
+    now = datetime.now(timezone.utc)
+    stale = (now - TRY_AGAIN).isoformat(timespec="seconds")
+
+    def due(domain: str) -> bool:
+        if domain in STATIC_NAMES:
+            return False
+        if domain not in names:
+            return True
+        return names[domain] == "" and tried.get(domain, "") <= stale
+
+    todo, seen = [], set()
+    for e in known:
+        d = e.get("domain", "")
+        if d and d not in seen and (not args.ats or e.get("ats") == args.ats) and (args.refresh or due(d)):
+            seen.add(d)
+            todo.append(e)
     backlog = len(todo)
     if args.limit:
         todo = todo[:args.limit]
@@ -604,19 +891,26 @@ def main() -> int:
     sess.mount("https://", adapter)
 
     found = 0
+    by_source: dict[str, int] = {}
+    stamp = now.isoformat(timespec="seconds")
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        for domain, name in pool.map(lambda e: resolve_one(e, sess), todo):
-            names[domain] = name or ""
+        for domain, name, source in pool.map(lambda e: resolve_one(e, sess), todo):
             if name:
+                names[domain] = name
                 found += 1
+                by_source[source or "?"] = by_source.get(source or "?", 0) + 1
+                tried.pop(domain, None)
+            elif args.refresh or not names.get(domain):  # a retry that fails keeps the old name; --refresh retracts
+                names[domain] = ""
+                tried[domain] = stamp
 
-    by_ats: dict[str, int] = {}
-    for e in todo:
-        if names.get(e["domain"]):
-            by_ats[e["ats"]] = by_ats.get(e["ats"], 0) + 1
     print(f"resolved {found}/{len(todo)} this run: " +
-          ", ".join(f"{a}={n}" for a, n in sorted(by_ats.items(), key=lambda kv: -kv[1])),
+          ", ".join(f"{a}={n}" for a, n in sorted(by_source.items(), key=lambda kv: -kv[1])),
           file=sys.stderr)
+    try:
+        tried_path.write_text(json.dumps(tried, sort_keys=True), encoding="utf-8")
+    except OSError as e:
+        print(f"could not write {tried_path}: {e}", file=sys.stderr)
 
     for domain, name in STATIC_NAMES.items():
         names.setdefault(domain, name)
