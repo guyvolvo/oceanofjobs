@@ -4,6 +4,7 @@
 import { chromium } from "playwright";
 import { createRequire } from "node:module";
 import path from "node:path";
+import fs from "node:fs";
 import assert from "node:assert/strict";
 
 const require = createRequire(import.meta.url);
@@ -262,7 +263,7 @@ await check("Experis: the Hebrew apply button opens the modal, placeholders name
   }));
   assert.deepEqual(got, { values: ["Test", "Person", "t@example.com", "+972 50 000 0000"], cv: "cv.pdf", withCv: true, linkedin: false, consent: [false, false] });
   // Since 1.9.19 a page with a human check gets the card's Submit too, flagged botCheck.
-  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.submitInfo()), { text: "שליחה", selector: 'button[type="submit"]', botCheck: true });
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.submitInfo()), { text: "שליחה", selector: 'button[type="submit"]', application: true, botCheck: true });
 });
 
 await check("a custom dropdown: options read on open, then picked", async () => {
@@ -313,9 +314,25 @@ await check("a read again never presses an Apply button", async () => {
 });
 
 await check("an Apply link to another page is handed back to follow", async () => {
-  await load(`<h1>Engineer</h1><p>About the job</p><a href="/jobs/1/apply">Apply for this job</a>`);
+  await serve(`<title>Engineer</title><h1>Engineer</h1><p>About the job</p><a href="/jobs/1/apply">Apply for this job</a>`, "https://fixture.test/jobs/1");
   const res = await page.evaluate(() => globalThis.oojAts.generic.read());
   assert.match(res.openUrl, /\/jobs\/1\/apply$/);
+});
+
+// comm-it.com (live, 2026-11-09): the homepage's "APPLY NOW" led to a page
+// of jobs and a general CV form, which was then filled as an application.
+await check("a homepage's Apply now is not followed", async () => {
+  await serve(`<title>Comm-IT</title><h1>Cloud and data services</h1><a href="/commit-jobs">Careers</a><a href="/commit-jobs">APPLY NOW</a>`, "https://fixture.test/");
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { error: "No application form on this page." });
+});
+
+// silverfort.com/careers (live, 2026-11-09): the first job's Apply was pressed
+// on a page listing many jobs, a job the user never chose.
+await check("on a list of jobs, no job's Apply is pressed or followed", async () => {
+  const rows = ["Account Manager", "Sales Engineer", "Backend Developer", "Product Designer"]
+    .map((t, i) => `<div><h3>${t}</h3><a href="/careers/co/x/${i}/job/all/">Apply now</a></div>`).join("");
+  await serve(`<title>Careers and Open Job Opportunities</title><h1>Open positions</h1>${rows}`, "https://fixture.test/careers/");
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { error: "No application form on this page." });
 });
 
 await check("a form's own Apply submit button is never pressed", async () => {
@@ -327,7 +344,7 @@ await check("a form's own Apply submit button is never pressed", async () => {
 
 await check("formHere: an application form counts, a comment form does not", async () => {
   await load(FORM);
-  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 16, file: true, contactOnly: false });
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 16, file: true, contactOnly: false, application: true });
   await load(`<form id="commentform" action="/wp-comments-post.php"><input name="author"><input type="email" name="email"><input name="url"><textarea name="comment"></textarea></form>`);
   assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.formHere()), { score: 0 });
   await load(`<input placeholder="Search"><button>Go</button>`);
@@ -598,11 +615,153 @@ await check("a searchable dropdown's short list is read; a city search box is no
   assert.deepEqual(r.City, []);
 });
 
+// Boxes that list only once typed: each typed letter answers after delay
+// ms with the choices that start like it, then later (if given) with more.
+const typeahead = (id, label, opts, delay, later) => `<div><label for="${id}">${label}</label>
+  <input id="${id}" role="combobox" aria-controls="${id}-l" autocomplete="off"><ul id="${id}-l" role="listbox"></ul>
+  <script>{ const i = document.getElementById("${id}"), l = document.getElementById("${id}-l");
+    const show = (xs) => { l.innerHTML = xs.map((o) => '<li role="option">' + o + '</li>').join(''); for (const li of l.children) li.onclick = () => { i.value = li.textContent; l.innerHTML = ''; }; };
+    i.addEventListener("input", () => { const q = i.value.toLowerCase().slice(0, 2); setTimeout(() => show(${JSON.stringify(opts)}.filter((o) => o.toLowerCase().startsWith(q))), ${delay});
+      ${later ? `setTimeout(() => show(${JSON.stringify(later)}), ${delay} + 800);` : ""} }); }</script></div>`;
+const fillTimed = (label, value, key) => page.evaluate(async ([label, value, key]) => {
+  const g = globalThis.oojAts.generic;
+  const f = (await g.read()).fields.find((x) => x.label === label);
+  const started = Date.now();
+  const { errors } = await g.fill([{ ...f, key, value }], null);
+  return { errors, took: Date.now() - started, value: document.querySelector('[data-ooj="' + f.name + '"]').value };
+}, [label, value, key]);
+await check("a city box that lists once typed is picked without waiting for a list on open", async () => {
+  await serve(`<form>${FIELDS}${typeahead("city", "City", ["London, UK", "Leeds, UK"], 300)}<button>Submit</button></form>`);
+  const r = await fillTimed("City", "London, UK", "location");
+  assert.deepEqual([r.errors, r.value], [[], "London, UK"]);
+  assert.ok(r.took < 1000, `took ${r.took} ms`);
+});
+await check("a typed list that settles without the answer gives up early; one that changes still gets it", async () => {
+  await serve(`<form>${FIELDS}${typeahead("school", "School", ["Oxford Brookes", "Oxford College"], 200)}${typeahead("uni", "University", ["Oxford Brookes"], 200, ["Oxford Brookes", "Oxford University"])}<button>Submit</button></form>`);
+  const none = await fillTimed("School", "Oxford University");
+  assert.deepEqual(none.errors, ['School: no option matches "Oxford University"']);
+  assert.ok(none.took < 2500, `took ${none.took} ms`);
+  const late = await fillTimed("University", "Oxford University");
+  assert.deepEqual([late.errors, late.value], [[], "Oxford University"]);
+});
+
+// Surecomp's careers page (live, 2026-11-09): the application is a Comeet
+// frame its widget script draws after load; below it sits a "Keep in
+// touch" mailing-list form (form1). The extension filled and sent form1 as
+// the application. The page is the saved one (extension/test/fixtures/surecomp.html),
+// the frame a local stand-in for Comeet's, and nothing else loads.
+const SURECOMP_URL = "https://surecomp.com/careers/co/kfar-saba-israel/7D.476/devops-engineer/all";
+const COMEET_SRC = "https://www.comeet.co/careers-api/2.0/company/24.00E/positions/7D.476/apply?token=x";
+const SURECOMP = fs.readFileSync(path.resolve("extension/test/fixtures/surecomp.html"), "utf8");
+const COMEET_FRAME = `<!doctype html><meta charset="utf-8"><title>Job Application form</title><form name="applyForm" novalidate>
+  <label for="fn">First name *</label><input id="fn" name="firstName" required>
+  <label for="ln">Last name *</label><input id="ln" name="lastName" required>
+  <label for="em">Email *</label><input id="em" type="email" name="email" required>
+  <label for="ph">Phone *</label><input id="ph" type="tel" name="phone" required>
+  <div><span>Resume *</span><button type="button">Attach</button><input type="file" name="resume" style="display:none"></div>
+  <div><span>Cover letter</span><button type="button">Attach</button><input type="file" name="coverLetter" style="display:none"></div>
+  <label for="pf">Portfolio</label><input id="pf" name="portfolio">
+  <label for="pn">Personal note</label><textarea id="pn" name="personalNote"></textarea>
+  <button type="submit">SUBMIT APPLICATION</button></form>`;
+// As Comeet's widget does it: the frame comes ms after load, small, then grows to its form.
+const comeetWidget = (ms) => `<script>setTimeout(() => {
+  const f = document.createElement("iframe"); f.className = "comeet-iframe"; f.src = "${COMEET_SRC}"; f.style.cssText = "border:none;width:100%;height:100px";
+  document.querySelector('script[type="comeet-applyform"]').after(f); f.onload = () => setTimeout(() => { f.style.height = "900px"; }, 300); }, ${ms});
+  document.getElementById("form1").addEventListener("submit", (e) => { e.preventDefault(); window.__sent = true; });
+  document.getElementById("math-question").textContent = "6 + 8";</script>`;
+async function surecomp(extra = "", body = SURECOMP) {
+  await page.unroute("**/*");
+  await page.route("**/*", (r) => {
+    const u = r.request().url();
+    if (u === SURECOMP_URL) return r.fulfill({ contentType: "text/html", body: body.replace("</body>", extra + "</body>") });
+    if (u.startsWith("https://www.comeet.co/careers-api/")) return r.fulfill({ contentType: "text/html", body: COMEET_FRAME });
+    return r.abort();
+  });
+  await page.goto(SURECOMP_URL);
+  await page.addScriptTag({ path: path.resolve("extension/lib/match.js") });
+  await page.addScriptTag({ path: path.resolve("extension/ats/generic.js") });
+}
+const form1Untouched = () => page.evaluate(() => ({
+  marked: document.querySelectorAll("#form1 [data-ooj], #form1[data-ooj-form]").length,
+  values: [...document.querySelectorAll("#form1 input:not([type=hidden])")].filter((e) => (e.type === "checkbox" ? e.checked : e.value)).length,
+  sent: window.__sent || false,
+}));
+
+await check("Surecomp: the late Comeet frame is the form, never the Keep in touch mailing list", async () => {
+  await surecomp(comeetWidget(1500));
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    return { read: await g.read(), here: g.formHere(), info: g.submitInfo() };
+  });
+  assert.deepEqual(r.read, { openUrl: COMEET_SRC, frame: true });
+  assert.deepEqual(r.here, { score: 0 });
+  assert.equal(r.info, null);
+  assert.deepEqual(await form1Untouched(), { marked: 0, values: 0, sent: false });
+});
+
+await check("Surecomp: in the Comeet frame, the application is read and may be sent", async () => {
+  await surecomp(comeetWidget(0));
+  let frame = null;
+  for (let i = 0; i < 50 && !frame; i++) {
+    frame = page.frames().find((x) => x.url().startsWith("https://www.comeet.co/"));
+    if (!frame) await page.waitForTimeout(100);
+  }
+  await frame.waitForLoadState();
+  await frame.addScriptTag({ path: path.resolve("extension/lib/match.js") });
+  await frame.addScriptTag({ path: path.resolve("extension/ats/generic.js") });
+  const r = await frame.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const { fields, evidence } = await g.read();
+    return { labels: fields.map((f) => f.label), evidence, info: g.submitInfo() };
+  });
+  assert.deepEqual(r.labels, ["First name", "Last name", "Email", "Phone", "Resume", "Cover letter", "Portfolio", "Personal note"]);
+  assert.equal(r.evidence.application, true);
+  assert.equal(r.evidence.cv, true);
+  assert.deepEqual([r.info.text, r.info.application], ["SUBMIT APPLICATION", true]);
+});
+
+await check("Surecomp with no Comeet frame: no application form, the mailing list left alone", async () => {
+  await surecomp(comeetWidget(60000));
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    return { read: await g.read(), evidence: g.evidence(document.getElementById("form1")) };
+  });
+  assert.deepEqual(r.read, { error: "No application form on this page." });
+  assert.equal(r.evidence.application, false);
+  assert.equal(r.evidence.unrelated, true);
+  assert.deepEqual(await form1Untouched(), { marked: 0, values: 0, sent: false });
+});
+
+await check("a form with nothing either way doesn't win over an ATS frame that comes late", async () => {
+  await surecomp(comeetWidget(2000), `<!doctype html><title>Engineer</title><h1>Engineer</h1>
+    <form id="form1"><label>Full name <input name="a"></label><label>Email <input type="email" name="b"></label>
+    <label>Phone <input type="tel" name="c"></label><span id="math-question"></span><button>Submit</button></form>
+    <div class="comeet-apply"><script type="comeet-applyform" data-position-uid="7D.476"></script></div></body>`);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { openUrl: COMEET_SRC, frame: true });
+});
+
+await page.unroute("**/*");
+
+// The gate behind every send (background.js): only a form that looks
+// like an application says application: true.
+for (const [name, html, want] of [
+  ["name, email and phone only", `<form>${FIELDS}<button>Submit</button></form>`, false],
+  ["with a resume upload", `<form>${FIELDS}<label>Resume <input type="file" name="resume"></label><button>Submit</button></form>`, true],
+  ["with two application questions", `<form>${FIELDS}<label>LinkedIn profile <input name="li"></label><label>Notice period <input name="np"></label><button>Submit</button></form>`, true],
+  ["a Hebrew form with a CV", `<form><label>שם מלא <input name="a"></label><label>טלפון <input type="tel" name="b"></label><label>מייל <input type="email" name="c"></label><label>צירוף קורות חיים <input type="file" name="f"></label><button>שליחה</button></form>`, true],
+]) {
+  await check(`submitInfo application: ${name}`, async () => {
+    await load(html);
+    await page.evaluate(() => globalThis.oojAts.generic.read());
+    assert.equal((await page.evaluate(() => globalThis.oojAts.generic.submitInfo())).application, want);
+  });
+}
+
 // detect.js on a posting page, with chrome.runtime stubbed: the button
 // shows before the form exists, and not on a list of jobs.
 async function detectOn(html, at) {
   await serve(html, at);
-  await page.evaluate(() => Object.defineProperty(window, "chrome", { value: { runtime: { sendMessage: async () => null, onMessage: { addListener() {} } } } }));
+  await page.evaluate(() => Object.defineProperty(window, "chrome", { value: { runtime: { id: "test", sendMessage: async () => null, onMessage: { addListener() {} } } } }));
   await page.addScriptTag({ path: path.resolve("extension/detect.js") });
   await page.waitForTimeout(1500);
   return page.evaluate(() => !!document.querySelector("[data-ooj-fill]"));

@@ -93,6 +93,71 @@
       || UNRELATED.test(`${form.id} ${form.className} ${form.getAttribute('action') || ''}`);
   }
 
+  // What says a form is a job application, and what says it is something
+  // else. Surecomp's careers page (2026-11-09) has a "Keep in touch"
+  // mailing-list form beside its Comeet application frame, and the form was
+  // sent as the application. weigh() takes the words, so the unit tests and
+  // the corpus harness can call it on plain data; evidence() reads them
+  // from the page.
+  const CV = /\b(resume|résumé|curriculum|cv)\b|lebenslauf|currículum|hoja de vida|קורות חיים|קו["״”'׳]?ח/i;
+  const QUESTION = new RegExp([
+    'linkedin', 'github', 'portfolio', 'cover letter', 'motivation', 'salary', 'compensation', 'notice period',
+    'authori[sz]ed to work', 'work (authori[sz]ation|permit)', 'right.to.work', '\\bvisa\\b', 'sponsor',
+    'years of (relevant |professional )?experience', 'start date', 'earliest start', '(available|availability) to start', 'relocat',
+    'why (do you want|are you interested|would you like|this (role|position|job|company))',
+    '\\b(gender|veteran|disability|ethnicity|race|hispanic)\\b', 'current (employer|company|job title)', 'desired (salary|position|pay)',
+    'willing to (relocate|travel)', 'anschreiben', 'gehalt', 'kündigungsfrist', 'eintritt', 'arbeitserlaubnis', 'berufserfahrung',
+    'lettre de motivation', 'prétentions', 'préavis', 'permis de travail', 'carta de presentación', 'pretensi[oó]n', 'expectativa salarial',
+    'permiso de trabajo', 'años de experiencia',
+    'מכתב (מקדים|נלווה|פנייה)', 'לינקדאין', 'תיק עבודות', 'ציפיות שכר', 'הודעה מוקדמת', 'זמינות', 'שנות ניסיון', 'היתר עבודה', 'רילוקיישן',
+  ].join('|'), 'i');
+  const APPLY_WORDS = /\bappl(y|ying|ication|icant)\b|candida(te|cy|ture|tura)|bewerb|postul|sollicit|מועמד|קו["״”'׳]?ח|קורות חיים|לתפקיד|למשרה/i;
+  const NOT_APPLICATION = new RegExp([
+    'newsletter', 'mailing list', 'subscri(be|ption)', 'keep in touch', 'stay (in touch|updated|informed|up to date)', '\\bupdates\\b',
+    'contact us', 'get in touch', 'contact (sales|our team)', 'talk to (sales|an expert|us)',
+    '(request|book|get|schedule|watch) a (free |live )?(demo|call|quote|consultation)', '\\bdemo\\b', 'free trial', '\\bquote\\b',
+    'download', 'white ?paper', 'e-?book', 'webinar', '\\bevents?\\b', 'regist(er|ration)', 'sign ?up', 'log ?in', 'sign ?in',
+    '\\bsearch\\b', 'comment', 'leave a reply', 'feedback', 'survey', 'quiz', 'donat', 'checkout', 'job alert',
+    'abonnieren', 'kontaktieren', 'nous contacter', 'contactez', 'contáctanos', 'suscrib',
+    'ניוזלטר', 'דיוור', 'רשימת תפוצה', 'עדכונים', 'צור קשר', 'צרו קשר', 'השאירו פרטים', 'השאר פרטים', 'הדגמה', 'הצעת מחיר', 'הרשמה', 'התחברות', 'חיפוש', 'וובינר',
+  ].join('|'), 'i');
+  // "What is 6 + 8?": a bot check on marketing forms, never on an ATS's.
+  const MATH = /what is \d+\s*[-+x×*]\s*\d+|\d+\s*[-+×*]\s*\d+\s*=\s*\?|כמה (זה|הם) \d+/i;
+
+  // application: enough to send it (a CV upload, two application questions,
+  // or an ATS's own page with nothing against it). unrelated: something
+  // against it and nothing for it, so never read or filled. score is for logs.
+  function weigh({ labels = [], files = [], text = '', context = '', button = '', attrs = '', ats = false, pinned = false } = {}) {
+    const all = [...labels, text, context, button].join(' \n ');
+    const cv = files.some((f) => CV.test(f)) || (files.length > 0 && CV.test(all));
+    const questions = new Set(labels.filter((l) => QUESTION.test(l)).map((l) => l.toLowerCase())).size;
+    // Not "the Google Privacy Policy and Terms of Service apply" under a reCAPTCHA.
+    const apply = APPLY_WORDS.test([context, button, text].join(' \n ').replace(/\b(terms|conditions|policy|fees|rates|restrictions)\b[^.\n]{0,80}\bapply\b/gi, ''));
+    const off = [context, button, attrs, text].filter((t) => NOT_APPLICATION.test(t)).length + (MATH.test(all) ? 1 : 0);
+    const application = pinned || cv || questions >= 2 || (ats && !off);
+    const unrelated = off > 0 && !pinned && !cv && !questions && !apply;
+    return { application, unrelated, score: (cv ? 10 : 0) + (ats || pinned ? 10 : 0) + 3 * questions + (apply ? 3 : 0) - 10 * off, cv, questions, apply, ats, off };
+  }
+
+  // Hosts that serve job applications and little else.
+  const ATS_HOST = /(^|\.)(greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com|myworkdayjobs\.com|myworkday\.com|smartrecruiters\.com|bamboohr\.com|applytojob\.com|recruitee\.com|teamtailor\.com|pinpointhq\.com|breezy\.hr|personio\.(de|com)|comeet\.(co|com)|jobvite\.com|icims\.com|taleo\.net|successfactors\.(com|eu)|hibob\.com|jobylon\.com|homerun\.co|zohorecruit\.com|join\.com|softgarden\.io)$/i;
+
+  // The words weigh() needs, read from box, whose fields are els (a loose
+  // group's box can be the whole page, so its text is left out).
+  function evidence(box, els = controls(box)) {
+    const said = (el) => (el.type === 'radio' || el.type === 'checkbox' ? `${groupLabel([el], el, box)} ${ownLabel(el)}` : labelOf(el, box));
+    const files = els.filter((el) => el.type === 'file');
+    return weigh({
+      labels: els.filter((el) => el.type !== 'file').map(said),
+      files: files.map((el) => `${labelOf(el, box)} ${el.name} ${el.id} ${el.accept}`),
+      text: box.tagName === 'FORM' || box.hasAttribute('data-ooj-root') ? textOf(box).slice(0, 3000) : '',
+      context: `${headingBefore(box)} \n ${textBefore(box, null)}`,
+      button: formButtons(box).buttons.map(caption).join(' \n '),
+      attrs: `${box.id} ${typeof box.className === 'string' ? box.className : ''} ${box.getAttribute('action') || ''}`,
+      ats: ATS_HOST.test(box.ownerDocument.location.hostname), pinned: !!box.closest('[data-ooj-root]'),
+    });
+  }
+
   // File inputs count even when hidden, so they cannot make a form on their
   // own: a closed "Apply" tab still holds its upload fields.
   function score(els) {
@@ -107,25 +172,30 @@
     return box;
   }
 
-  // The form with the most fields, or the fields outside any form when a
-  // page builds its form from divs.
+  // The form that looks most like an application, then the one with the
+  // most fields; or the fields outside any form when a page builds its
+  // form from divs. Never one that only looks like something else.
   function findForm() {
     // A site's script may pin the form's area (ats/workday.js).
     const pinned = docs().map((d) => d.querySelector('[data-ooj-root]')).find((el) => el && controls(el).length);
     if (pinned) return pinned;
     let best = null, top = 0;
+    const consider = (box, els) => {
+      const s = score(els);
+      if (!s) return;
+      const ev = evidence(box, els);
+      if (ev.unrelated) return;
+      const rank = s + (ev.application ? 1000 : 0);
+      if (rank > top) { best = box; top = rank; }
+    };
     for (const doc of docs()) {
-      for (const form of deep(doc, 'form')) {
-        if (unrelated(form)) continue;
-        const s = score(controls(form));
-        if (s > top) { best = form; top = s; }
-      }
+      for (const form of deep(doc, 'form')) if (!unrelated(form)) consider(form, controls(form));
       const loose = controls(doc.body).filter((el) => !inForm(el));
-      const s = score(loose);
-      if (s > top) { best = common(loose); top = s; }
+      if (score(loose)) consider(common(loose), loose);
     }
     return best;
   }
+  const applicationForm = (f) => f.tagName === 'IFRAME' || evidence(f).application;
 
   // The text a user sees in node: not hidden status messages, not the
   // options of a select inside it, not button captions.
@@ -347,6 +417,28 @@
     return els.length > 0 && els.length <= 3 && to.size === 1;
   }
 
+  // A page about one job, by its address, title or heading, as the card
+  // decides (detect.js): a homepage's "Apply now" is not.
+  const aboutAJob = () => {
+    if (ATS_HOST.test(location.hostname)) return true;
+    const h1 = ([...document.querySelectorAll('h1')].find((h) => h.checkVisibility()) || {}).textContent || '';
+    return globalThis.oojMatch.jobish((location.href + ' ' + document.title + ' ' + h1).replace(/ocean ?of ?jobs/gi, ''));
+  };
+
+  // A list of jobs: its Apply controls lead to two or more different jobs on
+  // this site. "Apply with LinkedIn" beside a posting's own Apply is not a
+  // second job (Breezy, Personio, Teamtailor, Oracle all have one).
+  function listHere() {
+    const here = location.href.split('#')[0];
+    const jobs = new Set();
+    for (const el of applyControls()) {
+      if (/linked ?in|indeed|xing|seek|google|facebook|glassdoor/i.test(caption(el) + ' ' + (el.href || ''))) continue;
+      const to = el.href && el.href.split('#')[0];
+      if (to && to !== here && new URL(to).origin === location.origin) jobs.add(to);
+    }
+    return jobs.size > 1;
+  }
+
   // A careers page that embeds the ATS form from another site: the caller
   // loads it in the tab, since a page cannot reach into it.
   // A challenge frame is never the form, though its referer names the form's
@@ -354,8 +446,24 @@
   function formFrame() {
     const frames = [...document.querySelectorAll('iframe[src]')].filter((f) => f.getBoundingClientRect().height > 300 && shown(f)
       && new URL(f.src, location.href).origin !== location.origin && !/captcha|challenges\.cloudflare/i.test(new URL(f.src, location.href).hostname)
-      && /job|career|apply|recruit|greenhouse|lever|ashby|workable|bamboo|breezy|personio|comeet|jobvite|teamtailor/i.test(f.src));
+      && (/job|career|apply|recruit|greenhouse|lever|ashby|workable|bamboo|breezy|personio|comeet|jobvite|teamtailor/i.test(f.src)
+        || ATS_HOST.test(new URL(f.src, location.href).hostname)));
     return frames.find((f) => /apply|application|form/i.test(f.src)) || frames[0] || null;
+  }
+
+  // A careers page that loads its ATS's form by script: Comeet's widget
+  // draws its frame a while after the page loads.
+  const ATS_EMBED = ['script[type^="comeet"]', 'script[src*="comeet"]', '#grnhse_app', 'script[src*="greenhouse.io"]', 'script[src*="lever.co"]',
+    'script[src*="workable.com"]', '#ashby_embed', 'script[src*="ashbyhq.com"]', 'script[src*="smartrecruiters"]', 'script[src*="bamboohr"]',
+    'script[src*="breezy.hr"]', 'script[src*="recruitee"]', 'script[src*="teamtailor"]', 'script[src*="personio"]', 'script[src*="jobvite"]'].join(', ');
+  // Not the ATS's own pages (a Lever posting loads lever.co scripts): their form is never a frame to wait for.
+  const embedsAts = () => !ATS_HOST.test(location.hostname) && !!document.querySelector(ATS_EMBED);
+
+  // An application form on the page, else an ATS's frame, else a form
+  // with nothing either way (it can be filled, never sent: submitInfo).
+  function pick() {
+    const f = findForm();
+    return f && applicationForm(f) ? f : formFrame() || f;
   }
 
   const captcha = () => [...document.querySelectorAll('iframe')].some((f) => /captcha|challenges\.cloudflare/.test(f.src)
@@ -366,17 +474,32 @@
   // clicked here, except on a read again after a fill (again).
   async function read(again) {
     // A posting shows its Apply control at once; a form page may still be rendering.
-    form = await waitFor(() => findForm() || formFrame(), postingHere() ? 1500 : 6000);
-    if (!form && !again) {
+    // On a page that embeds an ATS by script, its frame may still be coming:
+    // a weak form, or none, is settled for only once it has had time to.
+    const late = embedsAts();
+    const strong = () => { const f = pick(); return f && applicationForm(f) ? f : null; };
+    // A posting with an Apply button waits only as long as any posting: on
+    // block.xyz and Fivetran the Greenhouse frame grows to its form only once
+    // Apply is pressed, so waiting 8 seconds first only made it 8 seconds late.
+    const posting = postingHere() && !!applyControl();
+    form = await waitFor(late ? strong : pick, posting ? 1500 : late ? 8000 : 6000);
+    // Only on one job's page: on a list of jobs the first Apply is a job the
+    // user never chose (silverfort.com/careers), and a homepage's "Apply now"
+    // leads to a page of jobs or a general CV form (comm-it.com).
+    if (!form && !again && !listHere()) {
       const apply = applyControl();
       if (apply) {
         const href = apply.tagName === 'A' && apply.getAttribute('href');
-        if (href && !/^(#|javascript:)/i.test(href) && apply.href.split('#')[0] !== location.href.split('#')[0]) return { openUrl: apply.href };
+        const away = href && !/^(#|javascript:)/i.test(href) && apply.href.split('#')[0] !== location.href.split('#')[0];
+        if (away && !aboutAJob()) return { error: 'No application form on this page.' };
+        if (away) return { openUrl: apply.href };
         // The whole press: a tab (Radix, on Recruitee) switches on mousedown, not on click.
         press(apply);
-        form = await waitFor(() => findForm() || formFrame(), 10000);
+        form = await waitFor(late ? strong : pick, 10000);
       }
     }
+    // A weak form, or none, only once the ATS's frame has had its time.
+    if (!form && late) form = pick();
     if (form && form.tagName === 'IFRAME') return { openUrl: form.src, frame: true };
     if (!form && captcha()) return { error: 'A CAPTCHA stands in front of the form. Solve it, then try again.' };
     if (!form) return { error: 'No application form on this page.' };
@@ -394,7 +517,7 @@
       if (same) break;
     }
     for (const f of fields) if (f.type === 'combobox') f.options = await peekOptions(find(f.name)[0], f);
-    return { fields };
+    return { fields, evidence: evidence(form) };
   }
 
   function find(name) {
@@ -501,7 +624,7 @@
   }
 
   // Typeahead and custom dropdowns: type, then pick from what the list shows.
-  async function chooseOption(el, value, key) {
+  async function chooseOption(el, value, key, options) {
     const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
     const listed = () => listOf(el);
     const prompt = !!input && input.getAttribute('data-uxi-widget-type') === 'selectinput';
@@ -510,13 +633,25 @@
     press(el);
     el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     // "decline" is picked from the list ("Prefer not to say"), never typed
-    // into it: typed, it filters every choice away.
-    let opts = await waitFor(listed, value === 'decline' ? 3000 : 1000);
+    // into it: typed, it filters every choice away. A box you type in that
+    // listed nothing when the form was read (a place, a school) lists only
+    // once typed, so it gets a short look.
+    const typeahead = !!input && typeable(input) && !prompt && !(options && options.length);
+    let opts = await waitFor(listed, value === 'decline' ? 3000 : typeahead ? 200 : 1000);
     if (input && typeable(input) && value !== 'decline' && (!opts || root.oojMatch.pickOption(opts.map((o) => o.textContent), value) < 0)) {
       setValue(input, key === 'location' ? value.split(',')[0] : value);
       // Workday's prompts search on Enter. shortcut: not yet seen on a live Workday page, check there.
       if (prompt) input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-      opts = await waitFor(() => { const o = listed(); return o && (root.oojMatch.pickOption(o.map((x) => x.textContent), value) >= 0 || key === 'location') && o; }, 5000) || listed();
+      // A list that has stood unchanged for 1.5 s without the answer keeps
+      // it at that. Not a Workday prompt: its search can take longer.
+      let seen = '', since = Date.now();
+      opts = await waitFor(() => {
+        const o = listed();
+        if (o && (root.oojMatch.pickOption(o.map((x) => x.textContent), value) >= 0 || key === 'location')) return o;
+        const now = o ? o.map((x) => x.textContent).join('\n') : '';
+        if (now !== seen) { seen = now; since = Date.now(); }
+        return !prompt && !!now && Date.now() - since >= 1500 && o;
+      }, 5000) || listed();
     }
     // A typed place with no list keeps what was typed; a Workday prompt's search text is no answer.
     if (!opts && input && input.value && !prompt) return null;
@@ -551,7 +686,7 @@
       leave(el);
       return null;
     }
-    if (f.type === 'combobox') return chooseOption(el, f.value, f.key);
+    if (f.type === 'combobox') return chooseOption(el, f.value, f.key, f.options);
     if (el.type === 'date' && !/^\d{4}-\d\d-\d\d$/.test(f.value)) return 'needs a date';
     setValue(el, f.value);
     leave(el);
@@ -660,7 +795,8 @@
     if (!b) return bot ? { botCheck: true } : null;
     const sel = b.tagName.toLowerCase() + (b.id ? '#' + CSS.escape(b.id) : '') + (b.getAttribute('type') ? `[type="${b.getAttribute('type')}"]` : '')
       + [...b.classList].slice(0, 2).map((c) => '.' + CSS.escape(c)).join('');
-    return { text: caption(b).slice(0, 60), selector: sel, ...(bot ? { botCheck: true } : {}) };
+    // application: false holds every send (background.js), however it is pressed.
+    return { text: caption(b).slice(0, 60), selector: sel, application: evidence(f).application, ...(bot ? { botCheck: true } : {}) };
   }
 
   // A wizard's way to its next page: the form's one button with step
@@ -838,10 +974,13 @@
     if (!f) return { score: 0 };
     const els = controls(f);
     const fields = els.map((el) => ({ type: el.type, tag: el.tagName, autocomplete: el.getAttribute('autocomplete'), label: labelOf(el, f) }));
-    return { score: score(els), file: deep(f, 'input[type="file"]').length > 0, contactOnly: contactOnly(fields) };
+    return { score: score(els), file: deep(f, 'input[type="file"]').length > 0, contactOnly: contactOnly(fields), application: evidence(f, els).application };
   }
 
   root.oojAts = root.oojAts || {};
-  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo, next, nextOutcome, wall, watchSend, sentHere };
-  if (typeof module === 'object' && module.exports) module.exports = { buttonKind, sentCount, contactOnly };
+  // evidence: how a form (findForm()'s, by default) weighs as an application, for logs and the corpus harness.
+  const evidenceOf = (box) => { const f = box || markedForm() || findForm(); return f ? evidence(f) : null; };
+  root.oojAts.generic = { matches, onSite, read, fill, submit, outcome, formHere, postingHere, submitButton, submitInfo, next, nextOutcome, wall, watchSend, sentHere,
+    evidence: evidenceOf };
+  if (typeof module === 'object' && module.exports) module.exports = { buttonKind, sentCount, contactOnly, weigh };
 })(globalThis);
