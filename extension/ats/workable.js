@@ -49,7 +49,7 @@
   }
 
   const TYPES = {
-    text: 'text', email: 'text', number: 'text', phone: 'text', date: 'text',
+    text: 'text', email: 'text', number: 'number', phone: 'text', date: 'text',
     paragraph: 'textarea', file: 'file', dropdown: 'select', boolean: 'select', group: 'group',
   };
 

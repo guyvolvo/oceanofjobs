@@ -93,6 +93,18 @@ test('optional files and sections are left out, required ones are missing', () =
   assert.deepEqual(plan.missing.map((f) => f.name), ['experience', 'CA_1']);
 });
 
+test('a number question (live, 2026-11-09) takes the saved salary, and never words', () => {
+  const spec = JSON.stringify({ labels: {}, form: [{ fields: [
+    { id: 'QA_12053218', label: 'Desired Annual Pay (in USD)', required: true, type: 'number', max: 9999999999999 },
+  ] }] });
+  const [pay] = wk.fromSpec(spec).fields;
+  assert.equal(pay.type, 'number');
+  assert.deepEqual(m.planFill([pay], profile, {}).fills.map((f) => f.value), ['50000']);
+  // An answer that is not a number goes unfilled, so the run asks the user instead of sending an empty box.
+  assert.equal(m.fitsType(pay, 'Test answer'), false);
+  assert.deepEqual(m.planFill([pay], { ...profile, work: {}, answers: [{ question: 'Desired Annual Pay (in USD)', answer: 'Negotiable' }] }, {}).missing.map((f) => f.name), ['QA_12053218']);
+});
+
 test('a broken spec reads as no form', () => {
   assert.equal(wk.fromSpec('not json'), null);
   assert.equal(wk.fromSpec('{"form": 1}'), null);

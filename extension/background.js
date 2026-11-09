@@ -233,8 +233,10 @@ async function draftAnswer(field, profile, preferences, job, ai) {
   return !text || /^unknown\b/i.test(text) ? undefined : text;
 }
 
+// An AI answer the field cannot take ("Test answer" in a number box) is no answer: Workable then
+// counts the box as empty and refuses the form.
 const fits = (field, answer) =>
-  answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0);
+  answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0) && oojMatch.fitsType(field, String(answer));
 
 // /me/apply/draft, waiting out one rate limit (20 a minute) rather than
 // giving up on the server's AI for the rest of the run.

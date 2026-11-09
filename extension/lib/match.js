@@ -43,7 +43,7 @@
     [/github/, 'github'],
     [/sponsor/, 'sponsorship'],
     [/authorized to work|work authorization|eligible to work|right to work|legally (able|permitted) to work/, 'work_auth'],
-    [/salary|compensation expectation|expected (pay|compensation)|desired (pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
+    [/salary|compensation expectation|(expected|desired) (annual |yearly |base )?(pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
     // Not an education or job entry's "Start date month" (Greenhouse).
     [/notice period|earliest .*start|when can you start|available to start|start date(?! (month|year|day))/, 'notice'],
     [/preferred (first )?name/, 'preferred_name'],
@@ -543,7 +543,7 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, mustAnswer, suggestable,
+    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, planFill, isEeo, isStatement, mustAnswer, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
