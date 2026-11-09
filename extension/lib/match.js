@@ -43,7 +43,7 @@
     [/github/, 'github'],
     [/sponsor/, 'sponsorship'],
     [/authorized to work|work authorization|eligible to work|right to work|legally (able|permitted) to work/, 'work_auth'],
-    [/salary|compensation expectation|expected (pay|compensation)|desired (pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
+    [/salary|compensation expectation|(expected|desired) (annual |yearly |base )?(pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
     // Not an education or job entry's "Start date month" (Greenhouse).
     [/notice period|earliest .*start|when can you start|available to start|start date(?! (month|year|day))/, 'notice'],
     [/preferred (first )?name/, 'preferred_name'],
@@ -55,10 +55,11 @@
     // "Sex" only as the whole question or plainly about it, never "sexual".
     [/\bgender\b|^(what is your |your |legal )?sex$|\bsex (assigned|at birth)\b|(^| )מגדר( |$)|^מין$/, 'gender'],
     [/hispanic|latino/, 'hispanic'],
-    [/\b(race|ethnicity|ethnic (origin|background|group))\b/, 'race'],
+    [/\b(race|ethnicity|ethnicities|ethnic (origin|background|group))\b/, 'race'],
     // "Armed forces", not "military service": in Israel that is an ordinary question.
     [/\bveteran\b|\bserved in the (\w+ )?armed forces\b/, 'veteran'],
-    [/\bdisability\b|\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
+    // "Impairment of independence" is an auditor's conflict question, not EEO.
+    [/\bdisability\b|^(?!.*\b(independence|objectivity|audit|auditor)\b).*\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
     // Contact fields by label alone, for forms whose field names mean nothing.
     // Anchored, so a custom question that mentions an email is left alone.
     // Also in French, Spanish, Italian, Portuguese, German, Dutch, Polish
@@ -215,6 +216,9 @@
     const exact = opts.indexOf(want);
     if (exact >= 0) return exact;
     if (want === 'yes' || want === 'no') return opts.findIndex((o) => o.split(' ')[0] === want);
+    // A phone country list: "United States +1", next to "United States Minor Outlying Islands +1" or "U.S. Virgin Islands +1".
+    const coded = only((o) => o.replace(/( \d+)+$/, '') === want);
+    if (coded >= 0) return coded;
     const start = only((o) => o.startsWith(want + ' ') || want.startsWith(o + ' '));
     return start >= 0 ? start : only((o) => (' ' + o + ' ').includes(' ' + want + ' '));
   }
@@ -283,7 +287,8 @@
   // Demographic questions are answered only from what the user set, never
   // by AI. Some have no profile key to map to; their wording marks them.
   function isEeo(field) {
-    return EEO.has(field.key || classify(field))
+    // A reader may know from the form itself (Greenhouse's demographic survey).
+    return field.eeo === true || EEO.has(field.key || classify(field))
       // "lgbt" anywhere: "2SLGBTQIA+" has no word break before it.
       || /\b(sexual orientation|transgender|queer|pronouns?)\b|lgbt/.test(normalise(field.label))
       || OTHER_EEO.test(normalise(field.label));
@@ -405,11 +410,22 @@
   function autoSubmit({ fill, plan, submit, missing, errors, remaining, screened }) {
     if (fill !== 'full') return '';
     if (plan !== 'basic' && plan !== 'pro') return 'full automatic needs a paid plan';
-    if (!submit) return 'no submit button';
+    // A question left is what the user can act on, also on a wizard's page before its Submit.
     if ((missing || []).length || (errors || []).length) return 'needs input';
+    if (!submit) return 'no submit button';
     if (remaining != null && remaining <= 0) return 'limit reached';
     return screened || null;
   }
+
+  // autoSubmit's answer as the short code the Filled record keeps, so the
+  // server and the owner see why a fill wasn't submitted. null: not held.
+  const HOLDS = {
+    '': 'half_automatic', 'full automatic needs a paid plan': 'needs_paid_plan', 'no submit button': 'no_submit_button',
+    'needs input': 'needs_answer', 'limit reached': 'limit_reached', 'already applied': 'already_applied',
+    'already tried': 'already_tried', 'blocked company': 'blocked_company', 'applied to this company recently': 'applied_recently',
+    'below your minimum match': 'below_min_match',
+  };
+  const holdCode = (why) => (why == null ? null : HOLDS[why] || String(why).toLowerCase().replace(/[^a-z]+/g, '_').slice(0, 40));
 
   // The frame holding the application form, from executeScript results
   // over every frame of a tab ({frameId, result: generic formHere()}).
@@ -503,6 +519,8 @@
   function filledText(r) {
     const s = [`Filled ${r.filled} ${plural(r.filled, 'field')}.`];
     if (r.suggested) s.push(`AI suggested ${r.suggested} ${plural(r.suggested, 'answer')}. Check ${plural(r.suggested, 'the one', 'the ones')} outlined in amber.`);
+    // A wizard's pages already passed (Workday): their outlines went with them.
+    if (r.earlier) s.push(`AI answered ${r.earlier} ${plural(r.earlier, 'question on an earlier page', 'questions on earlier pages')}. Check ${plural(r.earlier, 'it', 'them')} on the review page before you submit.`);
     const missing = (r.missing || []).length, errors = (r.errors || []).length;
     if (missing) s.push(`${missing} ${plural(missing, 'needs', 'need')} your attention.`);
     if (errors) s.push(`Couldn't fill ${errors} ${plural(errors, 'field')}.`);
@@ -539,8 +557,8 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, mustAnswer, suggestable,
-    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
+    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, planFill, isEeo, isStatement, mustAnswer, suggestable,
+    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, holdCode, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.oojMatch = api;

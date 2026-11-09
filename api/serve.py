@@ -18,7 +18,9 @@ Two things API Gateway did that a plain WSGI server does not:
   every /api/me route is 401: safe, not broken.
   A personal access token (ooj_..., api/tokens.py) is the other way in.
   It stands for its user only on the routes its scope lists in
-  TOKEN_PATHS; anywhere else under /api/me it answers 403.
+  TOKEN_PATHS; anywhere else under /api/me it answers 403. When the
+  token table can't be read the answer is 503, not 401: the extension
+  takes a 401 to mean its token was revoked.
 - The 29 second timeout. Not reproduced. That ceiling is what turned
   a slow download into an outage.
 """
@@ -51,6 +53,10 @@ TOKEN_AREAS = {"/api/me/saved": ("saved", "saved jobs"), "/api/me/apply/queue": 
 _jwks = None
 
 
+class TokenCheckFailed(Exception):
+    """The token table couldn't be read, so the token is neither good nor bad."""
+
+
 def _claims(environ: dict) -> dict | None:
     """Verified claims from the request's bearer token, or None."""
     global _jwks
@@ -61,9 +67,9 @@ def _claims(environ: dict) -> dict | None:
     if token.startswith(tokens.PREFIX):
         try:
             found = tokens.verify(handler._alerts_table, token)
-        except Exception as e:  # noqa: BLE001 -- a table error is "not signed in", not a 500
+        except Exception as e:  # noqa: BLE001 -- any table error means "try again"
             print(f"token check failed: {e.__class__.__name__}")
-            return None
+            raise TokenCheckFailed from e
         if not found:
             return None
         # The address the account had, verified, when the token was made:
@@ -161,7 +167,11 @@ def app(environ, start_response):
     if too_big:
         start_response("413 Content Too Large", [("Content-Type", "application/json")])
         return [b'{"error": "request body too large"}']
-    event = _event(environ)
+    try:
+        event = _event(environ)
+    except TokenCheckFailed:
+        start_response("503 Service Unavailable", [("Content-Type", "application/json"), ("Retry-After", "30")])
+        return [b'{"error": "Couldn\'t check your token. Try again in a minute."}']
     path = event["rawPath"]
     if path.startswith("/api/me/") and "authorizer" not in event["requestContext"]:
         start_response("401 Unauthorized", [("Content-Type", "application/json")])

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ocean of Jobs Auto Apply",
-  "version": "1.9.19",
+  "version": "1.9.20",
   "description": "Applies to jobs for you on Workday, Greenhouse, Lever, and 11 other hiring sites, and fills in other application forms.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -34,6 +34,8 @@
     "https://oceanofjobs.com/*",
     "https://boards.greenhouse.io/*",
     "https://job-boards.greenhouse.io/*",
+    "https://boards.eu.greenhouse.io/*",
+    "https://job-boards.eu.greenhouse.io/*",
     "https://jobs.ashbyhq.com/*",
     "https://apply.workable.com/*",
     "https://*.lever.co/*",
@@ -89,6 +91,8 @@
       "matches": [
         "https://boards.greenhouse.io/*",
         "https://job-boards.greenhouse.io/*",
+        "https://boards.eu.greenhouse.io/*",
+        "https://job-boards.eu.greenhouse.io/*",
         "https://jobs.ashbyhq.com/*",
         "https://apply.workable.com/*",
         "https://*.lever.co/*",

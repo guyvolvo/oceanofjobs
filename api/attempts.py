@@ -40,6 +40,7 @@ HOLD = timedelta(minutes=30)
 DISPUTE_WINDOW = timedelta(days=14)
 DISPUTES_PER_PERIOD = 5
 ATTEMPT_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+HOLD_CODE = re.compile(r"[a-z_]{1,40}")
 
 # (limit per month, limit per day) by plan, from apply.LIMITS. R14.
 PLAN_LIMITS = {plan: (n, None) if period == "month" else (None, n) for plan, (period, n) in apply.LIMITS.items()}
@@ -60,6 +61,8 @@ SETTLE = {
     (RESERVED, FAILED): "release", (RESERVED, SKIPPED): "release", (RESERVED, NEEDS_INPUT): "release",
     (RESERVED, ABANDONED): "release",
     (STARTED, SUBMITTED): "charge", (STARTED, UNCONFIRMED): "charge", (STARTED, FAILED): "release",
+    # The site's human check refused the click: nothing went, the user sends it (R6).
+    (STARTED, NEEDS_INPUT): "release",
     (UNCONFIRMED, SUBMITTED): "none",
     # Only an unconfirmed the expiry made (reason "expired"): the start was
     # acknowledged, then the failure report came after the hold ran out.
@@ -524,6 +527,10 @@ class Attempts:
                "canon": apply.canonical_job(job.get("url")) or "id:" + job_id, "title": apply._text(job.get("title"), 300),
                "company": apply._text(job.get("company"), 200), "url": apply._text(job.get("url"), 1000),
                "state": FILLED, "reserved_at": now.isoformat(), "settled_at": now.isoformat(), "audit": [self._audit("filled", now)]}
+        # Why Full automatic didn't submit it ("no_submit_button"). Optional:
+        # older extensions send none, and anything but a short code is dropped.
+        if HOLD_CODE.fullmatch(str(job.get("hold") or "")):
+            row["hold"] = job["hold"]
         try:
             self.table.put_item(Item=row, ConditionExpression="attribute_not_exists(alert_id)")
         except ClientError as e:
@@ -665,5 +672,5 @@ class Attempts:
     @staticmethod
     def view(a: dict) -> dict:
         return {k: (int(v) if isinstance(v, Decimal) else v) for k, v in a.items()
-                if k in ("attempt_id", "job_id", "state", "reserved_at", "expires_at", "started_at", "settled_at", "month", "day", "reason",
+                if k in ("attempt_id", "job_id", "state", "reserved_at", "expires_at", "started_at", "settled_at", "month", "day", "reason", "hold",
                          "ai_answers")}

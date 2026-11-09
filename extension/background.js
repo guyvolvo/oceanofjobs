@@ -31,14 +31,19 @@ class HttpError extends Error {
 
 async function api(path, { method = 'GET', body, auth = true } = {}) {
   const headers = {};
+  const { token, authError } = auth ? await chrome.storage.local.get(['token', 'authError']) : {};
   if (auth) {
-    const { token } = await chrome.storage.local.get('token');
     if (!token) throw new HttpError(401, null);
     headers.Authorization = `Bearer ${token}`;
   }
   if (body) headers['Content-Type'] = 'application/json';
   const res = await fetch(API + path, { method, headers, body: body && JSON.stringify(body) });
-  if (res.status === 401 && auth) await chrome.storage.local.set({ authError: true });
+  // A 401 marks the connection expired and any answer that accepts the token
+  // clears that, but only for the token still stored: the website may have
+  // handed over a new one while this call was out.
+  if (auth && (res.status === 401 || (res.ok && authError)) && (await chrome.storage.local.get('token')).token === token) {
+    await chrome.storage.local.set({ authError: res.status === 401 });
+  }
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new HttpError(res.status, data);
   return data;
@@ -233,8 +238,10 @@ async function draftAnswer(field, profile, preferences, job, ai) {
   return !text || /^unknown\b/i.test(text) ? undefined : text;
 }
 
+// An AI answer the field cannot take ("Test answer" in a number box) is no answer: Workable then
+// counts the box as empty and refuses the form.
 const fits = (field, answer) =>
-  answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0);
+  answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0) && oojMatch.fitsType(field, String(answer));
 
 // /me/apply/draft, waiting out one rate limit (20 a minute) rather than
 // giving up on the server's AI for the rest of the run.
@@ -303,7 +310,8 @@ async function inTab(tabId, ats, method, args = [], frameId) {
   return res && res.result;
 }
 
-async function waitForOutcome(tabId, atsName, redirectTo) {
+// frameId: a form embedded in another site's page, watched in its frame.
+async function waitForOutcome(tabId, atsName, redirectTo, frameId) {
   const ats = globalThis.oojAts[atsName];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let i = 0; i < 45; i++) {
@@ -311,8 +319,8 @@ async function waitForOutcome(tabId, atsName, redirectTo) {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
     if (!tab) return { failed: 'tab closed' };
     if (redirectTo && tab.url && tab.url.startsWith(redirectTo)) return 'submitted';
-    if (tab.status !== 'complete' || !ats.onSite(tab.url)) continue;
-    const r = await inTab(tabId, atsName, 'outcome').catch(() => null);
+    if (tab.status !== 'complete' || (!frameId && !ats.onSite(tab.url))) continue;
+    const r = await inTab(tabId, atsName, 'outcome', [], frameId).catch(() => null);
     if (r) return r;
   }
   return { failed: 'no confirmation after submitting' };
@@ -347,6 +355,32 @@ async function planRun(fields, job, ctx, drafted) {
   }
   return plan;
 }
+
+// Questions a form shows only once an earlier one is answered ("If yes,
+// which visa?", Ashby's follow-ups) were not there when it was read. After
+// a fill the form is read again, and the new ones are planned with
+// planner(fields) -> {plan, suggested} and filled, a few rounds at most.
+// They go into fields, into and suggested; returns their fill errors.
+async function followUps(tabId, frameId, name, fields, into, suggested, planner, cv) {
+  const errors = [];
+  for (let round = 0; round < 3; round++) {
+    // generic's read(true) never presses an Apply button.
+    const again = await (name === 'generic' ? inTab(tabId, name, 'read', [true], frameId) : readForm(tabId, name, frameId)).catch(() => null);
+    const known = new Set(fields.map((f) => f.name));
+    const fresh = ((again && again.fields) || []).filter((f) => !known.has(f.name));
+    if (!fresh.length) break;
+    fields.push(...fresh);
+    const more = await planner(fresh);
+    into.missing.push(...more.plan.missing);
+    suggested.push(...more.suggested);
+    if (!more.plan.fills.length) break;
+    into.fills.push(...more.plan.fills);
+    const filled = await inTab(tabId, name, 'fill', [more.plan.fills, cv], frameId).catch(() => null);
+    errors.push(...(filled ? filled.errors : ['could not fill the form']));
+  }
+  return errors;
+}
+const runPlanner = (job, ctx, drafted) => async (fields) => ({ plan: await planRun(fields, job, ctx, drafted), suggested: [] });
 
 // Every answered question, as filled; the server decides which are the
 // AI's from the saved answers, and only says no to those.
@@ -460,36 +494,23 @@ async function viaGeneral(job, ctx, id, tabId, state) {
   if (page.error) return ['failed', page.error];
   const drafted = new Set();
   const fills = [];
-  // A wizard: each page filled, then its Next pressed, until a page has
-  // the button that sends the form.
-  for (let step = 0; ; step++) {
-    const plan = await planRun(page.fields, job, ctx, drafted);
-    if (plan.missing.length) {
-      const questions = plan.missing.map((f) => f.label);
-      return ['needs_input', 'needs answer: ' + questions.join('; '), questions];
-    }
+  const needs = (plan) => {
+    const questions = plan.missing.map((f) => f.label);
+    return ['needs_input', 'needs answer: ' + questions.join('; '), questions];
+  };
+  const stop = await walkPages(tabId, frameId, page, async (p) => {
+    const plan = await planRun(p.fields, job, ctx, drafted);
+    if (plan.missing.length) return needs(plan);
     const filled = await inTab(tabId, 'generic', 'fill', [plan.fills, ctx.cv], frameId);
+    if (filled) filled.errors.push(...await followUps(tabId, frameId, 'generic', p.fields, plan, [], runPlanner(job, ctx, drafted), ctx.cv));
     // An optional question it couldn't answer is left as it is; a required one stops the run.
     const hard = filled ? filled.errors.filter((e) => plan.fills.some((f) => f.required && e.startsWith(f.label + ':'))) : ['the form'];
     if (hard.length) return ['failed', 'could not fill ' + hard.join('; ')];
+    if (plan.missing.length) return needs(plan);
     fills.push(...plan.fills.filter((f) => !filled.errors.some((e) => e.startsWith(f.label + ':'))));
-    const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId);
-    // A CAPTCHA to solve: the extension never gets round one. Everything is
-    // answered, so the job waits in Needs attention for the user to open and
-    // send, and the credit goes back. An invisible human check is tried.
-    if (await inTab(tabId, 'generic', 'wall', [], frameId).then((w) => w && w.captcha, () => false)) {
-      return ['needs_input', 'ready to submit', []];
-    }
-    if (info && info.text) break;
-    if (step >= 8) return ['failed', 'submit button not found'];
-    const before = await inTab(tabId, 'generic', 'next', [], frameId);
-    if (!before) return ['failed', 'submit button not found'];
-    const moved = await inTab(tabId, 'generic', 'nextOutcome', [before], frameId).catch(() => null);
-    if (moved && moved.failed) return ['failed', moved.failed];
-    await waitForLoad(tabId);
-    page = await readForm(tabId, 'generic', frameId).catch(() => null);
-    if (!page || page.error || page.openUrl || page.frame) return ['failed', READ_ERROR];
-  }
+    return null;
+  });
+  if (stop) return stop;
   const ok = await gate(id, { answers: sentAnswers(fills, job, drafted), mode: 'auto' });
   if (ok.review) return ['needs_input', 'check AI answers: ' + ok.review.join('; '), ok.review];
   if (!ok.ok) return [null];
@@ -506,6 +527,37 @@ async function viaGeneral(job, ctx, id, tabId, state) {
   // The page's human check refused the click: nothing went, so the same as a CAPTCHA.
   if (out && /^captcha: human check/.test(out.failed || '')) return ['needs_input', 'ready to submit', []];
   return afterClick(out);
+}
+
+// A wizard: each page filled by fillPage(page), then its Next pressed,
+// until a page has the button that sends the form. null on that page,
+// else why it stopped, as [outcome, why, questions]: fillPage's own
+// answer when it returns one. Runs and Fill application on Workday.
+async function walkPages(tabId, frameId, page, fillPage) {
+  const submitText = () => inTab(tabId, 'generic', 'submitInfo', [], frameId).then((i) => i && i.text, () => null);
+  for (let step = 0; ; step++) {
+    const stop = await fillPage(page);
+    if (stop) return stop;
+    const info = await submitText();
+    // A CAPTCHA to solve: the extension never gets round one. Everything is
+    // answered, so the job waits in Needs attention for the user to open and
+    // send, and the credit goes back. An invisible human check is tried.
+    if (await inTab(tabId, 'generic', 'wall', [], frameId).then((w) => w && w.captcha, () => false)) {
+      return ['needs_input', 'ready to submit', []];
+    }
+    if (info) return null;
+    if (step >= 8) return ['failed', 'submit button not found'];
+    const before = await inTab(tabId, 'generic', 'next', [], frameId);
+    if (!before) return ['failed', 'submit button not found'];
+    const moved = await inTab(tabId, 'generic', 'nextOutcome', [before], frameId).catch(() => null);
+    if (moved && moved.failed) return ['failed', moved.failed];
+    await waitForLoad(tabId);
+    // read(true) never presses an Apply button. A last page with nothing
+    // to fill (Workday's Review) is only its Submit.
+    page = await inTab(tabId, 'generic', 'read', [true], frameId).catch(() => null);
+    if (page && page.error && await submitText()) page = { fields: [] };
+    if (!page || page.error || page.openUrl || page.frame) return ['failed', READ_ERROR];
+  }
 }
 
 // One job, start to finish: 'submitted', 'skipped', 'failed', 'captcha'
@@ -560,9 +612,15 @@ async function applyTo(job, ctx) {
       return 'skipped';
     }
     const filled = await inTab(tab.id, job.ats, 'fill', [plan.fills, ctx.cv]);
+    if (filled && !filled.errors.length) filled.errors.push(...await followUps(tab.id, 0, job.ats, page.fields, plan, [], runPlanner(job, ctx, drafted), ctx.cv));
     if (!filled || filled.errors.length) {
       await settle(id, 'failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form'));
       return 'failed';
+    }
+    if (plan.missing.length) {
+      const questions = plan.missing.map((f) => f.label);
+      await settle(id, 'needs_input', 'needs answer: ' + questions.join('; '), questions);
+      return 'skipped';
     }
     const ok = await gate(id, { answers: sentAnswers(plan.fills, job, drafted), mode: 'auto' });
     if (ok.review) {
@@ -579,8 +637,12 @@ async function applyTo(job, ctx) {
       return 'failed';
     }
     const [outcome, why] = afterClick(await waitForOutcome(tab.id, job.ats, page.redirectTo));
+    if (outcome === 'failed' && /^captcha/i.test(why)) {
+      // The site's human check stopped the click: nothing went, so the user sends it from Needs attention.
+      await settle(id, 'needs_input', 'ready to submit', []);
+      return 'captcha';
+    }
     await settle(id, outcome, why);
-    if (outcome === 'failed' && /^captcha/i.test(why)) return 'captcha';
     return outcome;
   } catch (e) {
     // After the gate the click may have happened: unconfirmed, never retried.
@@ -876,10 +938,12 @@ async function pageCompany(tabId) {
 
 // A fill the user will check and send: in History as Filled, no credit.
 // Then the tab is watched for the user sending it (watchSend).
-async function recordFilled(job, tabId, frameId, email) {
+// held: autoWhy's answer, kept on the record as a code (oojMatch.holdCode).
+async function recordFilled(job, tabId, frameId, email, held) {
   const attemptId = newAttemptId();
+  const hold = oojMatch.holdCode(held);
   await sendDurable('/me/apply/filled', { attempt_id: attemptId, job_id: job.id, url: job.url, title: job.title,
-    company: job.company_name || job.company_domain });
+    company: job.company_name || job.company_domain, ...(hold ? { hold } : {}) });
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab) return;
   await setWatch(tabId, { attemptId, email: String(email || '').trim().toLowerCase(), url: tab.url, until: Date.now() + WATCH_FOR, clickAt: 0 });
@@ -966,12 +1030,12 @@ async function fillHere(msg, tabId, frameId) {
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   // Filling costs nothing (R8); a credit is reserved only when Submit is
   // pressed on the card, by the user or by Full automatic (startSubmit).
-  const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
-  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email);
+  const result = await fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested);
   // The dedicated filler presses its own button and handles a CAPTCHA
   // (ats outcome), as in automatic runs: reCAPTCHA sits on every
   // Greenhouse and Ashby form, so generic's bot check isn't asked here.
   const why = autoWhy(a, job, msg.url, result, { text: 'Submit' });
+  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email, why);
   return { ...result, auto: why === null, held: why || '' };
 }
 
@@ -1032,11 +1096,13 @@ async function planWithSuggestions(page, job, ctx) {
   return { plan, suggested };
 }
 
-async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
-  const filled = await inTab(tabId, name, 'fill', [plan.fills, cv], frameId);
+// carried: the AI's answers from a wizard's earlier pages, as cardAnswers read them before Next.
+async function fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested, carried = []) {
+  const filled = await inTab(tabId, name, 'fill', [plan.fills, ctx.cv], frameId);
+  if (filled) filled.errors.push(...await followUps(tabId, frameId, name, page.fields, plan, suggested, (fields) => planWithSuggestions({ fields }, job, ctx), ctx.cv));
   // What the AI suggested here, for the record when the user presses Submit
   // on the card (cardAnswers).
-  await chrome.storage.session.set({ [`cardai:${tabId}`]: { frameId, items: suggested.map((f) => ({
+  await chrome.storage.session.set({ [`cardai:${tabId}`]: { frameId, carried, items: suggested.map((f) => ({
     question: f.label, name: f.name, answer: String((plan.fills.find((x) => x.name === f.name) || {}).value ?? '') })) } });
   // Amber: the AI suggested it, check it. Red: still needs the user.
   await chrome.scripting.executeScript({
@@ -1063,11 +1129,13 @@ async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
 // The AI's suggestions on this tab as they stand when the user presses
 // Submit: what's in each field now. Unchanged, it's the AI's answer;
 // changed, it's the user's. [] when nothing was suggested or nothing can be
-// read; the gate then records nothing, it doesn't refuse.
+// read; the gate then records nothing, it doesn't refuse. A wizard's
+// earlier pages are gone from the page, so theirs come as carried.
 async function cardAnswers(tabId) {
   const key = `cardai:${tabId}`;
   const { [key]: card } = await chrome.storage.session.get(key);
-  if (!card || !card.items.length) return [];
+  const carried = (card && card.carried) || [];
+  if (!card || !card.items.length) return carried;
   try {
     const [r] = await chrome.scripting.executeScript({
       target: card.frameId ? { tabId, frameIds: [card.frameId] } : { tabId },
@@ -1090,10 +1158,10 @@ async function cardAnswers(tabId) {
       }),
     });
     const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
-    return card.items.map((item, i) => ({ item, now: r.result[i] })).filter(({ now }) => now != null && String(now).trim())
-      .map(({ item, now }) => ({ question: item.question, answer: String(now).slice(0, 800), ...(same(now, item.answer) ? { source: 'ai' } : {}) }));
+    return [...carried, ...card.items.map((item, i) => ({ item, now: r.result[i] })).filter(({ now }) => now != null && String(now).trim())
+      .map(({ item, now }) => ({ question: item.question, answer: String(now).slice(0, 800), ...(same(now, item.answer) ? { source: 'ai' } : {}) }))];
   } catch {
-    return [];
+    return carried;
   }
 }
 
@@ -1165,7 +1233,8 @@ async function fillTab(tabId) {
   const r = await assist(tabId, frameId, name, page, tab.url, tab.title);
   if (!r.auto) return r;
   // Full automatic: the card's Submit (submitHere), pressed for the user.
-  return { ...r, sent: await submitHere({ url: tab.url, frameId, title: tab.title, company: new URL(tab.url).hostname, auto: true },
+  return { ...r, sent: await submitHere({ url: tab.url, frameId, title: tab.title, company: new URL(tab.url).hostname, auto: true,
+    ats: name, redirectTo: page.redirectTo },
     { tab: { id: tabId }, frameId }) };
 }
 
@@ -1184,13 +1253,37 @@ async function assist(tabId, frameId, name, page, url, title) {
   const job = { ...(await jobForTab(tabId, url, title, u.hostname)), location: '', ats: name };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: true };
-  const { plan, suggested } = await planWithSuggestions(page, job, ctx);
-  const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
-  await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email);
-  const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  let result = null, carried = [];
+  const fillPage = async (p) => {
+    const { plan, suggested } = await planWithSuggestions(p, job, ctx);
+    const r = await fillAndMark(tabId, frameId, name, p, job, ctx, plan, suggested, carried);
+    // suggested: outlined on the page the walk ends on; earlier: on pages already passed.
+    result = !result ? { ...r, earlier: 0 } : { ...r, filled: result.filled + r.filled, earlier: result.earlier + result.suggested,
+      statements: [...result.statements, ...r.statements], errors: [...result.errors, ...r.errors] };
+    // Never past a page with a question left for the user (Workday holds it
+    // back too) or a field it couldn't fill, unless that one is optional.
+    if (r.missing.length || r.errors.some((e) => !plan.fills.some((f) => !f.required && e.startsWith(f.label + ':')))) return ['needs_input'];
+    // What goes to the gate from this page, read before Next takes it away.
+    carried = await cardAnswers(tabId);
+    return null;
+  };
+  // Workday: every page up to Review, through its Next buttons, as a run
+  // walks them. Pressing Next sends nothing; Submit stays for the gate.
+  const workday = globalThis.oojAts.workday.onSite(url);
+  let stop = null;
+  if (workday) stop = await walkPages(tabId, frameId, page, fillPage);
+  else await fillPage(page);
+  const submit = stop ? null : await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   const why = autoWhy(a, job, url, result, submit);
+  await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email, why);
+  if (workday && why === 'needs input' && result.missing.length) {
+    // Full automatic stopped on a question: in Needs attention, as a run
+    // puts it, and the credit goes back at once.
+    const held = await reserve(job);
+    if (held.attemptId) await settle(held.attemptId, 'needs_input', 'needs answer: ' + result.missing.join('; '), result.missing);
+  }
   return { ...result, ats: name, frameId, fields: page.fields.length, required: page.fields.filter((f) => f.required).length,
-    submitInfo: submit, auto: why === null, held: why || '' };
+    submitInfo: submit, auto: !stop && why === null, held: (stop && stop[1]) || why || '' };
 }
 
 // What the popup's fill button offers on a tab, before any click: opening
@@ -1303,11 +1396,15 @@ async function assistHere(msg, sender) {
 // "Submit application" on the card of a page with no dedicated filler:
 // claim a credit, press the form's own button, watch for a confirmation.
 // The credit counts only when one shows; otherwise it is given back.
+// msg.ats: the popup's fill on a site with a dedicated filler presses that
+// filler's button and watches its outcome, as runs do (Greenhouse waits
+// for the CV upload first).
 async function submitHere(msg, sender) {
   const tabId = sender.tab.id;
   await setWatch(tabId, null); // the card's own attempt records this send
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
-  const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  const ats = msg.ats && msg.ats !== 'generic' && globalThis.oojAts[msg.ats].submit ? msg.ats : 'generic';
+  const info = ats === 'generic' ? await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null) : { text: 'Submit' };
   if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
@@ -1321,8 +1418,10 @@ async function submitHere(msg, sender) {
   let before = null;
   let out;
   try {
-    before = await inTab(tabId, 'generic', 'submit', [], frameId);
-    out = before ? await watchHere(tabId, frameId, before) : { failed: 'submit button not found' };
+    before = await inTab(tabId, ats, 'submit', [], frameId);
+    out = !before ? { failed: 'submit button not found' }
+      : ats === 'generic' ? await watchHere(tabId, frameId, before, globalThis.oojAts.workday.onSite(msg.url))
+      : await waitForOutcome(tabId, ats, msg.redirectTo, frameId);
   } catch (e) {
     out = { failed: String(e.message || e).slice(0, 200) };
   }
@@ -1339,10 +1438,13 @@ async function submitHere(msg, sender) {
 
 // generic.outcome() in the form's frame for up to 20 seconds. A navigation
 // ends the script early with no answer, so it goes in again on the new page.
-async function watchHere(tabId, frameId, before) {
+// Strict, as in runs: a form that only went away is unconfirmed (contract R4, R5).
+// On Workday its own confirmation, as in runs.
+async function watchHere(tabId, frameId, before, workday) {
   const until = Date.now() + 20000;
   while (Date.now() < until) {
-    const r = await inTab(tabId, 'generic', 'outcome', [before, until - Date.now()], frameId).catch(() => null);
+    const r = await (workday ? inTab(tabId, 'workday', 'outcome', [before, until - Date.now()])
+      : inTab(tabId, 'generic', 'outcome', [before, until - Date.now(), true], frameId)).catch(() => null);
     if (r) return r;
     await new Promise((res) => setTimeout(res, 1000));
   }
@@ -1411,10 +1513,13 @@ async function status() {
     connected: !!st.token && !st.authError, authError: !!st.authError, paused: !!st.paused,
     hasCv: !!st.cv, needs: [], lastRun: st.lastRun || null, lastError: st.lastError || null, pending: (st.outbox || []).length,
   };
-  if (!out.connected) return out;
+  // A token marked expired is asked about again: one 401 shouldn't need a reconnect.
+  if (!st.token) return out;
   try {
     const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const [summary, { needs }] = await Promise.all([api('/me/apply/summary?tz=' + tz), api('/me/apply/needs')]);
+    out.connected = true;
+    out.authError = false;
     out.summary = summary;
     out.usage = { plan: summary.plan, period: summary.period, remaining: summary.remaining };
     out.appliedToday = summary.applied_today;

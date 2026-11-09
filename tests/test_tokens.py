@@ -138,11 +138,20 @@ try:
 except ValueError:
     check("a sixth token is refused", True)
 
-for _ in range(3):
-    last = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW, scope="extension")
-mine = tokens.list_tokens(table, "u-reconnect")
-check("connecting the extension again replaces its token instead of adding one",
-      len(mine) == 1 and mine[0]["id"] == last["id"] and tokens.verify(table, last["token"], NOW)["scope"] == "extension", repr(mine))
+# A second browser or computer gets its own token: connecting it must not
+# sign the first one out. Reconnecting drops the least recently used.
+H = timedelta(hours=1)
+home = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW, scope="extension")
+work = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW + H / 2, scope="extension")
+check("connecting the extension in a second browser keeps the first one connected",
+      bool(tokens.verify(table, home["token"], NOW + H)) and bool(tokens.verify(table, work["token"], NOW + H)))
+for i in range(2, 8):
+    last = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW + i * H, scope="extension")
+    tokens.verify(table, home["token"], NOW + i * H + H / 2)  # the first browser keeps running every hour
+mine = [t for t in tokens.list_tokens(table, "u-reconnect") if t["scope"] == "extension"]
+check("reconnecting again and again keeps a few extension tokens, not one per connect",
+      len(mine) == tokens.MAX_EXTENSIONS and any(t["id"] == last["id"] for t in mine), repr(mine))
+check("and the browser still in use keeps its token", bool(tokens.verify(table, home["token"], NOW + 9 * H)))
 # Editing: the name and permissions change; the token keeps working.
 got = tokens.update(table, USER, made["id"], "  renamed ", {"saved": "read", "queue": "none", "alerts": "write", "preferences": "none"})
 check("a token can be renamed and its permissions changed",
@@ -300,6 +309,15 @@ for path in ("/api/me/profile", "/api/me/tokens", "/api/me/alerts"):
     status, _ = call(path, auth=ext)
     check(f"but not {path}", status.startswith("403"), status)
 check("an extension token carries no MCP permissions", "permissions" not in tokens.verify(table, ext))
+# The token table failing for a moment is not a signed-out token: the
+# extension forgets its connection on a 401, so this must be retryable.
+_get = table.get_item
+table.get_item = lambda **kw: (_ for _ in ()).throw(RuntimeError("throttled"))
+status, _ = call("/api/me/apply/summary", auth=ext)
+table.get_item = _get
+check("a token check that fails on the table answers 503, not 401", status.startswith("503"), status)
+status, _ = call("/api/me/apply/summary", auth="ooj_" + "x" * 20)
+check("a token that isn't one is still 401", status.startswith("401"), status)
 
 # The extension's whole round trip through serve.py and handler.route_apply.
 status, body = call("/api/me/apply/profile", "PUT", ext, {"profile": {"contact": {"first_name": "Ada"}, "settings": {"mode": "auto"}}})

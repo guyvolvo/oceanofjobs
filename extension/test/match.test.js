@@ -69,6 +69,10 @@ test('pickOption handles yes/no, decline and partial labels', () => {
   assert.equal(m.pickOption(['Asian', 'Black or African American'], 'black'), 1);
   assert.equal(m.pickOption(['Israel +972', 'Italy +39'], 'Israel'), 0);
   assert.equal(m.pickOption(['Canada +1', 'United States +1'], 'United States'), 1);
+  // Greenhouse's phone Country list, live on 2026-11-09.
+  assert.equal(m.pickOption(['United Arab Emirates +971', 'United Kingdom +44', 'United States +1', 'United States Minor Outlying Islands +1'], 'United States'), 2);
+  // Greenhouse's phone country list as it is live (2026-11-09).
+  assert.equal(m.pickOption(['United States +1', 'U.S. Virgin Islands +1', 'United Kingdom +44'], 'United States'), 0);
   assert.equal(m.pickOption(['Yes', 'No'], 'Maybe'), -1);
   // Live Greenhouse veteran options: a loose match must not pick the wrong one.
   const veteran = ['I am not a protected veteran', 'I identify as one or more of the classifications of a protected veteran', "I don't wish to answer"];
@@ -233,7 +237,8 @@ test('withQueued puts queued jobs before picked ones, without repeats', () => {
 
 test('demographic questions are recognised however they are worded, so AI never answers them', () => {
   for (const label of ['I identify my gender as', 'What is your ethnicity?', 'Race', 'Gender', 'Are you a veteran?',
-    'Do you have a disability?', 'What is your sexual orientation?', 'Your pronouns', 'Do you identify as transgender?']) {
+    'Do you have a disability?', 'What is your sexual orientation?', 'Your pronouns', 'Do you identify as transgender?',
+    'Please select up to 2 ethnicities that you most closely identify with.']) {
     assert.equal(m.isEeo({ label, type: 'select' }), true, label);
   }
   for (const label of ['First name', 'Why do you want to work here?', 'Years of Python experience']) {
@@ -314,6 +319,10 @@ test('filledText counts in the singular and plural and leaves out zeros', () => 
     "Filled 3 fields. AI suggested 1 answer. Check the one outlined in amber. 1 needs your attention. Couldn't fill 2 fields.");
   assert.equal(m.filledText({ filled: 5, suggested: 2, missing: ['a', 'b'], errors: [] }),
     'Filled 5 fields. AI suggested 2 answers. Check the ones outlined in amber. 2 need your attention.');
+  assert.equal(m.filledText({ filled: 7, suggested: 0, earlier: 1, missing: [], errors: [] }),
+    'Filled 7 fields. AI answered 1 question on an earlier page. Check it on the review page before you submit.');
+  assert.equal(m.filledText({ filled: 7, suggested: 1, earlier: 2, missing: [], errors: [] }),
+    'Filled 7 fields. AI suggested 1 answer. Check the one outlined in amber. AI answered 2 questions on earlier pages. Check them on the review page before you submit.');
 });
 
 test('mustAnswer: every required box is ticked, a required agreement is a yes', () => {
@@ -354,12 +363,26 @@ test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left f
   assert.equal(m.autoSubmit({ ...ready, plan: 'free' }), 'full automatic needs a paid plan');
   assert.equal(m.autoSubmit({ ...ready, submit: false }), 'no submit button');
   assert.equal(m.autoSubmit({ ...ready, missing: ['Phone'] }), 'needs input');
+  assert.equal(m.autoSubmit({ ...ready, submit: false, missing: ['Phone'] }), 'needs input', "a question left on a wizard's page, not its missing Submit");
   assert.equal(m.autoSubmit({ ...ready, errors: ['Country: no option matches "Mars"'] }), 'needs input');
   assert.equal(m.autoSubmit({ ...ready, remaining: 0 }), 'limit reached');
   assert.equal(m.autoSubmit({ ...ready, screened: 'blocked company' }), 'blocked company');
   for (const why of ['full automatic needs a paid plan', 'no submit button', 'needs input', 'limit reached', 'blocked company']) {
     assert.match(m.reasonText(why), /^[A-Z].*\.$/, `"${why}" reads as a sentence`);
   }
+});
+
+test('holdCode: why a fill was held, as the short code the Filled record keeps', () => {
+  const ready = { fill: 'full', plan: 'pro', submit: true, missing: [], errors: [], remaining: 5, screened: null };
+  const code = (o) => m.holdCode(m.autoSubmit({ ...ready, ...o }));
+  assert.equal(code({}), null, 'not held: Full automatic submits');
+  assert.equal(code({ fill: 'half' }), 'half_automatic');
+  assert.equal(code({ plan: 'free' }), 'needs_paid_plan');
+  assert.equal(code({ submit: false }), 'no_submit_button');
+  assert.equal(code({ missing: ['Phone'] }), 'needs_answer');
+  assert.equal(code({ remaining: 0 }), 'limit_reached');
+  assert.equal(code({ screened: 'applied to this company recently' }), 'applied_recently');
+  assert.equal(m.holdCode('Some new reason!'), 'some_new_reason_', 'an unknown reason still fits the server');
 });
 
 test('sentText: what a Submit came to, for the card and the popup', () => {
@@ -399,6 +422,19 @@ test('demographic questions in other wordings are recognised; ordinary questions
   }
   assert.equal(m.classify({ label: 'What is your sex?' }), 'gender', 'a saved gender answer fills "Sex"');
   assert.equal(m.classify({ label: 'Do you have a long-term health condition or impairment?' }), 'disability');
+});
+
+test('an auditor independence question is not about disability; impairment questions still are', () => {
+  for (const label of ['Is there any perceived impairment of independence with you being our auditor?',
+    'Is there any impairment of independence or objectivity in relation to the audit of this company?',
+    'Do you have any relationship that could cause an impairment to your independence as an auditor?']) {
+    assert.notEqual(m.classify({ label }), 'disability', label);
+    assert.ok(!m.isEeo({ label, type: 'select', options: [] }), label);
+  }
+  for (const label of ['Do you have a physical or mental impairment?', 'Do you have an impairment, health condition or learning difference?',
+    'Do you consider yourself to have a disability or impairment?', 'Disability status']) {
+    assert.equal(m.classify({ label }), 'disability', label);
+  }
 });
 
 test('a phone number split in two (Workday): the country in its dropdown, the rest in the box', () => {

@@ -213,6 +213,21 @@ with mock_aws():
           and m["held"] == 0 and m["charged"] == 0 and d["held"] == 0, repr((m, d)))
     check("and the job can be tried again", A.reserve("u", "late-000002", job(2), NOW + timedelta(minutes=42))["state"] == at.RESERVED)
 
+    # The site's human check refused the click after the start (extension
+    # viaGeneral): nothing was sent, so the credit goes back and the job
+    # waits in Needs attention for the user to send it.
+    t, A = fresh_table()
+    A.reserve("u", "bot-000001", job(1), NOW)
+    A.submission_started("u", "bot-000001", NOW)
+    refused = raises(lambda: A.settle("u", "bot-000001", at.NEEDS_INPUT, "ready to submit", NOW, []), at.Conflict)
+    m, d = counts(A)
+    check("a human check refused the click: released as Needs input", not refused
+          and A._get("u", at.ATTEMPT + "bot-000001")["state"] == at.NEEDS_INPUT and m["held"] == 0 and m["charged"] == 0 and d["held"] == 0,
+          repr((refused, m, d)))
+    A.expire("u", NOW + timedelta(minutes=31))
+    check("and expiry never charges it", counts(A)[0]["charged"] == 0 and A._get("u", at.ATTEMPT + "bot-000001")["state"] == at.NEEDS_INPUT)
+    check("it shows in Needs attention, ready to submit", [n.get("ready") for n in A.needs("u")] == [True], repr(A.needs("u")))
+
     # Expiry and submission start.
     t, A = fresh_table()
     A.reserve("u", "exp-000001", job(1), NOW)
@@ -305,6 +320,18 @@ with mock_aws():
           s["filled_today"] == 1 and s["applied_today"] == 1, repr(s))
     A.filled("u", "fil-000006", job(4), NOW)
     check("a fill the user sends themselves counts too", A.summary("u", NOW)["filled_today"] == 2)
+
+    # Why Full automatic held a fill: a short code on the Filled record, optional for old clients.
+    t, A = fresh_table()
+    a = A.filled("u", "hld-000001", {**job(1), "hold": "no_submit_button"}, NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000001"})["Item"]
+    check("the hold reason is stored on the Filled record", row.get("hold") == "no_submit_button" and a.get("hold") == "no_submit_button", repr(row))
+    A.filled("u", "hld-000002", job(2), NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000002"})["Item"]
+    check("an old client's fill, with no hold, is stored as before", "hold" not in row, repr(row))
+    A.filled("u", "hld-000003", {**job(3), "hold": "<script>" + "x" * 100}, NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000003"})["Item"]
+    check("a hold that isn't a short code is dropped, the fill still recorded", "hold" not in row and row["state"] == at.FILLED, repr(row))
 
     # A fill the user then sent with the site's button, seen by the extension.
     t, A = fresh_table()
