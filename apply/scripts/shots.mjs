@@ -13,9 +13,10 @@ const out = args[0];
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const SITES = { live: opt("--live", "https://oceanofjobs.com"), new: opt("--local", "http://127.0.0.1:4173") };
 const ALL = { home: "/", privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/this-page-does-not-exist", "404-job": "/jobs/senior-backend-engineer-0a1b2c3d4e",
-  pricing: "/pricing", checkout: "/checkout?plan=basic", "checkout-none": "/checkout", companies: "/companies", "companies-panel": "/companies?company=amazon.com" };
-// --only companies,companies-panel shoots just those pages.
-const PAGES = opt("--only") ? Object.fromEntries(opt("--only").split(",").map((k) => [k, ALL[k]])) : ALL;
+  pricing: "/pricing", checkout: "/checkout?plan=basic", "checkout-none": "/checkout", companies: "/companies", "companies-panel": "/companies?company=amazon.com", stats: "/stats" };
+// --only companies,companies-panel shoots just those pages; --pages stats=/stats,home=/ names the paths too.
+const PAGES = opt("--pages") ? Object.fromEntries(opt("--pages").split(",").map((p) => p.split("=")))
+  : opt("--only") ? Object.fromEntries(opt("--only").split(",").map((k) => [k, ALL[k]])) : ALL;
 const VIEWS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
 
 mkdirSync(out, { recursive: true });
@@ -31,7 +32,9 @@ for (const [view, vp] of Object.entries(VIEWS)) for (const theme of ["light", "d
     const errors = [];
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 200)); });
     page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
-    await page.goto(base + path, { waitUntil: "networkidle" });
+    // --wait load --settle 8000: for a page that never goes network-idle (stats keeps reading its database).
+    await page.goto(base + path, { waitUntil: opt("--wait", "networkidle") });
+    if (opt("--settle")) await page.waitForTimeout(Number(opt("--settle")));
     await page.evaluate(() => document.fonts.ready);
     const m = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
     const file = `${name}-${view}-${theme}-${site}.jpg`;

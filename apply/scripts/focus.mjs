@@ -10,7 +10,8 @@ import { chromium } from "../../tests/e2e/node_modules/playwright/index.mjs";
 const args = process.argv.slice(2);
 const out = args[0];
 const base = args.includes("--local") ? args[args.indexOf("--local") + 1] : "http://127.0.0.1:4173";
-const PAGES = ["/", "/privacy", "/terms", "/refunds", "/contact", "/no-such-page", "/pricing", "/checkout", "/companies"];
+// --pages /stats,/ checks only those pages.
+const PAGES = args.includes("--pages") ? args[args.indexOf("--pages") + 1].split(",") : ["/", "/privacy", "/terms", "/refunds", "/contact", "/no-such-page", "/pricing", "/checkout", "/companies", "/stats"];
 mkdirSync(out, { recursive: true });
 
 const focused = (p) => p.evaluate(() => {

@@ -1,20 +1,27 @@
 // The answer's views: the numbers above the chart, the chart itself, the
 // rows under it, and the table. Every header sorts, the main number gets
 // a light bar inside its cell, a change reads green when it went up.
-import { useState } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Collapsible } from "@cloudflare/kumo/components/collapsible";
-import { Table } from "@cloudflare/kumo/components/table";
+import { lazy, Suspense, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
-import { ColumnChart, HBarChart, LineChart } from "./Charts";
+import { cn } from "@/lib/utils";
 import { barsAreVertical, fmtInt, fmtTime, fmtValue, LABELS, prettyCol, ROWS_PREVIEW, statsOf, type Cell, type Manifest, type Question, type Shaped, type Viz } from "./data";
+
+// ECharts arrives with the first chart, not with the page.
+const LineChart = lazy(() => import("./Charts").then((m) => ({ default: m.LineChart })));
+const ColumnChart = lazy(() => import("./Charts").then((m) => ({ default: m.ColumnChart })));
+const HBarChart = lazy(() => import("./Charts").then((m) => ({ default: m.HBarChart })));
 
 export function ResultBody({ d, kind, q, manifest }: { d: Shaped; kind: Exclude<Viz, "auto">; q: Question; manifest: Manifest }) {
   if (kind === "table") return <ResultTable d={d} limit={d.tableRows.length} />;
+  const vertical = kind === "line" || barsAreVertical(d.rows);
+  // The chart's own height is held while ECharts loads, so the rows under it don't jump.
+  const height = vertical ? 268 : d.rows.length * 28 + 8;
   return (
     <>
       <StatsRow d={d} q={q} manifest={manifest} />
-      {kind === "line" ? <LineChart d={d} /> : barsAreVertical(d.rows) ? <ColumnChart d={d} /> : <HBarChart d={d} />}
+      <Suspense fallback={<div style={{ height }} />}>
+        {kind === "line" ? <LineChart d={d} /> : vertical ? <ColumnChart d={d} /> : <HBarChart d={d} />}
+      </Suspense>
       <RowsSection d={d} />
     </>
   );
@@ -24,20 +31,18 @@ function StatsRow({ d, q, manifest }: { d: Shaped; q: Question; manifest: Manife
   const stats = statsOf(d, q, manifest);
   if (!stats.length) return null;
   return (
-    <div className="mb-4 flex flex-col gap-2">
-      <div className="flex flex-wrap gap-px border border-kumo-hairline bg-kumo-hairline">
-        {stats.map((s) => (
-          <div key={s.label} className="min-w-0 flex-1 basis-[140px] bg-kumo-base px-3 py-2.5">
-            <div className="text-xs text-kumo-subtle">{s.label}</div>
-            <div className={`font-display text-[26px] leading-tight tracking-tight tabular-nums ${s.up ? "text-kumo-success" : "text-kumo-strong"}`}>{s.value}</div>
-            <div className="truncate text-xs text-kumo-subtle" title={s.sub}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
+    <div className="mb-[18px] grid grid-cols-2 gap-x-4 gap-y-3.5 sm:flex sm:flex-wrap sm:items-start sm:gap-0">
+      {stats.map((s) => (
+        <div key={s.label} className="min-w-0 sm:border-l sm:px-6 sm:first:border-l-0 sm:first:pl-0">
+          <div className="text-[12.5px] text-muted-foreground">{s.label}</div>
+          <div className={cn("font-display text-[22px] leading-tight whitespace-nowrap tabular-nums sm:text-[26px]", s.up && "text-link-hover")}>{s.value}</div>
+          <div className="max-w-[220px] truncate text-xs text-muted-foreground" title={s.sub}>{s.sub}</div>
+        </div>
+      ))}
       {d.time && d.pi >= 0 ? (
-        <div className="flex gap-4 text-xs text-kumo-subtle">
-          <span className="inline-flex items-center gap-1.5"><i className="inline-block w-4 border-t-2 border-kumo-contrast" aria-hidden="true" />Last {d.days} days</span>
-          <span className="inline-flex items-center gap-1.5"><i className="inline-block w-4 border-t-2 border-dashed border-kumo-line" aria-hidden="true" />Previous {d.days} days</span>
+        <div className="col-span-full flex items-center gap-4 self-center text-[12.5px] sm:ml-auto">
+          <span className="inline-flex items-center gap-[7px] whitespace-nowrap"><i className="inline-block w-3.5 border-t-2 border-foreground" aria-hidden="true" />Last {d.days} days</span>
+          <span className="inline-flex items-center gap-[7px] whitespace-nowrap"><i className="inline-block w-3.5 border-t-[1.5px] border-dashed border-dim" aria-hidden="true" />Previous {d.days} days</span>
         </div>
       ) : null}
     </div>
@@ -52,21 +57,27 @@ function RowsSection({ d }: { d: Shaped }) {
   const n = d.tableRows.length;
   const shown = Math.min(all ? n : ROWS_PREVIEW, n);
   return (
-    <Collapsible.Root open={open} onOpenChange={setOpen} className="mt-4 border-t border-kumo-hairline pt-2">
-      <Collapsible.Trigger className="inline-flex items-center gap-1.5 rounded px-1 py-1 text-sm font-medium text-kumo-strong hover:bg-kumo-tint">
-        <CaretDown size={11} className={`transition-transform ${open ? "" : "-rotate-90"}`} aria-hidden="true" />
+    <div className="mt-[18px] border-t pt-3">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-xs font-ui text-[13px] font-bold">
+        <CaretDown size={10} weight="fill" className={cn("transition-transform", !open && "-rotate-90")} aria-hidden="true" />
         Rows
-        <span className="font-normal text-kumo-subtle">· showing {fmtInt(shown)} of {fmtInt(n)}</span>
-      </Collapsible.Trigger>
-      <Collapsible.Panel>
+        <span className="font-normal text-muted-foreground">· showing {fmtInt(shown)} of {fmtInt(n)}</span>
+      </button>
+      <div hidden={!open}>
         <ResultTable d={d} limit={shown} initialSort={d.time ? { col: 0, desc: true } : null} bars={false} />
-        {n > ROWS_PREVIEW ? <Button variant="ghost" size="sm" className="mt-1" onClick={() => setAll((a) => !a)}>{all ? "Show fewer" : `Show all ${fmtInt(n)}`}</Button> : null}
-      </Collapsible.Panel>
-    </Collapsible.Root>
+        {n > ROWS_PREVIEW ? (
+          <button type="button" className="mt-2.5 cursor-pointer rounded-xs text-sm underline underline-offset-[3px]" onClick={() => setAll((a) => !a)}>
+            {all ? "Show fewer" : `Show all ${fmtInt(n)}`}
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 type Sort = { col: number; desc: boolean };
+const TD = "border-b px-3 py-[9px] align-top";
 
 export function ResultTable({ d, limit, initialSort = null, bars = true }: { d: Shaped; limit: number; initialSort?: Sort | null; bars?: boolean }) {
   const [sort, setSort] = useState<Sort | null>(initialSort);
@@ -88,49 +99,50 @@ export function ResultTable({ d, limit, initialSort = null, bars = true }: { d: 
   rows = rows.slice(0, limit);
   const click = (col: number) => setSort(sort && sort.col === col ? { col, desc: !sort.desc } : { col, desc: numeric[col] });
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <Table.Header>
-          <Table.Row>
+    <div className="mt-2.5 overflow-x-auto">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr>
             {cols.map((c, i) => {
               const on = sort?.col === i;
               return (
-                <Table.Head key={c} aria-sort={on ? (sort!.desc ? "descending" : "ascending") : "none"} className={numeric[i] ? "text-right" : ""}>
-                  <button type="button" onClick={() => click(i)} className={`inline-flex items-center gap-1 whitespace-nowrap ${on ? "text-kumo-strong" : ""}`}>
+                <th key={c} aria-sort={on ? (sort!.desc ? "descending" : "ascending") : "none"}
+                  className={cn("border-b border-input/25 px-3 py-2.5 font-ui text-[13px] font-bold whitespace-nowrap", numeric[i] ? "text-right" : "text-left")}>
+                  <button type="button" onClick={() => click(i)} className="inline-flex cursor-pointer items-center gap-1 rounded-xs">
                     {prettyCol(c, d)}
-                    <CaretDown size={10} aria-hidden="true" className={on ? (sort!.desc ? "" : "rotate-180") : "opacity-40"} />
+                    <CaretDown size={10} aria-hidden="true" className={on ? (sort!.desc ? "" : "rotate-180") : "opacity-35"} />
                   </button>
-                </Table.Head>
+                </th>
               );
             })}
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
+          </tr>
+        </thead>
+        <tbody>
           {rows.map((r, ri) => (
-            <Table.Row key={ri}>
+            <tr key={ri} className="hover:bg-secondary">
               {r.map((v, i) => <TableCell key={i} v={v} col={cols[i]} i={i} d={d} isNum={numeric[i]} bar={i === barCol ? barMax : 0} />)}
-            </Table.Row>
+            </tr>
           ))}
-        </Table.Body>
-      </Table>
+        </tbody>
+      </table>
     </div>
   );
 }
 
 function TableCell({ v, col, i, d, isNum, bar }: { v: Cell; col: string; i: number; d: Shaped; isNum: boolean; bar: number }) {
-  const num = `tabular-nums ${isNum ? "text-right" : ""}`;
-  if (v == null) return <Table.Cell className={`${num} text-kumo-inactive`}>{col === "change" || col === "previous" ? "" : "Unknown"}</Table.Cell>;
-  if (col === "change" && typeof v === "number") return <Table.Cell className={`${num} ${v > 0 ? "text-kumo-success" : ""}`}>{v > 0 ? "+" : ""}{v.toFixed(1)}%</Table.Cell>;
+  const num = cn(TD, isNum && "text-right tabular-nums whitespace-nowrap", i === 0 && "whitespace-nowrap");
+  if (v == null) return <td className={cn(num, "text-muted-foreground")}>{col === "change" || col === "previous" ? "" : "Unknown"}</td>;
+  if (col === "change" && typeof v === "number") return <td className={cn(num, v > 0 && "text-link-hover")}>{v > 0 ? "+" : ""}{v.toFixed(1)}%</td>;
   if (typeof v === "number") {
     const w = bar && v >= 0 ? `${((v / bar) * 100).toFixed(1)}%` : null;
     return (
-      <Table.Cell className={num} style={w ? { backgroundImage: `linear-gradient(90deg, var(--color-kumo-tint) ${w}, transparent ${w})` } : undefined}>
+      <td className={num} style={w ? { backgroundImage: `linear-gradient(to left, var(--secondary) ${w}, transparent ${w})`, backgroundClip: "content-box" } : undefined}>
         {fmtValue(v, col)}
-      </Table.Cell>
+      </td>
     );
   }
   const s = String(v);
-  if (col === "url" && /^https?:\/\//.test(s)) return <Table.Cell><a className="text-kumo-link underline" href={s} target="_blank" rel="noopener">open</a></Table.Cell>;
-  if (i === 0 && d.time) return <Table.Cell className="whitespace-nowrap">{fmtTime(s, d.time, true)}</Table.Cell>;
-  return <Table.Cell>{(LABELS[col] && LABELS[col][s]) || s}</Table.Cell>;
+  if (col === "url" && /^https?:\/\//.test(s)) return <td className={num}><a className="underline underline-offset-[3px] hover:text-link-hover" href={s} target="_blank" rel="noopener">open</a></td>;
+  if (i === 0 && d.time) return <td className={num}>{fmtTime(s, d.time, true)}</td>;
+  return <td className={num}>{(LABELS[col] && LABELS[col][s]) || s}</td>;
 }

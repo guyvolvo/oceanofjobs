@@ -1,18 +1,19 @@
 // The builder, as a sentence: "Count jobs that are open now by category,
-// top 25, where Seniority is Senior". Every choice is a pill (a Kumo
-// Select); every filter is a tag that opens its editor in a popover and
-// can be removed. A pill change runs at once; a filter editor applies as
-// you go and runs when it closes.
-import { useRef, useState, type ReactNode } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Checkbox } from "@cloudflare/kumo/components/checkbox";
-import { Input } from "@cloudflare/kumo/components/input";
-import { Popover } from "@cloudflare/kumo/components/popover";
-import { Select } from "@cloudflare/kumo/components/select";
-import { Plus, X } from "@phosphor-icons/react";
-import { filterLabel, fmtInt, GROUP_WORDS, LIMITS, type Picks } from "./data";
+// top 25, where Seniority is Senior". Every choice is a pill that opens a
+// menu; every filter is a tag that opens its editor in a popover and can
+// be removed. A pill change runs at once; a filter editor applies as you
+// go and runs when it closes. The menus load on first use (Menus.tsx);
+// until then each is a plain button that looks the same.
+import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
+import { CaretDown } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
+import { filterLabel, GROUP_WORDS, LIMITS, type Picks } from "./data";
+import type { Group, Opt } from "./Menus";
 
-type Opt = { value: string; label: string };
+const PillMenu = lazy(() => import("./Menus").then((m) => ({ default: m.PillMenu })));
+const AddFilterMenu = lazy(() => import("./Menus").then((m) => ({ default: m.AddFilterMenu })));
+const FilterPopover = lazy(() => import("./Menus").then((m) => ({ default: m.FilterPopover })));
+
 type Props = {
   qb: QbState; picks: Picks; pickName: (field: string, v: string) => string;
   // A change to the question (the starter question it came from no longer applies).
@@ -20,26 +21,39 @@ type Props = {
   run: () => void;
 };
 
-const PILL = "h-7 w-auto min-w-0 shrink-0 gap-1 rounded-md border-0 bg-kumo-tint px-2 text-sm font-medium text-kumo-strong shadow-none ring-0 hover:bg-kumo-fill";
+const CHIP = "h-[34px] rounded-md border font-ui text-sm font-bold text-foreground";
+const FOCUS = "outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-1 focus-visible:outline-ring";
+const PILL = cn(CHIP, FOCUS, "group inline-flex cursor-pointer items-center gap-2 pr-[11px] pl-3 whitespace-nowrap hover:bg-accent data-[state=open]:border-foreground data-[state=open]:bg-accent");
+const ADD = cn(CHIP, FOCUS, "cursor-pointer border-dashed border-input/40 px-3 text-muted-foreground hover:border-foreground hover:text-foreground");
+const TAG = cn(FOCUS, "max-w-[340px] cursor-pointer truncate rounded-l-md pr-1 pl-3");
 
-function Pill({ label, value, options, onChange }: { label: string; value: string; options: Opt[]; onChange: (v: string) => void }) {
-  const current = options.find((o) => o.value === value)?.label ?? value;
+// The plain button a menu starts as; a click loads the menu, open.
+function Lazy({ trigger, used, use, children }: { trigger: { className: string; children: ReactNode; "aria-label"?: string }; used: boolean; use: () => void; children: ReactNode }) {
+  const plain = <button type="button" aria-haspopup="menu" aria-expanded={false} {...trigger} onClick={use} />;
+  return used ? <Suspense fallback={plain}>{children}</Suspense> : plain;
+}
+
+function Pill({ label, value, options, onChange }: { label: string; value: string; options: (Opt | Group)[]; onChange: (v: string) => void }) {
+  const [used, setUsed] = useState(false);
+  const current = options.flatMap((o) => ("group" in o ? o.options : [o])).find(([v]) => v === value)?.[1] ?? value;
+  const trigger = {
+    className: PILL, "aria-label": `${label}: ${current}`,
+    children: <>{current}<CaretDown size={10} weight="bold" aria-hidden="true" className="transition-transform group-data-[state=open]:rotate-180" /></>,
+  };
   return (
-    <Select<string> size="sm" aria-label={`${label}: ${current}`} value={value} items={options} className={PILL}
-      onValueChange={(v) => { if (v != null && String(v) !== value) onChange(String(v)); }} />
+    <Lazy trigger={trigger} used={used} use={() => setUsed(true)}>
+      <PillMenu trigger={trigger} label={label} value={value} options={options} onChange={onChange} />
+    </Lazy>
   );
 }
 
-const Word = ({ children }: { children: ReactNode }) => <span className="text-kumo-default">{children}</span>;
+const Word = ({ children }: { children: ReactNode }) => <span className="whitespace-nowrap">{children}</span>;
 
-// shortcut: the group pill is one flat list ("day, week, month, category, ..., one by one"); Kumo Select has no option groups, add headings if it gains them
-function groupOptions(): Opt[] {
-  return [
-    ...["day", "week", "month"].map((v) => ({ value: v, label: v })),
-    ...Object.entries(GROUP_WORDS).map(([value, label]) => ({ value, label })),
-    { value: "none", label: "one by one" },
-  ];
-}
+const groupOptions = (): Group[] => [
+  { group: "Over time", options: [["day", "day"], ["week", "week"], ["month", "month"]] },
+  { group: "By", options: Object.entries(GROUP_WORDS) },
+  { group: "No grouping", options: [["none", "one by one"]] },
+];
 
 export function Builder({ qb, picks, pickName, onChange, run }: Props) {
   const [openFilter, setOpenFilter] = useState<number | null>(null);
@@ -58,31 +72,31 @@ export function Builder({ qb, picks, pickName, onChange, run }: Props) {
   };
   const setFilters = (filters: QbFilter[]) => onChange({ ...qb, filters });
   const addFilter = (field: string) => {
-    setAdding(false);
     setFilters([...qb.filters, { field, values: [], text: "", from: "", to: "" }]);
     setOpenFilter(qb.filters.length);
   };
 
-  const metrics: Opt[] = [{ value: "count", label: "Count" }, ...(time ? [] : [{ value: "share", label: "Share of" }]), { value: "avg_days_open", label: "Average days open of" }];
+  const metrics: Opt[] = [["count", "Count"], ...(time ? [] : [["share", "Share of"] as Opt]), ["avg_days_open", "Average days open of"]];
   const limits = LIMITS.includes(Number(qb.limit)) ? LIMITS : [...LIMITS, Number(qb.limit)].sort((a, b) => a - b);
   const used = new Set(qb.filters.map((f) => f.field));
   const fields = Object.entries(QB.FIELDS).filter(([k]) => !used.has(k));
+  const addTrigger = { className: ADD, children: "+ Add filter" };
 
   return (
-    <div className="flex flex-col gap-2.5 text-[15px] leading-7">
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+    <div className="flex flex-col gap-3 text-[15px]">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
         {rows ? <Word>List</Word> : <Pill label="What to measure" value={qb.metric} options={metrics} onChange={(v) => set("metric", v)} />}
         <Word>jobs</Word>
         {time ? (
           <>
             <Word>that were</Word>
-            <Pill label="Which date" value={qb.event} options={Object.entries(QB.EVENTS).map(([value, v]) => ({ value, label: v.label }))} onChange={(v) => set("event", v)} />
+            <Pill label="Which date" value={qb.event} options={Object.entries(QB.EVENTS).map(([k, v]) => [k, v.label] as Opt)} onChange={(v) => set("event", v)} />
             <Word>per</Word>
           </>
         ) : (
           <>
             <Word>that are</Word>
-            <Pill label="Which jobs" value={qb.status} options={[{ value: "open", label: "open now" }, { value: "closed", label: "closed" }, { value: "all", label: "open or closed" }]} onChange={(v) => set("status", v)} />
+            <Pill label="Which jobs" value={qb.status} options={[["open", "open now"], ["closed", "closed"], ["all", "open or closed"]]} onChange={(v) => set("status", v)} />
             {rows ? null : <Word>by</Word>}
           </>
         )}
@@ -91,16 +105,16 @@ export function Builder({ qb, picks, pickName, onChange, run }: Props) {
           <>
             <Word>over</Word>
             <Pill label="Time range" value={String(qb.range)} onChange={(v) => set("range", v)}
-              options={[{ value: "7", label: "the last 7 days" }, { value: "30", label: "the last 30 days" }, { value: "90", label: "the last 90 days" }, { value: "0", label: "all time" }]} />
+              options={[["7", "the last 7 days"], ["30", "the last 30 days"], ["90", "the last 90 days"], ["0", "all time"]]} />
           </>
         ) : (
           <>
             <Word>{rows ? "newest first, top" : "top"}</Word>
-            <Pill label="How many rows" value={String(qb.limit)} options={limits.map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => set("limit", v)} />
+            <Pill label="How many rows" value={String(qb.limit)} options={limits.map((n) => [String(n), String(n)] as Opt)} onChange={(v) => set("limit", v)} />
           </>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
         <Word>where</Word>
         {qb.filters.map((f, i) => (
           <FilterTag key={`${f.field}-${i}`} f={f} picks={picks} pickName={pickName} open={openFilter === i}
@@ -108,20 +122,14 @@ export function Builder({ qb, picks, pickName, onChange, run }: Props) {
             onEdit={(nf) => setFilters(qb.filters.map((x, j) => (j === i ? nf : x)))}
             onRemove={() => { setFilters(qb.filters.filter((_, j) => j !== i)); run(); }} run={run} />
         ))}
-        <Popover open={adding} onOpenChange={setAdding}>
-          <Popover.Trigger render={<Button variant="ghost" size="sm" icon={<Plus />} />}>Add filter</Popover.Trigger>
-          <Popover.Content align="start" className="w-56 p-2">
-            <div className="px-2 pb-1 text-xs font-medium text-kumo-subtle">Filter by</div>
-            {fields.map(([k, v]) => (
-              <button key={k} type="button" className="block w-full rounded px-2 py-1 text-left text-sm hover:bg-kumo-tint" onClick={() => addFilter(k)}>{v.label}</button>
-            ))}
-          </Popover.Content>
-        </Popover>
+        <Lazy trigger={addTrigger} used={adding} use={() => setAdding(true)}>
+          <AddFilterMenu trigger={addTrigger} fields={fields} onPick={addFilter} />
+        </Lazy>
         {QB.canCompare(qb) ? (
           <>
             <span className="w-3" aria-hidden="true" />
             <Word>compare to</Word>
-            <Pill label="Compare to" value={qb.compare} options={[{ value: "none", label: "nothing" }, { value: "previous", label: `previous ${Number(qb.range)} days` }]} onChange={(v) => set("compare", v)} />
+            <Pill label="Compare to" value={qb.compare} options={[["none", "nothing"], ["previous", `previous ${Number(qb.range)} days`]]} onChange={(v) => set("compare", v)} />
           </>
         ) : null}
       </div>
@@ -135,82 +143,25 @@ type TagProps = {
 };
 
 function FilterTag({ f, picks, pickName, open, setOpen, onEdit, onRemove, run }: TagProps) {
-  const spec = QB.FIELDS[f.field];
   // A tag that mounts open was just added, so closing it runs the question.
   const changed = useRef(open);
-  const [search, setSearch] = useState("");
+  const [used, setUsed] = useState(open);
   const label = filterLabel(f, pickName);
+  if (!QB.FIELDS[f.field]) return null;
   const edit = (nf: QbFilter) => { changed.current = true; onEdit(nf); };
-  const close = () => setOpen(false);
   const onOpenChange = (on: boolean) => {
     setOpen(on);
     if (!on && changed.current) { changed.current = false; run(); }
   };
-  const onEnter = (e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); onOpenChange(false); } };
-  if (!spec) return null;
-
-  let editor: ReactNode;
-  if (spec.kind === "pick") {
-    const options = picks[f.field] || [];
-    const searchable = spec.searchable || options.length > 12;
-    const want = search.trim().toLowerCase();
-    const sel = new Set(f.values || []);
-    const shown = (want ? options.filter((o) => o.name.toLowerCase().includes(want)) : options).slice(0, 400);
-    editor = (
-      <>
-        <div className="text-sm font-medium text-kumo-strong">{spec.label} is</div>
-        {searchable ? <Input size="sm" type="search" placeholder={`Filter ${spec.label.toLowerCase()}`} aria-label="Filter values" autoFocus
-          value={search} onChange={(e) => setSearch(e.target.value)} /> : null}
-        <div role="group" aria-label={spec.label} className="-mx-1 max-h-64 overflow-y-auto">
-          {shown.length ? shown.map((o) => (
-            <div key={o.value} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-kumo-tint">
-              <Checkbox className="min-w-0 flex-1" checked={sel.has(o.value)} onCheckedChange={(c) => {
-                const next = new Set(sel); if (c) next.add(o.value); else next.delete(o.value);
-                edit({ ...f, values: [...next] });
-              }} label={<span className="block truncate text-sm">{o.name}</span>} />
-              <span className="shrink-0 text-xs tabular-nums text-kumo-subtle">{fmtInt(o.n)}</span>
-            </div>
-          )) : <div className="px-2 py-2 text-sm text-kumo-subtle">{options.length ? "No results" : "Loading values"}</div>}
-        </div>
-        <div className="flex items-center justify-between pt-1">
-          <Button variant="ghost" size="sm" onClick={() => edit({ ...f, values: [] })}>Clear</Button>
-          <Button size="sm" onClick={close}>Done</Button>
-        </div>
-      </>
-    );
-  } else if (spec.kind === "text") {
-    editor = (
-      <>
-        <div className="text-sm font-medium text-kumo-strong">{spec.label} contains</div>
-        <Input size="sm" autoFocus value={f.text || ""} placeholder={`e.g. ${spec.label === "Title" ? "backend" : "Tel Aviv"}`} aria-label={spec.label}
-          onChange={(e) => edit({ ...f, text: e.target.value })} onKeyDown={onEnter} />
-        <div className="flex justify-end pt-1"><Button size="sm" onClick={close}>Done</Button></div>
-      </>
-    );
-  } else {
-    editor = (
-      <>
-        <div className="text-sm font-medium text-kumo-strong">{spec.label} between</div>
-        <div className="flex gap-2">
-          <Input size="sm" autoFocus value={f.from || ""} placeholder="from YYYY-MM-DD" aria-label="From" onChange={(e) => edit({ ...f, from: e.target.value.trim() })} onKeyDown={onEnter} />
-          <Input size="sm" value={f.to || ""} placeholder="to YYYY-MM-DD" aria-label="To" onChange={(e) => edit({ ...f, to: e.target.value.trim() })} onKeyDown={onEnter} />
-        </div>
-        <div className="flex justify-end pt-1"><Button size="sm" onClick={close}>Done</Button></div>
-      </>
-    );
-  }
-
+  const trigger = { className: TAG, children: label };
   return (
-    <span className="inline-flex h-7 items-stretch rounded-md border border-kumo-hairline bg-kumo-base text-sm leading-none">
-      <Popover open={open} onOpenChange={onOpenChange}>
-        <Popover.Trigger render={<button type="button" className="flex items-center rounded-l-md px-2 text-kumo-strong hover:bg-kumo-tint" aria-haspopup="dialog" />}>
-          {label}
-        </Popover.Trigger>
-        <Popover.Content align="start" className="flex w-72 flex-col gap-2 p-3">{editor}</Popover.Content>
-      </Popover>
+    <span className={cn(CHIP, "inline-flex items-stretch hover:bg-accent")}>
+      <Lazy trigger={trigger} used={used} use={() => { setUsed(true); setOpen(true); }}>
+        <FilterPopover trigger={trigger} f={f} picks={picks} open={open} onOpenChange={onOpenChange} edit={edit} />
+      </Lazy>
       <button type="button" aria-label={`Remove filter: ${label}`} onClick={onRemove}
-        className="flex items-center rounded-r-md border-l border-kumo-hairline px-1.5 text-kumo-subtle hover:bg-kumo-tint hover:text-kumo-strong">
-        <X size={12} aria-hidden="true" />
+        className={cn(FOCUS, "cursor-pointer rounded-r-md px-[11px] text-base font-normal text-muted-foreground hover:text-foreground")}>
+        ×
       </button>
     </span>
   );
