@@ -420,9 +420,24 @@
   // A page about one job, by its address, title or heading, as the card
   // decides (detect.js): a homepage's "Apply now" is not.
   const aboutAJob = () => {
+    if (ATS_HOST.test(location.hostname)) return true;
     const h1 = ([...document.querySelectorAll('h1')].find((h) => h.checkVisibility()) || {}).textContent || '';
     return globalThis.oojMatch.jobish((location.href + ' ' + document.title + ' ' + h1).replace(/ocean ?of ?jobs/gi, ''));
   };
+
+  // A list of jobs: its Apply controls lead to two or more different jobs on
+  // this site. "Apply with LinkedIn" beside a posting's own Apply is not a
+  // second job (Breezy, Personio, Teamtailor, Oracle all have one).
+  function listHere() {
+    const here = location.href.split('#')[0];
+    const jobs = new Set();
+    for (const el of applyControls()) {
+      if (/linked ?in|indeed|xing|seek|google|facebook|glassdoor/i.test(caption(el) + ' ' + (el.href || ''))) continue;
+      const to = el.href && el.href.split('#')[0];
+      if (to && to !== here && new URL(to).origin === location.origin) jobs.add(to);
+    }
+    return jobs.size > 1;
+  }
 
   // A careers page that embeds the ATS form from another site: the caller
   // loads it in the tab, since a page cannot reach into it.
@@ -471,7 +486,7 @@
     // Only on one job's page: on a list of jobs the first Apply is a job the
     // user never chose (silverfort.com/careers), and a homepage's "Apply now"
     // leads to a page of jobs or a general CV form (comm-it.com).
-    if (!form && !again && postingHere()) {
+    if (!form && !again && !listHere()) {
       const apply = applyControl();
       if (apply) {
         const href = apply.tagName === 'A' && apply.getAttribute('href');
