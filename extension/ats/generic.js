@@ -501,7 +501,7 @@
   }
 
   // Typeahead and custom dropdowns: type, then pick from what the list shows.
-  async function chooseOption(el, value, key) {
+  async function chooseOption(el, value, key, options) {
     const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
     const listed = () => listOf(el);
     const prompt = !!input && input.getAttribute('data-uxi-widget-type') === 'selectinput';
@@ -510,13 +510,25 @@
     press(el);
     el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     // "decline" is picked from the list ("Prefer not to say"), never typed
-    // into it: typed, it filters every choice away.
-    let opts = await waitFor(listed, value === 'decline' ? 3000 : 1000);
+    // into it: typed, it filters every choice away. A box you type in that
+    // listed nothing when the form was read (a place, a school) lists only
+    // once typed, so it gets a short look.
+    const typeahead = !!input && typeable(input) && !prompt && !(options && options.length);
+    let opts = await waitFor(listed, value === 'decline' ? 3000 : typeahead ? 200 : 1000);
     if (input && typeable(input) && value !== 'decline' && (!opts || root.oojMatch.pickOption(opts.map((o) => o.textContent), value) < 0)) {
       setValue(input, key === 'location' ? value.split(',')[0] : value);
       // Workday's prompts search on Enter. shortcut: not yet seen on a live Workday page, check there.
       if (prompt) input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-      opts = await waitFor(() => { const o = listed(); return o && (root.oojMatch.pickOption(o.map((x) => x.textContent), value) >= 0 || key === 'location') && o; }, 5000) || listed();
+      // A list that has stood unchanged for 1.5 s without the answer keeps
+      // it at that. Not a Workday prompt: its search can take longer.
+      let seen = '', since = Date.now();
+      opts = await waitFor(() => {
+        const o = listed();
+        if (o && (root.oojMatch.pickOption(o.map((x) => x.textContent), value) >= 0 || key === 'location')) return o;
+        const now = o ? o.map((x) => x.textContent).join('\n') : '';
+        if (now !== seen) { seen = now; since = Date.now(); }
+        return !prompt && !!now && Date.now() - since >= 1500 && o;
+      }, 5000) || listed();
     }
     // A typed place with no list keeps what was typed; a Workday prompt's search text is no answer.
     if (!opts && input && input.value && !prompt) return null;
@@ -551,7 +563,7 @@
       leave(el);
       return null;
     }
-    if (f.type === 'combobox') return chooseOption(el, f.value, f.key);
+    if (f.type === 'combobox') return chooseOption(el, f.value, f.key, f.options);
     if (el.type === 'date' && !/^\d{4}-\d\d-\d\d$/.test(f.value)) return 'needs a date';
     setValue(el, f.value);
     leave(el);

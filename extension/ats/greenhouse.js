@@ -120,8 +120,10 @@
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // Every 50 ms: React draws a menu or a choice within a frame or two, and
+  // a select waited two 150 ms steps for that.
   async function waitFor(fn, ms) {
-    for (const until = Date.now() + ms; Date.now() < until; await sleep(150)) {
+    for (const until = Date.now() + ms; Date.now() < until; await sleep(50)) {
       const v = fn();
       if (v) return v;
     }
