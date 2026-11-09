@@ -204,7 +204,7 @@ function wireExt(win: HTMLElement) {
   const vals = Array.from(win.querySelectorAll<HTMLElement>("[data-v], [data-pick]"));
   let run = 0;
   const wait = (ms: number, id: number) => new Promise<void>((ok, stop) => { setTimeout(() => { if (id === run) ok(); else stop(new Error("superseded")); }, ms); });
-  const say = (text: string, pct: number) => { msg.textContent = text; bar.style.width = pct + "%"; };
+  const say = (text: string, pct: number) => { msg.textContent = text; bar.style.transform = `scaleX(${pct / 100})`; };
   // Each action waits a random 20-100ms first, so it reads as the
   // extension working through a real page, not a recording.
   const lag = () => 20 + Math.random() * 80;

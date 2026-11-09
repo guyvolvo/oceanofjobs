@@ -28,7 +28,7 @@ const MIME: Record<string, string> = { ".js": "text/javascript", ".css": "text/c
   ".jpg": "image/jpeg", ".ico": "image/x-icon", ".json": "application/json", ".txt": "text/plain", ".webp": "image/webp", ".wasm": "application/wasm" };
 
 // The head every page shares: the theme before first paint, the site's
-// classic scripts (consent, the counter, sign-in). Pages write <!-- site-head -->.
+// classic scripts (consent, the counter, sign-in, the outage badge). Pages write <!-- site-head -->.
 const HEAD = `<meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#17181c" />
@@ -49,7 +49,8 @@ const HEAD = `<meta charset="utf-8" />
   </script>
   <script src="/consent.js"></script>
   <script src="/count.js"></script>
-  <script src="/auth.js"></script>`;
+  <script src="/auth.js"></script>
+  <script src="/upstream.js" defer></script>`;
 
 // In development the dev server answers the site's own addresses (/board,
 // /apply/queue, /style.css, /fonts/...) and proxies the API and the

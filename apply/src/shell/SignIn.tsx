@@ -87,7 +87,7 @@ export function SignInSteps({ error, setError, Title = DialogTitle, Description 
             <Input id={`${id}-email`} type="email" name="email" placeholder="you@example.com" required autoComplete="email"
               spellCheck={false} autoCapitalize="off" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error || undefined} />
             {errorLine}
-            <Button type="submit" className="mt-1 w-full" disabled={busy}>Send code</Button>
+            <Button type="submit" className="mt-1 w-full border-[var(--ooj-green-text)] bg-[var(--ooj-green-text)] text-[var(--ooj-dark-ink)] hover:border-[var(--ooj-green-text)] hover:bg-[var(--ooj-green-text)] hover:brightness-108" disabled={busy}>Send code</Button>
           </form>
           <div className="flex items-center gap-2.5 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"><span>or</span></div>
           <div className="grid grid-cols-2 gap-2">
