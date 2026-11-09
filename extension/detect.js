@@ -26,6 +26,8 @@
   const dedicated = site && all[site].matches(location.href) ? all[site] : null;
   const isTop = window === window.top;
   let shown = false;
+  // A frame below showed its own card for its form (cardInFrame).
+  let yielded = false;
 
   // A form in an iframe shows its button on the page around it, where the
   // user sees it, and the fill goes to that frame. A fill that followed a
@@ -33,6 +35,11 @@
   if (isTop) {
     chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       if (msg.type === 'formBelow') show({ frameId: msg.frameId, url: msg.url });
+      else if (msg.type === 'cardInFrame') {
+        // Never a second card for the same form: this page's own goes, and it looks no more.
+        shown = yielded = true;
+        if (built && built.own) built.drop();
+      }
       else if (msg.type === 'fillFromApply') {
         // /apply opened this job: start the card's fill, as a click would.
         const go = built && built.root.querySelector('.go');
@@ -77,6 +84,9 @@
       shown = false;
     }
     show({ frameId: null, url: location.href });
+    // A form a dedicated filler knows, in a frame (Greenhouse's on a careers
+    // site), has its card here: the page around it shows none of its own.
+    if (!isTop) send({ type: 'cardInFrame' });
   }
 
   // Looked for after 500 ms, then again while the page changes (a form its
@@ -127,6 +137,8 @@
     building = shown = true;
     if (await send({ type: 'hidden', host: location.hostname })) return;
     const icon = (await send({ type: 'icon' })) || '';
+    // The frame's card came while this one was being made: it isn't made.
+    if (yielded && target.frameId == null) { building = false; return; }
     const name = dedicated ? 'Apply with Ocean of Jobs' : 'Fill with Ocean of Jobs';
     const host = document.createElement('div');
     host.setAttribute('data-ooj-fill', '');
@@ -214,7 +226,7 @@
       root.querySelector('.frame').hidden = false;
       root.querySelector('.link').addEventListener('click', () => send({ type: 'openOptions' }));
     }
-    built = { root, open };
+    built = { root, open, own: target.frameId == null, drop: () => { dismissed = true; clearInterval(keep); host.remove(); } };
     // Opened straight away: the user came here to apply.
     fab.click();
   }

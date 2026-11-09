@@ -417,6 +417,13 @@
     return els.length > 0 && els.length <= 3 && to.size === 1;
   }
 
+  // A page about one job, by its address, title or heading, as the card
+  // decides (detect.js): a homepage's "Apply now" is not.
+  const aboutAJob = () => {
+    const h1 = ([...document.querySelectorAll('h1')].find((h) => h.checkVisibility()) || {}).textContent || '';
+    return globalThis.oojMatch.jobish((location.href + ' ' + document.title + ' ' + h1).replace(/ocean ?of ?jobs/gi, ''));
+  };
+
   // A careers page that embeds the ATS form from another site: the caller
   // loads it in the tab, since a page cannot reach into it.
   // A challenge frame is never the form, though its referer names the form's
@@ -456,17 +463,28 @@
     // a weak form, or none, is settled for only once it has had time to.
     const late = embedsAts();
     const strong = () => { const f = pick(); return f && applicationForm(f) ? f : null; };
-    form = await waitFor(late ? strong : pick, late ? 8000 : postingHere() ? 1500 : 6000) || (late ? pick() : null);
-    if (!form && !again) {
+    // A posting with an Apply button waits only as long as any posting: on
+    // block.xyz and Fivetran the Greenhouse frame grows to its form only once
+    // Apply is pressed, so waiting 8 seconds first only made it 8 seconds late.
+    const posting = postingHere() && !!applyControl();
+    form = await waitFor(late ? strong : pick, posting ? 1500 : late ? 8000 : 6000);
+    // Only on one job's page: on a list of jobs the first Apply is a job the
+    // user never chose (silverfort.com/careers), and a homepage's "Apply now"
+    // leads to a page of jobs or a general CV form (comm-it.com).
+    if (!form && !again && postingHere()) {
       const apply = applyControl();
       if (apply) {
         const href = apply.tagName === 'A' && apply.getAttribute('href');
-        if (href && !/^(#|javascript:)/i.test(href) && apply.href.split('#')[0] !== location.href.split('#')[0]) return { openUrl: apply.href };
+        const away = href && !/^(#|javascript:)/i.test(href) && apply.href.split('#')[0] !== location.href.split('#')[0];
+        if (away && !aboutAJob()) return { error: 'No application form on this page.' };
+        if (away) return { openUrl: apply.href };
         // The whole press: a tab (Radix, on Recruitee) switches on mousedown, not on click.
         press(apply);
-        form = await waitFor(pick, 10000);
+        form = await waitFor(late ? strong : pick, 10000);
       }
     }
+    // A weak form, or none, only once the ATS's frame has had its time.
+    if (!form && late) form = pick();
     if (form && form.tagName === 'IFRAME') return { openUrl: form.src, frame: true };
     if (!form && captcha()) return { error: 'A CAPTCHA stands in front of the form. Solve it, then try again.' };
     if (!form) return { error: 'No application form on this page.' };

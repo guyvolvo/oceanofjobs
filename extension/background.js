@@ -1679,6 +1679,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       .then((r) => reply({ shown: !!(r && r.ok) }), () => reply({ shown: false }));
     return true;
   }
+  if (msg.type === 'cardInFrame') {
+    // A frame's card for its own form: the page around it drops its own.
+    chrome.tabs.sendMessage(sender.tab.id, { type: 'cardInFrame' }, { frameId: 0 }).catch(() => {});
+    return false;
+  }
   if (msg.type === 'icon') {
     // As a data URL: a web accessible icon would let any site detect the extension.
     fetch(chrome.runtime.getURL('icons/icon-48.png')).then((r) => r.arrayBuffer())

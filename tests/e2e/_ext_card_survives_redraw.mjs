@@ -29,6 +29,10 @@ const page = (kind) => `<!doctype html><html><head><title>Engineer</title></head
 
 const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ooj-ext-redraw-"));
 fs.cpSync(path.resolve(process.env.EXT || "extension"), ext, { recursive: true });
+// As a user who allowed all sites: the card also comes to company careers pages.
+const manifest = JSON.parse(fs.readFileSync(path.join(ext, "manifest.json"), "utf8"));
+manifest.host_permissions.push("https://*/*");
+fs.writeFileSync(path.join(ext, "manifest.json"), JSON.stringify(manifest));
 const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), "ooj-redraw-")), {
   channel: "chromium", headless: true, viewport: { width: 1280, height: 900 },
   args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
@@ -38,6 +42,11 @@ await ctx.route("https://job-boards.greenhouse.io/**", (r) => {
   if (u.pathname === "/about") return r.fulfill({ contentType: "text/html", body: "<!doctype html><title>About</title><p>No form here.</p>" });
   return r.fulfill({ contentType: "text/html", body: page(u.searchParams.get("kind") || "none") });
 });
+// A company careers page with Greenhouse's form in a frame (wiz.io, esri.com, live 2026-11-09).
+const CAREERS = `<!doctype html><html><head><title>Senior Engineer - Careers</title></head><body>
+<h1>Senior Engineer</h1><p>Join our team. Apply below.</p><a href="#apply">Apply now</a>
+<iframe id="grnhse_iframe" src="https://job-boards.greenhouse.io/embed/job_app?for=acme&token=123" style="width:100%;height:1200px;border:0"></iframe></body></html>`;
+await ctx.route("https://careers.acme-test.com/**", (r) => r.fulfill({ contentType: "text/html", body: CAREERS }));
 await ctx.route("https://oceanofjobs.com/**", (r) => {
   const u = r.request().url();
   if (u.includes("/me/apply/profile")) return r.fulfill({ json: { profile: { contact: { email: "a@b.c" }, settings: {} }, preferences: {} } });
@@ -93,6 +102,17 @@ const open = async (kind) => {
   check("after navigating to a page with no form, no card", (await cards(p)) === 0, await cards(p));
   await p.close();
 }
+{ // A careers page around Greenhouse's frame: one card for the one form.
+  const p = await ctx.newPage();
+  await p.goto("https://careers.acme-test.com/careers/job/1", { waitUntil: "domcontentloaded" });
+  const all = async () => (await Promise.all(p.frames().map((f) => f.evaluate(() => document.querySelectorAll("[data-ooj-fill]").length).catch(() => 0)))).reduce((a, b) => a + b, 0);
+  const seen = [];
+  for (let i = 0; i < 6; i++) { await p.waitForTimeout(2000); seen.push(await all()); }
+  if (process.env.DEBUG) console.log(p.frames().map((f) => f.url()));
+  check("a careers page with Greenhouse's form in a frame shows one card, not two", seen.at(-1) === 1 && seen.every((n) => n <= 1), seen);
+  await p.close();
+}
+
 { // The extension reloaded (an update, or turned off and on): this page's
   // script is cut off from the extension, so its card would do nothing.
   const p = await open("none");

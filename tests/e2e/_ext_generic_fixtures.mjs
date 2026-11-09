@@ -314,9 +314,25 @@ await check("a read again never presses an Apply button", async () => {
 });
 
 await check("an Apply link to another page is handed back to follow", async () => {
-  await load(`<h1>Engineer</h1><p>About the job</p><a href="/jobs/1/apply">Apply for this job</a>`);
+  await serve(`<title>Engineer</title><h1>Engineer</h1><p>About the job</p><a href="/jobs/1/apply">Apply for this job</a>`, "https://fixture.test/jobs/1");
   const res = await page.evaluate(() => globalThis.oojAts.generic.read());
   assert.match(res.openUrl, /\/jobs\/1\/apply$/);
+});
+
+// comm-it.com (live, 2026-11-09): the homepage's "APPLY NOW" led to a page
+// of jobs and a general CV form, which was then filled as an application.
+await check("a homepage's Apply now is not followed", async () => {
+  await serve(`<title>Comm-IT</title><h1>Cloud and data services</h1><a href="/commit-jobs">Careers</a><a href="/commit-jobs">APPLY NOW</a>`, "https://fixture.test/");
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { error: "No application form on this page." });
+});
+
+// silverfort.com/careers (live, 2026-11-09): the first job's Apply was pressed
+// on a page listing many jobs, a job the user never chose.
+await check("on a list of jobs, no job's Apply is pressed or followed", async () => {
+  const rows = ["Account Manager", "Sales Engineer", "Backend Developer", "Product Designer"]
+    .map((t, i) => `<div><h3>${t}</h3><a href="/careers/co/x/${i}/job/all/">Apply now</a></div>`).join("");
+  await serve(`<title>Careers and Open Job Opportunities</title><h1>Open positions</h1>${rows}`, "https://fixture.test/careers/");
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { error: "No application form on this page." });
 });
 
 await check("a form's own Apply submit button is never pressed", async () => {
@@ -723,6 +739,7 @@ await check("a form with nothing either way doesn't win over an ATS frame that c
     <div class="comeet-apply"><script type="comeet-applyform" data-position-uid="7D.476"></script></div></body>`);
   assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { openUrl: COMEET_SRC, frame: true });
 });
+
 await page.unroute("**/*");
 
 // The gate behind every send (background.js): only a form that looks
@@ -744,7 +761,7 @@ for (const [name, html, want] of [
 // shows before the form exists, and not on a list of jobs.
 async function detectOn(html, at) {
   await serve(html, at);
-  await page.evaluate(() => Object.defineProperty(window, "chrome", { value: { runtime: { sendMessage: async () => null, onMessage: { addListener() {} } } } }));
+  await page.evaluate(() => Object.defineProperty(window, "chrome", { value: { runtime: { id: "test", sendMessage: async () => null, onMessage: { addListener() {} } } } }));
   await page.addScriptTag({ path: path.resolve("extension/detect.js") });
   await page.waitForTimeout(1500);
   return page.evaluate(() => !!document.querySelector("[data-ooj-fill]"));
