@@ -168,7 +168,12 @@
     // A page that redraws its whole document (React hydrating Greenhouse's
     // page) drops the card with it; for the first minute it is put back.
     let dismissed = false;
-    const keep = setInterval(() => { if (!dismissed && !host.isConnected) document.documentElement.appendChild(host); }, 1000);
+    // An extension updated, reloaded or turned off leaves this script behind
+    // with no worker to answer its buttons: the card goes rather than stay dead.
+    const keep = setInterval(() => {
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(keep); host.remove(); return; }
+      if (!dismissed && !host.isConnected) document.documentElement.appendChild(host);
+    }, 1000);
     setTimeout(() => clearInterval(keep), 60000);
     const fab = root.querySelector('.fab');
     const c = root.querySelector('.c');
