@@ -1,19 +1,19 @@
 // The overview's charts, on Kumo's ECharts wrapper. Loaded on its own
 // (Overview imports this lazily), so ECharts only downloads when the
 // overview is opened. A canvas can't read CSS variables, so the colours
-// are read from the Kumo tokens in app.css each time the theme changes.
+// are read from the Kumo tokens in site.css each time the theme changes.
 import { useMemo } from "react";
 import * as echarts from "echarts/core";
 import { BarChart, LineChart } from "echarts/charts";
 import { AriaComponent, GridComponent, TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { Chart, ChartPalette, type KumoChartOption } from "@cloudflare/kumo/components/chart";
-import { useDark } from "../theme";
+import { useTheme } from "../site/theme";
 
 echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, AriaComponent, CanvasRenderer]);
 
 function useTokens() {
-  const dark = useDark();
+  const [dark] = useTheme();
   return useMemo(() => {
     const css = getComputedStyle(document.documentElement);
     const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;

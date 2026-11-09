@@ -1,7 +1,7 @@
-// Alerts: the list (edit, pause, delete) and the one create/edit form,
-// which the overview borrows while its card has it open. The same rules
-// as app.js's renderAlertsList and wireAlertCreateForm, which drove the
-// old page.
+// /account/alerts: the list (edit, pause, delete) and the one create/edit
+// form, which the overview borrows while its card has it open. The same
+// rules as app.js's renderAlertsList and wireAlertCreateForm, which drove
+// the old page.
 import { useCallback, useEffect, useState } from "react";
 import { Input } from "@cloudflare/kumo/components/input";
 import { Button } from "@cloudflare/kumo/components/button";
@@ -10,16 +10,17 @@ import { Table } from "@cloudflare/kumo/components/table";
 import { Loader } from "@cloudflare/kumo/components/loader";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { api, send, ApiError } from "../api";
-import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, SENIORITY_LABELS, WORKPLACE_LABELS,
+import { useUnsaved } from "../unsaved";
+import { Workspace } from "../site/Workspace";
+import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, plural, SENIORITY_LABELS, useAlerts, useProfile, WORKPLACE_LABELS,
   type Alert, type Option, type Profile } from "./data";
-import { Card, ConfirmButton, Picker } from "./ui";
+import { ACTIONS_CELL, Card, ConfirmButton, ERROR, FORM, gate, JOB, NOTE, Picker, ROW, STACK, SUB, TABLE, TITLE } from "./ui";
 
 export type AlertDraft = { search: string; department: string[]; seniority: string[]; company: string[]; country: string[]; city: string[]; workplace: string[] };
 const BLANK: AlertDraft = { search: "", department: [], seniority: [], company: [], country: [], city: [], workplace: [] };
 const list = (v?: string) => (v ? String(v).split(",").filter(Boolean) : []);
 
-// The form's state, kept by the page so the overview and the Alerts tab
-// show one form, not two.
+// The form's state, kept by the page so the list and the form agree.
 export function useAlertForm(profile: Profile | null, reload: () => Promise<unknown>) {
   const [draft, setDraft] = useState<AlertDraft>(BLANK);
   const [editing, setEditing] = useState<string | null>(null);
@@ -123,10 +124,10 @@ export function AlertFormView({ form, onDone, autoFocus }: { form: AlertForm; on
   const { draft, setDraft, editing } = form;
   const set = <K extends keyof AlertDraft>(k: K, v: AlertDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   return (
-    <form className="oj-stack" id="alert-create" noValidate
+    <form className={STACK} id="alert-create" noValidate
       onSubmit={async (e) => { e.preventDefault(); if (await form.submit()) onDone?.(); }}>
-      <h3 className="oj-card-title" id="alert-form-title">{editing ? "Edit alert" : "New alert"}</h3>
-      <div className="oj-form">
+      <h3 className={TITLE} id="alert-form-title">{editing ? "Edit alert" : "New alert"}</h3>
+      <div className={FORM}>
         <Input label="Keywords" id="alert-f-search" name="search" autoComplete="off" placeholder="e.g. devops" autoFocus={autoFocus}
           value={draft.search} onChange={(e) => set("search", e.target.value)} />
         <Picker label="Categories" placeholder="Categories" options={opts?.department || []} value={draft.department} onChange={(v) => set("department", v)} />
@@ -136,11 +137,11 @@ export function AlertFormView({ form, onDone, autoFocus }: { form: AlertForm; on
           onChange={(country, city) => setDraft((d) => ({ ...d, country, city }))} />
         <Picker label="Workplace" placeholder="Workplace" options={WORKPLACE} value={draft.workplace} onChange={(v) => set("workplace", v)} />
       </div>
-      <div className="oj-row">
+      <div className={ROW}>
         <Button type="submit" variant="primary" loading={form.busy} id="create-alert-btn">{editing ? "Save changes" : "Create alert"}</Button>
         {editing ? <Button variant="ghost" onClick={form.reset}>Cancel</Button> : null}
-        {!opts ? <span className="oj-note oj-row"><Loader size="sm" /> Loading the lists</span> : null}
-        {form.feedback ? <span className={form.feedback.error ? "oj-error" : "oj-note"} role="status">{form.feedback.text}</span> : null}
+        {!opts ? <span className={`${NOTE} ${ROW}`}><Loader size="sm" /> Loading the lists</span> : null}
+        {form.feedback ? <span className={form.feedback.error ? ERROR : NOTE} role="status">{form.feedback.text}</span> : null}
       </div>
     </form>
   );
@@ -177,7 +178,9 @@ export function useAlertActions(reload: () => Promise<unknown>) {
   };
 }
 
-export function Alerts({ alerts, error, form, reload }: {
+const PLAIN = "cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-[length:inherit] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus";
+
+function Alerts({ alerts, error, form, reload }: {
   alerts: Alert[] | null; error: string; form: AlertForm; reload: () => Promise<unknown>;
 }) {
   const act = useAlertActions(reload);
@@ -185,13 +188,13 @@ export function Alerts({ alerts, error, form, reload }: {
   // An alert deleted from under an open edit leaves nothing to save to.
   useEffect(() => { if (alerts && form.editing && !alerts.some((a) => a.alert_id === form.editing)) form.reset(); }, [alerts]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="oj-stack">
+    <div className={STACK}>
       <Card title="Your alerts">
-        {error ? <p className="oj-note">{error}</p>
-          : !alerts ? <div className="oj-row oj-note"><Loader /> Loading</div>
-          : !alerts.length ? <p className="oj-note">No alerts yet. Pick some filters below and create one.</p>
+        {error ? <p className={NOTE}>{error}</p>
+          : !alerts ? <div className={`${ROW} ${NOTE}`}><Loader /> Loading</div>
+          : !alerts.length ? <p className={NOTE}>No alerts yet. Pick some filters below and create one.</p>
           : (
-            <div className="oj-table">
+            <div className={TABLE}>
               <Table>
                 <Table.Header>
                   <Table.Row><Table.Head>Alert</Table.Head><Table.Head>Email me</Table.Head><Table.Head><span className="sr-only">Delete</span></Table.Head></Table.Row>
@@ -202,15 +205,15 @@ export function Alerts({ alerts, error, form, reload }: {
                     return (
                       <Table.Row key={a.alert_id} variant={a.alert_id === form.editing ? "selected" : "default"}>
                         <Table.Cell>
-                          <button type="button" className="oj-plain oj-job" title="Edit this alert" onClick={() => form.edit(a)}>{name}</button>
-                          {dup.has(a.alert_id) ? <span className="oj-sub">Duplicate of {dup.get(a.alert_id)}</span> : null}
+                          <button type="button" className={`${PLAIN} ${JOB}`} title="Edit this alert" onClick={() => form.edit(a)}>{name}</button>
+                          {dup.has(a.alert_id) ? <span className={SUB}>Duplicate of {dup.get(a.alert_id)}</span> : null}
                         </Table.Cell>
-                        <Table.Cell className="oj-nowrap">
+                        <Table.Cell className="whitespace-nowrap">
                           <Switch size="sm" checked={a.active} disabled={act.busy === a.alert_id} label={a.active ? "Active" : "Paused"}
                             aria-label={a.active ? "Alert on. Pause it" : "Alert paused. Resume it"} onClick={() => act.toggle(a)} />
                         </Table.Cell>
-                        <Table.Cell className="oj-actions-cell">
-                          <span className="oj-row oj-tight oj-nowrap">
+                        <Table.Cell className={ACTIONS_CELL}>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             {/* The form sits below the list: take the reader to it, which on a phone is off screen. */}
                             <Button variant="secondary" icon={<PencilSimple />} aria-label={`Edit alert ${name}`}
                               onClick={() => { form.edit(a); requestAnimationFrame(() => document.getElementById("alert-form-title")?.scrollIntoView({ block: "start", behavior: "smooth" })); }}>Edit</Button>
@@ -230,3 +233,27 @@ export function Alerts({ alerts, error, form, reload }: {
     </div>
   );
 }
+
+function AlertsPage() {
+  const { profile } = useProfile();
+  const { alerts, error, reload } = useAlerts();
+  const form = useAlertForm(profile, reload);
+  // The board's "Alert me for this search" lands here with its filters.
+  useEffect(() => {
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem("iljobs_alert_prefill"); sessionStorage.removeItem("iljobs_alert_prefill"); } catch { return; }
+    if (!raw) return;
+    try { form.fill(JSON.parse(raw)); } catch { /* an unreadable handoff is dropped */ }
+    requestAnimationFrame(() => document.getElementById("alert-create")?.scrollIntoView({ block: "start" }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A half-written alert is not lost to a stray click on a link: the
+  // browser asks before leaving.
+  useUnsaved("alert", !!form.draft.search.trim(), form.submit);
+  return (
+    <Workspace current="alerts" title="Alerts" note={!alerts ? "" : alerts.length ? plural(alerts.length, "alert") : "No alerts yet"}>
+      <Alerts alerts={alerts} error={error} form={form} reload={reload} />
+    </Workspace>
+  );
+}
+
+export default gate("alerts", AlertsPage);

@@ -1,11 +1,11 @@
-// The Billing tab: the plan in force, what Dodo last said about the paid
+// /account/billing: the plan in force, what Dodo last said about the paid
 // one (GET /me/billing, api/dodo.py state), and the way to Dodo's customer
 // portal (/checkout?manage=1) to cancel, change the card or get invoices.
 import { useEffect, useState } from "react";
 import { Button } from "@cloudflare/kumo/components/button";
-import { Loader } from "@cloudflare/kumo/components/loader";
 import { api } from "../api";
-import { Card } from "./ui";
+import { Workspace } from "../site/Workspace";
+import { Card, gate, LABEL, Loading, NOTE, SettingsNav, STACK, TEXT } from "./ui";
 
 type State = {
   paid: { plan: string; status: string; period_end: string } | null;
@@ -30,13 +30,13 @@ function paidLine(p: NonNullable<State["paid"]>): string {
   }
 }
 
-export function Billing() {
+function Billing() {
   const [s, setS] = useState<State | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => { api<State>("/me/billing").then(setS, () => setFailed(true)); }, []);
 
-  if (failed) return <Card title="Billing" note="Couldn't load your plan. Reload the page to try again." />;
-  if (!s) return <Card title="Billing"><div className="oj-row oj-note"><Loader /> Loading</div></Card>;
+  if (failed) return <Card title="Plan" note="Couldn't load your plan. Reload the page to try again." />;
+  if (!s) return <Card title="Plan"><Loading /></Card>;
 
   const paid = s.paid && LIVE.includes(s.paid.status) ? s.paid.plan : "free";
   const given = s.license && (!s.license.until || s.license.until >= new Date().toISOString().slice(0, 10)) ? s.license.plan : "free";
@@ -49,12 +49,12 @@ export function Billing() {
   ].filter(Boolean);
 
   return (
-    <div className="oj-stack">
+    <div className={STACK}>
       <Card title="Plan" action={plan === "free" ? <Button variant="primary" onClick={() => { location.href = "/pricing"; }}>See plans</Button> : undefined}>
-        <div className="oj-pref-text">
-          <span className="oj-pref-label">{NAME[plan]}</span>
-          {lines.length ? lines.map((l) => <span key={l} className="oj-note">{l}</span>)
-            : <span className="oj-note">You're on the free plan.</span>}
+        <div className={TEXT}>
+          <span className={LABEL}>{NAME[plan]}</span>
+          {lines.length ? lines.map((l) => <span key={l} className={NOTE}>{l}</span>)
+            : <span className={NOTE}>You're on the free plan.</span>}
         </div>
       </Card>
       {s.customer ? (
@@ -65,3 +65,14 @@ export function Billing() {
     </div>
   );
 }
+
+function BillingPage() {
+  return (
+    <Workspace current="settings" title="Billing">
+      <SettingsNav />
+      <Billing />
+    </Workspace>
+  );
+}
+
+export default gate("settings", BillingPage);

@@ -1,0 +1,7 @@
+/* The resume field, when a setting sent the reader here (RESUME_FOCUS):
+   a pulsing ring until the field is touched. Tailwind has no keyframes
+   of its own for this. */
+@keyframes attention {
+  0%, 100% { box-shadow: 0 0 0 2px var(--color-kumo-warning-tint); }
+  50% { box-shadow: 0 0 0 6px var(--color-kumo-warning-tint); }
+}

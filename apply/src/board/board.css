@@ -1,0 +1,51 @@
+/* The board: what Tailwind cannot say. The breakpoints match app.js
+   (1100px: the pane is a sheet; 800px: the phone layout). */
+
+/* The pane as a sheet: from the right between 801 and 1099px, from the
+   bottom on a phone. Above 1100px it is a column and these do nothing. */
+@media (max-width: 1099px) {
+  .board-pane { position: fixed; z-index: 40; transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .board-pane.dragging { transition: none; }
+  .board-scrim { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 250ms; }
+  .board-scrim.open { opacity: 1; pointer-events: auto; }
+}
+@media (min-width: 801px) and (max-width: 1099px) {
+  .board-pane { top: 0; right: 0; bottom: 0; width: min(560px, 92vw); transform: translateX(100%); }
+  .board-pane.open { transform: translateX(0); }
+}
+@media (max-width: 800px) {
+  .board-pane { left: 0; right: 0; bottom: 0; top: 8vh; transform: translateY(100%); border-radius: 12px 12px 0 0; }
+  .board-pane.open { transform: translateY(0); }
+}
+
+/* probe.py marks headings with "## "; the text keeps its own line breaks. */
+.board-desc { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* The treemap's cells are laid out in pixels by the script. */
+.board-tree { position: relative; width: 100%; overflow: hidden; }
+.board-tree-cell { position: absolute; box-sizing: border-box; overflow: hidden; }
+
+/* The account page's alert list and form, drawn inside the board's
+   dialog: the few layout rules those components expect (app.css,
+   account.css), scoped so they change nothing else on the board. */
+.board-alerts .oj-stack { display: flex; flex-direction: column; gap: 16px; }
+.board-alerts .oj-card-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+.board-alerts .oj-card-title { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--text-color-kumo-strong); }
+.board-alerts .oj-note { margin: 0; color: var(--text-color-kumo-subtle); }
+.board-alerts .oj-error { margin: 0; color: var(--text-color-kumo-danger); }
+.board-alerts .oj-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.board-alerts .oj-row-between { justify-content: space-between; }
+.board-alerts .oj-tight { gap: 6px; }
+.board-alerts .oj-nowrap { flex-wrap: nowrap; white-space: nowrap; }
+.board-alerts .oj-job { font-weight: 500; color: var(--text-color-kumo-strong); text-decoration: none; overflow-wrap: anywhere; }
+.board-alerts .oj-sub { display: block; color: var(--text-color-kumo-subtle); font-size: 14px; overflow-wrap: anywhere; }
+.board-alerts .oj-table { overflow-x: auto; }
+.board-alerts .oj-table table { width: 100%; }
+.board-alerts .oj-table td { overflow-wrap: anywhere; vertical-align: top; }
+.board-alerts .oj-actions-cell { width: 1%; text-align: right; white-space: nowrap; }
+.board-alerts .oj-plain { all: unset; cursor: pointer; text-align: left; }
+.board-alerts .oj-plain:focus-visible { outline: 2px solid var(--color-kumo-focus); outline-offset: 2px; border-radius: 4px; }
+.board-alerts .oj-form { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.board-alerts .oj-picker { width: 100%; min-width: 0; }
+.oj-picker-menu { max-height: min(320px, 50vh); overflow-y: auto; }
+.oj-pick-city { padding-left: 24px; }

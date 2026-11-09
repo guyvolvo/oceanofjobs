@@ -1,22 +1,22 @@
-// Settings: the address, the theme, log out, personal access tokens for
-// MCP clients (api/tokens.py), and deleting the account.
+// /account/settings: the address, the theme, log out, personal access
+// tokens for MCP clients (api/tokens.py), and deleting the account.
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Input } from "@cloudflare/kumo/components/input";
 import { Select } from "@cloudflare/kumo/components/select";
 import { Tabs } from "@cloudflare/kumo/components/tabs";
 import { Table } from "@cloudflare/kumo/components/table";
-import { Loader } from "@cloudflare/kumo/components/loader";
 import { Dialog } from "@cloudflare/kumo/components/dialog";
 import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { Switch } from "@cloudflare/kumo/components/switch";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { Plus } from "@phosphor-icons/react";
 import { ApiError, api, send } from "../api";
-import { useDark } from "../theme";
-import { ConfirmDanger } from "../shared";
+import { useTheme } from "../site/theme";
+import { Workspace } from "../site/Workspace";
 import { EMPTY_PROFILE, type Access, type Alert, type SavedRow, type Token } from "./data";
-import { Card, ConfirmButton } from "./ui";
+import { ACTIONS_CELL, Card, ConfirmButton, DIALOG, DIALOG_ACTIONS, ERROR, gate, JOB, LABEL, Loading, NOTE, ROW, SettingsNav, STACK, SUB, TABLE, TEXT,
+  TITLE, type User } from "./ui";
 
 const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
 
@@ -45,32 +45,35 @@ const withWrite = (p: Perms, k: string, on: boolean): Perms => ({ ...p, [k]: on 
 
 // The new token's permissions: a row per area, a column each for read and
 // write, and a box at the top of each column for all of them.
+const NARROW = "w-[1%] whitespace-nowrap";
 function PermissionGrid({ perms, setPerms }: { perms: Perms; setPerms: (p: Perms) => void }) {
   const reads = AREAS.filter(([k]) => perms[k] !== "none").length;
   const writes = AREAS.filter(([k]) => perms[k] === "write").length;
   const all = (fn: typeof withRead, on: boolean) => setPerms(AREAS.reduce((p, [k]) => fn(p, k, on), perms));
   return (
-    <table className="oj-perm-table">
-      <caption className="oj-pref-label">Permissions</caption>
-      <thead>
-        <tr>
-          <th scope="col">Permission</th>
-          <th scope="col"><Checkbox label="Read all" checked={reads === AREAS.length} indeterminate={reads > 0 && reads < AREAS.length}
-            onCheckedChange={(c) => all(withRead, c === true)} /></th>
-          <th scope="col"><Checkbox label="Write all" checked={writes === AREAS.length} indeterminate={writes > 0 && writes < AREAS.length}
-            onCheckedChange={(c) => all(withWrite, c === true)} /></th>
-        </tr>
-      </thead>
-      <tbody>
-        {AREAS.map(([k, label]) => (
-          <tr key={k}>
-            <th scope="row">{label}</th>
-            <td><Checkbox aria-label={`Read ${label.toLowerCase()}`} checked={perms[k] !== "none"} onCheckedChange={(c) => setPerms(withRead(perms, k, c === true))} /></td>
-            <td><Checkbox aria-label={`Write ${label.toLowerCase()}`} checked={perms[k] === "write"} onCheckedChange={(c) => setPerms(withWrite(perms, k, c === true))} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className={TABLE}>
+      <p className={`${LABEL} mb-1.5`}>Permissions</p>
+      <Table>
+        <Table.Header>
+          <Table.Row>
+            <Table.Head>Permission</Table.Head>
+            <Table.Head className={NARROW}><Checkbox label="Read all" checked={reads === AREAS.length} indeterminate={reads > 0 && reads < AREAS.length}
+              onCheckedChange={(c) => all(withRead, c === true)} /></Table.Head>
+            <Table.Head className={NARROW}><Checkbox label="Write all" checked={writes === AREAS.length} indeterminate={writes > 0 && writes < AREAS.length}
+              onCheckedChange={(c) => all(withWrite, c === true)} /></Table.Head>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {AREAS.map(([k, label]) => (
+            <Table.Row key={k}>
+              <Table.Cell className="text-kumo-strong">{label}</Table.Cell>
+              <Table.Cell className={NARROW}><Checkbox aria-label={`Read ${label.toLowerCase()}`} checked={perms[k] !== "none"} onCheckedChange={(c) => setPerms(withRead(perms, k, c === true))} /></Table.Cell>
+              <Table.Cell className={NARROW}><Checkbox aria-label={`Write ${label.toLowerCase()}`} checked={perms[k] === "write"} onCheckedChange={(c) => setPerms(withWrite(perms, k, c === true))} /></Table.Cell>
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table>
+    </div>
   );
 }
 
@@ -87,8 +90,9 @@ function Secret({ full, shown, label }: { full: string; shown: string; label: st
   const toasts = useKumoToastManager();
   const [copied, setCopied] = useState(false);
   return (
-    <div className="oj-secret">
-      <code onCopy={(e) => { e.preventDefault(); e.clipboardData.setData("text/plain", full); }}>{shown}</code>
+    <div className="flex min-w-0 items-center gap-2">
+      <code className="min-w-0 flex-1 rounded-lg bg-kumo-recessed px-2.5 py-2 font-mono text-[13px] leading-snug text-kumo-strong ring-1 ring-kumo-hairline ring-inset [overflow-wrap:anywhere]"
+        onCopy={(e) => { e.preventDefault(); e.clipboardData.setData("text/plain", full); }}>{shown}</code>
       <Button variant="secondary" aria-label={`Copy ${label}`} onClick={async () => {
         try {
           await navigator.clipboard.writeText(full);
@@ -184,16 +188,16 @@ function Tokens() {
       action={<Button variant="primary" icon={<Plus />} disabled={full} title={full ? "Five tokens at most. Revoke one first." : undefined}
         onClick={() => setFormOpen(true)}>New token</Button>}>
       <Dialog.Root open={formOpen} onOpenChange={(o) => { if (!o) setFormOpen(false); }}>
-        <Dialog className="oj-dialog oj-token-dialog">
-          <Dialog.Title className="oj-card-title">New token</Dialog.Title>
-          <form className="oj-stack" onSubmit={(e) => { e.preventDefault(); create(); }}>
+        <Dialog size="lg" className={DIALOG}>
+          <Dialog.Title className={TITLE}>New token</Dialog.Title>
+          <form className={STACK} onSubmit={(e) => { e.preventDefault(); create(); }}>
             <Input label="Token name" maxLength={60} placeholder="Name, e.g. Claude Code laptop" autoComplete="off" autoFocus
               value={name} onChange={(e) => setName(e.target.value)} />
-            <Select className="oj-select" label="Expires" value={expiry} onValueChange={(v) => setExpiry(String(v ?? ""))}
+            <Select className="w-full" label="Expires" value={expiry} onValueChange={(v) => setExpiry(String(v ?? ""))}
               items={{ "30": "Expires in 30 days", "90": "Expires in 90 days", "": "Never expires" }} />
             <PermissionGrid perms={perms} setPerms={setPerms} />
-            {nothing ? <p className="oj-error" role="alert">Give the token at least one permission.</p> : null}
-            <div className="oj-row oj-dialog-actions">
+            {nothing ? <p className={ERROR} role="alert">Give the token at least one permission.</p> : null}
+            <div className={DIALOG_ACTIONS}>
               <Button variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button>
               <Button type="submit" variant="primary" loading={busy} disabled={nothing}>Create token</Button>
             </div>
@@ -201,14 +205,14 @@ function Tokens() {
         </Dialog>
       </Dialog.Root>
       <Dialog.Root open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
-        <Dialog className="oj-dialog oj-token-dialog">
-          <Dialog.Title className="oj-card-title">Edit token</Dialog.Title>
-          <form className="oj-stack" onSubmit={(e) => { e.preventDefault(); saveEdit(); }}>
+        <Dialog size="lg" className={DIALOG}>
+          <Dialog.Title className={TITLE}>Edit token</Dialog.Title>
+          <form className={STACK} onSubmit={(e) => { e.preventDefault(); saveEdit(); }}>
             <Input label="Token name" maxLength={60} autoComplete="off" autoFocus
               value={editName} onChange={(e) => setEditName(e.target.value)} />
             {editing?.permissions ? <PermissionGrid perms={editPerms} setPerms={setEditPerms} /> : null}
-            {editNothing ? <p className="oj-error" role="alert">Give the token at least one permission.</p> : null}
-            <div className="oj-row oj-dialog-actions">
+            {editNothing ? <p className={ERROR} role="alert">Give the token at least one permission.</p> : null}
+            <div className={DIALOG_ACTIONS}>
               <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
               <Button type="submit" variant="primary" loading={busy} disabled={editNothing}>Save</Button>
             </div>
@@ -216,35 +220,35 @@ function Tokens() {
         </Dialog>
       </Dialog.Root>
       {made ? (
-        <div className="oj-stack oj-made">
-          <p className="oj-note">Copy this token now. It will not be shown again.</p>
+        <div className={`${STACK} rounded-[10px] bg-kumo-success-tint p-3`} data-made>
+          <p className={NOTE}>Copy this token now. It will not be shown again.</p>
           <Secret full={made} shown={mask(made)} label="the token" />
-          <p className="oj-note">Or add it to your AI client in one line:</p>
-          <div className="oj-tabs">
-            <Tabs variant="segmented" value={agent} onValueChange={setAgent}
+          <p className={NOTE}>Or add it to your AI client in one line:</p>
+          <div className="overflow-x-auto [scrollbar-width:none]">
+            <Tabs variant="segmented" value={agent} onValueChange={setAgent} className="w-max max-w-none"
               tabs={Object.entries(AGENTS).map(([value, x]) => ({ value, label: x.name }))} />
           </div>
           <Secret full={a.cmd(made)} shown={a.cmd(mask(made))} label="the command" />
-          {a.where ? <p className="oj-note">{a.where}</p> : null}
-          <p className="oj-note">Claude and ChatGPT connectors can't send a token yet, so the token doesn't work there.</p>
+          {a.where ? <p className={NOTE}>{a.where}</p> : null}
+          <p className={NOTE}>Claude and ChatGPT connectors can't send a token yet, so the token doesn't work there.</p>
         </div>
       ) : null}
-      {!tokens ? <div className="oj-row oj-note"><Loader /> Loading</div> : tokens.length ? (
-        <div className="oj-table">
+      {!tokens ? <Loading /> : tokens.length ? (
+        <div className={TABLE}>
           <Table>
             <Table.Body>
               {tokens.map((t) => (
                 <Table.Row key={t.id}>
                   <Table.Cell>
-                    <span className="oj-job">{t.name}</span>
-                    {t.permissions ? <span className="oj-sub">{canDo(t.permissions)}</span> : null}
-                    <span className="oj-sub">{[`ends in ${t.hint}`, `made ${day(t.created_at)}`,
+                    <span className={JOB}>{t.name}</span>
+                    {t.permissions ? <span className={SUB}>{canDo(t.permissions)}</span> : null}
+                    <span className={SUB}>{[`ends in ${t.hint}`, `made ${day(t.created_at)}`,
                       t.last_used_at ? `last used ${day(t.last_used_at)}` : "never used",
                       t.expires_at ? `expires ${day(t.expires_at)}` : "never expires"].join(" · ")}</span>
                   </Table.Cell>
-                  <Table.Cell className="oj-actions-cell">
+                  <Table.Cell className={ACTIONS_CELL}>
                     {/* The list holds the extension's token too, so one stray click could disconnect it. */}
-                    <div className="oj-row oj-token-actions">
+                    <div className="flex flex-nowrap justify-end gap-1">
                       <Button variant="ghost" onClick={() => startEdit(t)}>Edit</Button>
                       <ConfirmButton ask="Revoke?" variant="ghost" loading={revoking === t.id} onConfirm={() => revoke(t.id)}>Revoke</ConfirmButton>
                     </div>
@@ -282,9 +286,9 @@ function Newsletter() {
     }
   };
   return (
-    <div className="oj-row oj-row-between" id="newsletter">
-      <span className="oj-pref-text"><span className="oj-pref-label">Product updates</span>
-        <span className="oj-note">Emails about new features and product updates. Job alerts are set separately.</span></span>
+    <div className={`${ROW} justify-between`} id="newsletter">
+      <span className={TEXT}><span className={LABEL}>Product updates</span>
+        <span className={NOTE}>Emails about new features and product updates. Job alerts are set separately.</span></span>
       <Switch size="sm" checked={on} disabled={busy} label={on ? "On" : "Off"}
         aria-label={on ? "Product update emails on. Turn them off" : "Product update emails off. Turn them on"} onClick={toggle} />
     </div>
@@ -310,9 +314,11 @@ async function deleteEverything() {
   await api("/me/profile", send("PUT", EMPTY_PROFILE));
 }
 
-export function Settings({ email, logOut }: { email: string; logOut: () => void }) {
+const WHAT = "This deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens.";
+
+function Settings({ email }: { email: string }) {
   const toasts = useKumoToastManager();
-  const dark = useDark();
+  const [dark, toggleTheme] = useTheme();
   const [asking, setAsking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const del = async () => {
@@ -328,29 +334,45 @@ export function Settings({ email, logOut }: { email: string; logOut: () => void 
     }
   };
   return (
-    <div className="oj-stack">
+    <div className={STACK}>
       <Card>
-        <div className="oj-row oj-row-between"><span className="oj-pref-text"><span className="oj-pref-label">Email</span><span className="oj-note oj-wrap">{email}</span></span></div>
+        <div className={`${ROW} justify-between`}><span className={TEXT}><span className={LABEL}>Email</span><span className={`${NOTE} [overflow-wrap:anywhere]`}>{email}</span></span></div>
         <Newsletter />
-        <div className="oj-row oj-row-between">
-          <span className="oj-pref-label">Theme</span>
-          {/* Clicks the header's own theme button, which owns the switch and the storage key. */}
-          <Button variant="secondary" aria-label={`Switch to the ${dark ? "light" : "dark"} theme`}
-            onClick={() => document.getElementById("hero-theme")?.click()}>{dark ? "Light" : "Dark"}</Button>
+        <div className={`${ROW} justify-between`}>
+          <span className={LABEL}>Theme</span>
+          <Button variant="secondary" aria-label={`Switch to the ${dark ? "light" : "dark"} theme`} onClick={toggleTheme}>{dark ? "Light" : "Dark"}</Button>
         </div>
-        <div className="oj-row oj-row-between">
-          <span className="oj-pref-label">Log out</span>
-          <Button variant="secondary" onClick={logOut}>Log out</Button>
+        <div className={`${ROW} justify-between`}>
+          <span className={LABEL}>Log out</span>
+          <Button variant="secondary" onClick={() => { signOut(); location.href = "/"; }}>Log out</Button>
         </div>
       </Card>
       <Tokens />
-      <Card title="Delete account" className="oj-danger-card"
-        note="Deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens. It doesn't cancel a paid plan, so cancel that under Billing first. This can't be undone.">
-        <div><Button variant="secondary" className="oj-danger-ghost" loading={deleting} onClick={() => setAsking(true)}>Delete account</Button></div>
-        <ConfirmDanger open={asking} title="Delete your account?" confirm="Delete my account" onConfirm={del} onCancel={() => setAsking(false)}>
-          This deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens. This can't be undone.
-        </ConfirmDanger>
+      <Card title="Delete account" className="ring-1 ring-kumo-danger-tint ring-inset"
+        note={`${WHAT} It doesn't cancel a paid plan, so cancel that under Billing first. This can't be undone.`}>
+        <div><Button variant="secondary" className="text-kumo-danger!" loading={deleting} onClick={() => setAsking(true)}>Delete account</Button></div>
+        <Dialog.Root open={asking} onOpenChange={(o) => { if (!o) setAsking(false); }}>
+          <Dialog className={DIALOG}>
+            <Dialog.Title className={TITLE}>Delete your account?</Dialog.Title>
+            <Dialog.Description className={NOTE}>{WHAT} This can't be undone.</Dialog.Description>
+            <div className={DIALOG_ACTIONS}>
+              <Button variant="secondary" onClick={() => setAsking(false)}>Cancel</Button>
+              <Button variant="destructive" className="oj-destructive" onClick={del}>Delete my account</Button>
+            </div>
+          </Dialog>
+        </Dialog.Root>
       </Card>
     </div>
   );
 }
+
+function SettingsPage({ who }: { who: User }) {
+  return (
+    <Workspace current="settings" title="Settings">
+      <SettingsNav />
+      <Settings email={who.email} />
+    </Workspace>
+  );
+}
+
+export default gate("settings", SettingsPage);

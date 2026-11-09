@@ -9,20 +9,21 @@ import type { QueueItem, Status } from "./api";
 import { ask, connectExtension, type Ext } from "./ext";
 
 // A setting that needs a resume first. The warning takes the user to the
-// resume field on the AI agent tab, which stays highlighted until they
-// touch it (Agent.tsx ResumeField listens for RESUME_FOCUS).
+// resume field on the AI agent page, which stays highlighted until they
+// touch it (apply/Agent.tsx ResumeField listens for RESUME_FOCUS).
 export const RESUME_FOCUS = "ooj-resume-focus";
 // Opens the setup guide (Onboarding.tsx) again.
 export const SETUP = "ooj-setup";
 export function NeedsResume() {
   const go = () => {
-    if (location.hash === "#agent") return dispatchEvent(new Event(RESUME_FOCUS));
-    try { sessionStorage.setItem(RESUME_FOCUS, "1"); } catch { /* the tab still opens */ }
-    location.hash = "agent";
+    if (location.pathname === "/apply/agent") return dispatchEvent(new Event(RESUME_FOCUS));
+    try { sessionStorage.setItem(RESUME_FOCUS, "1"); } catch { /* the page still opens */ }
+    location.href = "/apply/agent";
   };
   return (
-    <button type="button" className="oj-needs-resume" onClick={go}>
-      <WarningCircle weight="bold" aria-hidden="true" />
+    <button type="button" onClick={go}
+      className="inline-flex cursor-pointer items-center gap-2 self-start rounded-lg border border-kumo-warning bg-transparent px-3 py-2 text-sm leading-snug text-kumo-strong hover:bg-kumo-warning-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus">
+      <WarningCircle weight="bold" aria-hidden="true" className="size-[18px] shrink-0 text-kumo-warning" />
       To use this setting, add your resume.
     </button>
   );
@@ -55,13 +56,14 @@ export const ATS: Record<string, string> = { greenhouse: "Greenhouse", ashby: "A
 // own page and opens in a new tab.
 export function JobLink({ title, link }: { title: string; link: string }) {
   const name = title || "A job";
-  if (!link) return <span className="oj-job">{name}</span>;
+  const look = "font-medium text-kumo-strong no-underline [overflow-wrap:anywhere] hover:underline";
+  if (!link) return <span className={look}>{name}</span>;
   const external = !link.startsWith("/");
-  return <a className="oj-job" href={link} {...(external ? { target: "_blank", rel: "noopener" } : {})}>{name}</a>;
+  return <a className={look} href={link} {...(external ? { target: "_blank", rel: "noopener" } : {})}>{name}</a>;
 }
 
 export function JobCell({ title, link, sub }: { title: string; link: string; sub?: ReactNode }) {
-  return <><JobLink title={title} link={link} />{sub ? <span className="oj-sub">{sub}</span> : null}</>;
+  return <><JobLink title={title} link={link} />{sub ? <span className="block text-sm text-kumo-subtle [overflow-wrap:anywhere]">{sub}</span> : null}</>;
 }
 
 export function fmtDate(iso: string) {
@@ -104,19 +106,19 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
     history.replaceState(null, "", location.pathname + location.hash);
     connect();
   }, [ext.checking, ext.installed, ext.connected]);
-  if (ext.checking && !ext.installed) return <span className="oj-row oj-note"><Loader size="sm" /> Looking for the extension</span>;
+  if (ext.checking && !ext.installed) return <span className="flex items-center gap-2 text-kumo-subtle"><Loader size="sm" /> Looking for the extension</span>;
   if (!ext.installed) {
-    return <p className="oj-note">Install the Ocean of Jobs extension to apply from here: <a className="oj-link" href="https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi" target="_blank" rel="noopener">Chrome Web Store</a>.</p>;
+    return <p className="m-0 text-kumo-subtle">Install the Ocean of Jobs extension to apply from here: <a className="text-kumo-link underline underline-offset-[3px]" href="https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi" target="_blank" rel="noopener">Chrome Web Store</a>.</p>;
   }
   if (!ext.connected) {
     return (
-      <div className="oj-row">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button variant="primary" loading={busy} onClick={connect}>Connect the extension</Button>
-        <span className="oj-note" role="status">{connectError ? "Couldn't connect the extension. Try again." : "The extension is installed."}</span>
+        <span className="text-kumo-subtle" role="status">{connectError ? "Couldn't connect the extension. Try again." : "The extension is installed."}</span>
       </div>
     );
   }
-  const connectedNote = <span className="oj-note" role="status">The extension is connected to your account.</span>;
+  const connectedNote = <span className="text-kumo-subtle" role="status">The extension is connected to your account.</span>;
   if (!ext.bridge) return connectedNote;
   const next = async () => {
     const failed = (description: string) => toasts.add({ variant: "error", title: "Couldn't open the next job", description });
@@ -135,9 +137,9 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
     onOpened();
   };
   return (
-    <div className="oj-row">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <Button variant="primary" loading={busy} disabled={!queue?.length} onClick={next}>Apply to next</Button>
-      {queue?.length ? null : <span className="oj-note">Your queue is empty.</span>}
+      {queue?.length ? null : <span className="text-kumo-subtle">Your queue is empty.</span>}
     </div>
   );
 }
@@ -151,10 +153,10 @@ export function ConfirmDanger({ open, title, children, confirm, onConfirm, onCan
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
-      <Dialog className="oj-dialog">
-        <Dialog.Title className="oj-card-title">{title}</Dialog.Title>
-        {children ? <Dialog.Description className="oj-note">{children}</Dialog.Description> : null}
-        <div className="oj-row oj-dialog-actions">
+      <Dialog className="top-1/2 flex max-h-[calc(100dvh-32px)] max-w-[calc(100vw-32px)] -translate-y-1/2 flex-col gap-3 overflow-y-auto p-6">
+        <Dialog.Title className="m-0 text-base font-semibold leading-snug text-kumo-strong">{title}</Dialog.Title>
+        {children ? <Dialog.Description className="m-0 text-kumo-subtle">{children}</Dialog.Description> : null}
+        <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
           <Button variant="destructive" className="oj-destructive" onClick={onConfirm}>{confirm}</Button>
         </div>

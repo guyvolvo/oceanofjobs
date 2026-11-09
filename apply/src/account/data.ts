@@ -1,7 +1,8 @@
 // The account page's data: the shapes /api/me/* returns (api/handler.py),
 // and the helpers app.js used to lend the old page (labels, the alert
 // summary, the starred set, the picker option lists).
-import { pub } from "../api";
+import { useCallback, useEffect, useState } from "react";
+import { api, ApiError, pub, send } from "../api";
 
 export type Cadence = "instant" | "daily" | "weekly";
 export type Profile = {
@@ -231,4 +232,158 @@ export function provider(idToken: string): string {
   try { if (typeof ids === "string") ids = JSON.parse(ids); } catch { return ""; }
   const first = Array.isArray(ids) ? (ids[0] as { providerName?: string }) : null;
   return first?.providerName === "Google" ? "Google" : "";
+}
+
+// The pages' loads. Every one needs a token; a 401 means the token is no
+// good any more, so the reader is signed out and the page shows the sign-in.
+function authGuard(err: unknown) {
+  if (err instanceof ApiError && err.status === 401) signOut();
+}
+const STUCK = "This is taking longer than it should. Reload the page to try again.";
+const FAILED = "Couldn't load this. Reload the page to try again.";
+
+export function useProfile() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [spec, setSpec] = useState<unknown>(null);
+  useEffect(() => {
+    api<{ profile: Profile; skill_spec: unknown }>("/me/profile").then((d) => {
+      setProfile({ ...EMPTY_PROFILE, ...(d.profile || {}) });
+      setSpec(d.skill_spec || null);
+    }).catch((err) => {
+      authGuard(err);
+      // A profile that won't load isn't worth blocking the page for; the
+      // pickers just have nothing to offer until the next load.
+      setProfile({ ...EMPTY_PROFILE });
+    });
+  }, []);
+  // Every save PUTs the whole profile, so no page can wipe another's part.
+  const put = useCallback(async (patch: Partial<Profile>) => {
+    const res = await api<{ profile: Profile }>("/me/profile", send("PUT", { ...(profile || EMPTY_PROFILE), ...patch }));
+    const p = { ...EMPTY_PROFILE, ...(res.profile || res) };
+    setProfile(p);
+    return p;
+  }, [profile]);
+  return { profile, spec, put };
+}
+
+// The overview's numbers, computed on the box once a day. The last answer
+// is kept in this browser for half an hour so the page paints at once,
+// and while the box is still computing the page asks again every few
+// seconds for a couple of minutes. A failed request gets two slower tries.
+const DASH_KEY = "iljobs_dash_v1";
+export function useDashboard(profile: Profile | null) {
+  const [dash, setDash] = useState<Dashboard | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const skills = profile?.skills || [];
+  const country = profile && profile.country.length === 1 ? profile.country[0] : "";
+  const key = `${skills.join(",")}|${country}|${Math.min(3, skills.length)}`;
+  useEffect(() => {
+    if (!profile) return;
+    if (!skills.length) { setDash(null); setLoaded(true); return; }
+    let live = true, polls = 0, retries = 0, timer = 0;
+    try {
+      const c = JSON.parse(localStorage.getItem(DASH_KEY) || "null");
+      if (c && c.key === key && Date.now() - c.at < 30 * 60 * 1000) {
+        setDash({ history: c.history, matches: c.matches, counts: c.counts, computed_at: c.computedAt });
+        setLoaded(true);
+      }
+    } catch { /* a per-browser nicety only */ }
+    const run = async () => {
+      let d: Dashboard | null = null;
+      try { d = await api<Dashboard>("/me/dashboard"); } catch (err) { authGuard(err); d = null; }
+      if (!live) return;
+      const pending = !!(d && (d.computing || d.updating));
+      if (pending && polls < 40) { polls++; timer = window.setTimeout(run, 4000); }
+      else if (!d && retries < 2) { retries++; timer = window.setTimeout(run, 20000); }
+      // Nothing stored yet: keep the bones up rather than paint empty cards.
+      if (pending && !d!.computed_at) return;
+      if (d) {
+        setDash(d);
+        if (d.history) {
+          try { localStorage.setItem(DASH_KEY, JSON.stringify({ key, at: Date.now(), history: d.history, matches: (d.matches || []).slice(0, 100), counts: d.counts, computedAt: d.computed_at })); } catch { /* quota */ }
+        }
+      }
+      setLoaded(true);
+    };
+    run();
+    return () => { live = false; clearTimeout(timer); };
+  }, [key, !!profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { dash, loaded };
+}
+
+// The lists, each with a watchdog: a request that never settles still
+// ends in a sentence, not a spinner.
+export function useAlerts() {
+  const [alerts, setAlerts] = useState<Alert[] | null>(null);
+  const [error, setError] = useState("");
+  const reload = useCallback(async () => {
+    const list = (await api<{ alerts: Alert[] }>("/me/alerts")).alerts || [];
+    setAlerts(list);
+    setError("");
+    return list;
+  }, []);
+  useEffect(() => {
+    const stuck = window.setTimeout(() => setError((e) => e || STUCK), 15000);
+    reload().catch((err) => { authGuard(err); setError(FAILED); }).finally(() => clearTimeout(stuck));
+    return () => clearTimeout(stuck);
+  }, [reload]);
+  return { alerts, error, reload };
+}
+
+// The reader's stars from any device. The account stores the ids; the
+// listings come from /api/jobs, so what shows is the live record, closed
+// ones included.
+export function useSaved() {
+  const [jobs, setJobs] = useState<Job[] | null>(null);
+  const [count, setCount] = useState(0);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    let ids: string[];
+    try {
+      ids = ((await api<{ saved: SavedRow[] }>("/me/saved")).saved || []).map((r) => r.job_id).filter(Boolean);
+    } catch (err) {
+      authGuard(err);
+      setError("Couldn't load your saved jobs.");
+      return;
+    }
+    setCount(ids.length);
+    if (!ids.length) { setJobs([]); setError(""); return; }
+    try {
+      const q = new URLSearchParams({ ids: ids.slice(0, 200).join(","), include_closed: "1", include_outdated: "1", limit: "200" });
+      const list = (await pub<{ jobs: Job[] }>(`/jobs?${q}`)).jobs || [];
+      // The account knows the order they were starred in; restore it.
+      const rank = new Map(ids.map((id, i) => [id, i]));
+      list.sort((a, b) => (rank.get(a.id) ?? 999) - (rank.get(b.id) ?? 999));
+      setJobs(list);
+      setError("");
+    } catch {
+      setError("Couldn't load your saved jobs.");
+    }
+  }, []);
+  useEffect(() => {
+    const stuck = window.setTimeout(() => setError((e) => e || STUCK), 15000);
+    load().finally(() => clearTimeout(stuck));
+    return () => clearTimeout(stuck);
+  }, [load]);
+  // The board reads the same list from this browser, so its star follows.
+  const toggle = async (j: Job, on: boolean) => {
+    setStar(j.id, on);
+    try {
+      await api(`/me/saved/${encodeURIComponent(j.id)}`, { method: on ? "PUT" : "DELETE" });
+      load();
+    } catch {
+      setStar(j.id, !on);
+    }
+  };
+  // false when the API refused; the row stays.
+  const remove = async (id: string) => {
+    try { await api(`/me/saved/${encodeURIComponent(id)}`, { method: "DELETE" }); } catch { return false; }
+    setStar(id, false);
+    const rest = (jobs || []).filter((j) => j.id !== id);
+    setJobs(rest);
+    setCount((n) => Math.max(0, n - 1));
+    if (!rest.length) load();
+    return true;
+  };
+  return { jobs, count, error, toggle, remove };
 }
