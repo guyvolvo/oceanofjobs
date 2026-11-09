@@ -1,0 +1,43 @@
+/* The styles of the pages built on shadcn/ui (docs/FRONTEND_STANDARD.md).
+   Colours, fonts and radii come only from tokens.css, which is generated
+   from DESIGN.md. Tailwind reads only the folders listed below, so the
+   Kumo pages' classes stay out of this file. */
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "./tokens.css";
+
+@source "../components";
+@source "../shell";
+@source "../legal";
+@source "../notfound";
+@source "../contact";
+
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+@font-face { font-family: "Geist"; src: url("/fonts/Geist-400-latin.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("/fonts/Geist-500-latin.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
+@font-face { font-family: "Overused Grotesk"; src: url("/fonts/OverusedGrotesk-VF.woff2") format("woff2-variations"); font-weight: 300 900; font-display: swap; }
+@font-face { font-family: "Urbanist"; src: url("/fonts/Urbanist-VF-latin.woff2") format("woff2-variations"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Source Sans 3"; src: url("/fonts/SourceSans3-VF-latin.woff2") format("woff2-variations"); font-weight: 200 900; font-display: swap; }
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html { background: var(--color-background); }
+  body { margin: 0; background: var(--color-background); color: var(--color-foreground); font: 400 16px/1.5 var(--font-sans); -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+}
+
+/* The head script marks a signed-in page before paint (vite.config.ts HEAD),
+   so the prerendered "Log in" does not flash before the account menu. */
+[data-auth] [data-signed-out] { visibility: hidden; }
+
+/* The cookie banner is drawn by frontend/consent.js, outside React. Accept
+   is the primary choice, as on the old pages. */
+#cookie-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 60; max-width: 560px; margin: 0 auto; padding: 14px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  background: var(--color-background); color: var(--color-foreground); font-size: 14px; }
+#cookie-banner p { margin: 0; }
+#cookie-banner a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+#cookie-banner .cookie-actions { display: flex; justify-content: flex-end; gap: 8px; }
+#cookie-banner button { height: 32px; padding: 0 12px; border: 1px solid var(--color-input); border-radius: var(--radius-md); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+#cookie-banner .cookie-yes { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-primary-foreground); }

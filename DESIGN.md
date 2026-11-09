@@ -37,7 +37,41 @@ colors:
   trend-down: "#b0452f"
   trend-down-dark: "#e8866b"
   showcase-sky: "#b9a3bd"
+  paper-dark: "#17181c"
+  ink-dark: "#ededec"
+  muted-grey-dark: "#9a9a9a"
+  hairline-grey-dark: "#2b2c31"
+  alert-red-dark: "#ff6b5e"
+  hover-tint-dark: "#1e1f24"
+  row-hover-dark: "#23252b"
+  green-text-dark: "#2fae60"
+  page-ground: "#f2f0ef"
+  page-ground-dark: "#0e0f11"
+  page-text: "#40513b"
+  page-text-dark: "#f2f0ef"
+  page-body: "#4c5a48"
+  page-body-dark: "#b9b4ad"
+  page-muted: "#5d6a58"
+  page-muted-dark: "#9a9ca3"
+  page-dim: "#7d8879"
+  page-dim-dark: "#6b6e75"
+  page-line: "rgba(64, 81, 59, 0.14)"
+  page-line-dark: "rgba(242, 240, 239, 0.10)"
+  page-soft: "rgba(64, 81, 59, 0.07)"
+  page-soft-dark: "rgba(242, 240, 239, 0.07)"
+  page-soft-hover: "rgba(64, 81, 59, 0.13)"
+  page-soft-hover-dark: "rgba(242, 240, 239, 0.13)"
+  page-link-hover: "#3f6f45"
+  page-link-hover-dark: "#7fd49b"
+  scrim: "rgba(38, 36, 34, 0.32)"
+  scrim-dark: "rgba(0, 0, 0, 0.58)"
 typography:
+  page-heading:
+    fontFamily: "Urbanist, Geist, \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    fontSize: "40px"
+    fontWeight: 500
+    lineHeight: 1.1
+    letterSpacing: "-0.03em"
   display-wordmark:
     fontFamily: "Overused Grotesk, \"Helvetica Neue\", Helvetica, Arial, sans-serif"
     fontSize: "15px"
@@ -415,6 +449,17 @@ These are literal values in the places they appear: the mail has no
 landing page's tiles are the one surface whose colours do not follow the
 theme toggle (a photograph does not have a light mode). That is the
 documented exception to "every colour is a `var(--token)`".
+
+### Public page palette (the `page-*` colours)
+The landing page, the legal pages, contact, pricing and the 404 share the
+landing page's own palette (`.home` in frontend/style.css): paper and ink
+in light, and in dark a deeper ground (`#0e0f11`) than the board's
+`#17181c`, with a warm grey for reading text. The `page-*` entries in the
+frontmatter are those values, and a key ending in `-dark` is the dark
+value of the key without it. `apply/scripts/tokens.mjs` turns the
+frontmatter into the CSS variables the React pages use
+(`apply/src/styles/tokens.css`), so a colour changes here, not in a
+component.
 
 ### Alert Red (reserved, not decorative)
 - **Trend Down** (`#b0452f`, dark mode `#e8866b`): the overview tiles'
