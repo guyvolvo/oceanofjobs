@@ -127,13 +127,15 @@ resource "aws_cloudwatch_metric_alarm" "scrape_fast_errors" {
   ok_actions          = local.alarm_actions
 }
 
-# The fast scraper running long. It stops taking boards at five minutes
-# and is normally done in two or three; a run past five and a half is
-# one whose boards in flight are hanging, and two of three such runs
-# means the boards, not the weather.
+# The fast scraper running long. It probes for five minutes
+# (scrape_handler.py PROBE_DEADLINE_MIN, 5 since 2026-11-09) and then
+# writes its fragments and state, so a busy run takes 5.3 to 6.6 minutes.
+# Eight is past that and still short of the Lambda's 10-minute timeout:
+# a run that long has boards hanging. At 5.5 minutes, the old line, it
+# flapped every 10 to 15 minutes on normal runs the day the window grew.
 resource "aws_cloudwatch_metric_alarm" "scrape_fast_slow" {
   alarm_name          = "${var.project_name}-scrape-fast-slow"
-  alarm_description   = "The fast scraper Lambda is taking over five and a half minutes a run, past its own deadline."
+  alarm_description   = "The fast scraper Lambda is taking over eight minutes a run, well past its five-minute probe and close to its 10-minute timeout."
   namespace           = "AWS/Lambda"
   metric_name         = "Duration"
   dimensions          = { FunctionName = aws_lambda_function.scrape_fast.function_name }
@@ -141,7 +143,7 @@ resource "aws_cloudwatch_metric_alarm" "scrape_fast_slow" {
   period              = 300
   evaluation_periods  = 3
   datapoints_to_alarm = 2
-  threshold           = 330000
+  threshold           = 480000
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
   alarm_actions       = local.alarm_actions
