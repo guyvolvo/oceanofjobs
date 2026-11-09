@@ -367,6 +367,19 @@ test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left f
   }
 });
 
+test('holdCode: why a fill was held, as the short code the Filled record keeps', () => {
+  const ready = { fill: 'full', plan: 'pro', submit: true, missing: [], errors: [], remaining: 5, screened: null };
+  const code = (o) => m.holdCode(m.autoSubmit({ ...ready, ...o }));
+  assert.equal(code({}), null, 'not held: Full automatic submits');
+  assert.equal(code({ fill: 'half' }), 'half_automatic');
+  assert.equal(code({ plan: 'free' }), 'needs_paid_plan');
+  assert.equal(code({ submit: false }), 'no_submit_button');
+  assert.equal(code({ missing: ['Phone'] }), 'needs_answer');
+  assert.equal(code({ remaining: 0 }), 'limit_reached');
+  assert.equal(code({ screened: 'applied to this company recently' }), 'applied_recently');
+  assert.equal(m.holdCode('Some new reason!'), 'some_new_reason_', 'an unknown reason still fits the server');
+});
+
 test('sentText: what a Submit came to, for the card and the popup', () => {
   assert.equal(m.sentText({ submitted: true }), m.SUBMITTED);
   assert.equal(m.sentText({ unknown: true }), m.UNCONFIRMED);

@@ -76,3 +76,30 @@ test('a site with no dedicated filler still gets the generic Submit', async () =
   assert.deepEqual(out.sent, { submitted: true });
   assert.deepEqual(pressed, ['generic']);
 });
+
+// A fill from the popup or the card (assist, fillHere), with the account,
+// the planner and the page stubbed. Returns the Filled record sent.
+async function filledRecord(run, settings, submitInfo) {
+  const { ctx } = card((ats, method) => ({ 'generic.submitInfo': submitInfo, 'greenhouse.read': { fields: [] } })[ats + '.' + method]);
+  const sent = [];
+  ctx.chrome.tabs = { get: async () => ({ id: 7, url: 'https://careers.acme.example/apply', status: 'complete' }) };
+  await ctx.chrome.storage.local.set({ cv: { name: 'cv.pdf' } });
+  ctx.account = async () => ({ profile: { settings, contact: { email: 'a@example.com' } }, preferences: {}, history: [], usage: { plan: 'pro', remaining: 5 } });
+  ctx.pageJobId = async () => '0123456789abcdef';
+  ctx.readForm = async () => ({ fields: [] });
+  ctx.planWithSuggestions = async () => ({ plan: { fills: [], missing: [] }, suggested: [] });
+  ctx.fillAndMark = async () => ({ filled: 3, missing: [], errors: [] });
+  ctx.sendDurable = async (p, body) => { if (p === '/me/apply/filled') sent.push(plain(body)); };
+  await run(ctx);
+  assert.equal(sent.length, 1);
+  return sent[0];
+}
+
+test('the Filled record says why Full automatic held the fill', async () => {
+  const popup = (ctx) => ctx.assist(7, 0, 'generic', { fields: [] }, 'https://careers.acme.example/apply', 'Engineer');
+  assert.equal((await filledRecord(popup, { fill: 'full' }, null)).hold, 'no_submit_button');
+  assert.equal((await filledRecord(popup, { fill: 'half' }, { text: 'Submit' })).hold, 'half_automatic');
+  assert.ok(!('hold' in await filledRecord(popup, { fill: 'full' }, { text: 'Submit' })), 'not held: no code');
+  const onCard = (ctx) => ctx.fillHere({ url: 'https://job-boards.greenhouse.io/acme/jobs/1', title: 'Engineer', company: 'acme' }, 7, 0);
+  assert.equal((await filledRecord(onCard, { fill: 'half' })).hold, 'half_automatic');
+});

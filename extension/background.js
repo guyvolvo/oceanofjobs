@@ -925,10 +925,12 @@ async function pageCompany(tabId) {
 
 // A fill the user will check and send: in History as Filled, no credit.
 // Then the tab is watched for the user sending it (watchSend).
-async function recordFilled(job, tabId, frameId, email) {
+// held: autoWhy's answer, kept on the record as a code (oojMatch.holdCode).
+async function recordFilled(job, tabId, frameId, email, held) {
   const attemptId = newAttemptId();
+  const hold = oojMatch.holdCode(held);
   await sendDurable('/me/apply/filled', { attempt_id: attemptId, job_id: job.id, url: job.url, title: job.title,
-    company: job.company_name || job.company_domain });
+    company: job.company_name || job.company_domain, ...(hold ? { hold } : {}) });
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab) return;
   await setWatch(tabId, { attemptId, email: String(email || '').trim().toLowerCase(), url: tab.url, until: Date.now() + WATCH_FOR, clickAt: 0 });
@@ -1016,11 +1018,11 @@ async function fillHere(msg, tabId, frameId) {
   // Filling costs nothing (R8); a credit is reserved only when Submit is
   // pressed on the card, by the user or by Full automatic (startSubmit).
   const result = await fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested);
-  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email);
   // The dedicated filler presses its own button and handles a CAPTCHA
   // (ats outcome), as in automatic runs: reCAPTCHA sits on every
   // Greenhouse and Ashby form, so generic's bot check isn't asked here.
   const why = autoWhy(a, job, msg.url, result, { text: 'Submit' });
+  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email, why);
   return { ...result, auto: why === null, held: why || '' };
 }
 
@@ -1237,9 +1239,9 @@ async function assist(tabId, frameId, name, page, url, title) {
     serverAi: true };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   const result = await fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested);
-  await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email);
   const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   const why = autoWhy(a, job, url, result, submit);
+  await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email, why);
   return { ...result, ats: name, frameId, fields: page.fields.length, required: page.fields.filter((f) => f.required).length,
     submitInfo: submit, auto: why === null, held: why || '' };
 }
