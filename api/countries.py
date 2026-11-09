@@ -74,6 +74,14 @@ COUNTRY_NAMES = {
     "senegal": "SN", "rwanda": "RW", "uganda": "UG", "zambia": "ZM",
     "algeria": "DZ", "oman": "OM", "lebanon": "LB", "nepal": "NP",
     "myanmar": "MM", "cambodia": "KH", "mongolia": "MN", "fiji": "FJ",
+    # The country in its own language. Listed after the English names, so
+    # the label each code shows is still the English one. "Utrecht,
+    # Utrecht, Nederland" used to carry no country at all.
+    "nederland": "NL", "españa": "ES", "italia": "IT", "polska": "PL",
+    "schweiz": "CH", "suisse": "CH", "svizzera": "CH", "österreich": "AT",
+    "sverige": "SE", "norge": "NO", "danmark": "DK", "suomi": "FI",
+    "česko": "CZ", "česká republika": "CZ", "magyarország": "HU",
+    "belgië": "BE", "belgique": "BE",
 }
 
 # The Israel-only filter's own keyword list, matched as a plain substring
@@ -182,6 +190,7 @@ CITIES = {
     "raanana": "IL", "ra'anana": "IL", "petah tikva": "IL", "petach tikva": "IL",
     "netanya": "IL", "rehovot": "IL", "ramat gan": "IL", "givatayim": "IL",
     "beer sheva": "IL", "be'er sheva": "IL", "beersheba": "IL", "yokneam": "IL",
+    "yokneam illit": "IL", "יקנעם": "IL", "יקנעם עילית": "IL",
     "kiryat gat": "IL", "caesarea": "IL", "modiin": "IL", "ashdod": "IL",
     "holon": "IL", "bnei brak": "IL", "airport city": "IL", "rosh haayin": "IL",
     "or yehuda": "IL", "kfar saba": "IL", "hod hasharon": "IL", "migdal haemek": "IL",
@@ -272,6 +281,102 @@ US_STATE_NAMES = {
     "west virginia", "wisconsin", "wyoming", "puerto rico",
 }
 
+# The same states by code, for places_of, which keeps the state beside its
+# city. "Austin" alone is four places in the US; "Austin, TX" is one.
+US_STATE_CODES = {
+    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR",
+    "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE",
+    "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID",
+    "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS",
+    "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD",
+    "massachusetts": "MA", "michigan": "MI", "minnesota": "MN",
+    "mississippi": "MS", "missouri": "MO", "montana": "MT", "nebraska": "NE",
+    "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
+    "new york": "NY", "new york state": "NY", "north carolina": "NC",
+    "north dakota": "ND", "ohio": "OH", "oklahoma": "OK", "oregon": "OR",
+    "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
+    "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT",
+    "vermont": "VT", "virginia": "VA", "washington": "WA", "washington state": "WA",
+    "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY",
+    "district of columbia": "DC", "puerto rico": "PR",
+}
+
+# Rule 4b. First-level regions outside the US: provinces, states, Länder.
+# Boards write them where a city goes ("Montreal, Quebec", "Bengaluru,
+# Karnataka", "Utrecht, Nederland") and they used to land in the city
+# filter as cities, Ontario alone with about 5,000 open jobs. A region
+# names its country, so it answers the country question, and it is never a
+# city. Only names that are not also a city somewhere the board lists are
+# here; the ones that are both sit in ADMIN1_IN_COUNTRY below. Quebec is
+# deliberately a region: counted on the live data it is "Montreal, Quebec"
+# nearly every time, not Quebec City, which boards write as "Quebec City".
+ADMIN1 = {
+    "CA": ["ontario", "quebec", "québec", "british columbia", "alberta", "manitoba",
+           "saskatchewan", "nova scotia", "new brunswick", "newfoundland and labrador",
+           "prince edward island", "yukon", "nunavut", "northwest territories"],
+    "AU": ["new south wales", "queensland", "western australia", "south australia",
+           "tasmania", "australian capital territory", "northern territory"],
+    "IN": ["karnataka", "telangana", "maharashtra", "tamil nadu", "haryana",
+           "uttar pradesh", "gujarat", "kerala", "west bengal", "andhra pradesh",
+           "rajasthan", "madhya pradesh", "odisha", "bihar", "assam", "jharkhand",
+           "chhattisgarh", "uttarakhand", "himachal pradesh"],
+    "DE": ["bavaria", "bayern", "hesse", "hessen", "saxony", "sachsen", "lower saxony",
+           "niedersachsen", "north rhine-westphalia", "north rhine westphalia",
+           "nordrhein-westfalen", "nrw", "baden-württemberg", "baden württemberg",
+           "rhineland-palatinate", "rheinland-pfalz", "schleswig-holstein", "thuringia",
+           "thüringen", "saxony-anhalt", "sachsen-anhalt", "mecklenburg-vorpommern", "saarland"],
+    "NL": ["noord-holland", "zuid-holland", "noord-brabant", "north holland", "south holland",
+           "north brabant", "gelderland", "overijssel", "friesland", "drenthe", "flevoland",
+           "zeeland"],
+    "ES": ["cataluña", "catalunya", "catalonia", "andalucía", "andalusia", "comunidad de madrid",
+           "community of madrid", "país vasco", "basque country", "galicia",
+           "comunidad valenciana", "valencian community", "castilla y león", "aragón",
+           "navarra", "cantabria", "canarias", "canary islands", "islas baleares",
+           "balearic islands", "extremadura", "castilla-la mancha"],
+    "IT": ["lombardia", "lombardy", "lazio", "piemonte", "piedmont", "veneto", "emilia-romagna",
+           "toscana", "tuscany", "campania", "sicilia", "sicily", "puglia", "apulia", "liguria",
+           "sardegna", "sardinia", "friuli-venezia giulia", "trentino-alto adige", "abruzzo",
+           "calabria", "umbria"],
+    "PL": ["mazowieckie", "masovian", "mazovia", "małopolskie", "lesser poland", "śląskie",
+           "silesia", "silesian", "dolnośląskie", "lower silesia", "wielkopolskie",
+           "greater poland", "pomorskie", "pomerania", "łódzkie", "łódź voivodeship"],
+    "MX": ["nuevo león", "jalisco", "estado de méxico", "baja california", "sonora", "coahuila",
+           "yucatán", "quintana roo", "tamaulipas", "sinaloa"],
+    "BR": ["minas gerais", "paraná", "rio grande do sul", "santa catarina", "bahia",
+           "pernambuco", "goiás", "ceará", "espírito santo"],
+    "CN": ["jiangsu", "guangdong", "zhejiang", "sichuan", "shandong", "hubei", "fujian", "henan",
+           "hunan", "anhui", "liaoning", "shaanxi", "hebei"],
+    "ZA": ["western cape", "gauteng", "kwazulu-natal", "eastern cape"],
+    "IE": ["leinster", "munster", "connacht", "connaught"],
+    "PH": ["national capital region", "metro manila", "calabarzon", "central luzon",
+           "central visayas"],
+    "ID": ["jawa barat", "west java", "jawa tengah", "central java", "jawa timur", "east java",
+           "banten", "dki jakarta"],
+    "FR": ["île-de-france", "auvergne-rhône-alpes", "provence-alpes-côte d'azur",
+           "nouvelle-aquitaine", "occitanie", "hauts-de-france", "grand est", "bretagne",
+           "brittany", "normandie", "normandy", "pays de la loire", "bourgogne-franche-comté",
+           "centre-val de loire"],
+}
+
+# Regions whose name is also a city or a region somewhere else. Each is a
+# region only when the same group already names one of these countries:
+# "Melbourne, Victoria, Australia" drops Victoria, "Victoria, BC" keeps it.
+# On their own they say nothing about the country.
+ADMIN1_IN_COUNTRY = {
+    "victoria": ("AU",), "limburg": ("NL", "BE"), "la rioja": ("ES", "AR"),
+    "distrito federal": ("MX", "BR"), "punjab": ("IN", "PK"), "goa": ("IN",),
+    "brandenburg": ("DE",), "santa cruz": ("AR",),
+}
+
+# Province and state codes outside the US, used like the US state codes:
+# last, and only when nothing better is in the group. Codes that are also a
+# country written in capitals (NL, PE, SK, NT) are left out.
+PROVINCE_CODES = {
+    "AB": "CA", "BC": "CA", "MB": "CA", "NB": "CA", "NS": "CA", "ON": "CA", "QC": "CA",
+    "YT": "CA", "NU": "CA",
+    "NSW": "AU", "QLD": "AU", "VIC": "AU", "TAS": "AU", "ACT": "AU",
+}
+
 # Written by people, not machines, so a country can be spelled out mid
 # sentence: "Remote - France", "Remote (Israel)".
 _SPLIT = re.compile(r"[;|/,\n()\[\]]+|\s+-\s+")
@@ -304,6 +409,37 @@ def _fold_keys(mapping: dict) -> dict:
 CITIES_FOLDED = _fold_keys(CITIES)
 COUNTRY_NAMES_FOLDED = _fold_keys(COUNTRY_NAMES)
 US_STATE_NAMES_FOLDED = {_norm(x) for x in US_STATE_NAMES}
+US_STATE_CODES_FOLDED = _fold_keys(US_STATE_CODES)
+ADMIN1_FOLDED = {_norm(name): code for code, names in ADMIN1.items() for name in names}
+ADMIN1_IN_COUNTRY_FOLDED = _fold_keys(ADMIN1_IN_COUNTRY)
+# Two states share their name with a city the board lists. After a city in
+# the same group they are the state: "Seattle, Washington", "Brooklyn, New York".
+_US_STATE_CITIES = {"washington", "new york"}
+
+# A US state stuck to the end of a city or to the front of a ZIP code, with
+# no comma: "Erie PA, 16502", "Newton-MA", "NY 12208".
+_STATE_SUFFIX_RE = re.compile(r"^(.*[^\W\d_])[\s-]+([A-Z]{2})$")
+_STATE_ZIP_RE = re.compile(r"^([A-Z]{2})\s+\d{5}(?:-\d{4})?\b")
+
+
+def _us_state_code(seg: str) -> str | None:
+    """A US state written as a code: "TX", "D.C."."""
+    raw = seg.strip().replace(".", "")
+    return raw if _UPPER2_RE.match(raw) and raw in US_STATES else None
+
+
+def _admin1_country(seg: str, following: str = "") -> str | None:
+    """The country of a region named in ADMIN1, or None.
+
+    "Ontario, CA" and "Ontario, California" are the city in California, not
+    the province, so a region written first and followed by a US state is
+    no region at all. Callers pass `following` only for the first segment:
+    in "Toronto, Ontario, CA" the CA is Canada and Ontario the province.
+    """
+    code = ADMIN1_FOLDED.get(_norm(seg.strip().strip(".")))
+    if code and following and (_us_state_code(following) or _norm(following) in US_STATE_CODES_FOLDED):
+        return None
+    return code
 
 _PHRASE_RE = re.compile(
     r"\b(?:" + "|".join(
@@ -402,9 +538,10 @@ def countries_of(location: str | None) -> list[str]:
     for group in groups:
         segments = [s for s in _SPLIT.split(group) if s.strip()]
         found: list[str] = []
-        state_fallback = None
-        for seg in segments:
-            code = _segment_country(seg)
+        state_fallback = province_fallback = None
+        for i, seg in enumerate(segments):
+            following = segments[1] if i == 0 and len(segments) > 1 else ""
+            code = _segment_country(seg) or _admin1_country(seg, following)
             if code:
                 # Every country in the group, not just the first.
                 # Stopping at the first was correct for an address, where
@@ -419,9 +556,16 @@ def countries_of(location: str | None) -> list[str]:
                 if code not in found:
                     found.append(code)
                 continue
-            if state_fallback is None and _UPPER2_RE.match(seg.strip()) and seg.strip() in US_STATES:
+            s = seg.strip()
+            if s in PROVINCE_CODES:
+                province_fallback = province_fallback or PROVINCE_CODES[s]
+            elif _us_state_code(s) or (_STATE_ZIP_RE.match(s) and s[:2] in US_STATES) or (
+                    (m := _STATE_SUFFIX_RE.match(s)) and m.group(2) in US_STATES):
                 state_fallback = "US"
-        for code in (found or ([state_fallback] if state_fallback else [])):
+        # A Canadian or Australian province code beats a US state code in
+        # the same group: "Brockville, ON, CA" is Canada, and its CA is too.
+        fallback = province_fallback or state_fallback
+        for code in (found or ([fallback] if fallback else [])):
             if code not in out:
                 out.append(code)
 
@@ -482,6 +626,13 @@ CITY_ALIASES = {
     "bengaluru": "Bangalore", "gurugram": "Gurgaon",
     "ciudad de méxico": "Mexico City", "ciudad de mexico": "Mexico City",
     "cdmx": "Mexico City",
+    # A city's own-language name, to the English name the board already
+    # lists, so one city is one filter option.
+    "wien": "Vienna", "milano": "Milan", "lisboa": "Lisbon", "den haag": "The Hague",
+    "antwerpen": "Antwerp", "bruxelles": "Brussels", "brussel": "Brussels",
+    "ho chi minh": "Ho Chi Minh City", "bucuresti": "Bucharest", "bucurești": "Bucharest",
+    "torino": "Turin", "roma": "Rome", "nürnberg": "Nuremberg", "genève": "Geneva",
+    "napoli": "Naples", "firenze": "Florence",
     # Hebrew to the same English name the rest of the board uses, so one
     # city is one entry however the board that posted it writes.
     "תל אביב": "Tel Aviv", "ירושלים": "Jerusalem",
@@ -497,6 +648,9 @@ CITY_ALIASES = {
     "אזור הצפון": "Northern District",
     "אזור הדרום": "Southern District",
     "ירושלים והסביבה": "Jerusalem",
+    # Yokneam is the town people mean, Yokneam Illit with the tech park;
+    # the old moshava next to it is a separate village.
+    "yokneam illit": "Yokneam", "yoqneam": "Yokneam", "יקנעם": "Yokneam", "יקנעם עילית": "Yokneam",
 }
 
 # A work arrangement, not a place. These sit where a city would and would
@@ -506,6 +660,7 @@ _NOT_A_CITY = {
     "distributed", "anywhere", "flexible", "various", "multiple locations",
     "location", "all", "emea", "apac", "amer", "latam", "europe", "asia",
     "north america", "south america", "latin america", "middle east", "africa",
+    "telecommuter", "telecommute",
 }
 
 CITY_ALIASES_FOLDED = _fold_keys(CITY_ALIASES)
@@ -528,6 +683,13 @@ def _canonical_city(seg: str) -> str | None:
     for city in sorted(CITIES_FOLDED, key=len, reverse=True):
         if low.startswith(city + " ") or low.endswith(" " + city):
             return CITY_ALIASES_FOLDED.get(city, city.title())
+    # A postal code or a street address: "Erie PA, 16502, 232 West 25th St"
+    # used to list 16502 and 232 West 25th St as cities. A number followed
+    # by a space starts an address; "6th of October" keeps its city.
+    # Coordinates and PO boxes too ("39.971850885", "P.O. Box 780").
+    if low.replace(" ", "").isdigit() or re.match(r"\d+ ", low) or re.fullmatch(r"-?\d+\.\d+", low) \
+            or re.match(r"p\.? ?o\.? box\b", low):
+        return None
     # Not a place we know, but not obviously not one either. Anything
     # that is really a country, a state or a code has already been
     # excluded by the caller.
@@ -536,28 +698,125 @@ def _canonical_city(seg: str) -> str | None:
     return None
 
 
+def _tokens(group: str):
+    """What each segment of one location group is, in the order written.
+
+    Yields ("city", name), ("country", code), ("state", US state code) or
+    ("region", country code or None). cities_of keeps the cities;
+    places_of also uses the rest to say which country and state each city
+    sits in.
+    """
+    segments = [s.strip() for s in _SPLIT.split(group) if s.strip()]
+    group_codes = None
+    taken = False
+    for i, seg in enumerate(segments):
+        low = _norm(seg)
+        # A segment that resolves to a country is a country, not a city,
+        # however much "Georgia" might want to be both. A spelled-out US
+        # state resolves to US and is kept as the state it is.
+        code = _segment_country(seg)
+        if code and low not in CITIES_FOLDED:
+            state = US_STATE_CODES_FOLDED.get(_norm(seg.strip().strip("."))) if code == "US" else None
+            yield ("state", state) if state else ("country", code)
+            continue
+        region = _admin1_country(seg, segments[1] if i == 0 and len(segments) > 1 else "")
+        if region:
+            yield ("region", region)
+            continue
+        if low in ADMIN1_IN_COUNTRY_FOLDED or (taken and low in _US_STATE_CITIES):
+            if group_codes is None:
+                group_codes = set(countries_of(group))
+            if low in ADMIN1_IN_COUNTRY_FOLDED and group_codes & set(ADMIN1_IN_COUNTRY_FOLDED[low]):
+                yield ("region", None)
+                continue
+            if low in _US_STATE_CITIES and taken and "US" in group_codes:
+                yield ("state", US_STATE_CODES_FOLDED[low])
+                continue
+        state = _us_state_code(seg)
+        if state:
+            yield ("state", state)
+            continue
+        if seg in PROVINCE_CODES:
+            yield ("region", PROVINCE_CODES[seg])
+            continue
+        m = _STATE_ZIP_RE.match(seg)
+        if m and m.group(1) in US_STATES:
+            yield ("state", m.group(1))
+            continue
+        m = _STATE_SUFFIX_RE.match(seg)
+        if m and m.group(2) in US_STATES:
+            # "Remote-NY" is the state with no city.
+            city = _canonical_city(m.group(1))
+            if city:
+                taken = True
+                yield ("city", city)
+            yield ("state", m.group(2))
+            continue
+        city = _canonical_city(seg)
+        if city:
+            taken = True
+            yield ("city", city)
+
+
+def _groups(location: str) -> list[str]:
+    return [g for g in location.split(";") if g.strip()] or [location]
+
+
 def cities_of(location: str | None) -> list[str]:
     """Every city a location names, canonicalised and deduplicated."""
     if not location:
         return []
     out: list[str] = []
-    groups = [g for g in location.split(";") if g.strip()] or [location]
-    for group in groups:
-        for seg in _SPLIT.split(group):
-            seg = seg.strip()
-            if not seg:
-                continue
-            # A segment that resolves to a country is a country, not a
-            # city, however much "Georgia" might want to be both.
-            if _segment_country(seg) and _norm(seg) not in CITIES_FOLDED:
-                continue
-            city = _canonical_city(seg)
-            if city and city not in out:
-                # Same reasoning as countries_of: these boards separate
-                # offices with commas, so taking only the first left a
-                # ten-city posting filed under one city.
-                out.append(city)
+    for group in _groups(location):
+        for kind, value in _tokens(group):
+            # Same reasoning as countries_of: these boards separate offices
+            # with commas, so taking only the first left a ten-city posting
+            # filed under one city.
+            if kind == "city" and value not in out:
+                out.append(value)
     return out[:MAX_CITIES]
+
+
+def places_of(location: str | None) -> list[tuple[str | None, str | None, str]]:
+    """(country, US state, city) for each city a location names.
+
+    The board's columns keep countries and cities apart, so a job in "Tel
+    Aviv, Israel; New York, NY" is filed under both cities in both
+    countries. This keeps each city with the country and state written
+    beside it, for anything that needs one place per city, such as a map.
+    A city's country is the next country after it in the same group, else
+    the group's only country, else the job's only country, else None. The
+    state is the next US state written after it, before the next city, and
+    only for a US city. Nothing is guessed: a city with no state stays
+    without one. Same cap and order as cities_of.
+    """
+    if not location:
+        return []
+    job_codes = countries_of(location)
+    out: list[tuple] = []
+    for group in _groups(location):
+        entries: list[list] = []
+        for kind, value in _tokens(group):
+            if kind == "city":
+                entries.append([None, None, value])
+            elif kind == "state" and entries and entries[-1][1] is None:
+                entries[-1][1] = value
+            elif kind in ("country", "region") and value:
+                for e in entries:
+                    e[0] = e[0] or value
+        group_codes = countries_of(group)
+        fallback = (group_codes[0] if len(group_codes) == 1
+                    else job_codes[0] if len(job_codes) == 1 else None)
+        for country, state, city in entries:
+            # "Tel Aviv, IL" carries a state code too; the group says Israel.
+            country = country or fallback or ("US" if state else None)
+            place = (country, state if country == "US" else None, city)
+            if place not in out:
+                out.append(place)
+    cities = cities_of(location)
+    # "Torrington - Torrington, CT" names one place twice; keep the one with its state.
+    stated = {(c, city) for c, s, city in out if s}
+    return [p for p in out if p[2] in cities and (p[1] or (p[0], p[2]) not in stated)]
 
 
 def city_string(location: str | None) -> str:
