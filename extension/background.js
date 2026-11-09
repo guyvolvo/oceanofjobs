@@ -310,7 +310,8 @@ async function inTab(tabId, ats, method, args = [], frameId) {
   return res && res.result;
 }
 
-async function waitForOutcome(tabId, atsName, redirectTo) {
+// frameId: a form embedded in another site's page, watched in its frame.
+async function waitForOutcome(tabId, atsName, redirectTo, frameId) {
   const ats = globalThis.oojAts[atsName];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let i = 0; i < 45; i++) {
@@ -318,8 +319,8 @@ async function waitForOutcome(tabId, atsName, redirectTo) {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
     if (!tab) return { failed: 'tab closed' };
     if (redirectTo && tab.url && tab.url.startsWith(redirectTo)) return 'submitted';
-    if (tab.status !== 'complete' || !ats.onSite(tab.url)) continue;
-    const r = await inTab(tabId, atsName, 'outcome').catch(() => null);
+    if (tab.status !== 'complete' || (!frameId && !ats.onSite(tab.url))) continue;
+    const r = await inTab(tabId, atsName, 'outcome', [], frameId).catch(() => null);
     if (r) return r;
   }
   return { failed: 'no confirmation after submitting' };
@@ -1214,7 +1215,8 @@ async function fillTab(tabId) {
   const r = await assist(tabId, frameId, name, page, tab.url, tab.title);
   if (!r.auto) return r;
   // Full automatic: the card's Submit (submitHere), pressed for the user.
-  return { ...r, sent: await submitHere({ url: tab.url, frameId, title: tab.title, company: new URL(tab.url).hostname, auto: true },
+  return { ...r, sent: await submitHere({ url: tab.url, frameId, title: tab.title, company: new URL(tab.url).hostname, auto: true,
+    ats: name, redirectTo: page.redirectTo },
     { tab: { id: tabId }, frameId }) };
 }
 
@@ -1352,11 +1354,15 @@ async function assistHere(msg, sender) {
 // "Submit application" on the card of a page with no dedicated filler:
 // claim a credit, press the form's own button, watch for a confirmation.
 // The credit counts only when one shows; otherwise it is given back.
+// msg.ats: the popup's fill on a site with a dedicated filler presses that
+// filler's button and watches its outcome, as runs do (Greenhouse waits
+// for the CV upload first).
 async function submitHere(msg, sender) {
   const tabId = sender.tab.id;
   await setWatch(tabId, null); // the card's own attempt records this send
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
-  const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  const ats = msg.ats && msg.ats !== 'generic' && globalThis.oojAts[msg.ats].submit ? msg.ats : 'generic';
+  const info = ats === 'generic' ? await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null) : { text: 'Submit' };
   if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
@@ -1370,8 +1376,9 @@ async function submitHere(msg, sender) {
   let before = null;
   let out;
   try {
-    before = await inTab(tabId, 'generic', 'submit', [], frameId);
-    out = before ? await watchHere(tabId, frameId, before) : { failed: 'submit button not found' };
+    before = await inTab(tabId, ats, 'submit', [], frameId);
+    out = !before ? { failed: 'submit button not found' }
+      : ats === 'generic' ? await watchHere(tabId, frameId, before) : await waitForOutcome(tabId, ats, msg.redirectTo, frameId);
   } catch (e) {
     out = { failed: String(e.message || e).slice(0, 200) };
   }
