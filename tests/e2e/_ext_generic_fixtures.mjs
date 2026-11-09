@@ -562,6 +562,36 @@ await check("a searchable dropdown's short list is read; a city search box is no
   assert.deepEqual(r.City, []);
 });
 
+// Boxes that list only once typed: each typed letter answers after delay
+// ms with the choices that start like it, then later (if given) with more.
+const typeahead = (id, label, opts, delay, later) => `<div><label for="${id}">${label}</label>
+  <input id="${id}" role="combobox" aria-controls="${id}-l" autocomplete="off"><ul id="${id}-l" role="listbox"></ul>
+  <script>{ const i = document.getElementById("${id}"), l = document.getElementById("${id}-l");
+    const show = (xs) => { l.innerHTML = xs.map((o) => '<li role="option">' + o + '</li>').join(''); for (const li of l.children) li.onclick = () => { i.value = li.textContent; l.innerHTML = ''; }; };
+    i.addEventListener("input", () => { const q = i.value.toLowerCase().slice(0, 2); setTimeout(() => show(${JSON.stringify(opts)}.filter((o) => o.toLowerCase().startsWith(q))), ${delay});
+      ${later ? `setTimeout(() => show(${JSON.stringify(later)}), ${delay} + 800);` : ""} }); }</script></div>`;
+const fillTimed = (label, value, key) => page.evaluate(async ([label, value, key]) => {
+  const g = globalThis.oojAts.generic;
+  const f = (await g.read()).fields.find((x) => x.label === label);
+  const started = Date.now();
+  const { errors } = await g.fill([{ ...f, key, value }], null);
+  return { errors, took: Date.now() - started, value: document.querySelector('[data-ooj="' + f.name + '"]').value };
+}, [label, value, key]);
+await check("a city box that lists once typed is picked without waiting for a list on open", async () => {
+  await serve(`<form>${FIELDS}${typeahead("city", "City", ["London, UK", "Leeds, UK"], 300)}<button>Submit</button></form>`);
+  const r = await fillTimed("City", "London, UK", "location");
+  assert.deepEqual([r.errors, r.value], [[], "London, UK"]);
+  assert.ok(r.took < 1000, `took ${r.took} ms`);
+});
+await check("a typed list that settles without the answer gives up early; one that changes still gets it", async () => {
+  await serve(`<form>${FIELDS}${typeahead("school", "School", ["Oxford Brookes", "Oxford College"], 200)}${typeahead("uni", "University", ["Oxford Brookes"], 200, ["Oxford Brookes", "Oxford University"])}<button>Submit</button></form>`);
+  const none = await fillTimed("School", "Oxford University");
+  assert.deepEqual(none.errors, ['School: no option matches "Oxford University"']);
+  assert.ok(none.took < 2500, `took ${none.took} ms`);
+  const late = await fillTimed("University", "Oxford University");
+  assert.deepEqual([late.errors, late.value], [[], "Oxford University"]);
+});
+
 // detect.js on a posting page, with chrome.runtime stubbed: the button
 // shows before the form exists, and not on a list of jobs.
 async function detectOn(html, at) {

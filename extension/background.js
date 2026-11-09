@@ -954,12 +954,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, info) => {
 async function fillHere(msg, tabId, frameId) {
   const st = await chrome.storage.local.get(['cv', 'ai']);
   if (!st.cv) return { error: NO_CV };
+  const name = adapterFor(msg.url);
+  // The form is read while the account loads; an account error still comes first.
+  const reading = readForm(tabId, name, frameId);
+  reading.catch(() => {});
   accountCache = null;
   const a = await account();
-  const name = adapterFor(msg.url);
   const job = { id: await pageJobId(msg.url), url: msg.url, title: msg.title, company_name: msg.company, company_domain: msg.company,
     location: msg.location || '', ats: name };
-  const page = await readForm(tabId, name, frameId);
+  const page = await reading;
   if (!page || page.error) return { error: (page && page.error) || READ_ERROR };
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: true };
@@ -1022,8 +1025,19 @@ async function planWithSuggestions(page, job, ctx) {
   const plan = oojMatch.planFill(page.fields, ctx.profile, job);
   answerRequired(plan);
   const suggested = [];
-  for (const f of oojMatch.suggestable(page.fields, plan)) {
-    const answer = await suggestAnswer(f, job, ctx);
+  // Four at a time: each answer is a model call of a second or more, and
+  // the server takes 20 a minute (draft waits out a 429).
+  const asks = oojMatch.suggestable(page.fields, plan);
+  const answers = [];
+  let next = 0;
+  await Promise.all(asks.slice(0, 4).map(async () => {
+    while (next < asks.length) {
+      const i = next++;
+      answers[i] = await suggestAnswer(asks[i], job, ctx);
+    }
+  }));
+  for (const [i, f] of asks.entries()) {
+    const answer = answers[i];
     if (answer === undefined) continue;
     if (plan.missing.includes(f)) plan.missing.splice(plan.missing.indexOf(f), 1);
     plan.fills.push({ ...f, value: answer });
@@ -1170,13 +1184,17 @@ async function fillTab(tabId) {
 }
 
 // Plans and fills a form the user will check and send themselves.
-async function assist(tabId, frameId, name, page, url, title) {
+// loading is the account already being fetched for this fill, if any.
+async function assist(tabId, frameId, name, page, url, title, loading) {
   if (page.error) return { error: page.error };
   const st = await chrome.storage.local.get(['cv', 'ai']);
   let a;
   try {
-    accountCache = null;
-    a = await account();
+    if (!loading) {
+      accountCache = null;
+      loading = account();
+    }
+    a = await loading;
   } catch (e) {
     return { error: e.status === 401 ? EXPIRED : UNREACHABLE };
   }
@@ -1271,6 +1289,10 @@ async function assistHere(msg, sender) {
     url = (await chrome.tabs.get(tabId)).url;
     moved = url !== msg.url;
   }
+  // Loaded while the form is found and read (assist waits for it).
+  accountCache = null;
+  const loading = account();
+  loading.catch(() => {});
   let page = await readForm(tabId, 'generic', frameId).catch(() => null);
   if (page && page.frame) {
     const f = await frameWithForm(tabId, 10000);
@@ -1285,7 +1307,7 @@ async function assistHere(msg, sender) {
     moved = true;
   }
   if (!page || page.openUrl) return { error: READ_ERROR };
-  const r = await assist(tabId, frameId, 'generic', page, url, msg.title);
+  const r = await assist(tabId, frameId, 'generic', page, url, msg.title, loading);
   if (r.error) return r;
   const submit = r.submitInfo;
   // A page with a human check gets the card's Submit as well, pressed by

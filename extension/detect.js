@@ -79,8 +79,16 @@
     show({ frameId: null, url: location.href });
   }
 
-  let tries = 0;
-  const wait = setInterval(() => { if (look() || ++tries >= 20) clearInterval(wait); }, 500);
+  // Looked for at once, then again while the page changes (a form its
+  // script draws late), at most every 500 ms and for 30 seconds.
+  let pending = null;
+  const watch = new MutationObserver(() => {
+    if (!pending) pending = setTimeout(() => { pending = null; if (look()) watch.disconnect(); }, 500);
+  });
+  if (!look()) {
+    watch.observe(document.documentElement, { childList: true, subtree: true });
+    setTimeout(() => watch.disconnect(), 30000);
+  }
   // A form that opens from an Apply button later on.
   const onClick = () => setTimeout(() => { if (look()) document.removeEventListener('click', onClick, true); }, 1500);
   document.addEventListener('click', onClick, true);
