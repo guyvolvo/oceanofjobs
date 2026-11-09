@@ -1,5 +1,7 @@
-import { Workspace } from "../site/Workspace";
-import { boot } from "../site/boot";
+import { hydrate } from "../shell/hydrate";
 import { StatsPage } from "./Stats";
 
-boot(<Workspace current="stats" title="Statistics"><StatsPage /></Workspace>);
+// qb.js is a deferred classic script; it has run by DOMContentLoaded at the latest.
+const start = () => hydrate(<StatsPage />);
+if (typeof QB === "undefined") addEventListener("DOMContentLoaded", start, { once: true });
+else start();

@@ -9,7 +9,8 @@ import { gzipSync } from "node:zlib";
 const args = process.argv.slice(2);
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const SITES = { new: opt("--local", "http://127.0.0.1:4173"), live: opt("--live", "https://oceanofjobs.com") };
-const PAGES = { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/no-such-page" };
+// --pages stats=/stats,home=/ measures only those pages.
+const PAGES = opt("--pages") ? Object.fromEntries(opt("--pages").split(",").map((p) => p.split("="))) : { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/no-such-page" };
 
 const get = async (url) => Buffer.from(await (await fetch(url, { headers: { "user-agent": "ooj-sizes (GET only)" } })).arrayBuffer());
 const kb = (n) => Math.round(n / 102.4) / 10;

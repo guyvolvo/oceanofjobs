@@ -15,9 +15,26 @@ const WASM_URL = "/vendor/httpvfs/sql-wasm.wasm";
 const CHUNK_SIZE = 65536;
 const MAX_BYTES = 256 * 1024 * 1024;  // per page load, then the worker refuses
 
+const LIB_URL = "/vendor/httpvfs/index.js";        // UMD: leaves createDbWorker on window
+
 export type Db = { worker: DbWorker; manifest: Manifest; status: string; built: string | null };
 
+// The library loads with the first query, not with the page.
+let lib: Promise<void> | null = null;
+function loadLib() {
+  if (typeof createDbWorker === "function") return Promise.resolve();
+  return (lib ||= new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = LIB_URL;
+    s.onload = () => resolve();
+    s.onerror = () => { lib = null; reject(new Error(`couldn't load ${LIB_URL}`)); };
+    document.head.appendChild(s);
+  }));
+}
+
 export async function openDatabase(): Promise<Db> {
+  const ready = loadLib();
+  ready.catch(() => {});   // awaited below, after the manifest
   // Each hourly build is its own file, so the pages this session caches
   // all come from one build, whatever gets published while it is open.
   let manifest: Manifest = null;
@@ -27,6 +44,7 @@ export async function openDatabase(): Promise<Db> {
   } catch { manifest = null; }
   const url = manifest?.url || "/explore.db";
   const config = { from: "inline", config: { serverMode: "full", url, requestChunkSize: CHUNK_SIZE } };
+  await ready;
   const worker = await createDbWorker([config], WORKER_URL, WASM_URL, MAX_BYTES);
   const meta = Object.fromEntries(((await worker.db.exec("SELECT key, value FROM meta"))[0]?.values || []) as [string, string][]);
   const built = meta.built_at || manifest?.built_at || null;

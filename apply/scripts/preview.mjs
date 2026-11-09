@@ -28,7 +28,7 @@ const DIST = join(APPLY, "dist");
 const FRONTEND = resolve(APPLY, "../frontend");
 // The pages whose HTML the switch takes from apply/dist. Rollback is
 // removing a name here and from the deploy's copy step (docs/UI_OVERHAUL_ROLLBACK.md).
-export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404"];
+export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404", "stats"];
 
 // The CloudFront function's PAGES, BOARD_KEYS and role-page list, verbatim.
 const PAGES = { "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
@@ -76,9 +76,11 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", "
   ".txt": "text/plain; charset=utf-8", ".xml": "application/xml", ".wasm": "application/wasm" };
 
 async function proxy(req, res, path) {
-  const r = await fetch(LIVE + path, { method: req.method, redirect: "manual", headers: { "user-agent": "ooj-local-preview (GET only)", accept: req.headers.accept || "*/*" } });
+  // Range passes through both ways: /stats reads its database (/explore*) by HTTP range request.
+  const r = await fetch(LIVE + path, { method: req.method, redirect: "manual", headers: { "user-agent": "ooj-local-preview (GET only)", accept: req.headers.accept || "*/*",
+    ...(req.headers.range ? { range: req.headers.range } : {}), "accept-encoding": "identity" } });
   const headers = {};
-  for (const h of ["content-type", "cache-control", "location"]) if (r.headers.get(h)) headers[h] = r.headers.get(h);
+  for (const h of ["content-type", "cache-control", "location", "content-length", "content-range", "accept-ranges"]) if (r.headers.get(h)) headers[h] = r.headers.get(h);
   res.writeHead(r.status, headers);
   res.end(req.method === "HEAD" ? undefined : Buffer.from(await r.arrayBuffer()));
 }
