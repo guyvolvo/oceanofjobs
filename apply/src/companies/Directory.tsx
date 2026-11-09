@@ -5,6 +5,7 @@
 // address. The frame, the A to Z links and the empty panel are in the
 // prerendered HTML; the list itself is fetched in the browser, as before.
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { PillSelect } from "@/components/pill-select";
 import { CalendarBlank, CaretDown, MagnifyingGlass, MapPin, SlidersHorizontal } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -302,13 +303,8 @@ export function Directory() {
                   {head ? <span className="font-ui text-[17px] leading-tight font-medium text-foreground">{head}</span> : <Bone w="240px" h={14} className="max-w-[45vw]" />}
                   {failed ? <span className="text-xs text-muted-foreground">Try again in a minute.</span> : null}
                 </div>
-                <label className={cn("inline-flex h-8 flex-none items-center gap-1.5 rounded-full bg-card pr-1 pl-3 font-ui text-[13px]", outlined)}>
-                  <span className="text-muted-foreground">Sort</span>
-                  <select aria-label="Sort companies" value={sort} onChange={(e) => setSort(e.target.value as Sort)}
-                    className="h-7 cursor-pointer rounded-full border-0 bg-transparent pr-1 font-semibold text-foreground outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring">
-                    {SORTS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                  </select>
-                </label>
+                <PillSelect label="Sort companies" prefix="Sort" valueClassName="font-semibold" className="flex-none bg-card dark:bg-card"
+                  value={sort} options={SORTS} onChange={(v) => setSort(v as Sort)} />
               </div>
               <div className={cn(GRID, "border-b py-2 text-xs text-muted-foreground max-[640px]:hidden")} aria-hidden="true">
                 <span /><span>Company</span><span className="text-center">Trend chart</span><span className="min-w-16" /><span className="min-w-24 text-right">Open jobs</span>

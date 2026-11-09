@@ -6,6 +6,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Bell, Buildings, CaretDown, ChartBar, House, MagnifyingGlass, MapPin, Money, SlidersHorizontal, X } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { PillSelect } from "@/components/pill-select";
 import { F, U, activeChips, alertForSearch, anythingOn, applySearchNow, clearPlaces, emit, locationText, openSheet, removeChip, resetAll, setDatePosted, setRailOpen, setSort,
   typeSearch } from "./store";
 import { SENIORITY_LABELS, WORKPLACE_LABELS, fmtInt, fmtShekels } from "./util";
@@ -164,37 +165,19 @@ export function Pills() {
 
 // date and sort: the browser's own selects, as on the live board
 
-const selectPill = "relative inline-flex h-8 items-center rounded-full border-[1.5px] border-foreground font-ui text-[13px] text-foreground";
-const selectEl = "h-full cursor-pointer appearance-none rounded-full border-0 bg-transparent pr-8 pl-3.5 font-ui text-[13px] text-foreground outline-none focus-visible:outline-2 focus-visible:outline-ring";
-function Caret() { return <CaretDown size={12} weight="bold" className="pointer-events-none absolute right-3" aria-hidden="true" />; }
 
 const SORTS: [string, string][] = [["match:asc", "Best match"], ["relevance:asc", "Relevance"], ["age:asc", "Newest"], ["age:desc", "Oldest"]];
 const sortValue = () => (F.sort === "age" ? `age:${F.dir}` : F.sort === "match" ? "match:asc" : "relevance:asc");
 const pickSort = (v: string) => { const [key, dir] = v.split(":"); setSort(key, dir); };
-function SortOptions() {
-  return <>{SORTS.filter(([v]) => v !== "match:asc" || F.skills.length).map(([v, label]) => <option key={v} value={v}>{label}</option>)}</>;
-}
+const sortOptions = () => SORTS.filter(([v]) => v !== "match:asc" || F.skills.length);
 export function SortSelect() {
-  return (
-    <span className={cn(selectPill, "pl-3 text-muted-foreground")}>
-      <span aria-hidden="true">Sort</span>
-      <select id="f-sort" title="Sort" aria-label="Sort by" className={cn(selectEl, "pl-1 font-semibold")} value={sortValue()} onChange={(e) => pickSort(e.target.value)}><SortOptions /></select>
-      <Caret />
-    </span>
-  );
+  return <PillSelect id="f-sort" label="Sort by" prefix="Sort" valueClassName="font-semibold" value={sortValue()} options={sortOptions()} onChange={pickSort} />;
 }
 const DATES: [string, string][] = [["", "Any date"], ["1", "Past 24 hours"], ["3", "Past 3 days"], ["7", "Past 7 days"], ["14", "Past 14 days"], ["30", "Past 30 days"]];
 export function DateSelect({ id = "f-date-posted" }: { id?: string }) {
   const v = F.max_age_days;
-  return (
-    <span className={selectPill}>
-      <select id={id} title="Date posted" aria-label="Date posted" className={selectEl} value={v} onChange={(e) => setDatePosted(e.target.value)}>
-        {DATES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        {v && !DATES.some(([x]) => x === v) ? <option value={v}>Past {v} days</option> : null}
-      </select>
-      <Caret />
-    </span>
-  );
+  const options: [string, string][] = v && !DATES.some(([x]) => x === v) ? [...DATES, [v, `Past ${v} days`]] : DATES;
+  return <PillSelect id={id} label="Date posted" value={v} options={options} onChange={setDatePosted} />;
 }
 
 // the phone
@@ -211,11 +194,8 @@ export function MobileBar() {
           <SlidersHorizontal size={15} aria-hidden="true" />Filters
           {all.length ? <span id="m-badge" className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-foreground px-1.5 text-[11px] tabular-nums text-background">{all.length}</span> : null}
         </button>
-        <span className={cn(selectPill, "h-9 border-foreground/40 pl-3 text-muted-foreground")}>
-          <span aria-hidden="true">Sort</span>
-          <select id="m-sort" aria-label="Sort by" className={cn(selectEl, "pl-1.5 text-[13px] font-bold")} value={sortValue()} onChange={(e) => pickSort(e.target.value)}><SortOptions /></select>
-          <Caret />
-        </span>
+        <PillSelect id="m-sort" label="Sort by" prefix="Sort" className="h-9 border-foreground/40 px-3" valueClassName="font-bold"
+          value={sortValue()} options={sortOptions()} onChange={pickSort} />
         <span id="m-count" className="ml-auto font-ui text-xs whitespace-nowrap tabular-nums text-muted-foreground" aria-live="polite">{count}</span>
       </div>
       {all.length ? (
