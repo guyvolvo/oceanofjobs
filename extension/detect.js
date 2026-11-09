@@ -165,9 +165,14 @@
       <button class="hide">Hide on this site until Chrome restarts</button>
     </div>`;
     document.documentElement.appendChild(host);
+    // A page that redraws its whole document (React hydrating Greenhouse's
+    // page) drops the card with it; for the first minute it is put back.
+    let dismissed = false;
+    const keep = setInterval(() => { if (!dismissed && !host.isConnected) document.documentElement.appendChild(host); }, 1000);
+    setTimeout(() => clearInterval(keep), 60000);
     const fab = root.querySelector('.fab');
     const c = root.querySelector('.c');
-    root.querySelector('.hide').addEventListener('click', () => { send({ type: 'hide', host: location.hostname }); host.remove(); });
+    root.querySelector('.hide').addEventListener('click', () => { dismissed = true; send({ type: 'hide', host: location.hostname }); host.remove(); });
     root.querySelector('.x').addEventListener('click', () => { c.hidden = true; fab.hidden = false; fab.focus(); });
     let ready = false;
     const open = () => {
