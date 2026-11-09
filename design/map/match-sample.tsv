@@ -1,0 +1,191 @@
+id	sample	class	country	city_string	open_job_placements	matched_geonames	admin1	feature_code	population	top_raw_locations	verdict	note
+U000	uniform	exact	FR	Pierrevert	1	Pierrevert	Provence-Alpes-Côte d'Azur	PPL	3564	Pierrevert, fr [1]	ok	
+U001	uniform	exact	IT	Oristano	1	Oristano	Sardinia	PPLA2	31671	Oristano, it [1]	ok	
+U002	uniform	exact	AU	MENTONE	1	Mentone	Victoria	PPLX	13197	MENTONE, au [1]	ok	
+U003	uniform	exact	FR	Dardilly	34	Dardilly	Auvergne-Rhône-Alpes	PPL	8612	Dardilly, fr [25] || Dardilly, Auvergne-Rhône-Alpes, France [9]	ok	
+U004	uniform	exact	TH	Khlong Toei	1	Khlong Toei	Bangkok	PPLA2	109041	Khlong Toei, Bangkok, Thailand [1]	ok	
+U005	uniform	alias	US	Vandenberg	33	Vandenberg Village	California	PPL	6497	Vandenberg, CA [33]	ok, nearby	Vandenberg SFB; GeoNames point is Vandenberg Village, about 5 km away
+U006	uniform	exact	US	ABSECON	1	Absecon	New Jersey	PPL	8317	ABSECON, NJ [1]	ok	
+U007	uniform	exact	US	Lehighton	75	Lehighton	Pennsylvania	PPL	5314	Lehighton, PA - 500 St. Luke's Drive [18] || Lehighton, Pennsylvania [13] || Lehighton, PA - 575 S 9th Street [8]	ok	
+U008	uniform	exact	DE	Gernsheim	8	Gernsheim	Hesse	PPL	10685	Gernsheim, Hesse, DEU [7] || Gernsheim, Hessen, Deutschland [1]	ok	
+U009	uniform	exact	AT	Traun	7	Traun	Upper Austria	PPL	25345	Traun, at [7]	ok	
+U010	uniform	exact	FR	Gaillac	7	Gaillac	Occitanie	PPL	12600	Gaillac, fr [6] || Tarn (81), France - Avène, France - Gaillac, France - Toulouse - Langlade, France - Soual [1]	ok	
+U011	uniform	exact	AT	Hohenems	3	Hohenems	Vorarlberg	PPLA3	16317	Hohenems, Austria [2] || Linz, Austria, Dobl, Austria, Wiener Neudorf, Austria, Hohenems, Austria [1]	ok	
+U012	uniform	exact	US	Lomita	5	Lomita	California	PPL	20785	Lomita, us [4] || Harbor City, CA   |   Lomita [1]	ok	
+U013	uniform	exact	FR	Weyersheim	1	Weyersheim	Grand Est	PPL	3095	Weyersheim, Grand Est, France [1]	ok	
+U014	uniform	exact	US	Hidalgo	3	Hidalgo	Texas	PPL	13709	Hidalgo, Texas [2] || Hidalgo, us [1]	ok	
+U015	uniform	exact	US	SALT LAKE CITY	17	Salt Lake City	Utah	PPLA	215548	SALT LAKE CITY, UT [8] || PRO PITTSBURGH, MINNEAPOLIS, SALT LAKE CITY, COLUMBUS, CINCINNATI [2] || MINNEAPOLIS, MN, IRVING, TX, CHANDLER, AZ, SALT LAKE CITY, UT, CHARLOTTE, NC [1]	ok	
+U016	uniform	exact	US	Crystal Falls	1	Crystal Falls	Michigan	PPLA2	1414	Crystal Falls, MI [1]	ok	
+U017	uniform	exact	NZ	Kaiapoi	1	Kaiapoi	Canterbury	PPL	13700	Kaiapoi, Christchurch, New Zealand [1]	ok	
+U018	uniform	exact	US	Batesburg	3	Batesburg	South Carolina	PPL	4380	SC - Batesburg [2] || Batesburg, SC [1]	ok	
+U019	uniform	exact	US	Elon	5	Elon	North Carolina	PPL	10024	Elon, us [3] || Elon, NC [1] || Elon, North Carolina [1]	ok	
+U020	uniform	exact	US	Eupora	1	Eupora	Mississippi	PPL	2106	Eupora, MS [1]	ok	
+U021	uniform	exact	SE	Borås	3	Borås	Västra Götaland	PPLA2	71700	Borås, se [2] || Borås, Sweden [1]	ok	
+U022	uniform	exact	DE	Baunach	4	Baunach	Bavaria	PPL	3998	Baunach, Germany [3] || Baunach, Germany, Mönchengladbach, Germany [1]	ok	
+U023	uniform	exact	DE	Calbe	1	Calbe	Saxony-Anhalt	PPL	11322	Calbe, de [1]	ok	
+U024	uniform	exact	BR	Jarinu	2	Jarinu	São Paulo	PPL	37535	Jarinu, Brazil [2]	ok	
+U025	uniform	exact	ID	Mataram	15	Mataram	West Nusa Tenggara	PPLA	441147	Mataram, Indonesia [7] || Mataram, NTB, id [6] || Mataram, id [2]	ok	
+U026	uniform	exact	DE	Belgern	1	Belgern	Saxony	PPL	5148	Belgern, de [1]	ok	
+U027	uniform	exact	AU	Garden Island	2	Garden Island	Western Australia	PPL	1588	Garden Island, Western Australia, Australia [1] || Garden Island, au [1]	ok	
+U028	uniform	exact	US	Mercer Island	21	Mercer Island	Washington	PPL	25042	Los Angeles, USA; Mercer Island, USA [9] || Mercer Island, WA [3] || US - Mercer Island, WA (7808 SE 28th St Ste 124) [2]	ok	
+U029	uniform	exact	GB	Teynham	2	Teynham	England	PPL	2687	Teynham, gb [2]	ok	
+U030	uniform	exact	BR	Aparecida De Goiania	1	Aparecida de Goiânia	Goiás	PPL	527796	Aparecida De Goiania, Goias, Brasil [1]	ok	
+U031	uniform	alias	GR	Γιαννιτσά	1	Giannitsá	Central Macedonia	PPLA3	27817	Γιαννιτσά, gr [1]	ok	
+U032	uniform	exact	US	Ketchikan	26	Ketchikan	Alaska	PPLA2	8197	Ketchikan, Alaska [18] || Ketchikan, AK [6] || AK - Ketchikan [2]	ok	
+U033	uniform	exact	US	Sutherlin	3	Sutherlin	Oregon	PPL	7912	Sutherlin, Oregon [3]	ok	
+U034	uniform	exact	FR	Meylan	17	Meylan	Auvergne-Rhône-Alpes	PPL	20267	Meylan, fr [17]	ok	
+U035	uniform	exact	AU	Myaree	3	Myaree	Western Australia	PPLX	1914	Myaree, Australia [1] || Myaree, Western Australia, Australia [1] || Myaree, au [1]	ok	
+U036	uniform	exact	FR	Séméac	2	Séméac	Occitanie	PPL	4999	Séméac, fr [2]	ok	
+U037	uniform	exact	BE	Sint-Stevens-Woluwe	3	Sint-Stevens-Woluwe	Flanders	PPL	9038	Sint-Stevens-Woluwe, Brussels Hoofdstedelijk Gewest, België [2] || Sint-Stevens-Woluwe, Belgium [1]	ok	
+U038	uniform	exact	US	CHAMBLEE	1	Chamblee	Georgia	PPL	28244	CHAMBLEE, GA, DUNWOODY, GA [1]	ok	
+U039	uniform	exact	US	CAVE CREEK	5	Cave Creek	Arizona	PPL	5341	PHOENIX, AZ, FOUNTAIN HILLS, AZ, CAVE CREEK, AZ, BUCKEYE, AZ, GLENDALE, AZ, SUN CITY, AZ, GOODYEAR, AZ, SCOTTSDALE, AZ, SUN CITY WEST, AZ, PEORIA, AZ, AVONDALE, AZ, SURPRISE, AZ [4] || CAVE CREEK, AZ [1]	ok	
+U040	uniform	exact	US	Hazel Park	4	Hazel Park	Michigan	PPL	16597	MI - Hazel Park [3] || Hazel Park, MI [1]	ok	
+U041	uniform	exact	DE	Braunschweig	57	Braunschweig	Lower Saxony	PPLA3	244715	Braunschweig, de [26] || Braunschweig, Niedersachsen, Deutschland [12] || Braunschweig, Lower Saxony, Germany [3]	ok	
+U042	uniform	exact	AU	Griffin	1	Griffin	Queensland	PPLX	6703	Griffin, au [1]	ok	
+U043	uniform	exact	US	Pine	1	Pine	Arizona	PPL	1963	Wilson - Pine, Columbia - Stoneridge, Atlanta - Overton, Greensboro - Airport, Memphis - 6410 Poplar, Greenville - Airpark, Raleigh - Beechleaf, Nashville - 3322 West End, Richmond - Canal [1]	wrong	raw 'Wilson - Pine' is an office name in Wilson, NC, not Pine, AZ
+U044	uniform	exact	CA	Quebec	2024	Québec	Quebec	PPLA	531902	Montreal, Quebec [250] || Montreal, Quebec, Canada [181] || Montréal, Quebec [145]	wrong	raw 'Montreal, Quebec': the province, not Quebec City (2,024 placements)
+U045	uniform	exact	ES	Irún	4	Irun	Basque Country	PPLA3	61983	Irún, es [4]	ok	
+U046	uniform	exact	US	Basin	2	Basin	Wyoming	PPLA2	1305	Basin, Wyoming [2]	ok	
+U047	uniform	alias	US	Fox Valley	2	Fort Valley	Georgia	PPLA2	8597	FM: 02263 Aurora, Illinois (Fox Valley) [2]	wrong	raw 'Aurora, Illinois (Fox Valley)'; matched Fort Valley, GA via an untagged alternate name
+U048	uniform	exact	US	Mendota Heights	27	Mendota Heights	Minnesota	PPL	11223	Mendota Heights, MN [11] || Mendota Heights, us [5] || Mendota Heights, Minnesota [3]	ok	
+U049	uniform	exact	GB	Leighton Buzzard	13	Leighton Buzzard	England	PPL	42727	Leighton Buzzard, gb [13]	ok	
+U050	uniform	exact	US	Storrs	12	Storrs	Connecticut	PPL	15344	Storrs, us [8] || Storrs, CT, USA [3] || Storrs, CT [1]	ok	
+U051	uniform	exact	AU	Birtinya	7	Birtinya	Queensland	PPLX	2150	Birtinya, au [6] || Birtinya, Queensland, Australia [1]	ok	
+U052	uniform	exact	LT	Širvintos	1	Širvintos	Vilnius	PPLA2	7321	Širvintos, lt [1]	ok	
+U053	uniform	exact	DE	Meckesheim	2	Meckesheim	Baden-Wurttemberg	PPLA4	5409	Meckesheim, de [2]	ok	
+U054	uniform	exact	US	Gas City	4	Gas City	Indiana	PPL	5968	Gas City, Indiana [2] || Gas City, IN [1] || IN - Gas City [1]	ok	
+U055	uniform	exact	NO	Lillestrøm	5	Lillestrøm	Akershus	PPLA2	89684	Lillestrøm, no [2] || Sandvika Vestfjordgaten, Oslo - Telegrafen, Lillestrøm [2] || Sandvika Vestfjordgaten, Oslo - Telegrafen, Lillestrøm, Ski, Drammen, Lysaker - Strandveien, Hønefoss [1]	ok	
+U056	uniform	exact	ES	Oviedo	13	Oviedo	Asturias	PPLA	220027	Oviedo, es [4] || Oviedo, Asturias, Spain [3] || Europe/Middle East/Africa, Spain, Asturias, Oviedo [1]	ok	
+U057	uniform	exact	HK	Kowloon	78	Kowloon	00	PPLX	2232339	Hunghom, Kowloon, Hong Kong [45] || Kowloon, Hong Kong [15] || Kowloon, hk [7]	ok	
+U058	uniform	exact	HU	Székesfehérvár	20	Székesfehérvár	Fejér	PPLA	101600	Székesfehérvár, hu [19] || Székesfehérvár, Hungary [1]	ok	
+U059	uniform	exact	DE	Sundern	3	Sundern	North Rhine-Westphalia	PPL	27654	Sundern (Sauerland), de [3]	ok	
+U060	uniform	exact	ID	Bengkalis	1	Bengkalis	Riau	PPLA2	0	Bengkalis (Duri), id [1]	ok, imprecise	raw 'Bengkalis (Duri)': Duri is in Bengkalis regency, the town point is about 100 km off
+U061	uniform	exact	FR	SALERNES	1	Salernes	Provence-Alpes-Côte d'Azur	PPL	3673	SALERNES, fr [1]	ok	
+U062	uniform	exact	DE	Überlingen	8	Überlingen	Baden-Wurttemberg	PPL	21507	Überlingen, de [7] || Überlingen, Baden-Württemberg, Deutschland [1]	ok	
+U063	uniform	exact	BR	Arroio do Meio	2	Arroio do Meio	Rio Grande do Sul	PPL	21958	Arroio do Meio, Brazil [2]	ok	
+U064	uniform	exact	ID	Cilacap	7	Cilacap	Central Java	PPLA2	256996	Cilacap, Indonesia [6] || Cilacap, id [1]	ok	
+U065	uniform	exact	IT	Sesto Fiorentino	10	Sesto Fiorentino	Tuscany	PPLA3	45656	Sesto Fiorentino, it [7] || Italy, Sesto Fiorentino [2] || ITA - Bitritto, ITA - Sesto Fiorentino [1]	ok	
+U066	uniform	exact	GB	Barnsley	23	Barnsley	England	PPLA2	71447	Barnsley, gb [18] || Barnsley, United Kingdom [3] || Doncaster, England, United Kingdom, Barnsley, England, United Kingdom [1]	ok	
+U067	uniform	exact	US	Sneedville	1	Sneedville	Tennessee	PPLA2	1346	Sneedville, TN, Ballad - Hancock County Hospital [1]	ok	
+U068	uniform	exact	IN	Howrah	1	Howrah	West Bengal	PPL	1027672	Howrah, in [1]	ok	
+U069	uniform	exact	CA	MONTMAGNY	2	Montmagny	Quebec	PPL	11724	MONTMAGNY, Quebec, Canada [2]	ok	
+U070	uniform	exact	ES	Güevéjar	1	Güevéjar	Andalusia	PPLA3	1943	Güevéjar, es [1]	ok	
+U071	uniform	exact	US	Rock Falls	3	Rock Falls	Illinois	PPL	9087	Rock Falls, IL, USA [2] || Rock Falls, us [1]	ok	
+U072	uniform	exact	DE	Griesstätt	2	Griesstätt	Bavaria	PPLA4	2485	Griesstätt, de [2]	ok	
+U073	uniform	alias	GR	Αθήνα	1	Athens	Attica	PPLC	664046	Αθήνα, gr [1]	ok	
+U074	uniform	exact	US	Flowood	67	Flowood	Mississippi	PPL	8705	Flowood, MS [34] || Flowood, Mississippi [6] || Flowood, us [6]	ok	
+U075	uniform	alias	GB	St. Andrews	2	Saint Andrews	Scotland	PPL	18410	St. Andrews, Scotland, United Kingdom [2]	ok	
+U076	uniform	exact	US	Sabetha	12	Sabetha	Kansas	PPL	2585	US - Sabetha - Main Street [9] || US - Sabetha - Airport Road [1] || US - Sabetha - Commerce Drive [1]	ok	
+U077	uniform	exact	US	Schofield	39	Schofield	Wisconsin	PPL	2203	Schofield, WI [28] || Schofield, us [8] || Schofield, WI, USA [1]	ok	
+U078	uniform	exact	LT	Švenčionys	1	Švenčionys	Vilnius	PPL	5538	Švenčionys, lt [1]	ok	
+U079	uniform	exact	US	Coopersburg	1	Coopersburg	Pennsylvania	PPL	2421	Coopersburg, us [1]	ok	
+U080	uniform	exact	NL	Heemstede	4	Heemstede	North Holland	PPL	25562	Heemstede, Noord-Holland, Nederland [4]	ok	
+U081	uniform	exact	US	Juno Beach	11	Juno Beach	Florida	PPL	3474	Juno Beach, us [4] || Jupiter/Juno Beach, FL [4] || All, Florida, United States of America, Ft. Lauderdale, Florida, Key West, Florida, Miami, Florida, Juno Beach, Florida, West Palm Beach, Florida [1]	ok	
+U082	uniform	exact	CL	COQUIMBO	4	Coquimbo	Coquimbo Region	PPLA2	161317	COQUIMBO, Chile [4]	ok	
+U083	uniform	exact	DE	Gera	21	Gera	Thuringia	PPLA3	104659	Gera, de [9] || Gera, Thuringia, DEU [6] || Gera, Thüringen, Deutschland [2]	ok	
+U084	uniform	alias	US	Brockville	5	Fremont	Indiana	PPL	2153	CA, Ontario, Brockville [4] || CA, Ontario, Brockville, CA, Ontario, Brockville, CA, Ontario, Brockville [1]	wrong	raw 'CA, Ontario, Brockville': Canada read as California upstream; matched Fremont, IN via an old name
+U085	uniform	exact	GB	Chiswick	32	Chiswick	England	PPLX	34337	Chiswick, gb [28] || Chiswick, United Kingdom [1] || Chiswick, London, gb [1]	ok	
+U086	uniform	exact	PL	Siewierz	1	Siewierz	Silesia	PPLA3	5417	Siewierz, Poland [1]	ok	
+U087	uniform	exact	US	Rice Lake	37	Rice Lake	Wisconsin	PPL	8391	WI, Rice Lake [26] || Rice Lake, us [3] || Rice Lake, WI [2]	ok	
+U088	uniform	exact	US	North Aurora	22	North Aurora	Illinois	PPL	17456	North Aurora, Illinois, United States [13] || North Aurora, IL [3] || 00250 - Cinemark Tinseltown USA, North Aurora, IL [1]	ok	
+U089	uniform	exact	GB	Carryduff	3	Carryduff	Northern Ireland	PPL	7798	Carryduff, gb [3]	ok	
+U090	uniform	exact	US	REHOBOTH BEACH	1	Rehoboth Beach	Delaware	PPL	1458	NEWARK, DE, DOVER, DE, REHOBOTH BEACH, DE [1]	ok	
+U091	uniform	exact	NL	Bleiswijk	20	Bleiswijk	South Holland	PPL	10549	Bleiswijk, Zuid-Holland, Nederland [12] || Bleiswijk, South Holland, Netherlands [6] || Bleiswijk, Netherlands [2]	ok	
+U092	uniform	exact	FR	Lunel-Viel	1	Lunel-Viel	Occitanie	PPL	3578	Lunel-Viel, fr [1]	ok	
+U093	uniform	exact	US	TOWSON	1	Towson	Maryland	PPLA2	55197	GLENDALE, CA, 600 Fairmount Ave  - TOWSON, MD [1]	ok	
+U094	uniform	exact	CA	Greenfield Park	5	Greenfield Park	Quebec	PPL	16733	Greenfield Park, Quebec, Canada [5]	ok	
+U095	uniform	exact	AU	Wollongong	16	Wollongong	New South Wales	PPLA2	280153	Wollongong, au [9] || Wollongong, Australia [2] || Wollongong, New South Wales, Australia [2]	ok	
+U096	uniform	exact	DE	Edemissen	3	Edemissen	Lower Saxony	PPLA4	3600	Edemissen, de [3]	ok	
+U097	uniform	exact	US	Linthicum	39	Linthicum	Maryland	PPL	10324	Linthicum, MD, US [14] || Linthicum, MD [8] || 3022 Halethorpe, MD - Linthicum [6]	ok	
+U098	uniform	exact	DE	Eriskirch	4	Eriskirch	Baden-Wurttemberg	PPLA4	4319	Eriskirch, de [4]	ok	
+U099	uniform	exact	FR	nantes	2	Nantes	Pays de la Loire	PPLA	325070	nantes, fr [2]	ok	
+W000	job-weighted	exact	CA	Toronto	7568	Toronto	Ontario	PPLA	2794356	Toronto, Ontario [1246] || Toronto [980] || Toronto, ca [898]	ok	
+W001	job-weighted	exact	IN	Indore	8502	Indore	Madhya Pradesh	PPL	1994397	Indore, in [8461] || Indore, India [23] || Indore/Raipur, India [3]	ok	
+W002	job-weighted	exact	MY	Bayan Lepas	298	Bayan Lepas	Penang	PPL	130455	Bayan Lepas, my [268] || Bayan Lepas, Malaysia [17] || Bayan Lepas, Malaysia, Kulim, Malaysia [3]	ok	
+W003	job-weighted	alias	IN	Bangalore	14405	Bengaluru	Karnataka	PPLA	8495492	Bengaluru, in [2064] || Bangalore, India [1535] || Bengaluru, India [1172]	ok	
+W004	job-weighted	exact	IE	Dublin	3353	Dublin	Leinster	PPLC	1024027	Dublin, Ireland [586] || Dublin [472] || Dublin, ie [427]	ok	
+W005	job-weighted	exact	US	San Mateo	1032	San Mateo	California	PPL	103536	San Mateo, CA, United States [245] || San Mateo, CA United States [187] || San Mateo, CA [153]	ok	
+W006	job-weighted	exact	SG	Singapore	11149	Singapore		PPLC	5638700	Singapore [3738] || Singapore, Singapore [1842] || Singapore, sg [836]	ok	
+W007	job-weighted	exact	CA	Mississauga	979	Mississauga	Ontario	PPL	717961	Mississauga, ca [274] || Mississauga, Ontario, Canada [149] || Mississauga, Canada [106]	ok	
+W008	job-weighted	exact	US	Huntley	93	Huntley	Illinois	PPL	26005	Huntley, us [71] || Huntley, IL [9] || Client Site - USA - IL - Huntley - 11500 Freeman Rd. [6]	ok	
+W009	job-weighted	exact	CA	Vancouver	2979	Vancouver	British Columbia	PPL	662248	Vancouver, British Columbia [443] || Vancouver [320] || Vancouver, ca [210]	ok	
+W010	job-weighted	exact	US	Salt Lake City	1684	Salt Lake City	Utah	PPLA	215548	Salt Lake City, UT [384] || Salt Lake City, us [192] || Salt Lake City, Utah [183]	ok	
+W011	job-weighted	exact	GB	Lutterworth	26	Lutterworth	England	PPL	9907	Lutterworth, gb [17] || UK | Lutterworth | MPN2, Magna Park North [6] || United Kingdom, Bruntingthorpe Workshop, United Kingdom - Lutterworth, Leicestershire, United Kingdom - Market Harborough, Leicestershire, United Kingdom - Coventry, West Midlands, United Kingdom - Leicester, East Midlands, Uni	ok	
+W012	job-weighted	exact	US	Southaven	216	Southaven	Mississippi	PPL	52589	 Southaven, MS; Memphis, TN [124] || Southaven, us [25] || Southaven, MS [20]	ok	
+W013	job-weighted	exact	MA	Taghazout	15	Taghazout	Souss-Massa	PPLA3	5233	Taghazout, ma [15]	ok	
+W014	job-weighted	exact	US	Los Angeles	6496	Los Angeles	California	PPLA2	3820914	Los Angeles, CA [1199] || Los Angeles, us [786] || Los Angeles [716]	ok	
+W015	job-weighted	exact	US	Orlando	1949	Orlando	Florida	PPLA2	334854	Orlando, FL [486] || Orlando, us [342] || Orlando, Florida [176]	ok	
+W016	job-weighted	exact	DE	Berlin	5791	Berlin	State of Berlin	PPLC	3426354	Berlin [1646] || Berlin, de [1230] || Berlin, Germany [397]	ok	
+W017	job-weighted	exact	US	Cathedral City	18	Cathedral City	California	PPL	53826	Cathedral City, us [8] || Cathedral City, CA [4] || Cathedral City, California [3]	ok	
+W018	job-weighted	alias	US	District of Columbia	1068	Washington	District of Columbia	PPLC	689545	Washington, District of Columbia [304] || Washington, District of Columbia, United States [244] || Washington, District of Columbia, USA [43]	ok	
+W019	job-weighted	exact	DE	Hamburg	3078	Hamburg	Hamburg	PPLA	1973896	Hamburg, de [788] || Hamburg [695] || Hamburg, Hamburg, Deutschland [279]	ok	
+W020	job-weighted	exact	US	Sacramento	1078	Sacramento	California	PPLA	524943	Sacramento, CA [271] || Sacramento, California [165] || Sacramento, us [143]	ok	
+W021	job-weighted	exact	US	St. Louis	1511	St. Louis	Missouri	PPLA2	279695	St. Louis, MO [411] || St. Louis, us [250] || St. Louis, Missouri [199]	ok	
+W022	job-weighted	exact	GB	London	16136	London	England	PPLC	8961989	London [4123] || London, gb [2174] || London, United Kingdom [2049]	ok	
+W023	job-weighted	exact	TW	Kaohsiung	74	Kaohsiung	Takao	PPLA	2737660	Kaohsiung, tw [14] || Hsinchu,TWN, Tainan,TWN, Linkou,TWN, Kaohsiung,TWN, Taichung,TWN [9] || Kaohsiung, Taiwan [4]	ok	
+W024	job-weighted	exact	US	Rehoboth Beach	48	Rehoboth Beach	Delaware	PPL	1458	Rehoboth Beach, us [13] || Rehoboth Beach, DE [11] || Rehoboth Beach, Delaware [6]	ok	
+W025	job-weighted	exact	US	Riverwoods	163	Riverwoods	Illinois	PPL	3643	Riverwoods, us [15] || McLean, VA, Richmond, VA, Chicago, IL, Riverwoods, IL [13] || Riverwoods, IL [13]	ok	
+W026	job-weighted	exact	HR	Zagreb	305	Zagreb	Zagreb	PPLC	663592	Zagreb, hr [74] || Zagreb, Croatia [70] || Zagreb [25]	ok	
+W027	job-weighted	exact	GB	Salford	41	Salford	England	PPLA2	129794	Salford, gb [38] || Salford, England [2] || Salford, United Kingdom [1]	ok	
+W028	job-weighted	exact	MY	Kuala Lumpur	2114	Kuala Lumpur	Kuala Lumpur	PPLC	1453975	Kuala Lumpur, Malaysia [604] || Kuala Lumpur [498] || Kuala Lumpur, my [284]	ok	
+W029	job-weighted	exact	HK	Hong Kong	2533	Hong Kong		PPLC	7396076	Hong Kong [959] || Hong Kong, Hong Kong [277] || Hong Kong, hk [144]	ok	
+W030	job-weighted	exact	US	Sioux Falls	1047	Sioux Falls	South Dakota	PPLA2	171544	Sioux Falls, SD [486] || SD, Sioux Falls [254] || Sioux Falls, South Dakota [84]	ok	
+W031	job-weighted	exact	BE	Brussels	991	Brussels	Brussels Capital	PPLC	1019022	Brussels, be [374] || Brussels, Belgium [149] || Brussels [134]	ok	
+W032	job-weighted	exact	CA	Saskatoon	199	Saskatoon	Saskatchewan	PPL	266141	Saskatoon, ca [73] || Saskatoon, SK, Canada [36] || Calgary, AB, Saskatoon, SK [9]	ok	
+W033	job-weighted	exact	US	Lihue	50	Lihue	Hawaii	PPLA2	6455	Lihue, HI [13] || Lihue, Hawaii [7] || Lihue, us [7]	ok	
+W034	job-weighted	exact	US	Bradenton	191	Bradenton	Florida	PPLA2	54437	Bradenton, Florida [47] || Bradenton, FL [46] || Bradenton, us [34]	ok	
+W035	job-weighted	exact	US	Alpharetta	833	Alpharetta	Georgia	PPL	63693	Alpharetta, GA [201] || Alpharetta, Georgia [74] || Alpharetta, us [43]	ok	
+W036	job-weighted	exact	PL	Góra Kalwaria	5	Góra Kalwaria	Mazovia	PPLA3	10777	Góra Kalwaria, pl [5]	ok	
+W037	job-weighted	exact	FR	Clichy	67	Clichy	Île-de-France	PPL	57467	Clichy, Ile-de-France, FRA [38] || Clichy, fr [16] || Clichy, France [6]	ok	
+W038	job-weighted	exact	GR	Athens	1270	Athens	Attica	PPLC	664046	Athens, Greece [559] || Athens [103] || Athens, gr [67]	ok	
+W039	job-weighted	exact	US	Sellersburg	50	Sellersburg	Indiana	PPL	8659	Sellersburg, IN [42] || IN - Sellersburg [4] || Sellersburg, us [4]	ok	
+W040	job-weighted	exact	US	McLean	2661	McLean	Virginia	PPL	48115	McLean, VA [604] || McLean, VA, Richmond, VA [198] || McLean, Virginia [136]	ok	
+W041	job-weighted	exact	US	Indianapolis	2507	Indianapolis	Indiana	PPLA	887642	Indianapolis, IN [814] || Indianapolis, us [310] || Indianapolis, Indiana [186]	ok	
+W042	job-weighted	exact	CA	Delta	33	Delta	British Columbia	PPL	101668	Delta, ca [8] || Delta, BC, Canada (DC01P) [4] || Delta, BC, Canada [3]	ok	
+W043	job-weighted	exact	US	Pascagoula	218	Pascagoula	Mississippi	PPLA2	22126	Pascagoula, MS [156] || Pascagoula, MS, Gulfport, MS, Ocean Springs, MS [11] || Pascagoula, MS, Ocean Springs, MS [6]	ok	
+W044	job-weighted	exact	FR	Rennes	195	Rennes	Brittany	PPLA	227830	Rennes, fr [167] || Rennes, France [11] || Rennes, Bretagne, France [6]	ok	
+W045	job-weighted	exact	TH	Bangkok	1589	Bangkok	Bangkok	PPLC	5104476	Bangkok [447] || Bangkok, Thailand [414] || Bangkok, th [173]	ok	
+W046	job-weighted	exact	US	Howard Beach	12	Howard Beach	New York	PPLX	26148	133-35 79Th St, Howard Beach, NY [5] || 0717 - Howard Beach, NY [4] || Howard Beach, NY [1]	ok	
+W047	job-weighted	exact	JP	Osaka	349	Osaka	Osaka	PPLA	2753862	Osaka, Japan [54] || Osaka, jp [50] || Osaka [26]	ok	
+W048	job-weighted	exact	FR	Saint-Malo	24	Saint-Malo	Brittany	PPLA3	50676	Saint-Malo, fr [21] || Saint-Malo, France [3]	ok	
+W049	job-weighted	exact	GB	Cheltenham	97	Cheltenham	England	PPL	118836	Cheltenham, gb [54] || Cheltenham, England [10] || Cheltenham, United Kingdom [9]	ok	
+A000	alias-only	alias	IL	לקיה	1	Laqiyya	Southern District	PPL	19362	רהט, לקיה, חורה, תל שבע, ערוער, שגב שלום, כסיפה וישובים נוספים בחברה הבדואית , Israel [1]	ok	
+A001	alias-only	alias	IL	יד בנימין	1	Yad Binyamin	Central District	PPL	4268	יד בנימין, Israel [1]	ok	
+A002	alias-only	alias	GB	Torrington	1	Great Torrington	England	PPL	5714	Torrington - Torrington, CT, Corbins Corner - West Hartford, CT, Lisbon - Lisbon, CT, New London - New London, CT, Windsor - Windsor, CT, Bishops Corner - West Hartford, CT [1]	wrong	raw 'Torrington, CT ...': a US job filed under GB upstream; matched Great Torrington
+A003	alias-only	alias	TH	Mueang Chiang Rai	1	Chiang Rai	Chiang Rai	PPLA	78756	Mueang Chiang Rai, Chiang Rai, Thailand [1]	ok	
+A004	alias-only	alias	EC	Lago Agrio	1	Nueva Loja	Sucumbíos	PPLA	24211	Lago Agrio, ec [1]	ok	
+A005	alias-only	alias	US	Discovery	1	Ester	Alaska	PPL	2422	Wauwatosa - Discovery, Nashville - West End, Cincinnati - Vine, Houston - Dallas, Cleveland - Public Square, Indianapolis - Monument, Kansas City - Grand Blvd, Phoenix - High, Milwaukee - E. Wisconsin, St. Louis - 800 Market, Phoenix - E. Camelback, Louisville - West Market, Atlanta - Lenox, Austin 	wrong	raw 'Wauwatosa - Discovery': an office name; matched Ester, AK
+A006	alias-only	alias	IL	נס ציונה	8	Ness Ziona	Central District	PPL	50351	ראשון לציון, רחובות, נס ציונה, מודיעין, רמלה, לוד, אשדוד, קרית מלאכי, יבנה, גן יבנה, גדרה, Israel [2] || רחובות, ראשון לציון, נס ציונה, Israel [1] || רחובות, ראשל"צ, נס ציונה, Israel [1]	ok	
+A007	alias-only	alias	UA	Луцьк	1	Lutsk	Volyn	PPLA	215986	Луцьк, ua [1]	ok	
+A008	alias-only	alias	FR	Ambérieux	1	Ambérieux-en-Dombes	Auvergne-Rhône-Alpes	PPL	1529	Ambérieux, fr [1]	uncertain	'Ambérieux' could be Ambérieux (Rhône) or Ambérieux-en-Dombes
+A009	alias-only	alias	IE	Galway City	3	Galway	Connacht	PPLA	85910	Galway City, County Galway, Connaught, Ireland [3]	ok	
+A010	alias-only	alias	GB	Londonderry	24	Derry	Northern Ireland	PPLA2	83652	Londonderry, gb [8] || Derry/Londonderry, gb [6] || Manchester, NH, Londonderry, NH [6]	ok	
+A011	alias-only	alias	SA	الخبر	1	Khobar	Eastern Province	PPL	165799	الخبر, sa [1]	ok	
+A012	alias-only	alias	GB	Chesterford	1	Great Chesterford	England	PPL	1494	England - Cambridge, Germany - Remote, Germany - Berlin, England - Hinxton, England - Remote, England - Chesterford [1]	ok	
+A013	alias-only	alias	FR	La Baule	1	La Baule-Escoublac	Pays de la Loire	PPL	17775	La Baule, fr [1]	ok	
+A014	alias-only	alias	AR	Santa Cruz	1	Puerto Santa Cruz	Santa Cruz	PPLA2	5390	Argentina, Santa Cruz, Rio Gallegos [1]	wrong	raw 'Santa Cruz, Rio Gallegos': the province; matched Puerto Santa Cruz
+A015	alias-only	alias	US	DULLES	3	Dulles Town Center	Virginia	PPL	4601	US - DULLES (VADUL) [3]	ok, nearby	Dulles, VA; point is Dulles Town Center, about 10 km away
+A016	alias-only	alias	FR	STE GENEVIEVE DES BOIS	1	Sainte-Geneviève-des-Bois	Île-de-France	PPL	33689	STE GENEVIEVE DES BOIS, fr [1]	ok	
+A017	alias-only	alias	KR	Seongnam	5	Seongnam-si	Gyeonggi-do	PPL	914832	Seongnam, Korea, Republic of [4] || Seongnam, Hyundai Pangyo, KOR [1]	ok	
+A018	alias-only	alias	US	District Of Columbia	11	Washington	District of Columbia	PPLC	689545	USA, Massachusetts - Full Time Remote, USA, South Carolina - Full Time Remote, USA, Pennsylvania - Full Time Remote, USA, Oregon - Full Time Remote, USA, Oklahoma - Full Time Remote, USA, Maine - Full Time Remote, USA, Ohio - Full Time Remote, USA, New York - Full Time Remote, USA, New Jersey - Full	ok	
+A019	alias-only	alias	JP	Maebashi-shi	2	Maebashi	Gunma	PPLA	332149	Maebashi-shi, Gunma, JPN [2]	ok	
+A020	alias-only	alias	IT	Massa e Cozzile	1	Massa	Tuscany	PPLA3	350	Massa e Cozzile, it [1]	ok	
+A021	alias-only	alias	US	Elk	1	Elk City	Oklahoma	PPL	12717	Elk, PA [1]	wrong	raw 'Elk, PA'; matched Elk City, OK
+A022	alias-only	alias	ID	Tangerang Selatan	1	South Tangerang	Banten	PPL	1429529	Tangerang Selatan, Indonesia [1]	ok	
+A023	alias-only	alias	VN	Ba Ria	1	Thành Phố Bà Rịa	Ho Chi Minh City (HCMC)	PPLA	235192	Vũng Tàu, Ba Ria - Vung Tau, Vietnam, vn [1]	wrong	raw 'Vũng Tàu, Ba Ria - Vung Tau': a province fragment; matched Bà Rịa
+A024	alias-only	alias	BG	Казанлък	1	Kazanlak	Stara Zagora	PPL	47918	Казанлък, bg [1]	ok	
+A025	alias-only	alias	BE	Ghent	124	Gent	Flanders	PPL	265086	Ghent, Belgium [40] || Ghent, be [31] || Ghent, Oost-Vlaanderen, Belgium [24]	ok	
+A026	alias-only	alias	NZ	Ōhope	1	Ohope Beach	Bay of Plenty	PPL	3250	Ōhope, nz [1]	ok	
+A027	alias-only	alias	IT	Cinisello	1	Cinisello Balsamo	Lombardy	PPLA3	75943	Izmir - Turkey, Cinisello - Italy, Warsaw - Poland, Madrid - Spain, Duesseldorf - Germany, Cergy - France, Warwick - United Kingdom, Warwick (Titan) - United Kingdom [1]	ok	
+A028	alias-only	alias	PH	Dipolog City	1	Dipolog	Zamboanga Peninsula	PPL	93549	Dipolog City, Philippines [1]	ok	
+A029	alias-only	alias	US	Pompano	3	Pompano Beach	Florida	PPL	107762	Pompano, FL [3]	ok	
+A030	alias-only	alias	PH	Tacloban City	3	Tacloban	Eastern Visayas	PPLA2	259353	Samar - Tacloban City, Philippines [2] || ADP Leyte - Tacloban City, Philippines [1]	ok	
+A031	alias-only	alias	IN	Bhubaneshwar	1	Bhubaneswar	Odisha	PPLA	885363	Bhubaneshwar, in [1]	ok	
+A032	alias-only	alias	GB	Enfield	48	Enfield Town	England	PPLA3	156858	Enfield, gb [26] || Enfield - UK [6] || Enfield, England, GBR [2]	ok	
+A033	alias-only	alias	TR	Kocaeli	15	Köseköy	Kocaeli	PPL	9200	Kocaeli, tr [4] || Kocaeli, Kocaeli, Türkiye [3] || Lodz, Lodz, Poland, Remote - Lesser Poland, Poland, Remote - Kocaeli, Turkey [1]	wrong	Kocaeli is a province (the city is İzmit); matched Köseköy
+A034	alias-only	alias	VN	ho chi minh	1	Ho Chi Minh City	Ho Chi Minh City (HCMC)	PPL	14002598	ho chi minh, vn [1]	ok	
+A035	alias-only	alias	BG	Sofiya	1	Sofia	Sofia-Capital	PPLC	1152556	Sofia, Sofiya, Bulgaria [1]	ok	
+A036	alias-only	alias	US	Bensalem Township	10	Bensalem	Pennsylvania	PPL	60427	Bensalem Township, us [10]	ok	
+A037	alias-only	alias	US	Parrish	14	Kosciusko	Mississippi	PPLA2	7187	Parrish, us [8] || Parrish, FL [6]	wrong	raw 'Parrish, FL'; matched Kosciusko, MS via an old name
+A038	alias-only	alias	IL	חדרה	7	Hadera	Haifa	PPL	107974	חדרה, Israel [3] || זיכרון יעקב, בנימינה, חדרה, נתניה, ואדי ערה, כוכב יאיר, טייבה, טירה, כפר סבא, רעננה, הרצליה, רמת השר, Israel [1] || חדרה, נתניה ורעננה, Israel [1]	ok	
+A039	alias-only	alias	US	Mt. Arlington	1	Mount Arlington	New Jersey	PPL	5300	Mt. Arlington, New Jersey, United States [1]	ok	
