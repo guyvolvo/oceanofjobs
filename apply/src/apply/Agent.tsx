@@ -4,19 +4,18 @@
 // for the user. The server enforces every rule here; the checks below
 // only name the field.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Input, InputArea } from "@cloudflare/kumo/components/input";
-import { Select } from "@cloudflare/kumo/components/select";
-import { Checkbox } from "@cloudflare/kumo/components/checkbox";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Banner } from "@cloudflare/kumo/components/banner";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { FileArrowUp, Info, Plus, WarningCircle, X } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { FileArrowUp, Info, Plus, X } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { AreaField, CheckField, LoadingButton, SelectField, TextField } from "../fields";
 import { apply, send, ApiError } from "../api";
 import { RESUME_FOCUS } from "../shared";
 import { useUnsaved } from "../unsaved";
 import { useApplyData } from "./data";
-import { ApplyPage, Card, LINK, Waiting } from "./Page";
-import "./apply.css";
+import { ApplyPage, Banner, Card, LINK, Waiting } from "./Page";
 
 type Topic = "referral_source" | "start_date" | "relocation" | "onsite_days" | "why_company" | "why_role";
 type Action = "answer" | "ai" | "ask";
@@ -62,7 +61,7 @@ function toForm(a: AgentData): Form {
 }
 
 // A bordered box around a field or a saved thing (the resume, an answer).
-export const BOX = "grid gap-2 rounded-lg border border-kumo-hairline p-3";
+export const BOX = "grid gap-2 rounded-lg border p-3";
 
 function List({ items, onChange, max, limit, label, placeholder, area }: {
   items: Row[]; onChange: (r: Row[]) => void; max: number; limit: number; label: string; placeholder: string; area?: boolean;
@@ -74,18 +73,18 @@ function List({ items, onChange, max, limit, label, placeholder, area }: {
         <div key={r.key} className="flex items-start gap-2">
           <div className="min-w-0 flex-1 [&_input]:w-full">
             {area ? (
-              <InputArea aria-label={`${label} ${i + 1}`} placeholder={placeholder} autoResize minRows={2} maxLength={limit} value={r.text} onValueChange={(v) => set(r.key, v)} />
+              <Textarea aria-label={`${label} ${i + 1}`} placeholder={placeholder} maxLength={limit} value={r.text} onChange={(e) => set(r.key, e.target.value)} />
             ) : (
               <Input aria-label={`${label} ${i + 1}`} placeholder={placeholder} maxLength={limit} value={r.text} onChange={(e) => set(r.key, e.target.value)} />
             )}
           </div>
-          <Button size="sm" variant="ghost" shape="square" aria-label={`Remove ${label.toLowerCase()} ${i + 1}`} title="Remove"
+          <Button type="button" size="icon-sm" variant="ghost" aria-label={`Remove ${label.toLowerCase()} ${i + 1}`} title="Remove"
             onClick={() => onChange(items.filter((x) => x.key !== r.key))}><X /></Button>
         </div>
       ))}
       <div>
-        <Button variant="secondary" icon={<Plus />} disabled={items.length >= max}
-          onClick={() => onChange([...items, { key: nextKey++, text: "" }])}>{items.length >= max ? `Up to ${max}` : `Add ${label.toLowerCase()}`}</Button>
+        <Button type="button" variant="outline" disabled={items.length >= max}
+          onClick={() => onChange([...items, { key: nextKey++, text: "" }])}><Plus />{items.length >= max ? `Up to ${max}` : `Add ${label.toLowerCase()}`}</Button>
       </div>
     </div>
   );
@@ -121,7 +120,6 @@ async function readResume(file: File): Promise<string> {
 // On every plan: the resume fills the search preferences and unlocks the
 // hands-off settings, and the AI answers from it.
 export function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r: Resume) => void }) {
-  const toasts = useKumoToastManager();
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [attention, setAttention] = useState(false);
@@ -143,11 +141,11 @@ export function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r
       const r = await apply<{ resume: Resume; skills_added?: string[] }>("agent/resume", send("PUT", { name: file.name, text, consent: true }));
       onChange(r.resume);
       const added = r.skills_added || [];
-      toasts.add({ variant: "success", title: "Resume added", description: added.length
+      toast.success("Resume added", { description: added.length
         ? `Added ${added.length} skill${added.length === 1 ? "" : "s"} to your search preferences: ${added.slice(0, 6).join(", ")}${added.length > 6 ? ", and more" : ""}.`
         : "Your search preferences already have its skills." });
     } catch (e) {
-      toasts.add({ variant: "error", title: "Couldn't add your resume", description: e instanceof Error && e.message ? e.message : "Try again." });
+      toast.error("Couldn't add your resume", { description: e instanceof Error && e.message ? e.message : "Try again." });
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
@@ -159,9 +157,9 @@ export function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r
       await apply("agent/resume", send("DELETE"));
       onChange(null);
       setAgree(false);
-      toasts.add({ variant: "success", title: "Resume removed" });
+      toast.success("Resume removed");
     } catch {
-      toasts.add({ variant: "error", title: "Couldn't remove your resume", description: "Try again." });
+      toast.error("Couldn't remove your resume", { description: "Try again." });
     } finally {
       setBusy(false);
     }
@@ -170,24 +168,24 @@ export function ResumeField({ resume, onChange }: { resume: Resume; onChange: (r
     return (
       <div className={`${BOX} grid-cols-[minmax(0,1fr)_auto] items-center`}>
         <div className="min-w-0">
-          <span className="font-medium text-kumo-strong [overflow-wrap:anywhere]">{resume.name}</span>
-          <span className="block text-sm text-kumo-subtle">
+          <span className="font-medium text-foreground [overflow-wrap:anywhere]">{resume.name}</span>
+          <span className="block text-sm text-muted-foreground">
             {resume.chars.toLocaleString()} characters{resume.truncated ? ", the first 8,000 kept" : ""} · added {new Date(resume.uploaded_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
           </span>
         </div>
-        <Button variant="secondary" loading={busy} onClick={remove}>Remove</Button>
+        <LoadingButton variant="outline" loading={busy} onClick={remove}>Remove</LoadingButton>
       </div>
     );
   }
   return (
-    <div ref={box} data-attention={attention || undefined} className={`${BOX} ${attention ? "border-kumo-warning animate-[attention_1.6s_ease-in-out_infinite]" : ""}`}
+    <div ref={box} data-attention={attention || undefined} className={cn(BOX, attention && "border-[var(--ooj-trend-down)] outline-2 outline-solid animate-[attention_1.6s_ease-in-out_infinite]")}
       onPointerDown={() => setAttention(false)} onFocus={() => setAttention(false)}>
-      <Checkbox checked={agree} onCheckedChange={(c) => setAgree(c === true)}
+      <CheckField checked={agree} onCheckedChange={setAgree}
         label={<span>I agree to the <a className={LINK} href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>. My resume's text is saved to my account, its skills are added to my search preferences, and on Basic and Pro the AI answers from it.</span>} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* Disabled only until the consent box is ticked, so it stays legible. */}
-        <Button variant="secondary" className="disabled:opacity-75" icon={<FileArrowUp />} loading={busy} disabled={!agree} onClick={() => input.current?.click()}>Add resume</Button>
-        <span className="text-kumo-subtle">PDF, DOCX or Markdown</span>
+        <LoadingButton variant="outline" className="disabled:opacity-75" loading={busy} disabled={!agree} onClick={() => input.current?.click()}><FileArrowUp />Add resume</LoadingButton>
+        <span className="text-muted-foreground">PDF, DOCX or Markdown</span>
       </div>
       <input ref={input} type="file" accept=".pdf,.docx,.md" hidden onChange={(e) => add(e.target.files?.[0])} />
     </div>
@@ -221,21 +219,21 @@ function TryIt({ editable }: { editable: boolean }) {
           <Input aria-label="Question to try" placeholder="e.g. When can you start?" value={question} disabled={!editable}
             onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); run(); } }} />
         </div>
-        <Button variant="secondary" loading={busy} disabled={!editable || !question.trim()} onClick={run}>Try it</Button>
+        <LoadingButton variant="outline" loading={busy} disabled={!editable || !question.trim()} onClick={run}>Try it</LoadingButton>
       </div>
-      <Input label="Job (optional)" placeholder="Paste a job link from Ocean of Jobs, e.g. oceanofjobs.com/job/486388384e045a4a" value={job}
+      <TextField label="Job (optional)" placeholder="Paste a job link from Ocean of Jobs, e.g. oceanofjobs.com/job/486388384e045a4a" value={job}
         disabled={!editable} onChange={(e) => setJob(e.target.value)}
         description="Questions about why you want a job, like &quot;What do you like about this company?&quot;, are drafted from that job's posting." />
       {result ? (
         result.refused && !job.trim() && /no job posting/.test(result.refused) ? (
-          <p className="m-0 text-kumo-subtle" role="status">This question is answered from the job's posting, not your facts or resume. Paste a job link above to try it.</p>
+          <p className="m-0 text-muted-foreground" role="status">This question is answered from the job's posting, not your facts or resume. Paste a job link above to try it.</p>
         ) : result.refused ? (
-          <p className="m-0 text-kumo-subtle" role="status">No answer: {result.refused}. In a real application, this question would wait for you in Needs attention.</p>
+          <p className="m-0 text-muted-foreground" role="status">No answer: {result.refused}. In a real application, this question would wait for you in Needs attention.</p>
         ) : (
           <div className="flex flex-col gap-1.5" role="status">
-            <p className="m-0 whitespace-pre-wrap text-kumo-strong">{result.source === "ai" ? `AI Agent answer: ${result.answer}` : result.answer}</p>
-            <span className="text-kumo-subtle">{result.source === "ai" ? "Used 1 AI credit." : SOURCE[result.source || ""] || result.source}</span>
-            {result.review ? <span className="text-kumo-subtle">A draft about why you want this job. It always waits for your approval, even in Full automatic.</span> : null}
+            <p className="m-0 whitespace-pre-wrap text-foreground">{result.source === "ai" ? `AI Agent answer: ${result.answer}` : result.answer}</p>
+            <span className="text-muted-foreground">{result.source === "ai" ? "Used 1 AI credit." : SOURCE[result.source || ""] || result.source}</span>
+            {result.review ? <span className="text-muted-foreground">A draft about why you want this job. It always waits for your approval, even in Full automatic.</span> : null}
           </div>
         )
       ) : null}
@@ -244,7 +242,6 @@ function TryIt({ editable }: { editable: boolean }) {
 }
 
 function Agent() {
-  const toasts = useKumoToastManager();
   const [form, setForm] = useState<Form | null>(null);
   // The form as last loaded or saved, to tell whether it has been edited.
   const [saved, setSaved] = useState("");
@@ -265,7 +262,7 @@ function Agent() {
   useUnsaved("apply-agent", editable && !!form && JSON.stringify(form) !== saved, () => save());
 
   if (loadFailed) {
-    return <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load your AI agent." action={<Button onClick={load}>Try again</Button>} />;
+    return <Banner tone="error" title="Couldn't load your AI agent." action={<Button variant="outline" size="sm" onClick={load}>Try again</Button>} />;
   }
   if (!form) return <Waiting>Loading your AI agent</Waiting>;
 
@@ -276,7 +273,7 @@ function Agent() {
   const save = async () => {
     const missing = TOPICS.find(([t]) => form.topics[t].action === "answer" && !form.topics[t].value.trim());
     if (missing) {
-      toasts.add({ variant: "error", title: "Couldn't save", description: `Add your answer to "${missing[1]}", or choose another option.` });
+      toast.error("Couldn't save", { description: `Add your answer to "${missing[1]}", or choose another option.` });
       return false;
     }
     setBusy(true);
@@ -288,11 +285,11 @@ function Agent() {
       };
       const { agent } = await apply<{ agent: AgentData }>("agent", send("PUT", body));
       stored(toForm(agent));
-      toasts.add({ variant: "success", title: "Saved" });
+      toast.success("Saved");
       return true;
     } catch (e) {
       if (e instanceof ApiError && e.code === "conflict") setConflict(true);
-      else toasts.add({ variant: "error", title: "Couldn't save", description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
+      else toast.error("Couldn't save", { description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
       return false;
     } finally {
       setBusy(false);
@@ -302,12 +299,12 @@ function Agent() {
   return (
     <form className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); save(); }}>
       {!editable ? (
-        <Banner variant="default" icon={<Info weight="fill" />} title="Your own AI agent is part of Basic and Pro"
+        <Banner icon={<Info weight="fill" />} title="Your own AI agent is part of Basic and Pro"
           description="You can see how it works here. To change it, upgrade your plan." action={<a className={LINK} href="/pricing">Compare plans</a>} />
       ) : null}
       {conflict ? (
-        <Banner variant="alert" icon={<WarningCircle weight="fill" />} title="Your agent was changed in another tab"
-          description="Reload to see the latest version, then make your changes again." action={<Button onClick={load}>Reload</Button>} />
+        <Banner tone="warning" title="Your agent was changed in another tab"
+          description="Reload to see the latest version, then make your changes again." action={<Button type="button" variant="outline" size="sm" onClick={load}>Reload</Button>} />
       ) : null}
       <Card title="AI answers" note={<>New AI answers wait for your approval unless Fill application is set to Full automatic in <a className={LINK} href="/apply/settings">Auto apply settings</a>.</>} />
 
@@ -333,10 +330,10 @@ function Agent() {
                 return (
                   // The question's choice keeps half the width whether or not "Your answer" shows.
                   <div key={t} className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-                    <Select className="w-full" label={label} value={form.topics[t].action} items={items}
+                    <SelectField label={label} value={form.topics[t].action} items={items}
                       onValueChange={(v) => setTopic(t, { action: (v as Action) || "ai" })} />
                     {form.topics[t].action === "answer" ? (
-                      <Input label="Your answer" placeholder={placeholder} maxLength={LIMITS.value} value={form.topics[t].value}
+                      <TextField label="Your answer" placeholder={placeholder} maxLength={LIMITS.value} value={form.topics[t].value}
                         onChange={(e) => setTopic(t, { value: e.target.value })} />
                     ) : null}
                   </div>
@@ -351,14 +348,14 @@ function Agent() {
 
           <Card title="AI personalization" note="Set the tone and wording you prefer. These instructions affect how answers are written, not what the AI knows about you.">
             <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-              <Select className="w-full" label="Tone" value={form.style.tone} items={{ plain: "Plain", warm: "Warm", formal: "Formal" }}
+              <SelectField label="Tone" value={form.style.tone} items={{ plain: "Plain", warm: "Warm", formal: "Formal" }}
                 onValueChange={(v) => setStyle({ tone: (v as Form["style"]["tone"]) || "plain" })} />
-              <Select className="w-full" label="Length" value={form.style.length} items={{ short: "One or two sentences", medium: "Up to four sentences" }}
+              <SelectField label="Length" value={form.style.length} items={{ short: "One or two sentences", medium: "Up to four sentences" }}
                 onValueChange={(v) => setStyle({ length: (v as Form["style"]["length"]) || "medium" })} />
-              <Select className="w-full" label="Language" value={form.style.language} items={LANGUAGES}
+              <SelectField label="Language" value={form.style.language} items={LANGUAGES}
                 onValueChange={(v) => setStyle({ language: (v as string) || "question" })} />
               <div className="sm:col-span-2">
-                <InputArea label="Style notes" autoResize minRows={2} maxLength={LIMITS.notes} placeholder="e.g. No exclamation marks."
+                <AreaField label="Style notes" maxLength={LIMITS.notes} placeholder="e.g. No exclamation marks."
                   value={form.style.notes} onValueChange={(v) => setStyle({ notes: v })} />
               </div>
             </div>
@@ -367,7 +364,7 @@ function Agent() {
       </fieldset>
 
       <div className="flex items-center gap-3 pt-1">
-        <Button type="submit" variant="primary" loading={busy} disabled={!editable}>Save</Button>
+        <LoadingButton type="submit" loading={busy} disabled={!editable}>Save</LoadingButton>
       </div>
 
       <TryIt editable={editable} />

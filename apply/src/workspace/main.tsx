@@ -4,7 +4,7 @@
 // Links from before (/apply#queue, /account#alerts, /account#aa-settings)
 // are turned into their paths.
 import { lazy, Suspense, type ComponentType } from "react";
-import { Loader } from "@cloudflare/kumo/components/loader";
+import { Spinner } from "@/components/ui/spinner";
 import { boot } from "../site/boot";
 
 type Page = { load: () => Promise<{ default: ComponentType }> };
@@ -45,7 +45,7 @@ function route(): string {
 
 const Current = lazy(ROUTES[route()].load);
 boot(
-  <Suspense fallback={<div className="flex items-center gap-2 p-6 text-kumo-subtle"><Loader /> Loading</div>}>
+  <Suspense fallback={<div className="flex items-center gap-2 p-6 text-muted-foreground"><Spinner /> Loading</div>}>
     <Current />
   </Suspense>,
 );

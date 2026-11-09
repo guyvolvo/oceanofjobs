@@ -1,24 +1,21 @@
 // /apply/queue: the jobs waiting for the extension, in the order it
 // takes them.
 import { useEffect, useState } from "react";
-import { LayerCard } from "@cloudflare/kumo/components/layer-card";
-import { Table } from "@cloudflare/kumo/components/table";
-import { Button, LinkButton } from "@cloudflare/kumo/components/button";
-import { Empty } from "@cloudflare/kumo/components/empty";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowDown, ArrowUp, Trash, Tray } from "@phosphor-icons/react";
 import { apply, send, type QueueItem } from "../api";
 import { useExtension } from "../ext";
 import { ATS, ExtensionAction, JobCell, fmtDate, plural } from "../shared";
 import { useApplyData } from "./data";
-import { ApplyPage, Waiting } from "./Page";
+import { ApplyPage, Nothing, PANEL, Waiting } from "./Page";
 
 const setOrder = (ids: string[]) => apply("queue-order", send("POST", { job_ids: ids }));
 
 export default function QueuePage() {
   const data = useApplyData();
   const ext = useExtension();
-  const toasts = useKumoToastManager();
   const items = data.queue;
   const [rows, setRows] = useState<QueueItem[]>(items || []);
   useEffect(() => { if (items) setRows(items); }, [items]);
@@ -31,7 +28,7 @@ export default function QueuePage() {
       await setOrder(next.map((r) => r.job_id));
     } catch {
       setRows(rows);
-      toasts.add({ variant: "error", title: "Couldn't change the order", description: "Try again." });
+      toast.error("Couldn't change the order", { description: "Try again." });
     }
   };
 
@@ -42,7 +39,7 @@ export default function QueuePage() {
       await apply(`queue/${encodeURIComponent(item.job_id)}`, send("DELETE"));
     } catch {
       setRows(before);
-      return toasts.add({ variant: "error", title: "Couldn't remove the job", description: "Try again." });
+      return void toast.error("Couldn't remove the job", { description: "Try again." });
     }
     // Undo puts it back where it was, not at the end.
     const undo = async () => {
@@ -50,11 +47,11 @@ export default function QueuePage() {
         await apply(`queue/${encodeURIComponent(item.job_id)}`, send("PUT"));
         await setOrder(before.map((r) => r.job_id));
       } catch (e) {
-        toasts.add({ variant: "error", title: "Couldn't put the job back", description: (e as Error).message });
+        toast.error("Couldn't put the job back", { description: (e as Error).message });
       }
       data.reload();
     };
-    toasts.add({ title: "Removed from your queue", description: item.title, actions: [{ children: "Undo", onClick: undo }] });
+    toast("Removed from your queue", { description: item.title, action: { label: "Undo", onClick: () => { undo(); } } });
     data.reload();
   };
 
@@ -63,43 +60,39 @@ export default function QueuePage() {
       note={items ? (rows.length ? `${plural(rows.length, "job")}, applied in this order.` : "Jobs waiting for auto apply.") : undefined}
       actions={items ? <ExtensionAction ext={ext} queue={rows} onOpened={data.reload} /> : undefined}>
       {!items ? <Waiting /> : rows.length ? (
-        <LayerCard className="overflow-x-auto p-0">
+        <div className={PANEL}>
           <Table>
-            <Table.Header>
-              <Table.Row>
-                <Table.Head>Job</Table.Head>
-                <Table.Head className="hidden sm:table-cell">Site</Table.Head>
-                <Table.Head className="hidden sm:table-cell">Added</Table.Head>
-                <Table.Head><span className="sr-only">Actions</span></Table.Head>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-4">Job</TableHead>
+                <TableHead className="hidden sm:table-cell">Site</TableHead>
+                <TableHead className="hidden sm:table-cell">Added</TableHead>
+                <TableHead className="pr-4"><span className="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((r, i) => (
-                <Table.Row key={r.job_id}>
-                  <Table.Cell className="align-top"><JobCell title={r.title} link={r.link} sub={r.company} /></Table.Cell>
-                  <Table.Cell className="hidden align-top sm:table-cell">{ATS[r.ats] || r.ats || ""}</Table.Cell>
-                  <Table.Cell className="hidden align-top whitespace-nowrap tabular-nums sm:table-cell">{fmtDate(r.added_at)}</Table.Cell>
-                  <Table.Cell className="align-top">
+                <TableRow key={r.job_id}>
+                  <TableCell className="whitespace-normal pl-4 align-top"><JobCell title={r.title} link={r.link} sub={r.company} /></TableCell>
+                  <TableCell className="hidden align-top sm:table-cell">{ATS[r.ats] || r.ats || ""}</TableCell>
+                  <TableCell className="hidden align-top tabular-nums sm:table-cell">{fmtDate(r.added_at)}</TableCell>
+                  <TableCell className="pr-4 align-top">
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" shape="square" variant="ghost" icon={<ArrowUp />} aria-label={`Move ${r.title} up`} disabled={i === 0} onClick={() => move(i, -1)} />
-                      <Button size="sm" shape="square" variant="ghost" icon={<ArrowDown />} aria-label={`Move ${r.title} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)} />
-                      <Button size="sm" shape="square" variant="ghost" icon={<Trash />} aria-label={`Remove ${r.title}`} onClick={() => remove(r)} />
+                      <Button size="icon-sm" variant="ghost" aria-label={`Move ${r.title} up`} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp /></Button>
+                      <Button size="icon-sm" variant="ghost" aria-label={`Move ${r.title} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)}><ArrowDown /></Button>
+                      <Button size="icon-sm" variant="ghost" aria-label={`Remove ${r.title}`} onClick={() => remove(r)}><Trash /></Button>
                     </div>
-                  </Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                </TableRow>
               ))}
-            </Table.Body>
+            </TableBody>
           </Table>
-        </LayerCard>
+        </div>
       ) : (
-        <LayerCard>
-          <Empty
-            icon={<Tray size={40} />}
-            title="Your queue is empty"
-            description="Add jobs with the Auto apply button on the job board, or ask your AI assistant to queue them for you."
-            contents={<LinkButton href="/board" variant="secondary">Open the job board</LinkButton>}
-          />
-        </LayerCard>
+        <Nothing icon={<Tray />} title="Your queue is empty"
+          description="Add jobs with the Auto apply button on the job board, or ask your AI assistant to queue them for you.">
+          <Button variant="outline" asChild><a href="/board">Open the job board</a></Button>
+        </Nothing>
       )}
     </ApplyPage>
   );

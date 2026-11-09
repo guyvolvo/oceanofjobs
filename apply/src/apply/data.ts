@@ -46,7 +46,8 @@ export function useApplyData(): ApplyData {
   }, []);
 
   useEffect(() => {
-    if (!who) { setSignedOut(true); return; }
+    // Signed out: nothing of the last reader stays in memory or on screen.
+    if (!who) { setSignedOut(true); setData({}); return; }
     setSignedOut(false);
     reload();
     const on = () => { if (document.visibilityState === "visible") reload(); };

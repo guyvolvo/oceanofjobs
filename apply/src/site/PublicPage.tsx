@@ -19,8 +19,8 @@ export function PageHead({ title, note, actions }: { title: ReactNode; note?: Re
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 pt-8 pb-5">
       <div className="min-w-0">
-        <h1 className="m-0 font-sans text-[26px] font-semibold leading-tight tracking-tight text-kumo-strong">{title}</h1>
-        {note ? <p className="mt-1 mb-0 text-kumo-subtle">{note}</p> : null}
+        <h1 className="m-0 font-sans text-[26px] font-semibold leading-tight tracking-tight text-foreground">{title}</h1>
+        {note ? <p className="mt-1 mb-0 text-muted-foreground">{note}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>

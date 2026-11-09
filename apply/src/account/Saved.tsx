@@ -3,15 +3,14 @@
 // record, closed ones included (someone who saved a job wants to know it
 // closed).
 import { useState } from "react";
-import { Badge } from "@cloudflare/kumo/components/badge";
-import { LinkButton } from "@cloudflare/kumo/components/button";
-import { Table } from "@cloudflare/kumo/components/table";
-import { Loader } from "@cloudflare/kumo/components/loader";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { X } from "@phosphor-icons/react";
 import { Workspace } from "../site/Workspace";
 import { plural, safeHref, useSaved, type Job } from "./data";
-import { ACTIONS_CELL, Card, ConfirmButton, gate, JOB, NOTE, ROW, SUB, TABLE } from "./ui";
+import { ACTIONS_CELL, Card, ConfirmButton, gate, JOB, Loading, NOTE, SUB, TABLE } from "./ui";
 
 function Saved({ jobs, error, removing, remove }: {
   jobs: Job[] | null; error: string; removing: string | null; remove: (id: string) => void;
@@ -19,29 +18,29 @@ function Saved({ jobs, error, removing, remove }: {
   return (
     <Card>
       {error ? <p className={NOTE}>{error}</p>
-        : !jobs ? <div className={`${ROW} ${NOTE}`}><Loader /> Loading</div>
+        : !jobs ? <Loading />
         : !jobs.length ? <p className={NOTE}>No saved jobs yet.</p>
         : (
           <div className={TABLE}>
             <Table>
-              <Table.Body>
+              <TableBody>
                 {jobs.map((j) => {
                   const where = [j.company_name || (j.company_domain || "").replace(/\.invalid$/, ""), j.location].filter(Boolean).join(" · ");
                   return (
-                    <Table.Row key={j.id}>
-                      <Table.Cell>
+                    <TableRow key={j.id}>
+                      <TableCell>
                         <a className={JOB} href={safeHref(j.url)} target="_blank" rel="noopener">{j.title}</a>
                         {j.closed_at ? <> <span title="This listing is no longer open"><Badge variant="secondary">Closed</Badge></span></> : null}
                         <span className={SUB}>{where}</span>
-                      </Table.Cell>
-                      <Table.Cell className={ACTIONS_CELL}>
-                        <ConfirmButton size="sm" ask="Remove?" variant="ghost" shape="square" title="Remove from saved"
+                      </TableCell>
+                      <TableCell className={ACTIONS_CELL}>
+                        <ConfirmButton size="icon-sm" ask="Remove?" variant="ghost" title="Remove from saved"
                           aria-label={`Remove ${j.title} from saved`} disabled={removing === j.id} onConfirm={() => remove(j.id)}><X /></ConfirmButton>
-                      </Table.Cell>
-                    </Table.Row>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </Table.Body>
+              </TableBody>
             </Table>
           </div>
         )}
@@ -50,17 +49,16 @@ function Saved({ jobs, error, removing, remove }: {
 }
 
 function SavedPage() {
-  const toasts = useKumoToastManager();
   const saved = useSaved();
   const [removing, setRemoving] = useState<string | null>(null);
   const remove = async (id: string) => {
     setRemoving(id);
-    if (!(await saved.remove(id))) toasts.add({ variant: "error", title: "Couldn't remove that job. Try again." });
+    if (!(await saved.remove(id))) toast.error("Couldn't remove that job. Try again.");
     setRemoving(null);
   };
   return (
     <Workspace current="saved" title="Saved jobs" note={!saved.jobs ? "" : saved.count ? plural(saved.count, "saved job") : "Nothing saved yet"}
-      actions={<LinkButton variant="ghost" href="/board">Open the board</LinkButton>}>
+      actions={<Button variant="ghost" asChild><a href="/board">Open the board</a></Button>}>
       <Saved jobs={saved.jobs} error={saved.error} removing={removing} remove={remove} />
     </Workspace>
   );

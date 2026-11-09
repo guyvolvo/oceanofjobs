@@ -3,26 +3,28 @@
 // the reader's own, from /api/me/dashboard (computed on the box once a
 // day, api/dashboard.py) and the alert and saved lists.
 import { lazy, Suspense, useState, type ReactNode } from "react";
-import { LayerCard } from "@cloudflare/kumo/components/layer-card";
-import { Button, LinkButton } from "@cloudflare/kumo/components/button";
-import { Tabs } from "@cloudflare/kumo/components/tabs";
-import { Table } from "@cloudflare/kumo/components/table";
-import { Meter } from "@cloudflare/kumo/components/meter";
-import { SkeletonLine } from "@cloudflare/kumo/components/loader";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, X } from "@phosphor-icons/react";
-import { GOOGLE } from "../site/SignIn";
+import { Alert as Notice, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { LoadingButton } from "../fields";
+import { Meter } from "../shared";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, WarningCircle, X } from "@phosphor-icons/react";
+import { GOOGLE } from "../shell/SignIn";
 import { Workspace } from "../site/Workspace";
 import { describeAlertFilter, EMPTY_PROFILE, fmt, MAX_SKILLS, placeSummary, provider, starred, useAlerts, useDashboard, useProfile, useSaved,
   type Alert, type Dashboard, type Day, type Job } from "./data";
 import { AlertFormView, useAlertActions, useAlertForm, useLocationOptions, type AlertForm } from "./Alerts";
-import { ACTIONS_CELL, BODY, Card, ConfirmButton, gate, JOB, LINK, NOTE, ROW, STACK, SUB, TABLE, TIGHT, TITLE, type User } from "./ui";
+import { ACTIONS_CELL, BODY, Card, ConfirmButton, gate, JOB, LINK, NOTE, PANEL, ROW, STACK, SUB, TABLE, TIGHT, TITLE, type User } from "./ui";
 
 const charts = () => import("./Charts");
 const TrendChart = lazy(() => charts().then((m) => ({ default: m.TrendChart })));
 const PayChart = lazy(() => charts().then((m) => ({ default: m.PayChart })));
 const DemandChart = lazy(() => charts().then((m) => ({ default: m.DemandChart })));
 
-const FIGURE = "font-mono text-[28px] font-medium leading-none text-kumo-strong tabular-nums";
+const FIGURE = "text-[28px] font-medium leading-none text-foreground tabular-nums";
 const SPLIT = "grid grid-cols-1 gap-4 min-[960px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] [&>*]:min-w-0";
 const BONES = "h-[300px]";
 
@@ -48,13 +50,13 @@ function change(now: number | null, prev: number | null) {
   if (now == null || prev == null || !prev || prev < now / 4) return null;
   return Math.round(((now - prev) / prev) * 100);
 }
-const PILL = { up: "bg-kumo-success-tint text-kumo-success", down: "bg-kumo-danger-tint text-kumo-danger", flat: "bg-kumo-tint text-kumo-subtle" };
+const PILL = { up: "bg-[var(--ooj-green-tint)] text-[var(--ooj-green-text)]", down: "bg-destructive/10 text-destructive", flat: "bg-muted text-muted-foreground" };
 function Pill({ pct }: { pct: number | null }) {
   if (pct == null) return null;
   const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
   const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k` : Math.abs(pct);
   return (
-    <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px font-mono text-[13px] font-medium ${PILL[dir]}`} title={`${pct > 0 ? "+" : ""}${pct}% against the period before`}>
+    <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[13px] font-medium tabular-nums ${PILL[dir]}`} title={`${pct > 0 ? "+" : ""}${pct}% against the period before`}>
       {dir === "up" ? <ArrowUpRight size={11} aria-hidden="true" /> : dir === "down" ? <ArrowDownRight size={11} aria-hidden="true" /> : null}
       <span className="sr-only">{dir === "up" ? "Up " : dir === "down" ? "Down " : ""}</span>{shown}%
     </span>
@@ -90,31 +92,32 @@ function pay(matches: Job[]) {
   return { med: q(0.5), lo: q(0.25), hi: q(0.75), n: pays.length, bins };
 }
 
-const bone = (w: number) => <SkeletonLine minWidth={w} maxWidth={w} />;
+const bone = (w: number) => <Skeleton className="h-4 max-w-full" style={{ width: w }} />;
+const block = (h: number) => <Skeleton className="w-full" style={{ height: h }} />;
 
 function Stat({ label, value, trend, aside, extra, title }: { label: string; value: ReactNode; trend?: ReactNode; aside?: ReactNode; extra?: ReactNode; title?: string }) {
   return (
-    <LayerCard>
+    <div className={PANEL}>
       <div className="flex flex-col gap-1.5 px-6 py-5 max-sm:p-4" title={title}>
         <div className={`${ROW} justify-between`}><span className={`${ROW} ${TIGHT}`}><span className={FIGURE}>{value}</span>{trend}</span>{extra}</div>
         <div className={`${ROW} justify-between`}><span className={NOTE}>{label}</span><span className={`${NOTE} text-right`}>{aside}</span></div>
       </div>
-    </LayerCard>
+    </div>
   );
 }
 
-const LOGO = "h-7 w-7 flex-none rounded-md ring-1 ring-kumo-hairline ring-inset";
+const LOGO = "h-7 w-7 flex-none rounded-md border";
 function Logo({ job }: { job: Job }) {
   const letter = (job.company_domain || job.company_name || "?").charAt(0).toUpperCase();
   const [failed, setFailed] = useState(job.logo_url === "" || !job.company_domain);
   return failed
-    ? <span className={`${LOGO} inline-grid place-items-center bg-kumo-tint font-semibold text-kumo-strong`} aria-hidden="true">{letter}</span>
-    : <img className={`${LOGO} bg-white object-contain`} src={`/logo/${encodeURIComponent(job.company_domain!)}.png`} alt="" width={28} height={28} loading="lazy" onError={() => setFailed(true)} />;
+    ? <span className={`${LOGO} inline-grid place-items-center bg-muted font-semibold text-foreground`} aria-hidden="true">{letter}</span>
+    : <img className={`${LOGO} bg-[var(--ooj-paper)] object-contain`} src={`/logo/${encodeURIComponent(job.company_domain!)}.png`} alt="" width={28} height={28} loading="lazy" onError={() => setFailed(true)} />;
 }
 
-function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, formOpen, setFormOpen, reloadAlerts, addSkill, toggleSave }: {
+function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, alerts, alertsError, form, formOpen, setFormOpen, reloadAlerts, addSkill, toggleSave }: {
   skills: string[]; places: string; dash: Dashboard | null; dashLoaded: boolean;
-  savedJobs: Job[] | null; alerts: Alert[] | null; form: AlertForm; formOpen: boolean; setFormOpen: (o: boolean) => void;
+  savedJobs: Job[] | null; savedError: string; alerts: Alert[] | null; alertsError: string; form: AlertForm; formOpen: boolean; setFormOpen: (o: boolean) => void;
   reloadAlerts: () => Promise<unknown>; addSkill: (sk: string) => Promise<boolean>; toggleSave: (j: Job, on: boolean) => Promise<void>;
 }) {
   const [series, setSeries] = useState<"matches" | "roles">("matches");
@@ -179,9 +182,9 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
           extra={p ? <span className="block w-24 flex-none" aria-hidden="true"><Suspense fallback={null}><PayChart bins={p.bins} lo={p.lo} hi={p.hi} /></Suspense></span> : null}
           aside={!ready ? bone(60) : p ? `Mid: ${k(p.lo)}–${k(p.hi).slice(1)}` : noSkills ? "" : "Too few estimates yet"}
           title={p ? `Estimated from ${p.n} of your matches. The middle half pays ${k(p.lo)} to ${k(p.hi)} a month.` : undefined} />
-        <Stat label="Saved jobs" value={savedJobs ? fmt(savedN) : bone(40)}
+        <Stat label="Saved jobs" value={savedJobs ? fmt(savedN) : savedError ? "–" : bone(40)}
           extra={savedN ? <a className={LINK} href="/account/saved">View</a> : null}
-          aside={!savedJobs ? bone(60) : savedN ? `${stillOpen} still open` : <a className={LINK} href="/board">Save one from the board</a>} />
+          aside={!savedJobs ? (savedError ? "Couldn't load" : bone(60)) : savedN ? `${stillOpen} still open` : <a className={LINK} href="/board">Save one from the board</a>} />
       </div>
 
       {ready && !matches.length ? (
@@ -190,14 +193,14 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
             ? `Your ${skills.length} skill${skills.length === 1 ? "" : "s"} don't match any open jobs yet. Add skills from a newer resume or widen your locations to see matches and salary estimates.`
             : "Add your skills from a resume, or widen your locations, to see matches and salary estimates."}</p>
           <div className={ROW}>
-            <LinkButton variant="secondary" href="/account/skills" icon={<UploadSimple />}>Add skills from a resume</LinkButton>
-            <LinkButton variant="ghost" href="/account/preferences">Edit locations</LinkButton>
+            <Button variant="outline" asChild><a href="/account/skills"><UploadSimple />Add skills from a resume</a></Button>
+            <Button variant="ghost" asChild><a href="/account/preferences">Edit locations</a></Button>
           </div>
         </Card>
       ) : null}
 
       <div className={SPLIT}>
-        <LayerCard>
+        <div className={PANEL}>
           <section className={BODY} aria-labelledby="trend-title">
             <div className={`${ROW} justify-between`}>
               <div>
@@ -207,16 +210,17 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
                     <Pill pct={isM ? change(trendValues[trendValues.length - 1], trendValues[trendValues.length - 2]) : change(open, monthAgo)} /></div>
                 ) : null}
               </div>
-              <Tabs variant="segmented" value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}
-                tabs={[{ value: "matches", label: "New matches" }, { value: "roles", label: "Open jobs" }]} />
+              <Tabs value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}>
+                <TabsList aria-label="Series"><TabsTrigger value="matches">New matches</TabsTrigger><TabsTrigger value="roles">Open jobs</TabsTrigger></TabsList>
+              </Tabs>
             </div>
-            {!ready ? <div className={BONES}><SkeletonLine blockHeight={300} /></div>
+            {!ready ? <div className={BONES}>{block(300)}</div>
               : weeks.length < 2 ? (
                 <p className={NOTE}>{skills.length ? "Not enough history yet. The weeks fill in as the board watches your matches."
                   : <>Add <a className={LINK} href="/account/skills">your skills</a> to see your matches week by week.</>}</p>
               ) : (
                 <>
-                  <Suspense fallback={<div className={BONES}><SkeletonLine blockHeight={300} /></div>}>
+                  <Suspense fallback={<div className={BONES}>{block(300)}</div>}>
                     <TrendChart labels={weeks.map((w) => dayLabel(w.day))} values={trendValues} name={isM ? "New matches" : "Open jobs"} />
                   </Suspense>
                   <table className="sr-only">
@@ -227,10 +231,10 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
                 </>
               )}
           </section>
-        </LayerCard>
+        </div>
 
-        <Card title="New best matches" action={<LinkButton variant="ghost" href="/board?view=matches">{week ? `View all ${fmt(week)}` : "View all"}</LinkButton>}>
-          {!skills.length ? <p className={NOTE}>Add skills to see matches.</p>
+        <Card title="New best matches" action={<Button variant="ghost" asChild><a href="/board?view=matches">{week ? `View all ${fmt(week)}` : "View all"}</a></Button>}>
+          {ready && !skills.length ? <p className={NOTE}>Add skills to see matches.</p>
             : !best ? <div className={STACK}>{bone(220)}{bone(180)}{bone(200)}</div>
             : !best.length ? <p className={NOTE}>Nothing matches those skills yet.</p>
             : (
@@ -239,14 +243,14 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
                   const hit = (j.skills || "").split(",").filter((sk) => want.has(sk)).length;
                   const on = stars.has(j.id);
                   return (
-                    <li key={j.id} className="flex items-start gap-3 border-t border-kumo-hairline py-3 first:border-t-0 first:pt-0">
+                    <li key={j.id} className="flex items-start gap-3 border-t py-3 first:border-t-0 first:pt-0">
                       <Logo job={j} />
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <a className={JOB} href={`/job/${encodeURIComponent(j.id)}`}>{j.title}</a>
                         <span className={SUB}>{j.company_name || j.company_domain || ""}{j.location ? ` · ${j.location}` : ""}</span>
                         <Meter label="Shared skills" value={hit} max={Math.max(1, want.size)} customValue={`${hit} of ${want.size}`} />
                       </div>
-                      <Button size="sm" variant={on ? "secondary" : "ghost"} shape="square" aria-pressed={on} aria-label={`${on ? "Saved" : "Save"}: ${j.title}`}
+                      <Button size="icon-sm" variant={on ? "secondary" : "ghost"} aria-pressed={on} aria-label={`${on ? "Saved" : "Save"}: ${j.title}`}
                         onClick={async () => { await toggleSave(j, !on); repaint((x) => x + 1); }}>
                         <BookmarkSimple weight={on ? "fill" : "regular"} />
                       </Button>
@@ -261,22 +265,22 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
       <div className={SPLIT}>
         <Card title="Open jobs per skill" action={
           <span className={`${ROW} ${TIGHT}`}>
-            <LinkButton variant="secondary" href="/account/preferences" title="Where these are counted. Change it in Preferences.">{places}</LinkButton>
-            <LinkButton variant="ghost" href="/account/skills">Edit skills</LinkButton>
+            <Button variant="outline" size="sm" asChild><a href="/account/preferences" title="Where these are counted. Change it in Preferences.">{places}</a></Button>
+            <Button variant="ghost" size="sm" asChild><a href="/account/skills">Edit skills</a></Button>
           </span>}>
-          {!skills.length ? <p className={NOTE}>Add skills to see demand for them.</p>
+          {ready && !skills.length ? <p className={NOTE}>Add skills to see demand for them.</p>
             : !ready ? <div className={STACK}>{bone(240)}{bone(200)}{bone(220)}{bone(180)}</div>
             : (
               <>
                 {gaps.length ? <p className={NOTE}>Gaps · in {gaps.map((g) => `${g.share}%`).join(" and ")} of your matches</p> : null}
-                <Suspense fallback={<SkeletonLine blockHeight={120} />}>
+                <Suspense fallback={block(120)}>
                   <DemandChart rows={[...gaps.map((g) => ({ sk: g.sk, n: g.n, gap: true })), ...mine.slice(0, cap).map((r) => ({ ...r, gap: false }))]} />
                 </Suspense>
                 {gaps.length ? (
                   <div className={ROW}>
                     {gaps.map((g) => (
-                      <Button key={g.sk} variant="secondary" loading={adding === g.sk} aria-label={`Add ${g.sk} to your skills`}
-                        title={`${g.sk} is named by ${g.share}% of your matches; ${fmt(g.n)} open jobs ask for it`} onClick={() => add(g.sk)}>Add {g.sk}</Button>
+                      <LoadingButton key={g.sk} variant="outline" loading={adding === g.sk} aria-label={`Add ${g.sk} to your skills`}
+                        title={`${g.sk} is named by ${g.share}% of your matches; ${fmt(g.n)} open jobs ask for it`} onClick={() => add(g.sk)}>Add {g.sk}</LoadingButton>
                     ))}
                   </div>
                 ) : null}
@@ -287,39 +291,40 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
         </Card>
 
         <Card title={<>Alerts {sent ? <span className={NOTE}>· sent {ago(sent)}</span> : null}</>}
-          action={<Button variant="secondary" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
+          action={<Button variant="outline" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
           {formOpen ? <AlertFormView form={form} autoFocus onDone={() => setFormOpen(false)} />
+            : alertsError && !alerts ? <p className={NOTE}>{alertsError}</p>
             : !alerts ? <div className={STACK}>{bone(220)}{bone(180)}</div>
             : !alerts.length ? <p className={NOTE}>No alerts yet. Create one and new listings that match it are emailed to you.</p>
             : (
               <div className={TABLE}>
                 <Table>
-                  <Table.Header><Table.Row><Table.Head>Alert</Table.Head><Table.Head>Status</Table.Head><Table.Head><span className="sr-only">Actions</span></Table.Head></Table.Row></Table.Header>
-                  <Table.Body>
+                  <TableHeader><TableRow><TableHead>Alert</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                  <TableBody>
                     {alerts.map((a) => {
                       const f = a.filter || {};
                       const kw = f.search || f.q || "";
                       const rest = describeAlertFilter({ ...f, search: "", q: "" });
                       const name = describeAlertFilter(f);
                       return (
-                        <Table.Row key={a.alert_id}>
-                          <Table.Cell className={a.active ? undefined : "text-kumo-subtle"}>
+                        <TableRow key={a.alert_id}>
+                          <TableCell className={cn(!a.active && "text-muted-foreground")}>
                             {kw ? <b>"{kw}" </b> : null}{kw && rest === "All jobs" ? "" : rest}
-                          </Table.Cell>
-                          <Table.Cell><span className="inline-flex items-center gap-1.5 whitespace-nowrap">{a.active ? <><Check aria-hidden="true" />Active</> : <><Pause aria-hidden="true" />Paused</>}</span></Table.Cell>
-                          <Table.Cell className={ACTIONS_CELL}>
+                          </TableCell>
+                          <TableCell><span className="inline-flex items-center gap-1.5 whitespace-nowrap">{a.active ? <><Check aria-hidden="true" />Active</> : <><Pause aria-hidden="true" />Paused</>}</span></TableCell>
+                          <TableCell className={ACTIONS_CELL}>
                             <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                              <Button variant="secondary" disabled={act.busy === a.alert_id} onClick={() => act.toggle(a)}>{a.active ? "Pause" : "Resume"}</Button>
-                              <Button size="sm" variant="ghost" shape="square" aria-label={`Edit alert ${name}`} title="Edit alert"
+                              <Button variant="outline" size="sm" disabled={act.busy === a.alert_id} onClick={() => act.toggle(a)}>{a.active ? "Pause" : "Resume"}</Button>
+                              <Button size="icon-sm" variant="ghost" aria-label={`Edit alert ${name}`} title="Edit alert"
                                 onClick={() => { form.edit(a); setFormOpen(true); }}><PencilSimple /></Button>
-                              <ConfirmButton size="sm" variant="ghost" shape="square" title="Delete alert" aria-label={`Delete alert ${name}`}
+                              <ConfirmButton size="icon-sm" variant="ghost" title="Delete alert" aria-label={`Delete alert ${name}`}
                                 disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>
                             </span>
-                          </Table.Cell>
-                        </Table.Row>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </Table.Body>
+                  </TableBody>
                 </Table>
               </div>
             )}
@@ -330,7 +335,7 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, alerts, form, f
 }
 
 function OverviewPage({ who }: { who: User }) {
-  const { profile, put } = useProfile();
+  const { profile, put, failed } = useProfile();
   const { dash, loaded } = useDashboard(profile);
   const alerts = useAlerts();
   const saved = useSaved();
@@ -350,12 +355,18 @@ function OverviewPage({ who }: { who: User }) {
       note={<span className="[overflow-wrap:anywhere]">{greeting(who.name)}. {who.email}
         {signedInWith ? <span className="inline-flex items-center gap-1 whitespace-nowrap"> · {GOOGLE} Signed in with {signedInWith}</span> : null}</span>}
       actions={<>
-        <LinkButton variant="secondary" href="/account/skills" icon={<UploadSimple />}>Add skills from a resume</LinkButton>
-        <Button variant="secondary" icon={<Bell />} onClick={newAlert}>New alert</Button>
-        <LinkButton variant="primary" href={openHref}>See best matches <ArrowRight /></LinkButton>
+        <Button variant="outline" asChild><a href="/account/skills"><UploadSimple />Add skills from a resume</a></Button>
+        <Button variant="outline" onClick={newAlert}><Bell />New alert</Button>
+        <Button asChild><a href={openHref}>See best matches <ArrowRight /></a></Button>
       </>}>
+      {failed ? (
+        <Notice variant="destructive" className="mb-4"><WarningCircle weight="fill" />
+          <AlertTitle>Couldn't load your profile</AlertTitle>
+          <AlertDescription>Your skills and places aren't shown. Reload the page to try again.</AlertDescription>
+        </Notice>
+      ) : null}
       <Overview skills={p.skills} places={placeSummary(p, places.labels)} dash={dash} dashLoaded={!!profile && loaded}
-        savedJobs={saved.jobs} alerts={alerts.alerts} form={form} formOpen={formOpen} setFormOpen={setFormOpen} reloadAlerts={alerts.reload}
+        savedJobs={saved.jobs} savedError={saved.error} alerts={alerts.alerts} alertsError={alerts.error} form={form} formOpen={formOpen} setFormOpen={setFormOpen} reloadAlerts={alerts.reload}
         addSkill={async (sk) => { try { await put({ skills: [...new Set([...p.skills, sk])] }); return true; } catch { return false; } }}
         toggleSave={saved.toggle} />
     </Workspace>

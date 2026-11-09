@@ -2,15 +2,17 @@
 // edit it: the same fields, choices, ranges and wording (api/apply.py
 // clean_profile is the server side of every rule here), and the setup
 // guide (Onboarding.tsx) over it.
-import { useCallback, useEffect, useState } from "react";
-import { Input, InputArea } from "@cloudflare/kumo/components/input";
-import { Select } from "@cloudflare/kumo/components/select";
-import { Checkbox } from "@cloudflare/kumo/components/checkbox";
-import { Radio } from "@cloudflare/kumo/components/radio";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Banner } from "@cloudflare/kumo/components/banner";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { Plus, WarningCircle, X } from "@phosphor-icons/react";
+import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { Plus, X } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { FieldDescription, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { AreaField, CheckField, LoadingButton, SelectField, TextField } from "../fields";
 import { ApiError, apply, send, type Profile } from "../api";
 import { ConfirmDanger, NeedsResume, SETUP } from "../shared";
 import { useUnsaved } from "../unsaved";
@@ -18,7 +20,7 @@ import { useExtension, type Ext } from "../ext";
 import { BOX } from "./Agent";
 import { useApplyData } from "./data";
 import { Onboarding } from "./Onboarding";
-import { ApplyPage, Card, LINK, Waiting } from "./Page";
+import { ApplyPage, Banner, Card, LINK, Waiting } from "./Page";
 import { ResumeStorage } from "./Storage";
 
 const EEO = [["gender", "Gender"], ["race", "Race or ethnicity"], ["veteran", "Veteran status"], ["disability", "Disability"]] as const;
@@ -87,9 +89,38 @@ const RANGES = [["min_match", "Minimum skills match", 0, 100], ["daily", "Maximu
   ["per_company", "Days between applications to the same company", 1, 365]] as const;
 
 const GRID = "grid gap-x-4 gap-y-3 sm:grid-cols-2";
+const SOURCES = [["board", "Jobs I add to my queue on Ocean of Jobs"], ["matches", "Jobs matching my preferences"],
+  ["ats_pages", "Jobs I open on supported hiring sites"], ["mcp", "Jobs queued by my AI assistant through MCP"]] as const;
+
+// A choice as a bordered card with its line under the label
+// (the old card radios). danger: the option lets things happen unchecked.
+function Choices({ legend, value, onValueChange, options }: {
+  legend: string; value: string; onValueChange: (v: string) => void;
+  options: { value: string; label: string; description: ReactNode; danger?: boolean; disabled?: boolean }[];
+}) {
+  const id = useId();
+  return (
+    <FieldSet className="gap-2">
+      <FieldLegend variant="label" className="mb-1">{legend}</FieldLegend>
+      <RadioGroup value={value} onValueChange={onValueChange} className="gap-2">
+        {options.map((o) => (
+          <Label key={o.value} htmlFor={`${id}-${o.value}`}
+            className={cn("flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 font-normal has-[[data-state=checked]]:border-ring has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:opacity-60",
+              o.danger && "has-[[data-state=checked]]:border-destructive")}>
+            <RadioGroupItem value={o.value} id={`${id}-${o.value}`} disabled={o.disabled}
+              className={cn("mt-0.5", o.danger && "data-[state=checked]:border-destructive data-[state=checked]:text-destructive [&_svg]:fill-destructive")} />
+            <span className="flex flex-col gap-1">
+              <span className="font-medium text-foreground">{o.label}</span>
+              <span className="text-sm leading-snug text-muted-foreground">{o.description}</span>
+            </span>
+          </Label>
+        ))}
+      </RadioGroup>
+    </FieldSet>
+  );
+}
 
 function Settings({ ext }: { ext: Ext }) {
-  const toasts = useKumoToastManager();
   const [form, setForm] = useState<Form | null>(null);
   // The form as last loaded or saved, to tell whether it has been edited.
   const [saved, setSaved] = useState("");
@@ -116,18 +147,18 @@ function Settings({ ext }: { ext: Ext }) {
   useUnsaved("apply-settings", !!form && JSON.stringify(form) !== saved, () => save());
 
   if (loadFailed) {
-    return <Banner variant="error" icon={<WarningCircle weight="fill" />} title="Couldn't load your auto apply settings."
-      action={<Button onClick={load}>Try again</Button>} />;
+    return <Banner tone="error" title="Couldn't load your auto apply settings."
+      action={<Button variant="outline" size="sm" onClick={load}>Try again</Button>} />;
   }
   if (!form) return <Waiting>Loading your settings</Waiting>;
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
   const text = (k: "first_name" | "last_name" | "email" | "phone" | "location" | "linkedin" | "github" | "website" | "countries" | "notice" | "salary",
     label: string, placeholder: string, type = "text") => (
-    <Input label={label} type={type} placeholder={placeholder} autoComplete="off" value={form[k]} onChange={(e) => set(k, e.target.value)} />
+    <TextField label={label} type={type} placeholder={placeholder} autoComplete="off" value={form[k]} onChange={(e) => set(k, e.target.value)} />
   );
   const limit = (k: "min_match" | "daily" | "per_company", label: string, placeholder: string) => (
-    <Input label={label} type="number" inputMode="numeric" placeholder={placeholder} autoComplete="off" value={form[k]} error={errors[k]}
+    <TextField label={label} type="number" inputMode="numeric" placeholder={placeholder} autoComplete="off" value={form[k]} error={errors[k]}
       onChange={(e) => { set(k, e.target.value); setErrors((x) => ({ ...x, [k]: undefined })); }} />
   );
   const setEeo = (k: EeoKey, patch: Partial<Form["eeo"][EeoKey]>) => set("eeo", { ...form.eeo, [k]: { ...form.eeo[k], ...patch } });
@@ -142,17 +173,17 @@ function Settings({ ext }: { ext: Ext }) {
     }
     setErrors(bad);
     if (Object.keys(bad).length) {
-      toasts.add({ variant: "error", title: "Couldn't save", description: Object.values(bad)[0] });
+      toast.error("Couldn't save", { description: Object.values(bad)[0] });
       return false;
     }
     setBusy(true);
     try {
       const { profile } = await apply<{ profile: Profile }>("profile", send("PUT", { profile: fromForm(form) }));
       stored(toForm(profile));
-      toasts.add({ variant: "success", title: "Saved" });
+      toast.success("Saved");
       return true;
     } catch (e) {
-      toasts.add({ variant: "error", title: "Couldn't save", description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
+      toast.error("Couldn't save", { description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
       return false;
     } finally {
       setBusy(false);
@@ -178,7 +209,7 @@ function Settings({ ext }: { ext: Ext }) {
       <Card title="Work details">
         <div className={GRID}>
           {text("countries", "Authorized to work in", "Country codes, e.g. IL, US")}
-          <Select className="w-full" label="Need visa sponsorship" value={form.sponsorship} onValueChange={(v) => set("sponsorship", (v as Form["sponsorship"]) || "skip")}
+          <SelectField label="Need visa sponsorship" value={form.sponsorship} onValueChange={(v) => set("sponsorship", (v as Form["sponsorship"]) || "skip")}
             items={{ yes: "Yes", no: "No", skip: "Don't fill in" }} />
           {text("notice", "Notice period", "e.g. 30 days")}
           {text("salary", "Salary expectation", "e.g. 35,000 ILS a month")}
@@ -189,7 +220,7 @@ function Settings({ ext }: { ext: Ext }) {
         <div className={GRID}>
           {EEO.map(([k, label]) => (
             <div key={k} className="flex flex-col gap-1.5">
-              <Select className="w-full" label={label} value={form.eeo[k].pick} onValueChange={(v) => setEeo(k, { pick: (v as Form["eeo"][EeoKey]["pick"]) || "skip" })}
+              <SelectField label={label} value={form.eeo[k].pick} onValueChange={(v) => setEeo(k, { pick: (v as Form["eeo"][EeoKey]["pick"]) || "skip" })}
                 items={{ skip: "Don't fill in", decline: "Prefer not to answer", answer: "Your answer" }} />
               {form.eeo[k].pick === "answer" ? (
                 <Input aria-label={`${label} answer`} placeholder="Your answer" autoComplete="off" value={form.eeo[k].text}
@@ -202,43 +233,42 @@ function Settings({ ext }: { ext: Ext }) {
 
       <section id="aa-settings">
         <Card title="Application settings">
-          <Radio.Group legend="Fill application" appearance="card" value={form.fill}
-            onValueChange={(v) => (v === "full" ? setAskingFill(true) : set("fill", v as Form["fill"]))}>
-            <Radio.Item value="half" label="Half automatic" description="Fills the form. You review and submit." />
-            <Radio.Item value="full" label="Full automatic" variant={form.fill === "full" ? "error" : "default"} className="oj-danger"
-              disabled={(paid === false || hasResume === false) && form.fill !== "full"}
-              description="Fills the form and submits it. New AI answers are used without your approval." />
-          </Radio.Group>
+          <Choices legend="Fill application" value={form.fill}
+            onValueChange={(v) => (v === "full" ? setAskingFill(true) : set("fill", v as Form["fill"]))} options={[
+              { value: "half", label: "Half automatic", description: "Fills the form. You review and submit." },
+              { value: "full", label: "Full automatic", danger: true, disabled: (paid === false || hasResume === false) && form.fill !== "full",
+                description: "Fills the form and submits it. New AI answers are used without your approval." },
+            ]} />
           {paid === false ? (
-            <p className="m-0 text-kumo-subtle">Full automatic needs Basic or Pro. <a className={LINK} href="/pricing">Compare plans</a></p>
+            <p className="m-0 text-muted-foreground">Full automatic needs Basic or Pro. <a className={LINK} href="/pricing">Compare plans</a></p>
           ) : hasResume === false && form.fill !== "full" ? <NeedsResume /> : null}
           <ConfirmDanger open={askingFill} title="Turn on Full automatic?" confirm="Turn on Full automatic"
             onConfirm={() => { set("fill", "full"); setAskingFill(false); }} onCancel={() => setAskingFill(false)}>
             Fill application will fill in the form and submit it without asking you. New AI answers are used without your approval, except answers about why you want to work at the company.
           </ConfirmDanger>
-          <Radio.Group legend="Mode" appearance="card" value={form.mode}
-            onValueChange={(v) => (v === "auto" ? setAsking(true) : set("mode", v as Form["mode"]))}>
-            <Radio.Item value="queue" label="Only jobs I queue" description="The extension applies only to jobs you add to your queue." />
-            <Radio.Item value="auto" label="Auto-apply mode" variant={form.mode === "auto" ? "error" : "default"} className="oj-danger"
-              disabled={hasResume === false && form.mode !== "auto"}
-              description="The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below." />
-          </Radio.Group>
+          <Choices legend="Mode" value={form.mode}
+            onValueChange={(v) => (v === "auto" ? setAsking(true) : set("mode", v as Form["mode"]))} options={[
+              { value: "queue", label: "Only jobs I queue", description: "The extension applies only to jobs you add to your queue." },
+              { value: "auto", label: "Auto-apply mode", danger: true, disabled: hasResume === false && form.mode !== "auto",
+                description: "The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below." },
+            ]} />
           {hasResume === false && form.mode !== "auto" ? <NeedsResume /> : null}
           <ConfirmDanger open={asking} title="Turn on Auto-apply mode?" confirm="Turn on Auto-apply mode"
             onConfirm={() => { set("mode", "auto"); setAsking(false); }} onCancel={() => setAsking(false)}>
             The auto apply extension will start applying to jobs automatically based on your preferences, up to your account limits.
           </ConfirmDanger>
-          <Checkbox.Group legend="Where to find jobs" value={form.sources} onValueChange={(v) => set("sources", v as string[])}
-            description={<>Your preferences are on your <a className={LINK} href="/account/preferences">account page</a>.</>}>
-            <Checkbox.Item value="board" label="Jobs I add to my queue on Ocean of Jobs" />
-            <Checkbox.Item value="matches" label="Jobs matching my preferences" />
-            <Checkbox.Item value="ats_pages" label="Jobs I open on supported hiring sites" />
-            <Checkbox.Item value="mcp" label="Jobs queued by my AI assistant through MCP" />
-          </Checkbox.Group>
-          <Radio.Group legend="If a form asks a question I haven't answered" appearance="card" value={form.unknowns} onValueChange={(v) => set("unknowns", v as Form["unknowns"])}>
-            <Radio.Item value="ai" label="Draft an answer with AI" description={<>AI drafts an answer from my details and saves it. A new AI answer waits in Needs attention for me to check, unless Fill application is set to Full automatic. Uses your monthly AI answers: 50 on Free, 300 on Basic, 3,000 on Pro. After that, the extension uses your own AI key if you added one in its options.</>} />
-            <Radio.Item value="skip" label="Skip the job" description="Leave it for me to review." />
-          </Radio.Group>
+          <FieldSet className="gap-2">
+            <FieldLegend variant="label" className="mb-1">Where to find jobs</FieldLegend>
+            <FieldDescription>Your preferences are on your <a className={LINK} href="/account/preferences">account page</a>.</FieldDescription>
+            {SOURCES.map(([v, label]) => (
+              <CheckField key={v} value={v} label={label} checked={form.sources.includes(v)}
+                onCheckedChange={(on) => set("sources", on ? [...form.sources, v] : form.sources.filter((x) => x !== v))} />
+            ))}
+          </FieldSet>
+          <Choices legend="If a form asks a question I haven't answered" value={form.unknowns} onValueChange={(v) => set("unknowns", v as Form["unknowns"])} options={[
+            { value: "ai", label: "Draft an answer with AI", description: "AI drafts an answer from my details and saves it. A new AI answer waits in Needs attention for me to check, unless Fill application is set to Full automatic. Uses your monthly AI answers: 50 on Free, 300 on Basic, 3,000 on Pro. After that, the extension uses your own AI key if you added one in its options." },
+            { value: "skip", label: "Skip the job", description: "Leave it for me to review." },
+          ]} />
         </Card>
       </section>
 
@@ -248,7 +278,7 @@ function Settings({ ext }: { ext: Ext }) {
           {limit("daily", "Maximum applications per day (up to 50)", "e.g. 10")}
           {limit("per_company", "Days between applications to the same company", "e.g. 30")}
           <div className="sm:col-span-2">
-            <InputArea label="Never apply to" rows={2} placeholder="Company domains, one per line, e.g. mycurrentemployer.com"
+            <AreaField label="Never apply to" rows={2} placeholder="Company domains, one per line, e.g. mycurrentemployer.com"
               value={form.blocked} onValueChange={(v) => set("blocked", v)} />
           </div>
         </div>
@@ -260,20 +290,20 @@ function Settings({ ext }: { ext: Ext }) {
             <div className="flex min-w-0 flex-col gap-2 [&_input]:w-full">
               <Input aria-label="Question" placeholder="Question, e.g. Why do you want to work here?" value={a.question}
                 onChange={(e) => setAnswer(a.id, { question: e.target.value })} />
-              <InputArea aria-label="Answer" placeholder="Your answer" rows={2} value={a.answer} onValueChange={(v) => setAnswer(a.id, { answer: v })} />
+              <Textarea aria-label="Answer" placeholder="Your answer" rows={2} value={a.answer} onChange={(e) => setAnswer(a.id, { answer: e.target.value })} />
             </div>
-            <Button size="sm" variant="ghost" shape="square" aria-label={`Remove the answer to ${a.question || "this question"}`} title="Remove"
+            <Button type="button" size="icon-sm" variant="ghost" aria-label={`Remove the answer to ${a.question || "this question"}`} title="Remove"
               onClick={() => set("answers", form.answers.filter((x) => x.id !== a.id))}><X /></Button>
           </div>
         ))}
         <div>
-          <Button variant="secondary" icon={<Plus />}
-            onClick={() => set("answers", [...form.answers, { id: nextId++, question: "", answer: "" }])}>Add an answer</Button>
+          <Button type="button" variant="outline"
+            onClick={() => set("answers", [...form.answers, { id: nextId++, question: "", answer: "" }])}><Plus />Add an answer</Button>
         </div>
       </Card>
 
       <div className="flex items-center gap-3 pt-1">
-        <Button type="submit" variant="primary" loading={busy}>Save</Button>
+        <LoadingButton type="submit" loading={busy}>Save</LoadingButton>
       </div>
     </form>
   );
@@ -286,7 +316,7 @@ export default function SettingsPage() {
   const [settingsKey, setSettingsKey] = useState(0);
   return (
     <ApplyPage current="apply-settings" title="Auto apply settings" note="What the extension fills in, where it finds jobs, and how far it goes on its own." data={data}
-      actions={<Button variant="secondary" onClick={() => dispatchEvent(new Event(SETUP))}>Run setup again</Button>}>
+      actions={<Button variant="outline" onClick={() => dispatchEvent(new Event(SETUP))}>Run setup again</Button>}>
       <Onboarding plan={data.summary?.plan} ext={ext} onDone={() => setSettingsKey((k) => k + 1)} />
       <Settings key={settingsKey} ext={ext} />
     </ApplyPage>

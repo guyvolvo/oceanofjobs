@@ -5,14 +5,15 @@
 // Every save PUTs the whole profile, skills included, so this page and
 // Resume skills can't wipe each other.
 import { useEffect, useState, type ReactNode } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Input } from "@cloudflare/kumo/components/input";
-import { Radio } from "@cloudflare/kumo/components/radio";
-import { Select } from "@cloudflare/kumo/components/select";
+import { Button } from "@/components/ui/button";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { LoadingButton, SelectField, TextField } from "../fields";
 import { CaretRight } from "@phosphor-icons/react";
 import { useUnsaved } from "../unsaved";
 import { Workspace } from "../site/Workspace";
-import { cadenceSummary, DAY_NAMES, placeSummary, plural, useProfile, WORKPLACE_LABELS, zoneLabel, zones, type Cadence, type Profile } from "./data";
+import { cadenceSummary, DAY_NAMES, PROFILE_FAILED, placeSummary, plural, useProfile, WORKPLACE_LABELS, zoneLabel, zones, type Cadence, type Profile } from "./data";
 import { PlacePicker, useLocationOptions, WORKPLACE } from "./Alerts";
 import { Card, ERROR, FORM, gate, LABEL, Loading, NOTE, Picker, ROW, SettingsNav, STACK, TEXT } from "./ui";
 
@@ -48,8 +49,8 @@ function Preferences({ profile, save, onEditing }: {
   };
   const actions = (clear?: () => void) => (
     <div className={ROW}>
-      <Button variant="primary" loading={busy} onClick={submit}>Save</Button>
-      <Button variant="secondary" onClick={cancel}>Cancel</Button>
+      <LoadingButton loading={busy} onClick={submit}>Save</LoadingButton>
+      <Button variant="outline" onClick={cancel}>Cancel</Button>
       {clear ? <Button variant="ghost" onClick={clear}>Clear</Button> : null}
       {error ? <span className={ERROR} role="status">{error}</span> : null}
     </div>
@@ -74,22 +75,24 @@ function Preferences({ profile, save, onEditing }: {
       </Card>
       <Card title="Alert settings">
         <PrefRow id="cadence" label="Alert intervals" summary={cadenceSummary({ ...profile, ...shown })} open={open === "cadence"} onToggle={() => toggle("cadence")}>
-          <Radio.Group value={draft.cadence} onValueChange={(v) => setDraft((d) => ({ ...d, cadence: v as Cadence }))}>
-            <Radio.Legend className="sr-only">Alert intervals</Radio.Legend>
-            <Radio.Item value="instant" label="Instant" />
-            <Radio.Item value="daily" label="Daily at" />
-            <Radio.Item value="weekly" label="Weekly at" />
-          </Radio.Group>
+          <FieldSet>
+            <FieldLegend className="sr-only">Alert intervals</FieldLegend>
+            <RadioGroup value={draft.cadence} onValueChange={(v) => setDraft((d) => ({ ...d, cadence: v as Cadence }))}>
+              {([["instant", "Instant"], ["daily", "Daily at"], ["weekly", "Weekly at"]] as const).map(([v, l]) => (
+                <div key={v} className="flex items-center gap-2"><RadioGroupItem value={v} id={`cadence-${v}`} /><Label htmlFor={`cadence-${v}`} className="font-normal">{l}</Label></div>
+              ))}
+            </RadioGroup>
+          </FieldSet>
           {draft.cadence !== "instant" ? (
             <div className={FORM}>
               {draft.cadence === "weekly" ? (
-                <Select className="w-full" label="Day" value={String(draft.digest_day)}
+                <SelectField label="Day" value={String(draft.digest_day)}
                   onValueChange={(v) => setDraft((d) => ({ ...d, digest_day: Number(v) }))}
                   items={Object.fromEntries(DAY_NAMES.map((n, i) => [String(i), n]))} />
               ) : null}
-              <Input label="Time" type="time" value={draft.digest_time}
+              <TextField label="Time" type="time" value={draft.digest_time}
                 onChange={(e) => { const v = e.target.value; if (/^\d\d:\d\d$/.test(v)) setDraft((d) => ({ ...d, digest_time: v })); }} />
-              <Select className="w-full" label="Time zone" value={draft.digest_tz}
+              <SelectField label="Time zone" value={draft.digest_tz}
                 onValueChange={(v) => setDraft((d) => ({ ...d, digest_tz: String(v) }))} items={zoneItems} />
             </div>
           ) : null}
@@ -104,14 +107,14 @@ function PrefRow({ id, label, summary, open, onToggle, children }: {
   id: string; label: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode;
 }) {
   return (
-    <div className="border-t border-kumo-hairline first:border-t-0">
+    <div className="border-t first:border-t-0">
       <button type="button" aria-expanded={open} aria-controls={`pref-edit-${id}`} onClick={onToggle}
-        className="flex w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-0 py-3 text-left font-[inherit] text-[length:inherit] text-[color:inherit] focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus">
+        className="flex w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-0 py-3 text-left font-[inherit] text-[length:inherit] text-[color:inherit] focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
         <span className={TEXT}>
           <span className={LABEL}>{label}</span>
           <span className={NOTE}>{summary}</span>
         </span>
-        <CaretRight className={`flex-none text-kumo-subtle transition-transform ${open ? "rotate-90" : ""}`} size={16} aria-hidden="true" />
+        <CaretRight className={`flex-none text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} size={16} aria-hidden="true" />
       </button>
       {open ? <div className={`${STACK} pb-4`} id={`pref-edit-${id}`}>{children}</div> : null}
     </div>
@@ -128,7 +131,7 @@ function line(p: Profile) {
 }
 
 function PreferencesPage() {
-  const { profile, put } = useProfile();
+  const { profile, put, failed } = useProfile();
   const [open, setOpen] = useState(false);
   // A row open to edit is not lost to a stray click on a link: the
   // browser asks before leaving. Nothing here mounts the save dialog.
@@ -136,7 +139,7 @@ function PreferencesPage() {
   return (
     <Workspace current="settings" title="Preferences" note={profile ? line(profile) : ""}>
       <SettingsNav />
-      {profile ? <Preferences profile={profile} onEditing={setOpen} save={async (prefs) => { await put(prefs); }} /> : <Loading />}
+      {failed ? <Card note={PROFILE_FAILED} /> : profile ? <Preferences profile={profile} onEditing={setOpen} save={async (prefs) => { await put(prefs); }} /> : <Loading />}
     </Workspace>
   );
 }

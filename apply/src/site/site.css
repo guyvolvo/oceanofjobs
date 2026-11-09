@@ -1,162 +1,19 @@
-/* The site's styles: Kumo's tokens and components under Tailwind, in Ocean
-   of Jobs colours. Every page (public and workspace) loads this once.
-
-   Kumo's own tokens sit in @layer theme/base, so the unlayered :root rules
-   below win without !important. Every value is a colour the old
-   frontend/style.css used, so light and dark read as they did. */
-
-@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
-@import "@cloudflare/kumo/styles/tailwind";
-@import "tailwindcss";
-
-@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
-
-@font-face { font-family: "Geist"; src: url("/fonts/Geist-400-latin.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Geist"; src: url("/fonts/Geist-500-latin.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
-@font-face { font-family: "Geist Mono"; src: url("/fonts/GeistMono-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Geist Mono"; src: url("/fonts/GeistMono-Medium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
-@font-face { font-family: "Geist Mono"; src: url("/fonts/GeistMono-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
-@font-face { font-family: "Overused Grotesk"; src: url("/fonts/OverusedGrotesk-VF.woff2") format("woff2-variations"); font-weight: 300 900; font-display: swap; }
-@font-face { font-family: "Urbanist"; src: url("/fonts/Urbanist-VF-latin.woff2") format("woff2-variations"); font-weight: 400 700; font-display: swap; }
-@font-face { font-family: "Source Sans 3"; src: url("/fonts/SourceSans3-VF-latin.woff2") format("woff2-variations"); font-weight: 200 900; font-display: swap; }
-
-@theme {
-  --font-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
-  --font-display: "Overused Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-ui: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-urbanist: "Urbanist", "Helvetica Neue", Helvetica, Arial, sans-serif;
-}
-
-:root {
-  --default-font-family: var(--font-sans);
-  --oj-display: var(--font-display);
-  /* Kumo's scale (12/13/14/16) one step up: at 14px the page read small. */
-  --text-xs: 13px; --text-sm: 14px; --text-base: 15px; --text-lg: 17px;
-}
-
-:root[data-mode="light"], :root:not([data-mode="dark"]) {
-  color-scheme: light;
-  --color-kumo-canvas: #f2f0ef;
-  --color-kumo-elevated: #fbfaf9;
-  --color-kumo-recessed: #ebe8e5;
-  --color-kumo-base: #fdfcfb;
-  --color-kumo-control: #fdfcfb;
-  --color-kumo-overlay: #f8f7f6;
-  --color-kumo-tint: #e8e5e2;
-  --color-kumo-fill: #e2dfdb;
-  --color-kumo-fill-hover: #dedad5;
-  --color-kumo-interact: #a7ad9f;
-  --color-kumo-line: #cbc7c2;
-  --color-kumo-hairline: #d9d5d0;
-  --color-kumo-contrast: #40513b;
-  --color-kumo-focus: #609966;
-  --color-kumo-brand: #3f6f45;
-  --color-kumo-brand-hover: #355e3a;
-  --color-kumo-success: #609966;
-  --color-kumo-success-tint: #dce8d4;
-  --color-kumo-danger: #b8362c;
-  --color-kumo-danger-tint: rgba(184, 54, 44, 0.1);
-  --color-kumo-warning: #ff9900;
-  --color-kumo-warning-tint: rgba(255, 153, 0, 0.14);
-  --color-kumo-info: #0073bb;
-  --color-kumo-info-tint: rgba(0, 115, 187, 0.1);
-  --color-kumo-badge-green: #3f6f45;
-  --text-color-kumo-default: #40513b;
-  --text-color-kumo-strong: #2c3a28;
-  --text-color-kumo-subtle: #5d6a58;
-  --text-color-kumo-inactive: #9aa396;
-  --text-color-kumo-placeholder: #7d8879;
-  --text-color-kumo-inverse: #f2f0ef;
-  --text-color-kumo-brand: #3f6f45;
-  --text-color-kumo-link: #3f6f45;
-  --text-color-kumo-success: #3f6f45;
-  --text-color-kumo-danger: #b8362c;
-  --text-color-kumo-warning: #8a5300;
-  --text-color-kumo-info: #0b5f99;
-}
-
-:root[data-mode="dark"] {
-  color-scheme: dark;
-  --color-kumo-canvas: #0e0f11;
-  --color-kumo-elevated: #18191d;
-  --color-kumo-recessed: #121316;
-  --color-kumo-base: #1e1f24;
-  --color-kumo-control: #131417;
-  --color-kumo-overlay: #23252b;
-  --color-kumo-tint: #2b2e35;
-  --color-kumo-fill: #2b2e35;
-  --color-kumo-fill-hover: #34373f;
-  --color-kumo-interact: #4a4c52;
-  --color-kumo-line: #46484f;
-  --color-kumo-hairline: #303238;
-  --color-kumo-contrast: #ededec;
-  --color-kumo-focus: #2fae60;
-  --color-kumo-brand: #2fae60;
-  --color-kumo-brand-hover: #4ee585;
-  --color-kumo-success: #2fae60;
-  --color-kumo-success-tint: #1d3024;
-  --color-kumo-danger: #ff6b5e;
-  --color-kumo-danger-tint: rgba(255, 107, 94, 0.14);
-  --color-kumo-warning: #ffab33;
-  --color-kumo-warning-tint: rgba(255, 171, 51, 0.14);
-  --color-kumo-info: #539fe5;
-  --color-kumo-info-tint: rgba(83, 159, 229, 0.14);
-  --color-kumo-badge-green: #1f7a43;
-  --text-color-kumo-default: #ededec;
-  --text-color-kumo-strong: #f7f6f5;
-  --text-color-kumo-subtle: #9a9ca3;
-  --text-color-kumo-inactive: #6b6e75;
-  --text-color-kumo-placeholder: #6b6e75;
-  --text-color-kumo-inverse: #17181c;
-  --text-color-kumo-brand: #2fae60;
-  --text-color-kumo-link: #2fae60;
-  --text-color-kumo-success: #2fae60;
-  --text-color-kumo-danger: #ff6b5e;
-  --text-color-kumo-warning: #ffab33;
-  --text-color-kumo-info: #539fe5;
-}
-
-/* The site's dark primary button is green with dark text, and white on
-   #2fae60 is under 3:1. Kumo hard-codes white on its filled buttons. */
-:root[data-mode="dark"] [data-kumo-component="Button"].\!text-white,
-:root[data-mode="dark"] [data-kumo-component="LinkButton"].\!text-white { color: #0e0f11 !important; }
-
-html, body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-kumo-default); }
-body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-#root a { color: inherit; }
-/* The app in its own stacking context, so Kumo's dialogs and toasts (portals
-   after #root in body) always paint above the page. */
-#root { isolation: isolate; }
-
-/* Kumo's switch is blue when on; every other control here is the brand green. */
-[role="switch"][data-checked] { background-color: var(--color-kumo-brand); --tw-ring-color: var(--color-kumo-brand); }
-[role="switch"][data-checked] > * { background-color: #fff; }
-/* Card radios (the bordered ones): the dot in the middle of its card. */
-[data-kumo-part="item-label"].border-b { align-items: center; }
-
-/* Danger options: a red check when chosen, on top of Kumo's red border. */
-.oj-danger [data-checked] { background-color: var(--color-kumo-danger) !important; border-color: var(--color-kumo-danger) !important; }
-/* The confirm button of a danger option: a deep red in both themes, white text. */
-.oj-destructive { --kumo-button-emphasis-bg: #b8362c; --kumo-button-emphasis-ring: #8f2a22; background: #b8362c !important; color: #fff !important; }
-.oj-destructive:hover { background: #a02e25 !important; }
-.oj-destructive span { background-image: linear-gradient(#c8463a 0%, #b8362c 100%) !important; }
-.oj-destructive:hover span { background-image: linear-gradient(#b23c31 0%, #a02e25 100%) !important; }
+/* What the workspace pages need beyond Tailwind on the tokens
+   (src/styles/app.css): the avatar auth.js draws as HTML, the skip link
+   the pages not yet on src/shell still use, and the resume field's pulse. */
 
 /* The site's avatar mark (auth.js avatarHtml). */
 .hero-avatar { position: relative; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
-  overflow: hidden; background: var(--color-kumo-brand); color: var(--text-color-kumo-inverse); font: 600 13px/1 var(--font-sans); flex: none; }
+  overflow: hidden; background: var(--primary); color: var(--primary-foreground); font: 600 13px/1 var(--font-sans); flex: none; }
 .hero-avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
-.skip-link { position: absolute; left: 8px; top: -40px; z-index: 100; padding: 8px 12px; border-radius: 6px;
-  background: var(--color-kumo-brand); color: var(--text-color-kumo-inverse); }
-.skip-link:focus { top: 8px; }
+.skip-link { position: fixed; left: 16px; top: -60px; z-index: 1000; padding: 8px 12px; border-radius: var(--radius-md);
+  background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; }
+.skip-link:focus-visible { top: 12px; }
 
-/* The cookie banner (frontend/consent.js draws it; the old style.css styled it). */
-#cookie-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 60; max-width: 560px; margin: 0 auto; padding: 14px 16px;
-  border: 1px solid var(--color-kumo-line); border-radius: 10px; background: var(--color-kumo-elevated); color: var(--text-color-kumo-default);
-  font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-#cookie-banner a { color: var(--text-color-kumo-link); text-decoration: underline; }
-#cookie-banner button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--color-kumo-line); background: var(--color-kumo-base);
-  color: inherit; font: inherit; cursor: pointer; }
-#cookie-banner button.primary, #cookie-banner button[data-accept] { background: var(--color-kumo-brand); border-color: var(--color-kumo-brand); color: var(--text-color-kumo-inverse); }
+/* The resume field, when a setting sent the reader here (RESUME_FOCUS):
+   a pulsing ring until the field is touched. */
+@keyframes attention {
+  0%, 100% { outline-offset: 0; outline-color: var(--ooj-trend-down); }
+  50% { outline-offset: 4px; outline-color: transparent; }
+}
