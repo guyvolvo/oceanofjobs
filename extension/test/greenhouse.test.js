@@ -38,6 +38,19 @@ test('matches job pages and the embed link, nothing else', () => {
   assert.ok(gh.onSite('https://job-boards.greenhouse.io/figma/jobs/5426468004/confirmation'));
 });
 
+test('EU boards get the Greenhouse filler, and the extension may run there', () => {
+  assert.ok(gh.matches('https://job-boards.eu.greenhouse.io/aisi/jobs/4847773101'));
+  assert.ok(gh.matches('https://job-boards.eu.greenhouse.io/embed/job_app?for=aisi&token=4847773101'));
+  // boards.eu answers with a 301 to job-boards.eu (2026-11-09).
+  assert.ok(gh.matches('https://boards.eu.greenhouse.io/aisi/jobs/4847773101'));
+  assert.ok(gh.onSite('https://job-boards.eu.greenhouse.io/aisi/jobs/4847773101/confirmation'));
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8'));
+  for (const host of ['https://job-boards.eu.greenhouse.io/*', 'https://boards.eu.greenhouse.io/*']) {
+    assert.ok(manifest.host_permissions.includes(host), host);
+    assert.ok(manifest.content_scripts.some((c) => c.js.includes('ats/greenhouse.js') && c.matches.includes(host)), host);
+  }
+});
+
 test('reads every question from the Figma page', () => {
   const { page } = fixture('figma.html');
   const names = page.fields.map((f) => f.name);

@@ -34,6 +34,8 @@
     "https://oceanofjobs.com/*",
     "https://boards.greenhouse.io/*",
     "https://job-boards.greenhouse.io/*",
+    "https://boards.eu.greenhouse.io/*",
+    "https://job-boards.eu.greenhouse.io/*",
     "https://jobs.ashbyhq.com/*",
     "https://apply.workable.com/*",
     "https://*.lever.co/*",
@@ -89,6 +91,8 @@
       "matches": [
         "https://boards.greenhouse.io/*",
         "https://job-boards.greenhouse.io/*",
+        "https://boards.eu.greenhouse.io/*",
+        "https://job-boards.eu.greenhouse.io/*",
         "https://jobs.ashbyhq.com/*",
         "https://apply.workable.com/*",
         "https://*.lever.co/*",
