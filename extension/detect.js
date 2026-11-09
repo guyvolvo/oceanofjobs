@@ -85,10 +85,12 @@
   const watch = new MutationObserver(() => {
     if (!pending) pending = setTimeout(() => { pending = null; if (look()) watch.disconnect(); }, 500);
   });
-  if (!look()) {
+  // After this script has run to its end, so build() and its state exist.
+  queueMicrotask(() => {
+    if (look()) return;
     watch.observe(document.documentElement, { childList: true, subtree: true });
     setTimeout(() => watch.disconnect(), 30000);
-  }
+  });
   // A form that opens from an Apply button later on.
   const onClick = () => setTimeout(() => { if (look()) document.removeEventListener('click', onClick, true); }, 1500);
   document.addEventListener('click', onClick, true);
