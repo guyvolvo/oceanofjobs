@@ -3,7 +3,7 @@
 // set in hydrate.tsx). auth.js does all the work; this is the window.
 // Same steps and copy as src/site/SignIn.tsx and frontend/signin_dialog.js.
 // Loaded on demand (Header.tsx), so its Radix dialog is not in the first load.
-import { useId, useState } from "react";
+import { useId, useState, type ComponentType, type ReactNode } from "react";
 import { ArrowLeft, GithubLogo } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,11 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 // Google's mark in its own colours, which a brand mark keeps whatever the theme.
-const GOOGLE = (
+export const GOOGLE = (
   <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" /><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" /><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.348 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" /><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" /></svg>
 );
 
-function SignInSteps({ error, setError }: { error: string; setError: (e: string) => void }) {
+type Text = ComponentType<{ className?: string; children?: ReactNode }>;
+// Title and Description are the dialog's own; a page that is the sign-in
+// alone (src/site/SignIn.tsx) passes a heading and a paragraph instead.
+export function SignInSteps({ error, setError, Title = DialogTitle, Description = DialogDescription }: {
+  error: string; setError: (e: string) => void; Title?: Text; Description?: Text;
+}) {
   const id = useId();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -55,10 +60,10 @@ function SignInSteps({ error, setError }: { error: string; setError: (e: string)
     <div className="flex flex-col gap-4">
       <img className="self-center" src="/favicon.svg?v=3" width="44" height="44" alt="" />
       <div className="flex flex-col gap-1 text-center">
-        <DialogTitle className="m-0 font-heading text-[22px] font-medium leading-tight">{step === "email" ? "Log in to Ocean of Jobs" : "Check your email"}</DialogTitle>
+        <Title className="m-0 font-heading text-[22px] font-medium leading-tight">{step === "email" ? "Log in to Ocean of Jobs" : "Check your email"}</Title>
         {step === "email"
-          ? <DialogDescription className="sr-only">Log in with an email code, Google or GitHub.</DialogDescription>
-          : <DialogDescription className="m-0 text-sm text-muted-foreground break-words">We sent a code to <strong className="font-medium text-foreground">{email.trim()}</strong>.</DialogDescription>}
+          ? <Description className="sr-only">Log in with an email code, Google or GitHub.</Description>
+          : <Description className="m-0 text-sm text-muted-foreground break-words">We sent a code to <strong className="font-medium text-foreground">{email.trim()}</strong>.</Description>}
       </div>
       {step === "email" ? (
         <>

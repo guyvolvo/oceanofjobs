@@ -239,12 +239,14 @@ export function provider(idToken: string): string {
 function authGuard(err: unknown) {
   if (err instanceof ApiError && err.status === 401) signOut();
 }
+export const PROFILE_FAILED = "Couldn't load your profile. Reload the page to try again.";
 const STUCK = "This is taking longer than it should. Reload the page to try again.";
 const FAILED = "Couldn't load this. Reload the page to try again.";
 
 export function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [spec, setSpec] = useState<unknown>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     api<{ profile: Profile; skill_spec: unknown }>("/me/profile").then((d) => {
       setProfile({ ...EMPTY_PROFILE, ...(d.profile || {}) });
@@ -252,18 +254,23 @@ export function useProfile() {
     }).catch((err) => {
       authGuard(err);
       // A profile that won't load isn't worth blocking the page for; the
-      // pickers just have nothing to offer until the next load.
+      // pickers just have nothing to offer until the next load. The page
+      // says so, rather than ask for skills the reader may already have.
+      setFailed(true);
       setProfile({ ...EMPTY_PROFILE });
     });
   }, []);
   // Every save PUTs the whole profile, so no page can wipe another's part.
   const put = useCallback(async (patch: Partial<Profile>) => {
+    // Every save is the whole profile: on top of a profile that never
+    // loaded, it would wipe the skills and places the reader has.
+    if (failed) throw new Error(PROFILE_FAILED);
     const res = await api<{ profile: Profile }>("/me/profile", send("PUT", { ...(profile || EMPTY_PROFILE), ...patch }));
     const p = { ...EMPTY_PROFILE, ...(res.profile || res) };
     setProfile(p);
     return p;
-  }, [profile]);
-  return { profile, spec, put };
+  }, [profile, failed]);
+  return { profile, spec, put, failed };
 }
 
 // The overview's numbers, computed on the box once a day. The last answer

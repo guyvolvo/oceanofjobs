@@ -85,7 +85,7 @@ function MobileMenu({ who, current }: { who: Who; current?: string }) {
 // Owns the sign-in window's state, so a "Log in" (or auth.js after a failed
 // redirect, through window.openSignIn and its error sink) is never lost
 // while the window's code is still loading.
-function SignInHost() {
+export function SignInHost() {
   const [open, setOpen] = useState(false);
   const [used, setUsed] = useState(false);
   const [error, setError] = useState("");

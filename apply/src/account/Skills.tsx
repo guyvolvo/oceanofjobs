@@ -2,14 +2,16 @@
 // found as chips, and Save. Only the list someone saves reaches the
 // server.
 import { useEffect, useRef, useState } from "react";
-import { Button, LinkButton } from "@cloudflare/kumo/components/button";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { LoadingButton } from "../fields";
 import { UploadSimple, X } from "@phosphor-icons/react";
 import { Workspace } from "../site/Workspace";
-import { boardLink, EMPTY_PROFILE, plural, readCv, skillsIn, useProfile } from "./data";
+import { boardLink, EMPTY_PROFILE, plural, PROFILE_FAILED, readCv, skillsIn, useProfile } from "./data";
 import { Card, ERROR, gate, NOTE, ROW, SettingsNav, STACK, TITLE } from "./ui";
 
-const CHIP = "inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-kumo-tint px-2.5 py-1 font-[inherit] text-[length:inherit] text-kumo-strong ring-1 ring-kumo-hairline ring-inset hover:bg-kumo-fill-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus";
+const CHIP = "inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-secondary px-2.5 py-1 font-[inherit] text-[length:inherit] text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 function Skills({ skills, setSkills, onPick, onFile, fileName, cvStatus, save, saving, matchesHref }: {
   skills: string[]; setSkills: (s: string[]) => void; onPick: () => void; onFile: (f: File) => void;
@@ -19,7 +21,7 @@ function Skills({ skills, setSkills, onPick, onFile, fileName, cvStatus, save, s
   return (
     <div className={STACK}>
       <Card>
-        <div className={`flex flex-col items-start gap-2 rounded-[10px] border border-dashed p-6 ${dragging ? "border-kumo-brand bg-kumo-success-tint" : "border-kumo-line bg-kumo-recessed"}`}
+        <div className={cn("flex flex-col items-start gap-2 rounded-lg border border-dashed p-6", dragging ? "border-ring bg-[var(--ooj-green-tint)]" : "border-input bg-muted")}
           onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
@@ -27,7 +29,7 @@ function Skills({ skills, setSkills, onPick, onFile, fileName, cvStatus, save, s
           <p className={TITLE}>Drop a resume here</p>
           <p className={NOTE}>PDF or plain text. Read in your browser. Only the skills you save are stored.</p>
           <div className={ROW}>
-            <Button variant="secondary" onClick={onPick}>Choose a file</Button>
+            <Button variant="outline" onClick={onPick}>Choose a file</Button>
             {fileName ? <span className={`${NOTE} [overflow-wrap:anywhere]`}>{fileName}</span> : null}
           </div>
         </div>
@@ -47,8 +49,8 @@ function Skills({ skills, setSkills, onPick, onFile, fileName, cvStatus, save, s
             ))}
           </ul>
           <div className={ROW}>
-            <Button variant="primary" loading={saving} onClick={save}>Save to profile</Button>
-            <LinkButton variant="ghost" href={matchesHref}>See matches</LinkButton>
+            <LoadingButton loading={saving} onClick={save}>Save to profile</LoadingButton>
+            <Button variant="ghost" asChild><a href={matchesHref}>See matches</a></Button>
           </div>
         </Card>
       ) : null}
@@ -57,8 +59,7 @@ function Skills({ skills, setSkills, onPick, onFile, fileName, cvStatus, save, s
 }
 
 function SkillsPage() {
-  const toasts = useKumoToastManager();
-  const { profile, spec, put } = useProfile();
+  const { profile, spec, put, failed } = useProfile();
   const [skills, setSkills] = useState<string[]>([]);
   const [cv, setCv] = useState<{ name: string; status: { text: string; error: boolean } | null }>({ name: "", status: null });
   const [saving, setSaving] = useState(false);
@@ -70,9 +71,9 @@ function SkillsPage() {
     setSaving(true);
     try {
       await put({ skills });
-      toasts.add({ variant: "success", title: "Saved." });
+      toast.success("Saved.");
     } catch (err) {
-      toasts.add({ variant: "error", title: (err as Error).message || "Could not save." });
+      toast.error((err as Error).message || "Could not save.");
     } finally {
       setSaving(false);
     }
@@ -100,12 +101,12 @@ function SkillsPage() {
 
   return (
     <Workspace current="settings" title="Resume skills" note={skills.length ? `${plural(skills.length, "skill")} matched against every listing` : "No skills yet"}
-      actions={<Button variant="secondary" icon={<UploadSimple />} onClick={pick}>Scan a resume</Button>}>
+      actions={<Button variant="outline" onClick={pick}><UploadSimple />Scan a resume</Button>}>
       <SettingsNav />
       <input ref={fileRef} type="file" accept=".pdf,.txt,.md,application/pdf,text/plain" hidden aria-label="Choose a resume file"
         onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) await takeCv(f); }} />
-      <Skills skills={skills} setSkills={setSkills} onPick={pick} onFile={takeCv} fileName={cv.name} cvStatus={cv.status}
-        save={save} saving={saving} matchesHref={boardLink(profile || EMPTY_PROFILE, skills)} />
+      {failed ? <Card note={PROFILE_FAILED} /> : <Skills skills={skills} setSkills={setSkills} onPick={pick} onFile={takeCv} fileName={cv.name} cvStatus={cv.status}
+        save={save} saving={saving} matchesHref={boardLink(profile || EMPTY_PROFILE, skills)} />}
     </Workspace>
   );
 }

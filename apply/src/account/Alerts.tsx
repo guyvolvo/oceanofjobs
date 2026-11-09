@@ -3,18 +3,18 @@
 // rules as app.js's renderAlertsList and wireAlertCreateForm, which drove
 // the old page.
 import { useCallback, useEffect, useState } from "react";
-import { Input } from "@cloudflare/kumo/components/input";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Switch } from "@cloudflare/kumo/components/switch";
-import { Table } from "@cloudflare/kumo/components/table";
-import { Loader } from "@cloudflare/kumo/components/loader";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LoadingButton, TextField } from "../fields";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { api, send, ApiError } from "../api";
 import { useUnsaved } from "../unsaved";
 import { Workspace } from "../site/Workspace";
 import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, plural, SENIORITY_LABELS, useAlerts, useProfile, WORKPLACE_LABELS,
   type Alert, type Option, type Profile } from "./data";
-import { ACTIONS_CELL, Card, ConfirmButton, ERROR, FORM, gate, JOB, NOTE, Picker, ROW, STACK, SUB, TABLE, TITLE } from "./ui";
+import { ACTIONS_CELL, Card, ConfirmButton, ERROR, FORM, gate, JOB, Loading, NOTE, Picker, ROW, STACK, SUB, SWITCH, TABLE, TITLE } from "./ui";
 
 export type AlertDraft = { search: string; department: string[]; seniority: string[]; company: string[]; country: string[]; city: string[]; workplace: string[] };
 const BLANK: AlertDraft = { search: "", department: [], seniority: [], company: [], country: [], city: [], workplace: [] };
@@ -128,7 +128,7 @@ export function AlertFormView({ form, onDone, autoFocus }: { form: AlertForm; on
       onSubmit={async (e) => { e.preventDefault(); if (await form.submit()) onDone?.(); }}>
       <h3 className={TITLE} id="alert-form-title">{editing ? "Edit alert" : "New alert"}</h3>
       <div className={FORM}>
-        <Input label="Keywords" id="alert-f-search" name="search" autoComplete="off" placeholder="e.g. devops" autoFocus={autoFocus}
+        <TextField label="Keywords" id="alert-f-search" name="search" autoComplete="off" placeholder="e.g. devops" autoFocus={autoFocus}
           value={draft.search} onChange={(e) => set("search", e.target.value)} />
         <Picker label="Categories" placeholder="Categories" options={opts?.department || []} value={draft.department} onChange={(v) => set("department", v)} />
         <Picker label="Levels" placeholder="Levels" options={SENIORITY} value={draft.seniority} onChange={(v) => set("seniority", v)} />
@@ -138,9 +138,9 @@ export function AlertFormView({ form, onDone, autoFocus }: { form: AlertForm; on
         <Picker label="Workplace" placeholder="Workplace" options={WORKPLACE} value={draft.workplace} onChange={(v) => set("workplace", v)} />
       </div>
       <div className={ROW}>
-        <Button type="submit" variant="primary" loading={form.busy} id="create-alert-btn">{editing ? "Save changes" : "Create alert"}</Button>
-        {editing ? <Button variant="ghost" onClick={form.reset}>Cancel</Button> : null}
-        {!opts ? <span className={`${NOTE} ${ROW}`}><Loader size="sm" /> Loading the lists</span> : null}
+        <LoadingButton type="submit" loading={form.busy} id="create-alert-btn">{editing ? "Save changes" : "Create alert"}</LoadingButton>
+        {editing ? <Button type="button" variant="ghost" onClick={form.reset}>Cancel</Button> : null}
+        {!opts ? <span className={`${NOTE} ${ROW}`}><Spinner /> Loading the lists</span> : null}
         {form.feedback ? <span className={form.feedback.error ? ERROR : NOTE} role="status">{form.feedback.text}</span> : null}
       </div>
     </form>
@@ -178,7 +178,7 @@ export function useAlertActions(reload: () => Promise<unknown>) {
   };
 }
 
-const PLAIN = "cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-[length:inherit] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus";
+const PLAIN = "cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-[length:inherit] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 function Alerts({ alerts, error, form, reload }: {
   alerts: Alert[] | null; error: string; form: AlertForm; reload: () => Promise<unknown>;
@@ -191,40 +191,43 @@ function Alerts({ alerts, error, form, reload }: {
     <div className={STACK}>
       <Card title="Your alerts">
         {error ? <p className={NOTE}>{error}</p>
-          : !alerts ? <div className={`${ROW} ${NOTE}`}><Loader /> Loading</div>
+          : !alerts ? <Loading />
           : !alerts.length ? <p className={NOTE}>No alerts yet. Pick some filters below and create one.</p>
           : (
             <div className={TABLE}>
               <Table>
-                <Table.Header>
-                  <Table.Row><Table.Head>Alert</Table.Head><Table.Head>Email me</Table.Head><Table.Head><span className="sr-only">Delete</span></Table.Head></Table.Row>
-                </Table.Header>
-                <Table.Body>
+                <TableHeader>
+                  <TableRow><TableHead>Alert</TableHead><TableHead>Email me</TableHead><TableHead><span className="sr-only">Delete</span></TableHead></TableRow>
+                </TableHeader>
+                <TableBody>
                   {alerts.map((a) => {
                     const name = describeAlertFilter(a.filter || {});
                     return (
-                      <Table.Row key={a.alert_id} variant={a.alert_id === form.editing ? "selected" : "default"}>
-                        <Table.Cell>
+                      <TableRow key={a.alert_id} data-state={a.alert_id === form.editing ? "selected" : undefined}>
+                        <TableCell>
                           <button type="button" className={`${PLAIN} ${JOB}`} title="Edit this alert" onClick={() => form.edit(a)}>{name}</button>
                           {dup.has(a.alert_id) ? <span className={SUB}>Duplicate of {dup.get(a.alert_id)}</span> : null}
-                        </Table.Cell>
-                        <Table.Cell className="whitespace-nowrap">
-                          <Switch size="sm" checked={a.active} disabled={act.busy === a.alert_id} label={a.active ? "Active" : "Paused"}
-                            aria-label={a.active ? "Alert on. Pause it" : "Alert paused. Resume it"} onClick={() => act.toggle(a)} />
-                        </Table.Cell>
-                        <Table.Cell className={ACTIONS_CELL}>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap! [overflow-wrap:normal]!">
+                          <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                            <Switch className={SWITCH} checked={a.active} disabled={act.busy === a.alert_id}
+                              aria-label={a.active ? "Alert on. Pause it" : "Alert paused. Resume it"} onCheckedChange={() => act.toggle(a)} />
+                            <span aria-hidden="true">{a.active ? "Active" : "Paused"}</span>
+                          </label>
+                        </TableCell>
+                        <TableCell className={ACTIONS_CELL}>
                           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             {/* The form sits below the list: take the reader to it, which on a phone is off screen. */}
-                            <Button variant="secondary" icon={<PencilSimple />} aria-label={`Edit alert ${name}`}
-                              onClick={() => { form.edit(a); requestAnimationFrame(() => document.getElementById("alert-form-title")?.scrollIntoView({ block: "start", behavior: "smooth" })); }}>Edit</Button>
-                            <ConfirmButton size="sm" variant="ghost" shape="square" aria-label={`Delete alert ${name}`} title="Delete alert"
+                            <Button variant="outline" size="sm" aria-label={`Edit alert ${name}`}
+                              onClick={() => { form.edit(a); requestAnimationFrame(() => document.getElementById("alert-form-title")?.scrollIntoView({ block: "start", behavior: "smooth" })); }}><PencilSimple />Edit</Button>
+                            <ConfirmButton size="icon-sm" variant="ghost" aria-label={`Delete alert ${name}`} title="Delete alert"
                               disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>
                           </span>
-                        </Table.Cell>
-                      </Table.Row>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </Table.Body>
+                </TableBody>
               </Table>
             </div>
           )}

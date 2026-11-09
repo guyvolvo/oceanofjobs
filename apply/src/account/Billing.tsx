@@ -2,7 +2,7 @@
 // one (GET /me/billing, api/dodo.py state), and the way to Dodo's customer
 // portal (/checkout?manage=1) to cancel, change the card or get invoices.
 import { useEffect, useState } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
+import { Button } from "@/components/ui/button";
 import { api } from "../api";
 import { Workspace } from "../site/Workspace";
 import { Card, gate, LABEL, Loading, NOTE, SettingsNav, STACK, TEXT } from "./ui";
@@ -50,7 +50,7 @@ function Billing() {
 
   return (
     <div className={STACK}>
-      <Card title="Plan" action={plan === "free" ? <Button variant="primary" onClick={() => { location.href = "/pricing"; }}>See plans</Button> : undefined}>
+      <Card title="Plan" action={plan === "free" ? <Button asChild><a href="/pricing">See plans</a></Button> : undefined}>
         <div className={TEXT}>
           <span className={LABEL}>{NAME[plan]}</span>
           {lines.length ? lines.map((l) => <span key={l} className={NOTE}>{l}</span>)
@@ -59,7 +59,7 @@ function Billing() {
       </Card>
       {s.customer ? (
         <Card title="Payments" note="Cancel your plan, change your card or download invoices on the billing page.">
-          <div><Button variant="secondary" onClick={() => { location.href = "/checkout?manage=1"; }}>Manage billing</Button></div>
+          <div><Button variant="outline" asChild><a href="/checkout?manage=1">Manage billing</a></Button></div>
         </Card>
       ) : null}
     </div>

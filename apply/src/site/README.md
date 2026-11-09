@@ -1,6 +1,6 @@
 # Building a page on the design-workspace branch
 
-The whole site is this one Vite + React + TypeScript + Tailwind v4 + Kumo build
+The whole site is this one Vite + React + TypeScript + Tailwind v4 + shadcn/ui build
 (`apply/`). Every page is an HTML entry in `apply/` with a `main.tsx` under
 `src/<page>/`. Nothing is committed on this branch yet: it is a local design
 rework. Do not commit, do not touch `frontend/` (the old pages stay as the
@@ -25,24 +25,25 @@ reference to port from), do not touch `docs/` or `extension/`.
   on sign-in and sign-out. `useTheme()` gives `[dark, toggle]`.
 - `nav.tsx` is the one list of what the site has. Add nothing to it without
   a reason.
-- `site.css` carries the palette (Kumo tokens in the site's colours), fonts,
-  and a few global rules. Page CSS goes in `src/<page>/<page>.css` and only
+- Colours, fonts and radii come from `src/styles/tokens.css` (generated
+  from DESIGN.md), loaded through `src/styles/app.css`. `site.css` holds only
+  what the workspace needs beyond Tailwind (the avatar, the skip link). Page CSS goes in `src/<page>/<page>.css` and only
   for what Tailwind cannot say (keyframes, complex selectors).
 - `globals.d.ts` types the `auth.js` globals (sign-in, tokens). `src/api.ts`
   has `api()` (signed in, /api/me/...), `pub()` (public, retried), `apply()`.
 
 ## Rules
 
-- Kumo components first (`@cloudflare/kumo/components/<name>`; `npx
-  @cloudflare/kumo doc <Name>` prints a component's props and examples),
-  Tailwind utilities for layout, Kumo semantic tokens for colour
-  (`text-kumo-subtle`, `bg-kumo-base`, `border-kumo-hairline`, ...). No new
+- shadcn/ui components (`src/components/ui/`) and the labelled fields in
+  `src/fields.tsx`, Tailwind utilities for layout, the token colours
+  (`text-muted-foreground`, `bg-card`, `border-border`, ...). No Kumo. See
+  `docs/FRONTEND_STANDARD.md`. No new
   hex colours; no new fonts. Icons from `@phosphor-icons/react`.
 - Port behaviour faithfully: the same API calls, the same URL parameters,
   the same localStorage keys, the same copy unless it fails the copy rules.
   Features are not dropped; if one cannot be ported, say so in the report.
 - The old page's CSS is not copied over. Rebuild the look with Tailwind and
-  Kumo. Read `DESIGN.md` for the design language (Swiss grid, zero
+  shadcn/ui. Read `DESIGN.md` for the design language (Swiss grid, zero
   decoration, green marks exactly one "this matters" element).
 - UI copy follows CLAUDE.md "User-facing copy" and "Writing style: unslop":
   no em dashes, no exclamation points, no hedging, straight quotes, sentence

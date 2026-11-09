@@ -4,9 +4,9 @@
 // shown as saved or not, never what they are; only the extension reads
 // them. A server without cloud storage keeps the old card.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Checkbox } from "@cloudflare/kumo/components/checkbox";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { CheckField, LoadingButton } from "../fields";
 import { DownloadSimple, FileArrowUp } from "@phosphor-icons/react";
 import { ApiError, api, send } from "../api";
 import { ExtensionSettingsButton } from "../shared";
@@ -38,7 +38,6 @@ async function asBase64(file: File) {
 }
 
 export function ResumeStorage({ ext }: { ext: Ext }) {
-  const toasts = useKumoToastManager();
   const [view, setView] = useState<View | null | undefined>(undefined); // null: no cloud storage on this server
   const [busy, setBusy] = useState(false);
   const [agree, setAgree] = useState(false);
@@ -55,15 +54,15 @@ export function ResumeStorage({ ext }: { ext: Ext }) {
   const upload = async (file: File | undefined) => {
     if (!file) return;
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
-    if (!TYPES[ext]) return toasts.add({ variant: "error", title: "Choose a PDF or DOCX file." });
-    if (file.size > MAX) return toasts.add({ variant: "error", title: "This file is larger than 5 MB." });
+    if (!TYPES[ext]) return void toast.error("Choose a PDF or DOCX file.");
+    if (file.size > MAX) return void toast.error("This file is larger than 5 MB.");
     setBusy(true);
     try {
       const next = await api<View>("/me/cv", send("PUT", { name: file.name, type: TYPES[ext], data: await asBase64(file), consent: true }));
       setView(next);
-      toasts.add({ variant: "success", title: "Resume saved to cloud storage", description: "The extension picks it up on its next check." });
+      toast.success("Resume saved to cloud storage", { description: "The extension picks it up on its next check." });
     } catch (e) {
-      toasts.add({ variant: "error", title: "Couldn't save your resume", description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
+      toast.error("Couldn't save your resume", { description: e instanceof ApiError && e.status === 400 ? e.message : "Try again." });
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
@@ -78,16 +77,16 @@ export function ResumeStorage({ ext }: { ext: Ext }) {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch {
-      toasts.add({ variant: "error", title: "Couldn't download your resume. Try again." });
+      toast.error("Couldn't download your resume. Try again.");
     }
   };
   const remove = async () => {
     setBusy(true);
     try {
       setView(await api<View>("/me/cv", send("DELETE")));
-      toasts.add({ variant: "success", title: "Resume removed" });
+      toast.success("Resume removed");
     } catch {
-      toasts.add({ variant: "error", title: "Couldn't remove your resume. Try again." });
+      toast.error("Couldn't remove your resume. Try again.");
     } finally {
       setBusy(false);
     }
@@ -107,11 +106,11 @@ export function ResumeStorage({ ext }: { ext: Ext }) {
     return (
       <Card title="Your resume" note="Your resume, Workday password and AI key are in local storage, in the extension on the computer where you added them.">
         <div className={BOX}>
-          <Checkbox checked={agree} onCheckedChange={(c) => setAgree(c === true)}
+          <CheckField checked={agree} onCheckedChange={setAgree}
             label={<span>I agree to the <a className={LINK} href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>. My resume is saved to cloud storage and attached to my applications.</span>} />
           <div className={row}>
-            <Button variant="secondary" icon={<FileArrowUp />} loading={busy} disabled={!agree} onClick={() => input.current?.click()}>Upload to cloud storage</Button>
-            <span className="text-kumo-subtle">PDF or DOCX, up to 5 MB</span>
+            <LoadingButton variant="outline" loading={busy} disabled={!agree} onClick={() => input.current?.click()}><FileArrowUp />Upload to cloud storage</LoadingButton>
+            <span className="text-muted-foreground">PDF or DOCX, up to 5 MB</span>
           </div>
           {picker}
         </div>
@@ -126,19 +125,19 @@ export function ResumeStorage({ ext }: { ext: Ext }) {
         {view.cv ? (
           <div className={`${BOX} sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center`}>
             <div className="min-w-0">
-              <span className="font-medium text-kumo-strong [overflow-wrap:anywhere]">{view.cv.name}</span>
-              <span className="block text-sm text-kumo-subtle">{kb(view.cv.size)} · added {day(view.cv.uploaded_at)}</span>
+              <span className="font-medium text-foreground [overflow-wrap:anywhere]">{view.cv.name}</span>
+              <span className="block text-sm text-muted-foreground">{kb(view.cv.size)} · added {day(view.cv.uploaded_at)}</span>
             </div>
             <div className={row}>
-              <Button variant="secondary" icon={<FileArrowUp />} loading={busy} onClick={() => input.current?.click()}>Replace</Button>
-              <Button variant="secondary" icon={<DownloadSimple />} onClick={download}>Download</Button>
-              <Button variant="secondary" className="text-kumo-danger" disabled={busy} onClick={remove}>Remove</Button>
+              <LoadingButton variant="outline" loading={busy} onClick={() => input.current?.click()}><FileArrowUp />Replace</LoadingButton>
+              <Button type="button" variant="outline" onClick={download}><DownloadSimple />Download</Button>
+              <Button type="button" variant="outline" className="text-destructive" disabled={busy} onClick={remove}>Remove</Button>
             </div>
           </div>
         ) : (
           <div className={row}>
-            <Button variant="secondary" icon={<FileArrowUp />} loading={busy} onClick={() => input.current?.click()}>Upload resume</Button>
-            <span className="text-kumo-subtle">PDF or DOCX, up to 5 MB</span>
+            <LoadingButton variant="outline" loading={busy} onClick={() => input.current?.click()}><FileArrowUp />Upload resume</LoadingButton>
+            <span className="text-muted-foreground">PDF or DOCX, up to 5 MB</span>
           </div>
         )}
         {picker}

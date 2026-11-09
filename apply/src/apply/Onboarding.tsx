@@ -4,9 +4,11 @@
 // needs: a resume, the extension, and for full automation Auto-apply mode.
 // Nothing is saved until Finish.
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, LinkButton } from "@cloudflare/kumo/components/button";
-import { Dialog } from "@cloudflare/kumo/components/dialog";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { LoadingButton } from "../fields";
 import { apply, send, type Plan, type Profile } from "../api";
 import { connectExtension, type Ext } from "../ext";
 import { ResumeField, type Resume } from "./Agent";
@@ -29,7 +31,7 @@ function Icon({ name, className = "" }: { name: keyof typeof ICON; className?: s
   return <svg className={`size-[22px] shrink-0 fill-current ${className}`} viewBox="0 -960 960 960" aria-hidden="true"><path d={ICON[name]} /></svg>;
 }
 
-const NOTE = "m-0 text-kumo-subtle";
+const NOTE = "m-0 text-muted-foreground";
 
 type Choice = "control" | "balance" | "automation";
 const CHOICES: [Choice, keyof typeof ICON, string][] = [
@@ -40,7 +42,6 @@ const CHOICES: [Choice, keyof typeof ICON, string][] = [
 type Step = "welcome" | "choose" | "resume" | "extension" | "autoapply" | "done";
 
 export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDone: () => void }) {
-  const toasts = useKumoToastManager();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("welcome");
   const [choice, setChoice] = useState<Choice | null>(null);
@@ -77,12 +78,12 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
         ...(choice === "automation" && autoApply && resume ? { mode: "auto" } : {}) };
       await apply("profile", send("PUT", { profile: { ...profile, settings } }));
       await record(choice);
-      toasts.add({ variant: "success", title: "Auto apply is set up" });
+      toast.success("Auto apply is set up");
       setOpen(false);
       onDone();
       return true;
     } catch {
-      toasts.add({ variant: "error", title: "Couldn't save your settings. Try again." });
+      toast.error("Couldn't save your settings. Try again.");
       return false;
     } finally {
       setBusy(false);
@@ -90,7 +91,7 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
   };
   const connect = async () => {
     setConnecting(true);
-    try { await connectExtension(); } catch { toasts.add({ variant: "error", title: "Couldn't connect the extension. Try again." }); } finally { setConnecting(false); }
+    try { await connectExtension(); } catch { toast.error("Couldn't connect the extension. Try again."); } finally { setConnecting(false); }
   };
 
   const summary = choice ? [
@@ -107,18 +108,18 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
   );
   // Each step: the step's icon, then its title.
   const head = (icon: keyof typeof ICON, title: string) => (
-    <div className="flex items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-kumo-tint text-kumo-brand"><Icon name={icon} /></span>
-      <Dialog.Title className="m-0 text-base font-semibold leading-snug text-kumo-strong">{title}</Dialog.Title></div>
+    <div className="flex items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-[var(--ooj-green-text)]"><Icon name={icon} /></span>
+      <DialogTitle className="m-0 text-base font-semibold leading-snug">{title}</DialogTitle></div>
   );
 
   return (
-    <Dialog.Root open={open} onOpenChange={(o) => { if (!o) skip(); }}>
-      <Dialog className="top-1/2 flex w-[min(560px,calc(100vw-32px))] max-w-[calc(100vw-32px)] max-h-[calc(100dvh-32px)] -translate-y-1/2 flex-col gap-4 overflow-y-auto p-6" size="lg">
+    <Dialog open={open} onOpenChange={(o) => { if (!o) skip(); }}>
+      <DialogContent className="flex max-h-[calc(100dvh-32px)] w-[min(560px,calc(100vw-32px))] flex-col gap-4 overflow-y-auto sm:max-w-[560px]" aria-describedby={undefined}>
         {step !== "welcome" && step !== "done" ? <div className="-mb-2 flex justify-end"><span className={NOTE}>Step {at} of {steps.length - 2}</span></div> : null}
         {step === "welcome" ? <>
           {head("rocket_launch", "Set up auto apply")}
           <p className={NOTE}>Use this onboarding menu to set up your auto apply extension based on your preferences.</p>
-          {actions(<Button variant="primary" onClick={next}>Next</Button>, <Button variant="secondary" onClick={skip}>Skip</Button>)}
+          {actions(<Button onClick={next}>Next</Button>, <Button variant="outline" onClick={skip}>Skip</Button>)}
         </> : null}
 
         {step === "choose" ? <>
@@ -128,9 +129,9 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
             {CHOICES.map(([value, icon, label]) => {
               const on = choice === value;
               return (
-                <label key={value} className={`flex cursor-pointer items-center gap-3.5 rounded-xl border px-4 py-3.5 leading-snug transition-colors hover:bg-kumo-tint has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-kumo-brand ${on ? "border-kumo-brand bg-kumo-tint" : "border-kumo-line"}`}>
+                <label key={value} className={cn("flex cursor-pointer items-center gap-3.5 rounded-lg border px-4 py-3.5 leading-snug transition-colors hover:bg-accent has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring", on ? "border-ring bg-accent" : "border-input")}>
                   <input className="sr-only" type="radio" name="setup-choice" value={value} checked={on} onChange={() => setChoice(value)} />
-                  <Icon name={icon} className={on ? "text-kumo-brand" : "text-kumo-subtle"} />
+                  <Icon name={icon} className={on ? "text-[var(--ooj-green-text)]" : "text-muted-foreground"} />
                   <span>{label}</span>
                 </label>
               );
@@ -139,26 +140,26 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
           {choice === "automation" && !paid ? (
             <p className={NOTE}>Submitting for you needs Basic or Pro, so on your plan the extension fills the form and you submit. <a className={LINK} href="/pricing">Compare plans</a></p>
           ) : null}
-          {actions(<Button variant="primary" disabled={!choice} onClick={next}>Next</Button>, <Button variant="secondary" onClick={back}>Back</Button>)}
+          {actions(<Button disabled={!choice} onClick={next}>Next</Button>, <Button variant="outline" onClick={back}>Back</Button>)}
         </> : null}
 
         {step === "resume" ? <>
           {head("description", "Add your resume")}
           <p className={NOTE}>The extension attaches it to applications{choice === "control" ? "" : " and the AI answers from it"}.</p>
           <ResumeField resume={resume} onChange={setResume} />
-          {actions(<Button variant="primary" onClick={next}>{resume ? "Next" : "Later"}</Button>, <Button variant="secondary" onClick={back}>Back</Button>)}
+          {actions(<Button onClick={next}>{resume ? "Next" : "Later"}</Button>, <Button variant="outline" onClick={back}>Back</Button>)}
         </> : null}
 
         {step === "extension" ? <>
           {head("extension", "Connect the extension")}
           {!ext.installed ? <>
             <p className={NOTE}>Add the Ocean of Jobs extension to Chrome, then come back to this tab.</p>
-            <div><LinkButton variant="secondary" href={STORE} target="_blank" rel="noopener">Get the extension</LinkButton></div>
+            <div><Button variant="outline" asChild><a href={STORE} target="_blank" rel="noopener">Get the extension</a></Button></div>
           </> : ext.connected ? <p className={NOTE}>The extension is connected to your account.</p> : <>
             <p className={NOTE}>The extension is installed. Connect it to your account.</p>
-            <div><Button variant="secondary" loading={connecting} onClick={connect}>Connect the extension</Button></div>
+            <div><LoadingButton variant="outline" loading={connecting} onClick={connect}>Connect the extension</LoadingButton></div>
           </>}
-          {actions(<Button variant="primary" onClick={next}>{ext.connected ? "Next" : "Later"}</Button>, <Button variant="secondary" onClick={back}>Back</Button>)}
+          {actions(<Button onClick={next}>{ext.connected ? "Next" : "Later"}</Button>, <Button variant="outline" onClick={back}>Back</Button>)}
         </> : null}
 
         {step === "autoapply" ? <>
@@ -166,8 +167,8 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
           <p className={NOTE}>The extension finds jobs that match your preferences and applies to them on its own, up to your plan's limit.</p>
           {!resume ? <p className={NOTE}>Auto-apply mode needs your resume. You can turn it on later in Settings.</p> : null}
           {actions(
-            <Button variant="primary" disabled={!resume} onClick={() => { setAutoApply(true); next(); }}>Turn on</Button>,
-            <Button variant="secondary" onClick={() => { setAutoApply(false); next(); }}>Not now</Button>)}
+            <Button disabled={!resume} onClick={() => { setAutoApply(true); next(); }}>Turn on</Button>,
+            <Button variant="outline" onClick={() => { setAutoApply(false); next(); }}>Not now</Button>)}
         </> : null}
 
         {step === "done" ? <>
@@ -176,9 +177,9 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
           {/* The settings are saved first; the page changes only once they are. */}
           {choice !== "control" ? <p className={NOTE}>Add facts the AI can use in <a className={LINK} href="/apply/agent" onClick={(e) => { e.preventDefault(); finish().then((ok) => { if (ok) location.href = "/apply/agent"; }); }}>AI agent</a>.</p> : null}
           <p className={NOTE}>You can change any of this in Settings.</p>
-          {actions(<Button variant="primary" loading={busy} onClick={finish}>Finish</Button>, <Button variant="secondary" onClick={back}>Back</Button>)}
+          {actions(<LoadingButton loading={busy} onClick={finish}>Finish</LoadingButton>, <Button variant="outline" onClick={back}>Back</Button>)}
         </> : null}
-      </Dialog>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }
