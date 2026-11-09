@@ -459,6 +459,15 @@ await check("wall: an I'm-not-a-robot box in the form is a CAPTCHA", async () =>
   assert.deepEqual(await page.evaluate(async () => { await globalThis.oojAts.generic.read(); return globalThis.oojAts.generic.wall(); }), { signIn: false, captcha: true });
 });
 
+// SmartRecruiters' oneclick-ui when DataDome challenges the browser (seen
+// 2026-11-09): the page is only the challenge frame, whose address carries
+// the form's own in its referer. It is a CAPTCHA, not a form to open.
+await check("a DataDome challenge is a CAPTCHA, not an embedded form", async () => {
+  const src = "https://geo.captcha-delivery.com/captcha/?initialCid=x&referer=https%3A%2F%2Fjobs.smartrecruiters.com%2Foneclick-ui%2Fcompany%2FAcme%2Fpublication%2F1&t=fe";
+  await serve(`<iframe src="${src}" srcdoc="<p>Slide right to complete the puzzle</p>" style="width:100%;height:500px;border:0"></iframe>`);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { error: "A CAPTCHA stands in front of the form. Solve it, then try again." });
+});
+
 await check("a bot trap is never read, so never filled", async () => {
   await serve(`<form>${FIELDS}<label>Leave empty <input data-automation-id="beecatcher" name="x"></label><button>Submit</button></form>`);
   const labels = await page.evaluate(async () => (await globalThis.oojAts.generic.read()).fields.map((f) => f.label));

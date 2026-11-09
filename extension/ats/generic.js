@@ -349,9 +349,12 @@
 
   // A careers page that embeds the ATS form from another site: the caller
   // loads it in the tab, since a page cannot reach into it.
+  // A challenge frame is never the form, though its referer names the form's
+  // address (DataDome on SmartRecruiters): read() reports it as a CAPTCHA.
   function formFrame() {
     const frames = [...document.querySelectorAll('iframe[src]')].filter((f) => f.getBoundingClientRect().height > 300 && shown(f)
-      && new URL(f.src, location.href).origin !== location.origin && /job|career|apply|recruit|greenhouse|lever|ashby|workable|bamboo|breezy|personio|comeet|jobvite|teamtailor/i.test(f.src));
+      && new URL(f.src, location.href).origin !== location.origin && !/captcha|challenges\.cloudflare/i.test(new URL(f.src, location.href).hostname)
+      && /job|career|apply|recruit|greenhouse|lever|ashby|workable|bamboo|breezy|personio|comeet|jobvite|teamtailor/i.test(f.src));
     return frames.find((f) => /apply|application|form/i.test(f.src)) || frames[0] || null;
   }
 
