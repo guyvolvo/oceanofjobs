@@ -14,6 +14,7 @@
 @source "../home";
 @source "../pricing";
 @source "../checkout";
+@source "../companies";
 
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 

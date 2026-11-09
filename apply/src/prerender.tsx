@@ -7,6 +7,7 @@
 import { StrictMode, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { Checkout } from "./checkout/Checkout";
+import { Directory } from "./companies/Directory";
 import { Contact } from "./contact/Contact";
 import { Home } from "./home/Home";
 import { Legal } from "./legal/Legal";
@@ -23,6 +24,7 @@ const PAGES: Record<string, () => ReactNode> = {
   home: () => <Home />,
   pricing: () => <Pricing />,
   checkout: () => <Checkout />,
+  companies: () => <Directory />,
 };
 // Pages whose entry calls hydrateIslands(): the text stays plain HTML.
 const ISLAND_PAGES = new Set(["privacy", "terms", "refunds", "contact", "404", "home"]);

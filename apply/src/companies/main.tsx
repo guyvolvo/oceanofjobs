@@ -1,4 +1,4 @@
-import { boot } from "../site/boot";
+import { hydrate } from "../shell/hydrate";
 import { Directory } from "./Directory";
 
-boot(<Directory />);
+hydrate(<Directory />);
