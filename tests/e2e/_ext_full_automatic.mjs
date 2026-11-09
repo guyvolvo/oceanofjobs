@@ -24,18 +24,19 @@ const bg = path.join(ext, "background.js");
 fs.writeFileSync(bg, fs.readFileSync(bg, "utf8").replace("const API = 'https://oceanofjobs.com/api';", `const API = '${API}';`));
 
 // follow: a required question that shows up only once the sponsorship question is answered.
-const form = (captcha, follow) => `<!doctype html><html><head><title>Software Engineer - Apply</title>
+// weak: no resume and one application question, so nothing says it is an application.
+const form = (captcha, follow, weak) => `<!doctype html><html><head><title>Software Engineer - Apply</title>
 ${captcha ? '<script src="https://www.google.com/recaptcha/api.js?render=x"></script>' : ""}</head>
 <body><h1>Software Engineer</h1>
 <form id="f">
   <label for="first">First name</label><input id="first" name="first_name" required>
   <label for="last">Last name</label><input id="last" name="last_name" required>
   <label for="email">Email</label><input id="email" name="email" type="email" required>
-  <label for="cv">Resume</label><input id="cv" name="resume" type="file">
+  ${weak ? '<label for="pf">Portfolio URL</label><input id="pf" name="portfolio">' : '<label for="cv">Resume</label><input id="cv" name="resume" type="file">'}
   ${follow ? `<fieldset><legend>Will you now or in the future require visa sponsorship? *</legend>
     <label><input type="radio" name="sp" value="yes" required>Yes</label><label><input type="radio" name="sp" value="no">No</label></fieldset>
   <div id="more"></div>` : ""}
-  <button type="submit">Submit application</button>
+  <button type="submit">${weak ? "Submit" : "Submit application"}</button>
 </form>
 <script>
   for (const r of document.querySelectorAll("input[name=sp]")) r.addEventListener("change", () => {
@@ -49,7 +50,7 @@ ${captcha ? '<script src="https://www.google.com/recaptcha/api.js?render=x"></sc
   });
 </script></body></html>`;
 
-const state = { fill: "half", plan: "pro", captcha: false, follow: false, calls: [] };
+const state = { fill: "half", plan: "pro", captcha: false, follow: false, weak: false, calls: [] };
 const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), "ooj-full-")), {
   channel: "chromium", headless: true, viewport: { width: 1280, height: 900 },
   args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
@@ -57,7 +58,7 @@ const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.t
 const stray = [];
 await ctx.route("**/*", (r) => {
   const u = r.request().url();
-  if (u.startsWith(PAGE)) return r.fulfill({ contentType: "text/html", body: form(state.captcha, state.follow) });
+  if (u.startsWith(PAGE)) return r.fulfill({ contentType: "text/html", body: form(state.captcha, state.follow, state.weak) });
   if (u.startsWith(API + "/")) {
     const at = u.slice(API.length);
     const body = r.request().postDataJSON?.() ?? null;
@@ -127,6 +128,11 @@ const results = [
   // An invisible human check gets Submit tried once (a refusal on the page comes back as not submitted).
   await scenario("Full automatic with a reCAPTCHA script tries Submit once", { fill: "full", plan: "pro", captcha: true },
     (n, g, m) => n === 1 && g.length === 1 && g[0].body.mode === "auto" && /Application submitted/.test(m)),
+  // Surecomp, 2026-11-09: a form that doesn't look like an application is filled at most, never sent, and no credit is reserved.
+  await scenario("Full automatic on a form with no sign of an application: held, nothing reserved", { fill: "full", plan: "pro", captcha: false, weak: true },
+    (n, g, m) => n === 0 && g.length === 0 && !state.calls.some((c) => c.at === "/me/apply/attempts")
+      && state.calls.some((c) => c.at === "/me/apply/filled" && c.body.hold === "not_application_form")
+      && /doesn't look like a job application, so it wasn't sent\./.test(m)),
 ];
 const strayHosts = [...new Set(stray.map((u) => new URL(u).host))];
 console.log("requests answered locally instead of the network:", strayHosts.join(", ") || "none");

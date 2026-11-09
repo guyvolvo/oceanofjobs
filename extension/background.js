@@ -511,6 +511,9 @@ async function viaGeneral(job, ctx, id, tabId, state) {
     return null;
   });
   if (stop) return stop;
+  // Never a form that doesn't look like an application (a mailing list beside it), and before the gate, so the credit goes back.
+  const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  if (!info || !info.application) return ['failed', info ? 'not an application form' : 'submit button not found'];
   const ok = await gate(id, { answers: sentAnswers(fills, job, drafted), mode: 'auto' });
   if (ok.review) return ['needs_input', 'check AI answers: ' + ok.review.join('; '), ok.review];
   if (!ok.ok) return [null];
@@ -1034,7 +1037,7 @@ async function fillHere(msg, tabId, frameId) {
   // The dedicated filler presses its own button and handles a CAPTCHA
   // (ats outcome), as in automatic runs: reCAPTCHA sits on every
   // Greenhouse and Ashby form, so generic's bot check isn't asked here.
-  const why = autoWhy(a, job, msg.url, result, { text: 'Submit' });
+  const why = autoWhy(a, job, msg.url, result, { text: 'Submit', application: true });
   await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email, why);
   return { ...result, auto: why === null, held: why || '' };
 }
@@ -1045,7 +1048,7 @@ function autoWhy(a, job, url, result, info) {
   const screen = { history: a.history, guardrails: s.guardrails || {}, now: Date.now(), retrySkipped: true, minMatch: null };
   // Never apply to holds domains: the company the page names, or the page's own host.
   const screened = oojMatch.screenJob(job, screen) || oojMatch.screenJob({ ...job, company_domain: new URL(url).hostname }, screen);
-  return oojMatch.autoSubmit({ fill: s.fill, plan: a.usage.plan, submit: !!(info && info.text) && result.filled > 0,
+  return oojMatch.autoSubmit({ fill: s.fill, plan: a.usage.plan, submit: !!(info && info.text) && result.filled > 0, application: !!(info && info.application),
     missing: result.missing, errors: result.errors, remaining: a.usage.remaining, screened });
 }
 
@@ -1383,7 +1386,7 @@ async function assistHere(msg, sender) {
   const submit = r.submitInfo;
   // A page with a human check gets the card's Submit as well, pressed by
   // Full automatic too; a refused click comes back as not submitted.
-  const out = { ...r, frameId, url, submit: submit && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
+  const out = { ...r, frameId, url, submit: submit && submit.application && r.filled > 0 && submit.text, botCheck: !!(submit && submit.botCheck) };
   // The card that asked went with the old page. detect.js on the new one
   // may still be starting, so try for a few seconds.
   for (let i = 0; moved && i < 10; i++) {
@@ -1406,6 +1409,8 @@ async function submitHere(msg, sender) {
   const ats = msg.ats && msg.ats !== 'generic' && globalThis.oojAts[msg.ats].submit ? msg.ats : 'generic';
   const info = ats === 'generic' ? await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null) : { text: 'Submit' };
   if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
+  // Checked before a credit is reserved: the form must look like a job application.
+  if (ats === 'generic' && !info.application) return { error: 'not an application form' };
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };

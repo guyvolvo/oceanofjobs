@@ -407,7 +407,10 @@
   // automatic does, on Basic and Pro, once nothing is left for the user.
   // null: submit. '': Half automatic, fill only. Otherwise the reason it
   // stopped, for reasonText. screened is screenJob's reason for the job.
-  function autoSubmit({ fill, plan, submit, missing, errors, remaining, screened }) {
+  // application: false when the form shows no sign of being a job
+  // application (generic.js submitInfo): never sent, in any mode.
+  function autoSubmit({ fill, plan, submit, application, missing, errors, remaining, screened }) {
+    if (submit && application === false) return 'not an application form';
     if (fill !== 'full') return '';
     if (plan !== 'basic' && plan !== 'pro') return 'full automatic needs a paid plan';
     // A question left is what the user can act on, also on a wizard's page before its Submit.
@@ -423,19 +426,18 @@
     '': 'half_automatic', 'full automatic needs a paid plan': 'needs_paid_plan', 'no submit button': 'no_submit_button',
     'needs input': 'needs_answer', 'limit reached': 'limit_reached', 'already applied': 'already_applied',
     'already tried': 'already_tried', 'blocked company': 'blocked_company', 'applied to this company recently': 'applied_recently',
-    'below your minimum match': 'below_min_match',
+    'below your minimum match': 'below_min_match', 'not an application form': 'not_application_form',
   };
   const holdCode = (why) => (why == null ? null : HOLDS[why] || String(why).toLowerCase().replace(/[^a-z]+/g, '_').slice(0, 40));
 
   // The frame holding the application form, from executeScript results
   // over every frame of a tab ({frameId, result: generic formHere()}).
-  // The highest score wins; null when no frame has a form.
+  // A form that looks like an application wins, then the highest score;
+  // null when no frame has a form.
   function pickFrame(results) {
+    const rank = (r) => { const s = (r && r.result && r.result.score) || 0; return s && s + (r.result.application ? 1000 : 0); };
     let best = null;
-    for (const r of results || []) {
-      const s = (r && r.result && r.result.score) || 0;
-      if (s > 0 && (!best || s > best.result.score)) best = r;
-    }
+    for (const r of results || []) if (rank(r) > 0 && (!best || rank(r) > rank(best))) best = r;
     return best;
   }
 
@@ -485,6 +487,7 @@
     'no submit button': "Couldn't find the form's Submit button.",
     'needs input': "Some fields need your answer, so it wasn't submitted.",
     'limit reached': "You have no applications left on your plan, so it wasn't submitted.",
+    'not an application form': "This page's form doesn't look like a job application, so it wasn't sent.",
   };
   const PREFIXES = [
     ['form errors: ', 'The form needs your attention: '],

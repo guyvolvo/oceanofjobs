@@ -244,7 +244,7 @@
     const to = { frameId: r.frameId != null ? r.frameId : target.frameId, url: r.url || target.url };
     msg.className = 'msg ok';
     msg.textContent = filledText(r) + ' ' + held(r)
-      + (r.submit ? 'Review your answers, then submit the application here.'
+      + (r.held === 'not an application form' ? '' : r.submit ? 'Review your answers, then submit the application here.'
         + (r.botCheck ? " If the site's human check stops it, use the site's Submit button." : '')
         : r.botCheck ? "Review your answers, then use the site's Submit button."
           : 'Review your answers, then submit the application on the page.');

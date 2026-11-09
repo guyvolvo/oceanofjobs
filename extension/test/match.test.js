@@ -252,6 +252,8 @@ test('pickFrame takes the frame with the strongest form, else none', () => {
   assert.equal(m.pickFrame([r(0, 6), r(3, 6)]).frameId, 0);
   assert.equal(m.pickFrame([r(0, 0), { frameId: 2, result: null }, { frameId: 4 }]), null);
   assert.equal(m.pickFrame(undefined), null);
+  // A bigger form that isn't an application (a mailing list) loses to the application in a frame.
+  assert.equal(m.pickFrame([{ frameId: 0, result: { score: 9, application: false } }, { frameId: 5, result: { score: 6, application: true } }]).frameId, 5);
 });
 
 test('Hebrew contact labels (Experis) map to profile fields', () => {
@@ -367,7 +369,11 @@ test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left f
   assert.equal(m.autoSubmit({ ...ready, errors: ['Country: no option matches "Mars"'] }), 'needs input');
   assert.equal(m.autoSubmit({ ...ready, remaining: 0 }), 'limit reached');
   assert.equal(m.autoSubmit({ ...ready, screened: 'blocked company' }), 'blocked company');
-  for (const why of ['full automatic needs a paid plan', 'no submit button', 'needs input', 'limit reached', 'blocked company']) {
+  assert.equal(m.autoSubmit({ ...ready, application: false }), 'not an application form');
+  assert.equal(m.autoSubmit({ ...ready, application: false, fill: 'half' }), 'not an application form', 'held in Half automatic too');
+  assert.equal(m.autoSubmit({ ...ready, application: false, submit: false }), 'no submit button');
+  assert.equal(m.autoSubmit({ ...ready, application: true }), null);
+  for (const why of ['full automatic needs a paid plan', 'no submit button', 'needs input', 'limit reached', 'blocked company', 'not an application form']) {
     assert.match(m.reasonText(why), /^[A-Z].*\.$/, `"${why}" reads as a sentence`);
   }
 });
@@ -382,6 +388,7 @@ test('holdCode: why a fill was held, as the short code the Filled record keeps',
   assert.equal(code({ missing: ['Phone'] }), 'needs_answer');
   assert.equal(code({ remaining: 0 }), 'limit_reached');
   assert.equal(code({ screened: 'applied to this company recently' }), 'applied_recently');
+  assert.equal(code({ application: false }), 'not_application_form');
   assert.equal(m.holdCode('Some new reason!'), 'some_new_reason_', 'an unknown reason still fits the server');
 });
 
