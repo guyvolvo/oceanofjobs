@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { requestSignIn, syncConsentOnce, type Who } from "../site/auth";
-import { SECTIONS } from "../site/nav";
+import { SECTIONS } from "../site/sections";
 import { Brand, ThemeWords, barText, toggleTheme } from "./Header";
 import { useDark } from "./state";
 

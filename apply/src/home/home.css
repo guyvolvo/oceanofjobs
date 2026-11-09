@@ -5,45 +5,33 @@
    what has to stay pixel for pixel. Dark is the design; light is the same
    page in the board's paper and ink. */
 
+/* The page's colours are the design tokens (tokens.css, from DESIGN.md).
+   The two preview windows, the face panel and the white logo tiles keep
+   literal colours and shadows: they are pictures of other products (a
+   terminal, an application form), DESIGN.md's named exceptions. */
 .home {
-  --h-bg: var(--color-kumo-canvas);
-  --h-surface: #e8e5e2;
-  --h-text: #40513b;
-  --h-body: #4c5a48;
-  --h-muted: #5d6a58;
-  --h-dim: #7d8879;
-  --h-line: rgba(64, 81, 59, 0.14);
-  --h-soft: rgba(64, 81, 59, 0.07);
-  --h-soft-hover: rgba(64, 81, 59, 0.13);
-  --h-link-hover: #3f6f45;
-  --h-live: #609966;
-  --h-pill-bg: #40513b;
-  --h-pill-fg: #f2f0ef;
+  --h-bg: var(--ooj-page-ground);
+  --h-surface: var(--ooj-hover-tint);
+  --h-text: var(--ooj-page-text);
+  --h-body: var(--ooj-page-body);
+  --h-muted: var(--ooj-page-muted);
+  --h-dim: var(--ooj-page-dim);
+  --h-line: var(--ooj-page-line);
+  --h-soft: var(--ooj-page-soft);
+  --h-soft-hover: var(--ooj-page-soft-hover);
+  --h-link-hover: var(--ooj-page-link-hover);
+  --h-live: var(--ooj-signal-green);
+  --h-pill-bg: var(--ooj-page-text);
+  --h-pill-fg: var(--ooj-page-ground);
   --h-pad: 40px;
   background: var(--h-bg);
   color: var(--h-text);
   font: 400 16px/1.5 var(--font-sans);
 }
-:root[data-mode="dark"] .home {
-  --h-bg: #0e0f11;
-  --h-surface: #17181c;
-  --h-text: #f2f0ef;
-  --h-body: #b9b4ad;
-  --h-muted: #9a9ca3;
-  --h-dim: #6b6e75;
-  --h-line: rgba(242, 240, 239, 0.10);
-  --h-soft: rgba(242, 240, 239, 0.07);
-  --h-soft-hover: rgba(242, 240, 239, 0.13);
-  --h-link-hover: #7fd49b;
-  --h-live: #2fae60;
-  --h-pill-bg: #f2f0ef;
-  --h-pill-fg: #0e0f11;
-}
+:root[data-mode="dark"] .home { --h-surface: var(--ooj-paper); }
 .home a { color: inherit; text-decoration: none; }
 .home a:focus-visible,
 .home button:focus-visible { outline: 2px solid var(--h-live); outline-offset: 3px; border-radius: 6px; }
-/* Every heading on the page, after the rules that size them. */
-.home :is(h1, h2, h3) { font-family: var(--font-urbanist), var(--font-sans); }
 
 /* Buttons: the paper pill and the quiet soft fill at the same height. */
 .home-pill svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
@@ -482,7 +470,7 @@ html:has(.home-hero) { scroll-behavior: smooth; }
 @keyframes hero-ticker-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 @keyframes hero-ticker-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .home .hero-band { padding: 16px 0 175px; }
-.home .hero-band:has(+ .home-hot) { padding-bottom: 96px; }
+.home:has(.home-hot:not([hidden])) .hero-band { padding-bottom: 96px; }
 .home .hero-band-label {
   display: table;
   margin: 0 auto 20px;
@@ -726,7 +714,7 @@ html:has(.home-hero) { scroll-behavior: smooth; }
 .hot-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: auto 0 0; padding: 22px 0 0; list-style: none; }
 .hot-badges li { padding: 5px 10px; border: 1px solid var(--h-line); border-radius: 999px; font-size: 12px; line-height: 1.2; color: var(--h-text); white-space: nowrap; }
 @media (max-width: 640px) {
-  .home .hero-band:has(+ .home-hot) { padding-bottom: 72px; }
+  .home:has(.home-hot:not([hidden])) .hero-band { padding-bottom: 72px; }
   .home-section.home-hot { padding-bottom: 147px; }
 }
 
@@ -747,3 +735,6 @@ html:has(.home-hero) { scroll-behavior: smooth; }
   .home-start h2 { font-size: 34px; }
   .home .hero-band { padding: 8px 0 147px; }
 }
+
+/* Every heading on the page, after the rules that size them. */
+.home :is(h1, h2, h3) { font-family: var(--font-heading); }

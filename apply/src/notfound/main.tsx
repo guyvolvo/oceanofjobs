@@ -1,4 +1,7 @@
-import { hydrate } from "../shell/hydrate";
-import { NotFound } from "./NotFound";
+import { Header } from "../shell/Header";
+import { hydrateIslands } from "../shell/hydrate";
+import { NotFoundBody } from "./NotFound";
 
-hydrate(<NotFound />);
+hydrateIslands({ header: Header, notfound: NotFoundBody }, import.meta.env.DEV
+  ? () => import("./NotFound").then(({ NotFound }) => <NotFound />)
+  : undefined);

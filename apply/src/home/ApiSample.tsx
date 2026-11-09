@@ -4,6 +4,7 @@
 // request and its answer (anime.js, loaded on the first click only). The
 // sample is a real answer to the real query, taken 2026-10-15.
 import { useEffect, useRef, useState } from "react";
+import { Island } from "../shell/island";
 import { copyText } from "./copy";
 
 const QUERIES = [
@@ -47,7 +48,8 @@ const scramble = (el: Element, text: string, ms: number) => new Promise<void>((d
   anime!.animate(el, { innerHTML: anime!.scrambleText({ text: html(text).replace(/<[^>]+>/g, ""), duration: ms }), onComplete: () => done() });
 });
 
-export function ApiSample() {
+// The request and its answer, the section's island.
+export function ApiCode() {
   const cmd = useRef<HTMLSpanElement>(null);
   const req = useRef<HTMLPreElement>(null);
   const res = useRef<HTMLPreElement>(null);
@@ -104,17 +106,6 @@ export function ApiSample() {
   }
 
   return (
-    <section className="home-section" aria-labelledby="api-title">
-      <div className="mx-auto grid max-w-[1180px] grid-cols-1 items-start gap-8 min-[901px]:grid-cols-2 min-[901px]:gap-12">
-        <div>
-          <h2 className="home-h2" id="api-title">API</h2>
-          <p className="home-api-p">Use the API to search jobs, look up companies, retrieve statistics, or build your own tools.</p>
-          <p className="home-api-p">Check the API documentation to see how you can retrieve data with filters such as location, skills, seniority, workplace type, salary and more.</p>
-          <div className="mt-[26px] flex flex-wrap items-center gap-3">
-            <a className="home-pill" href="/docs/api">Read the API docs<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></a>
-            <a className="home-soft home-soft-sm" href="https://github.com/guyvolvo/oceanofjobs">View on GitHub</a>
-          </div>
-        </div>
         <div className="home-code-panel">
           <div className="home-code">
             <div className="home-code-pane">
@@ -126,10 +117,28 @@ export function ApiSample() {
             </div>
             <div className="home-code-pane">
               <div className="home-code-label">Example response</div>
-              <pre className="home-code-res" ref={res} aria-live="polite">{"{\n"}{SAMPLE.map(([k, v], i) => <span key={k}>{"  "}<span className="api-key">"{k}"</span>: {v}{i < SAMPLE.length - 1 ? ",\n" : "\n"}</span>)}{"}"}</pre>
+              <pre className="home-code-res" ref={res} aria-live="polite">{"{\n"}{/* One string per text node, so the HTML reads like the old page's. */}
+                {SAMPLE.map(([k, v], i) => <span key={k}>{"  "}<span className="api-key">{`"${k}"`}</span>{`: ${v}${i < SAMPLE.length - 1 ? ",\n" : "\n"}`}</span>)}{"}"}</pre>
             </div>
           </div>
         </div>
+  );
+}
+
+export function ApiSample() {
+  return (
+    <section className="home-section" aria-labelledby="api-title">
+      <div className="mx-auto grid max-w-[1180px] grid-cols-1 items-start gap-8 min-[901px]:grid-cols-2 min-[901px]:gap-12">
+        <div>
+          <h2 className="home-h2" id="api-title">API</h2>
+          <p className="home-api-p">Use the API to search jobs, look up companies, retrieve statistics, or build your own tools.</p>
+          <p className="home-api-p">Check the API documentation to see how you can retrieve data with filters such as location, skills, seniority, workplace type, salary and more.</p>
+          <div className="mt-[26px] flex flex-wrap items-center gap-3">
+            <a className="home-pill" href="/docs/api">Read the API docs<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></a>
+            <a className="home-soft home-soft-sm" href="https://github.com/guyvolvo/oceanofjobs">View on GitHub</a>
+          </div>
+        </div>
+        <Island name="api-code" component={ApiCode} props={{}} />
       </div>
     </section>
   );

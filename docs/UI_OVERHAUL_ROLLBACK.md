@@ -24,6 +24,15 @@ layout stay as they are.
    for p in privacy terms refunds contact 404; do cp "apply/dist/$p.html" "frontend/$p.html"; done
    ```
 
+   The home page goes to the bucket's index, not to `frontend/home.html`:
+
+   ```sh
+   cp apply/dist/home.html frontend/index.html
+   ```
+
+   and `frontend/index.html` joins the `sed` list in step 2. Its rollback
+   is the same revert; the repo's own `frontend/index.html` comes back.
+
 2. Same file, step "Stamp asset URLs with the commit". Its second `sed`
    removes the `?v=` stamp from `/apply/assets/...` (Vite's loader needs the
    exact href) and today names `frontend/contact.html` only. It has to name

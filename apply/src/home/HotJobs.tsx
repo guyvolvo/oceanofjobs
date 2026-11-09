@@ -1,6 +1,6 @@
 // Recent job posts: six of the week's most wanted roles from hot.json,
 // which the precompute Lambda writes every three hours. Nothing until it
-// loads. Shuffle swaps every card for one not yet shown, one at a time in
+// loads. An island of the home page. Shuffle swaps every card for one not yet shown, one at a time in
 // a random order and at random intervals, each easing out and back in.
 import { useEffect, useRef, useState } from "react";
 
@@ -82,9 +82,9 @@ export function HotJobs() {
     });
   }
 
-  if (!cards.length) return null;
+  // Hidden until hot.json has six, as on the old page.
   return (
-    <section className="home-section home-hot" aria-labelledby="hot-title">
+    <section className="home-section home-hot" aria-labelledby="hot-title" hidden={!cards.length}>
       <div className="mx-auto max-w-[1180px]">
         <div className="mb-12 flex items-center justify-between gap-4">
           <h2 className="home-h2" id="hot-title">Recent job posts</h2>

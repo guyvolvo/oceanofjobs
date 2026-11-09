@@ -2,16 +2,66 @@
 <html lang="en" data-mode="dark">
 <head>
   <!-- site-head -->
-  <title>Ocean of Jobs | Tech jobs from company hiring systems</title>
-  <meta name="description" content="Jobs collected directly from company hiring systems, with auto apply, alerts and a public API." />
+  <link rel="preload" href="/fonts/Urbanist-VF-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/Geist-500-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <title>Ocean of Jobs | Agentic job search</title>
+  <meta name="description" content="Ocean of Jobs is a free, minimalist job search platform built by developers, for developers. Connect your AI agent using the MCP server to start automating your job search." />
+  <link rel="canonical" href="https://oceanofjobs.com/" />
+  <link rel="alternate" type="application/rss+xml" title="Ocean of Jobs newest listings" href="https://oceanofjobs.com/feed.xml" />
+  <!-- Who this site is, for search engines: the name they should show,
+       the organisation behind it, and that the board is searchable. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://oceanofjobs.com/#website",
+        "url": "https://oceanofjobs.com/",
+        "name": "Ocean of Jobs",
+        "alternateName": ["OceanOfJobs.com", "Ocean of Jobs"],
+        "description": "Ocean of Jobs is a free, minimalist job search platform built by developers, for developers. Connect your AI agent using the MCP server to start automating your job search.",
+        "publisher": { "@id": "https://oceanofjobs.com/#organization" },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": { "@type": "EntryPoint", "urlTemplate": "https://oceanofjobs.com/board?search={search_term_string}" },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://oceanofjobs.com/#organization",
+        "name": "Ocean of Jobs",
+        "url": "https://oceanofjobs.com/",
+        "logo": "https://oceanofjobs.com/favicon-512.png",
+        "sameAs": ["https://github.com/guyvolvo/oceanofjobs"]
+      }
+    ]
+  }
+  </script>
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Ocean of Jobs | Tech jobs from company hiring systems" />
-  <meta property="og:description" content="Jobs collected directly from company hiring systems, with auto apply, alerts and a public API." />
+  <meta property="og:url" content="https://oceanofjobs.com/" />
+  <meta property="og:title" content="Ocean of Jobs" />
+  <meta property="og:description" content="Ocean of Jobs is a free, minimalist job search platform built by developers, for developers. Connect your AI agent using the MCP server to start automating your job search." />
   <meta property="og:image" content="https://oceanofjobs.com/og.jpg?v=3" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ocean of Jobs" />
+  <meta name="twitter:description" content="Ocean of Jobs is a free, minimalist job search platform built by developers, for developers. Connect your AI agent using the MCP server to start automating your job search." />
+  <meta name="twitter:image" content="https://oceanofjobs.com/og.jpg?v=3" />
+  <script>
+    // GitHub sign-in hands its tokens back in the fragment, which never
+    // reaches CloudFront. github_auth_handler.py sends people to /board;
+    // this catches anyone who started signing in before that shipped.
+    if (/(^|[#&])(id_token|auth_error)=/.test(location.hash)) location.replace("/board" + location.hash);
+    // Dark is this page's own deeper ground, as on the old page.
+    if (document.documentElement.getAttribute("data-mode") === "dark") document.querySelector('meta[name="theme-color"]').content = "#0e0f11";
+  </script>
 </head>
 <body>
-  <div id="root"></div>
+  <!-- Prerendered at build time (scripts/prerender.mjs); only the islands are hydrated. -->
+  <div id="root" data-page="home"></div>
   <script type="module" src="/src/home/main.tsx"></script>
 </body>
 </html>

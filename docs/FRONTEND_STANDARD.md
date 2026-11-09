@@ -50,6 +50,14 @@ and design until a page is switched over.
   `<div id="root" data-page="privacy"></div>`, and by adding a line to
   `PAGES` in `apply/src/prerender.tsx`. Its `main.tsx` calls
   `hydrate(<ThePage />)` from `apply/src/shell/hydrate.tsx`.
+- A page that is mostly text hydrates only its interactive parts. Wrap
+  each one in `<Island name="..." component={X} props={...} />`
+  (`apply/src/shell/island.tsx`; `Page` already does it for the header),
+  add the page to `ISLAND_PAGES` in `prerender.tsx`, and have its
+  `main.tsx` call `hydrateIslands({ header: Header, name: X })` instead of
+  `hydrate()`. The rest of the page stays plain HTML and its text is not
+  in the JS. Home, privacy, terms, refunds, contact and 404 work this way.
+  Props must be JSON, and island names must not repeat on a page.
 - Anything that only the browser knows (signed-in user, theme, the address
   of a 404) is read after hydration: `useWho()` and `useDark()` in
   `apply/src/shell/state.ts`, or a `useEffect`. The server render and the

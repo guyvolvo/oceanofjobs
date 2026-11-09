@@ -6,10 +6,11 @@
 // load on first use, which keeps them out of every page's first load.
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { CaretDown, List } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+// clsx, not cn: no class here overrides another, and tailwind-merge
+// (about 7 KB gzip) would otherwise be in every text page's first load.
+import { clsx as cn } from "clsx";
 import { requestSignIn, SIGNIN_EVENT, type Who } from "../site/auth";
-import { SECTIONS, type Section } from "../site/nav";
+import { SECTIONS, type Section } from "../site/sections";
 import { applyTheme } from "../site/theme";
 import { useWho } from "./state";
 
@@ -73,8 +74,9 @@ function MobileMenu({ who, current }: { who: Who; current?: string }) {
   const button = useRef<HTMLButtonElement>(null);
   return (
     <>
-      <Button ref={button} variant="ghost" size="icon" className="sm:hidden" aria-label="Menu" aria-haspopup="dialog" aria-expanded={open}
-        onClick={() => { setUsed(true); setOpen(true); }}><List size={24} /></Button>
+      {/* shadcn's ghost icon button, written out so the Button module stays out of the first load. */}
+      <button ref={button} type="button" className="inline-flex size-9 cursor-pointer items-center justify-center rounded-md hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:hidden"
+        aria-label="Menu" aria-haspopup="dialog" aria-expanded={open} onClick={() => { setUsed(true); setOpen(true); }}><List size={24} /></button>
       {used ? <Suspense fallback={null}><MobileSheet open={open} onOpenChange={setOpen} who={who} current={current} opener={button} /></Suspense> : null}
     </>
   );
