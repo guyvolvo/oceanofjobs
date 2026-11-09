@@ -79,6 +79,18 @@
         options: (f.values || []).map((v) => String(v.label)),
       });
     }
+    // The newer demographic survey, often required (Discord, Reddit, Robinhood, Twilio). Its
+    // dropdowns carry the question's id; every question there is demographic, whatever it says.
+    for (const q of (post.demographic_questions && post.demographic_questions.questions) || []) {
+      fields.push({
+        name: String(q.id),
+        label: String(q.name || '').trim(),
+        required: !!q.required,
+        type: q.answer_type && q.answer_type.key === 'MULTI_SELECT' ? 'multiselect' : 'select',
+        options: (q.answer_options || []).map((o) => String(o.name)),
+        eeo: true,
+      });
+    }
     return { fields, redirectTo: post.redirect_to || null };
   }
 

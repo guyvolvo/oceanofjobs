@@ -71,6 +71,8 @@ test('pickOption handles yes/no, decline and partial labels', () => {
   assert.equal(m.pickOption(['Canada +1', 'United States +1'], 'United States'), 1);
   // Greenhouse's phone Country list, live on 2026-11-09.
   assert.equal(m.pickOption(['United Arab Emirates +971', 'United Kingdom +44', 'United States +1', 'United States Minor Outlying Islands +1'], 'United States'), 2);
+  // Greenhouse's phone country list as it is live (2026-11-09).
+  assert.equal(m.pickOption(['United States +1', 'U.S. Virgin Islands +1', 'United Kingdom +44'], 'United States'), 0);
   assert.equal(m.pickOption(['Yes', 'No'], 'Maybe'), -1);
   // Live Greenhouse veteran options: a loose match must not pick the wrong one.
   const veteran = ['I am not a protected veteran', 'I identify as one or more of the classifications of a protected veteran', "I don't wish to answer"];
@@ -235,7 +237,8 @@ test('withQueued puts queued jobs before picked ones, without repeats', () => {
 
 test('demographic questions are recognised however they are worded, so AI never answers them', () => {
   for (const label of ['I identify my gender as', 'What is your ethnicity?', 'Race', 'Gender', 'Are you a veteran?',
-    'Do you have a disability?', 'What is your sexual orientation?', 'Your pronouns', 'Do you identify as transgender?']) {
+    'Do you have a disability?', 'What is your sexual orientation?', 'Your pronouns', 'Do you identify as transgender?',
+    'Please select up to 2 ethnicities that you most closely identify with.']) {
     assert.equal(m.isEeo({ label, type: 'select' }), true, label);
   }
   for (const label of ['First name', 'Why do you want to work here?', 'Years of Python experience']) {

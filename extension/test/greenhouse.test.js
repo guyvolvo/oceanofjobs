@@ -106,6 +106,25 @@ test('outcome decision', () => {
   assert.equal(gh.decide({ path: '/figma/jobs/5426468004', confirmation: false, errors: [] }), null);
 });
 
+test("Reddit: the required demographic survey is read with its options, and Full automatic declines it", () => {
+  const { page } = fixture('reddit.html');
+  const survey = page.fields.filter((f) => f.eeo);
+  assert.equal(survey.length, 6);
+  assert.ok(survey.every((f) => f.required && f.options.length >= 3 && /^\d+$/.test(f.name)));
+  const ethnicities = survey.find((f) => /ethnicities/.test(f.label));
+  assert.equal(ethnicities.type, 'multiselect');
+  const noEeo = { ...profile, eeo: {}, settings: { fill: 'full' } };
+  const { fills, missing } = m.planFill(page.fields, noEeo, {});
+  assert.deepEqual(missing.filter((f) => f.eeo), []);
+  for (const f of survey) {
+    const v = fills.find((x) => x.name === f.name).value;
+    assert.equal(v, 'decline');
+    assert.equal(f.options[m.pickOption(f.options, v)], "I don't wish to answer");
+  }
+  // Never handed to AI or recorded as an answer.
+  assert.deepEqual(m.suggestable(page.fields, { fills: [], missing: survey }), []);
+});
+
 test('a page without the Remix data is not a form', () => {
   assert.equal(gh.fromRemix('window.__remixContext = {"state":{"loaderData":{}}};'), null);
   assert.equal(gh.fromRemix('garbage'), null);

@@ -238,8 +238,10 @@ async function draftAnswer(field, profile, preferences, job, ai) {
   return !text || /^unknown\b/i.test(text) ? undefined : text;
 }
 
+// An AI answer the field cannot take ("Test answer" in a number box) is no answer: Workable then
+// counts the box as empty and refuses the form.
 const fits = (field, answer) =>
-  answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0);
+  answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0) && oojMatch.fitsType(field, String(answer));
 
 // /me/apply/draft, waiting out one rate limit (20 a minute) rather than
 // giving up on the server's AI for the rest of the run.
@@ -352,6 +354,32 @@ async function planRun(fields, job, ctx, drafted) {
   }
   return plan;
 }
+
+// Questions a form shows only once an earlier one is answered ("If yes,
+// which visa?", Ashby's follow-ups) were not there when it was read. After
+// a fill the form is read again, and the new ones are planned with
+// planner(fields) -> {plan, suggested} and filled, a few rounds at most.
+// They go into fields, into and suggested; returns their fill errors.
+async function followUps(tabId, frameId, name, fields, into, suggested, planner, cv) {
+  const errors = [];
+  for (let round = 0; round < 3; round++) {
+    // generic's read(true) never presses an Apply button.
+    const again = await (name === 'generic' ? inTab(tabId, name, 'read', [true], frameId) : readForm(tabId, name, frameId)).catch(() => null);
+    const known = new Set(fields.map((f) => f.name));
+    const fresh = ((again && again.fields) || []).filter((f) => !known.has(f.name));
+    if (!fresh.length) break;
+    fields.push(...fresh);
+    const more = await planner(fresh);
+    into.missing.push(...more.plan.missing);
+    suggested.push(...more.suggested);
+    if (!more.plan.fills.length) break;
+    into.fills.push(...more.plan.fills);
+    const filled = await inTab(tabId, name, 'fill', [more.plan.fills, cv], frameId).catch(() => null);
+    errors.push(...(filled ? filled.errors : ['could not fill the form']));
+  }
+  return errors;
+}
+const runPlanner = (job, ctx, drafted) => async (fields) => ({ plan: await planRun(fields, job, ctx, drafted), suggested: [] });
 
 // Every answered question, as filled; the server decides which are the
 // AI's from the saved answers, and only says no to those.
@@ -474,9 +502,14 @@ async function viaGeneral(job, ctx, id, tabId, state) {
       return ['needs_input', 'needs answer: ' + questions.join('; '), questions];
     }
     const filled = await inTab(tabId, 'generic', 'fill', [plan.fills, ctx.cv], frameId);
+    if (filled) filled.errors.push(...await followUps(tabId, frameId, 'generic', page.fields, plan, [], runPlanner(job, ctx, drafted), ctx.cv));
     // An optional question it couldn't answer is left as it is; a required one stops the run.
     const hard = filled ? filled.errors.filter((e) => plan.fills.some((f) => f.required && e.startsWith(f.label + ':'))) : ['the form'];
     if (hard.length) return ['failed', 'could not fill ' + hard.join('; ')];
+    if (plan.missing.length) {
+      const questions = plan.missing.map((f) => f.label);
+      return ['needs_input', 'needs answer: ' + questions.join('; '), questions];
+    }
     fills.push(...plan.fills.filter((f) => !filled.errors.some((e) => e.startsWith(f.label + ':'))));
     const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId);
     // A CAPTCHA to solve: the extension never gets round one. Everything is
@@ -565,9 +598,15 @@ async function applyTo(job, ctx) {
       return 'skipped';
     }
     const filled = await inTab(tab.id, job.ats, 'fill', [plan.fills, ctx.cv]);
+    if (filled && !filled.errors.length) filled.errors.push(...await followUps(tab.id, 0, job.ats, page.fields, plan, [], runPlanner(job, ctx, drafted), ctx.cv));
     if (!filled || filled.errors.length) {
       await settle(id, 'failed', 'could not fill ' + ((filled && filled.errors.join('; ')) || 'the form'));
       return 'failed';
+    }
+    if (plan.missing.length) {
+      const questions = plan.missing.map((f) => f.label);
+      await settle(id, 'needs_input', 'needs answer: ' + questions.join('; '), questions);
+      return 'skipped';
     }
     const ok = await gate(id, { answers: sentAnswers(plan.fills, job, drafted), mode: 'auto' });
     if (ok.review) {
@@ -975,7 +1014,7 @@ async function fillHere(msg, tabId, frameId) {
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
   // Filling costs nothing (R8); a credit is reserved only when Submit is
   // pressed on the card, by the user or by Full automatic (startSubmit).
-  const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
+  const result = await fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested);
   await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email);
   // The dedicated filler presses its own button and handles a CAPTCHA
   // (ats outcome), as in automatic runs: reCAPTCHA sits on every
@@ -1041,8 +1080,9 @@ async function planWithSuggestions(page, job, ctx) {
   return { plan, suggested };
 }
 
-async function fillAndMark(tabId, frameId, name, plan, suggested, cv) {
-  const filled = await inTab(tabId, name, 'fill', [plan.fills, cv], frameId);
+async function fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested) {
+  const filled = await inTab(tabId, name, 'fill', [plan.fills, ctx.cv], frameId);
+  if (filled) filled.errors.push(...await followUps(tabId, frameId, name, page.fields, plan, suggested, (fields) => planWithSuggestions({ fields }, job, ctx), ctx.cv));
   // What the AI suggested here, for the record when the user presses Submit
   // on the card (cardAnswers).
   await chrome.storage.session.set({ [`cardai:${tabId}`]: { frameId, items: suggested.map((f) => ({
@@ -1194,7 +1234,7 @@ async function assist(tabId, frameId, name, page, url, title) {
   const ctx = { profile: a.profile, preferences: a.preferences, settings: a.profile.settings || {}, cv: st.cv, ai: st.ai,
     serverAi: true };
   const { plan, suggested } = await planWithSuggestions(page, job, ctx);
-  const result = await fillAndMark(tabId, frameId, name, plan, suggested, ctx.cv);
+  const result = await fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested);
   await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email);
   const submit = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   const why = autoWhy(a, job, url, result, submit);

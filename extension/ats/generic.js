@@ -272,7 +272,11 @@
   const BARE_YES = /^(yes|i agree|agree|i accept|accept|i understand|i confirm|confirm|ok|ja|oui|sí|si|כן|מסכים|מסכימה|אני מסכים|אני מסכימה|מאשר|מאשרת|אני מאשר|אני מאשרת)[.!]?\s*\*?$/i;
 
   function fieldsOf(container) {
-    for (const old of deep(container, '[data-ooj], [data-ooj-box]')) { old.removeAttribute('data-ooj'); old.removeAttribute('data-ooj-box'); }
+    for (const old of deep(container, '[data-ooj-box]')) old.removeAttribute('data-ooj-box');
+    // A field keeps the name an earlier read gave it, so a read after a fill
+    // finds the questions that only showed up then. New ones get new names.
+    let next = Math.max(-1, ...docs().flatMap((d) => deep(d, '[data-ooj]')).map((el) => Number(el.getAttribute('data-ooj').slice(4)) || 0)) + 1;
+    const used = new Set();
     const fields = [], groups = new Map();
     for (const el of controls(container)) {
       if (el.type === 'radio' || el.type === 'checkbox') {
@@ -281,8 +285,10 @@
         groups.get(key).push(el);
       } else fields.push(el);
     }
-    return fields.map((x, i) => {
-      const name = 'ooj-' + i;
+    return fields.map((x) => {
+      let name = (Array.isArray(x) ? x[0] : x).getAttribute('data-ooj');
+      if (!name || used.has(name)) name = 'ooj-' + next++;
+      used.add(name);
       if (!Array.isArray(x)) {
         x.setAttribute('data-ooj', name);
         mark(x, name);
@@ -354,11 +360,11 @@
 
   // {fields} once the form is there. {openUrl} asks the caller to load the
   // page an Apply link or a form frame points at; an Apply button is
-  // clicked here.
-  async function read() {
+  // clicked here, except on a read again after a fill (again).
+  async function read(again) {
     // A posting shows its Apply control at once; a form page may still be rendering.
     form = await waitFor(() => findForm() || formFrame(), postingHere() ? 1500 : 6000);
-    if (!form) {
+    if (!form && !again) {
       const apply = applyControl();
       if (apply) {
         const href = apply.tagName === 'A' && apply.getAttribute('href');

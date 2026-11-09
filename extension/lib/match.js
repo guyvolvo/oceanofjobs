@@ -43,7 +43,7 @@
     [/github/, 'github'],
     [/sponsor/, 'sponsorship'],
     [/authorized to work|work authorization|eligible to work|right to work|legally (able|permitted) to work/, 'work_auth'],
-    [/salary|compensation expectation|expected (pay|compensation)|desired (pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
+    [/salary|compensation expectation|(expected|desired) (annual |yearly |base )?(pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
     // Not an education or job entry's "Start date month" (Greenhouse).
     [/notice period|earliest .*start|when can you start|available to start|start date(?! (month|year|day))/, 'notice'],
     [/preferred (first )?name/, 'preferred_name'],
@@ -55,7 +55,7 @@
     // "Sex" only as the whole question or plainly about it, never "sexual".
     [/\bgender\b|^(what is your |your |legal )?sex$|\bsex (assigned|at birth)\b|(^| )מגדר( |$)|^מין$/, 'gender'],
     [/hispanic|latino/, 'hispanic'],
-    [/\b(race|ethnicity|ethnic (origin|background|group))\b/, 'race'],
+    [/\b(race|ethnicity|ethnicities|ethnic (origin|background|group))\b/, 'race'],
     // "Armed forces", not "military service": in Israel that is an ordinary question.
     [/\bveteran\b|\bserved in the (\w+ )?armed forces\b/, 'veteran'],
     [/\bdisability\b|\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
@@ -215,7 +215,7 @@
     const exact = opts.indexOf(want);
     if (exact >= 0) return exact;
     if (want === 'yes' || want === 'no') return opts.findIndex((o) => o.split(' ')[0] === want);
-    // A phone country list: "United States +1", next to "United States Minor Outlying Islands +1".
+    // A phone country list: "United States +1", next to "United States Minor Outlying Islands +1" or "U.S. Virgin Islands +1".
     const coded = only((o) => o.replace(/( \d+)+$/, '') === want);
     if (coded >= 0) return coded;
     const start = only((o) => o.startsWith(want + ' ') || want.startsWith(o + ' '));
@@ -286,7 +286,8 @@
   // Demographic questions are answered only from what the user set, never
   // by AI. Some have no profile key to map to; their wording marks them.
   function isEeo(field) {
-    return EEO.has(field.key || classify(field))
+    // A reader may know from the form itself (Greenhouse's demographic survey).
+    return field.eeo === true || EEO.has(field.key || classify(field))
       // "lgbt" anywhere: "2SLGBTQIA+" has no word break before it.
       || /\b(sexual orientation|transgender|queer|pronouns?)\b|lgbt/.test(normalise(field.label))
       || OTHER_EEO.test(normalise(field.label));
@@ -542,7 +543,7 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, planFill, isEeo, isStatement, mustAnswer, suggestable,
+    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, planFill, isEeo, isStatement, mustAnswer, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
