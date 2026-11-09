@@ -319,6 +319,10 @@ test('filledText counts in the singular and plural and leaves out zeros', () => 
     "Filled 3 fields. AI suggested 1 answer. Check the one outlined in amber. 1 needs your attention. Couldn't fill 2 fields.");
   assert.equal(m.filledText({ filled: 5, suggested: 2, missing: ['a', 'b'], errors: [] }),
     'Filled 5 fields. AI suggested 2 answers. Check the ones outlined in amber. 2 need your attention.');
+  assert.equal(m.filledText({ filled: 7, suggested: 0, earlier: 1, missing: [], errors: [] }),
+    'Filled 7 fields. AI answered 1 question on an earlier page. Check it on the review page before you submit.');
+  assert.equal(m.filledText({ filled: 7, suggested: 1, earlier: 2, missing: [], errors: [] }),
+    'Filled 7 fields. AI suggested 1 answer. Check the one outlined in amber. AI answered 2 questions on earlier pages. Check them on the review page before you submit.');
 });
 
 test('mustAnswer: every required box is ticked, a required agreement is a yes', () => {
@@ -359,6 +363,7 @@ test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left f
   assert.equal(m.autoSubmit({ ...ready, plan: 'free' }), 'full automatic needs a paid plan');
   assert.equal(m.autoSubmit({ ...ready, submit: false }), 'no submit button');
   assert.equal(m.autoSubmit({ ...ready, missing: ['Phone'] }), 'needs input');
+  assert.equal(m.autoSubmit({ ...ready, submit: false, missing: ['Phone'] }), 'needs input', "a question left on a wizard's page, not its missing Submit");
   assert.equal(m.autoSubmit({ ...ready, errors: ['Country: no option matches "Mars"'] }), 'needs input');
   assert.equal(m.autoSubmit({ ...ready, remaining: 0 }), 'limit reached');
   assert.equal(m.autoSubmit({ ...ready, screened: 'blocked company' }), 'blocked company');

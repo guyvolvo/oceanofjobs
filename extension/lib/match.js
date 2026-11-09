@@ -409,8 +409,9 @@
   function autoSubmit({ fill, plan, submit, missing, errors, remaining, screened }) {
     if (fill !== 'full') return '';
     if (plan !== 'basic' && plan !== 'pro') return 'full automatic needs a paid plan';
-    if (!submit) return 'no submit button';
+    // A question left is what the user can act on, also on a wizard's page before its Submit.
     if ((missing || []).length || (errors || []).length) return 'needs input';
+    if (!submit) return 'no submit button';
     if (remaining != null && remaining <= 0) return 'limit reached';
     return screened || null;
   }
@@ -507,6 +508,8 @@
   function filledText(r) {
     const s = [`Filled ${r.filled} ${plural(r.filled, 'field')}.`];
     if (r.suggested) s.push(`AI suggested ${r.suggested} ${plural(r.suggested, 'answer')}. Check ${plural(r.suggested, 'the one', 'the ones')} outlined in amber.`);
+    // A wizard's pages already passed (Workday): their outlines went with them.
+    if (r.earlier) s.push(`AI answered ${r.earlier} ${plural(r.earlier, 'question on an earlier page', 'questions on earlier pages')}. Check ${plural(r.earlier, 'it', 'them')} on the review page before you submit.`);
     const missing = (r.missing || []).length, errors = (r.errors || []).length;
     if (missing) s.push(`${missing} ${plural(missing, 'needs', 'need')} your attention.`);
     if (errors) s.push(`Couldn't fill ${errors} ${plural(errors, 'field')}.`);
