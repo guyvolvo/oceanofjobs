@@ -12,7 +12,7 @@ const args = process.argv.slice(2);
 const out = args[0];
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const SITES = { live: opt("--live", "https://oceanofjobs.com"), new: opt("--local", "http://127.0.0.1:4173") };
-const PAGES = { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/this-page-does-not-exist", "404-job": "/jobs/senior-backend-engineer-0a1b2c3d4e" };
+const PAGES = { home: "/", privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/this-page-does-not-exist", "404-job": "/jobs/senior-backend-engineer-0a1b2c3d4e" };
 const VIEWS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
 
 mkdirSync(out, { recursive: true });

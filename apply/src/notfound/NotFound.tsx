@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Island } from "../shell/island";
 import { Page } from "../shell/Page";
 
 const COPY = {
@@ -24,7 +25,8 @@ export function readPath(path: string): { kind: keyof typeof COPY; words: string
   return { kind: /^(jobs?|listings?)$/i.test(m[1]) ? "job" : "company", words: /[a-z]{3}/i.test(w) ? w : "" };
 }
 
-export function NotFound() {
+// The page under the bar: an island, since most of it depends on the address.
+export function NotFoundBody() {
   const [where, setWhere] = useState<ReturnType<typeof readPath>>({ kind: "page", words: "" });
   const [search, setSearch] = useState("");
   const [canGoBack, setCanGoBack] = useState(false);
@@ -37,8 +39,7 @@ export function NotFound() {
   }, []);
   const [title, lede] = COPY[where.kind];
   return (
-    <Page>
-      {/* Left, under the brand, as the old page sat on the board's grid. */}
+      // Left, under the brand, as the old page sat on the board's grid.
       <div className="px-4 pt-12 pb-16 sm:px-[max(40px,calc((100%-1100px)/2))] [&>*]:max-w-[640px]">
         <p className="m-0 mb-5 font-display text-[clamp(96px,22vw,160px)] leading-[0.85] font-normal tracking-[-0.02em] text-foreground" aria-hidden="true">404</p>
         <h1 className="m-0 mb-3 font-display text-[34px] leading-none font-normal">{title}</h1>
@@ -53,6 +54,9 @@ export function NotFound() {
           {canGoBack ? <Button variant="outline" size="sm" type="button" onClick={() => history.back()}>Go back</Button> : null}
         </div>
       </div>
-    </Page>
   );
+}
+
+export function NotFound() {
+  return <Page><Island name="notfound" component={NotFoundBody} props={{}} /></Page>;
 }

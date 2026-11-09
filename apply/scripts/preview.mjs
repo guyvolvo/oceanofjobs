@@ -28,7 +28,7 @@ const DIST = join(APPLY, "dist");
 const FRONTEND = resolve(APPLY, "../frontend");
 // The pages whose HTML the switch takes from apply/dist. Rollback is
 // removing a name here and from the deploy's copy step (docs/UI_OVERHAUL_ROLLBACK.md).
-export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404"];
+export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404", "home"];
 
 // The CloudFront function's PAGES, BOARD_KEYS and role-page list, verbatim.
 const PAGES = { "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
@@ -66,7 +66,8 @@ const PUBLISHED = /^\/(docs\/|companies\/|jobs(\/|\.html)|explore|media\/|mail\/
 
 function bucketFile(key) {
   if (key.startsWith("/apply/")) return join(DIST, key.slice(7));
-  const page = key.slice(1, -5);
+  // The bucket's index.html is the build's home.html (the switch copies it to frontend/index.html).
+  const page = key === "/index.html" ? "home" : key.slice(1, -5);
   if (key.endsWith(".html") && MIGRATED.includes(page)) return join(DIST, `${page}.html`);
   return join(FRONTEND, key);
 }
