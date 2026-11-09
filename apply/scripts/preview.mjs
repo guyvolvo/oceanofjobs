@@ -28,7 +28,7 @@ const DIST = join(APPLY, "dist");
 const FRONTEND = resolve(APPLY, "../frontend");
 // The pages whose HTML the switch takes from apply/dist. Rollback is
 // removing a name here and from the deploy's copy step (docs/UI_OVERHAUL_ROLLBACK.md).
-export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404", "home"];
+export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404", "home", "pricing", "checkout"];
 
 // The CloudFront function's PAGES, BOARD_KEYS and role-page list, verbatim.
 const PAGES = { "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
@@ -136,7 +136,8 @@ function selftest() {
   t("/style.css", "", { uri: "/style.css" });
   t("/hero", "", { redirect: "/" });
   assert.equal(bucketFile("/privacy.html"), join(DIST, "privacy.html"));
-  assert.equal(bucketFile("/pricing.html"), join(FRONTEND, "pricing.html"));
+  assert.equal(bucketFile("/pricing.html"), join(DIST, "pricing.html"));
+  assert.equal(bucketFile("/board.html"), join(FRONTEND, "board.html"));
   assert.ok(PUBLISHED.test("/companies/a.html") && PUBLISHED.test("/stats.json") && !PUBLISHED.test("/stats.js"));
   console.log("preview routing: all checks pass");
 }

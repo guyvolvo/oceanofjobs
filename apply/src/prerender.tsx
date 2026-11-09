@@ -6,11 +6,13 @@
 // in ISLAND_PAGES only their islands (shell/island.tsx, hydrateIslands()).
 import { StrictMode, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
+import { Checkout } from "./checkout/Checkout";
 import { Contact } from "./contact/Contact";
 import { Home } from "./home/Home";
 import { Legal } from "./legal/Legal";
 import { NotFound } from "./notfound/NotFound";
 import { collectIslands } from "./shell/island";
+import { Pricing } from "./pricing/Pricing";
 
 const PAGES: Record<string, () => ReactNode> = {
   privacy: () => <Legal doc="privacy" />,
@@ -19,6 +21,8 @@ const PAGES: Record<string, () => ReactNode> = {
   contact: () => <Contact />,
   "404": () => <NotFound />,
   home: () => <Home />,
+  pricing: () => <Pricing />,
+  checkout: () => <Checkout />,
 };
 // Pages whose entry calls hydrateIslands(): the text stays plain HTML.
 const ISLAND_PAGES = new Set(["privacy", "terms", "refunds", "contact", "404", "home"]);
