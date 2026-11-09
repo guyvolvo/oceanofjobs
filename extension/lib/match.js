@@ -55,7 +55,7 @@
     // "Sex" only as the whole question or plainly about it, never "sexual".
     [/\bgender\b|^(what is your |your |legal )?sex$|\bsex (assigned|at birth)\b|(^| )מגדר( |$)|^מין$/, 'gender'],
     [/hispanic|latino/, 'hispanic'],
-    [/\b(race|ethnicity|ethnic (origin|background|group))\b/, 'race'],
+    [/\b(race|ethnicity|ethnicities|ethnic (origin|background|group))\b/, 'race'],
     // "Armed forces", not "military service": in Israel that is an ordinary question.
     [/\bveteran\b|\bserved in the (\w+ )?armed forces\b/, 'veteran'],
     [/\bdisability\b|\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
@@ -283,7 +283,8 @@
   // Demographic questions are answered only from what the user set, never
   // by AI. Some have no profile key to map to; their wording marks them.
   function isEeo(field) {
-    return EEO.has(field.key || classify(field))
+    // A reader may know from the form itself (Greenhouse's demographic survey).
+    return field.eeo === true || EEO.has(field.key || classify(field))
       // "lgbt" anywhere: "2SLGBTQIA+" has no word break before it.
       || /\b(sexual orientation|transgender|queer|pronouns?)\b|lgbt/.test(normalise(field.label))
       || OTHER_EEO.test(normalise(field.label));

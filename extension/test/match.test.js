@@ -233,7 +233,8 @@ test('withQueued puts queued jobs before picked ones, without repeats', () => {
 
 test('demographic questions are recognised however they are worded, so AI never answers them', () => {
   for (const label of ['I identify my gender as', 'What is your ethnicity?', 'Race', 'Gender', 'Are you a veteran?',
-    'Do you have a disability?', 'What is your sexual orientation?', 'Your pronouns', 'Do you identify as transgender?']) {
+    'Do you have a disability?', 'What is your sexual orientation?', 'Your pronouns', 'Do you identify as transgender?',
+    'Please select up to 2 ethnicities that you most closely identify with.']) {
     assert.equal(m.isEeo({ label, type: 'select' }), true, label);
   }
   for (const label of ['First name', 'Why do you want to work here?', 'Years of Python experience']) {
