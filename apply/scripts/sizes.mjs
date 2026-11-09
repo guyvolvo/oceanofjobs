@@ -9,7 +9,7 @@ import { gzipSync } from "node:zlib";
 const args = process.argv.slice(2);
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const SITES = { new: opt("--local", "http://127.0.0.1:4173"), live: opt("--live", "https://oceanofjobs.com") };
-const PAGES = { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/no-such-page" };
+const PAGES = { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/no-such-page", pricing: "/pricing", checkout: "/checkout" };
 
 const get = async (url) => Buffer.from(await (await fetch(url, { headers: { "user-agent": "ooj-sizes (GET only)" } })).arrayBuffer());
 const kb = (n) => Math.round(n / 102.4) / 10;

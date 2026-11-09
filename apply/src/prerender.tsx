@@ -5,9 +5,11 @@
 // own entry then hydrates the same element tree in the browser.
 import { StrictMode, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
+import { Checkout } from "./checkout/Checkout";
 import { Contact } from "./contact/Contact";
 import { Legal } from "./legal/Legal";
 import { NotFound } from "./notfound/NotFound";
+import { Pricing } from "./pricing/Pricing";
 
 const PAGES: Record<string, () => ReactNode> = {
   privacy: () => <Legal doc="privacy" />,
@@ -15,6 +17,8 @@ const PAGES: Record<string, () => ReactNode> = {
   refunds: () => <Legal doc="refunds" />,
   contact: () => <Contact />,
   "404": () => <NotFound />,
+  pricing: () => <Pricing />,
+  checkout: () => <Checkout />,
 };
 
 export function render(page: string): string {

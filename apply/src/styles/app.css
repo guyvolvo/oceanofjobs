@@ -11,6 +11,8 @@
 @source "../legal";
 @source "../notfound";
 @source "../contact";
+@source "../pricing";
+@source "../checkout";
 
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 

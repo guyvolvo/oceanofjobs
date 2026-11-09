@@ -108,7 +108,7 @@ def main():
     ap.add_argument("--local", default="http://127.0.0.1:4173")
     ap.add_argument("--live", default="https://oceanofjobs.com")
     ap.add_argument("--json")
-    ap.add_argument("paths", nargs="*", default=["/privacy", "/terms", "/refunds", "/contact", "/404-check"])
+    ap.add_argument("paths", nargs="*", default=["/privacy", "/terms", "/refunds", "/contact", "/404-check", "/pricing", "/checkout"])
     args = ap.parse_args()
     origin = "https://oceanofjobs.com"
     rows, bad = [], []
