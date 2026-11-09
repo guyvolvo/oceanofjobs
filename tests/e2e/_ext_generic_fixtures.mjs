@@ -245,7 +245,7 @@ const EXPERIS = `<meta charset="utf-8"><title>איש/אשת תמיכה בכיר/
       </form></div>\`; });
   </script>`;
 
-await check("Experis: the Hebrew apply button opens the modal, placeholders name the fields, consent left alone, no Submit", async () => {
+await check("Experis: the Hebrew apply button opens the modal, placeholders name the fields, consent left alone, Submit flagged with the human check", async () => {
   await load(EXPERIS);
   const { fields } = await page.evaluate(() => globalThis.oojAts.generic.read());
   const plan = match.planFill(fields, profile, {});
@@ -261,7 +261,8 @@ await check("Experis: the Hebrew apply button opens the modal, placeholders name
     consent: [...document.querySelectorAll("#send-cv-form-CV input[type=checkbox]")].map((el) => el.checked),
   }));
   assert.deepEqual(got, { values: ["Test", "Person", "t@example.com", "+972 50 000 0000"], cv: "cv.pdf", withCv: true, linkedin: false, consent: [false, false] });
-  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.submitInfo()), { botCheck: true });
+  // Since 1.9.19 a page with a human check gets the card's Submit too, flagged botCheck.
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.submitInfo()), { text: "שליחה", selector: 'button[type="submit"]', botCheck: true });
 });
 
 await check("a custom dropdown: options read on open, then picked", async () => {
