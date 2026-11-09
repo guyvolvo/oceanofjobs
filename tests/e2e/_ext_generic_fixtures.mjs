@@ -292,6 +292,25 @@ await check("an Apply button that reveals the form is clicked, then the form rea
   assert.deepEqual(fields.map((f) => f.label), ["Full name", "Email", "Phone"]);
 });
 
+await check("a read after a fill keeps each field's name and gives a follow-up question a new one", async () => {
+  await load(`<form><label>Full name <input name="a"></label><label>Email <input type="email" name="b"></label>
+    <fieldset><legend>Do you need sponsorship?</legend><label><input type="radio" name="sp" value="y">Yes</label><label><input type="radio" name="sp" value="n">No</label></fieldset>
+    <div id="more"></div><label>Phone <input type="tel" name="c"></label></form>`);
+  const first = await page.evaluate(() => globalThis.oojAts.generic.read());
+  await page.evaluate(() => { document.getElementById("more").innerHTML = '<label>Which visa? <input name="v"></label>'; });
+  const again = await page.evaluate(() => globalThis.oojAts.generic.read(true));
+  const was = Object.fromEntries(first.fields.map((f) => [f.label, f.name]));
+  for (const f of again.fields.filter((x) => x.label !== "Which visa?")) assert.equal(f.name, was[f.label], f.label);
+  assert.ok(!Object.values(was).includes(again.fields.find((f) => f.label === "Which visa?").name));
+});
+
+await check("a read again never presses an Apply button", async () => {
+  await load(`<h1>Engineer</h1><button id="go" onclick="window.__pressed = true">Apply now</button>`);
+  const res = await page.evaluate(() => globalThis.oojAts.generic.read(true));
+  assert.equal(res.error, "No application form on this page.");
+  assert.equal(await page.evaluate(() => window.__pressed || false), false);
+});
+
 await check("an Apply link to another page is handed back to follow", async () => {
   await load(`<h1>Engineer</h1><p>About the job</p><a href="/jobs/1/apply">Apply for this job</a>`);
   const res = await page.evaluate(() => globalThis.oojAts.generic.read());
