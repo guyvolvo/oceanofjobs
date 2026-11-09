@@ -58,7 +58,8 @@
     [/\b(race|ethnicity|ethnicities|ethnic (origin|background|group))\b/, 'race'],
     // "Armed forces", not "military service": in Israel that is an ordinary question.
     [/\bveteran\b|\bserved in the (\w+ )?armed forces\b/, 'veteran'],
-    [/\bdisability\b|\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
+    // "Impairment of independence" is an auditor's conflict question, not EEO.
+    [/\bdisability\b|^(?!.*\b(independence|objectivity|audit|auditor)\b).*\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
     // Contact fields by label alone, for forms whose field names mean nothing.
     // Anchored, so a custom question that mentions an email is left alone.
     // Also in French, Spanish, Italian, Portuguese, German, Dutch, Polish

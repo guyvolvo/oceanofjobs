@@ -406,6 +406,19 @@ test('demographic questions in other wordings are recognised; ordinary questions
   assert.equal(m.classify({ label: 'Do you have a long-term health condition or impairment?' }), 'disability');
 });
 
+test('an auditor independence question is not about disability; impairment questions still are', () => {
+  for (const label of ['Is there any perceived impairment of independence with you being our auditor?',
+    'Is there any impairment of independence or objectivity in relation to the audit of this company?',
+    'Do you have any relationship that could cause an impairment to your independence as an auditor?']) {
+    assert.notEqual(m.classify({ label }), 'disability', label);
+    assert.ok(!m.isEeo({ label, type: 'select', options: [] }), label);
+  }
+  for (const label of ['Do you have a physical or mental impairment?', 'Do you have an impairment, health condition or learning difference?',
+    'Do you consider yourself to have a disability or impairment?', 'Disability status']) {
+    assert.equal(m.classify({ label }), 'disability', label);
+  }
+});
+
 test('a phone number split in two (Workday): the country in its dropdown, the rest in the box', () => {
   const p = { ...profile, contact: { ...profile.contact, phone: '+972587858580', location: 'Tel Aviv, Israel' } };
   const fields = [
