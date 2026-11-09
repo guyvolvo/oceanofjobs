@@ -5,6 +5,7 @@
 // own entry then hydrates the same element tree in the browser.
 import { StrictMode, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
+import { Board } from "./board/Board";
 import { Contact } from "./contact/Contact";
 import { Legal } from "./legal/Legal";
 import { NotFound } from "./notfound/NotFound";
@@ -15,6 +16,7 @@ const PAGES: Record<string, () => ReactNode> = {
   refunds: () => <Legal doc="refunds" />,
   contact: () => <Contact />,
   "404": () => <NotFound />,
+  board: () => <Board />,
 };
 
 export function render(page: string): string {

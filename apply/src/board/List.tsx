@@ -1,30 +1,33 @@
-// The list column: the count line with the sort, the rows, the empty and
-// error states, the search notice, the Best matches panel, the held
-// "new jobs" button, and the Load more the observer presses.
-import { useEffect, useRef, type ReactNode } from "react";
-import { Badge } from "@cloudflare/kumo/components/badge";
-import { Banner } from "@cloudflare/kumo/components/banner";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Empty } from "@cloudflare/kumo/components/empty";
-import { SkeletonLine } from "@cloudflare/kumo/components/loader";
-import { CaretDown, Check, Lightning, MagnifyingGlass, Star } from "@phosphor-icons/react";
+// The list box: the count line with the date and sort, the Best matches
+// panel, the search notice, the held "new jobs" button, the rows and the
+// empty and error states. Rows are virtual (TanStack Virtual): only the
+// ones near the screen are in the page, so tests and code find a row by
+// its data-id, never by its position.
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useVirtualizer, useWindowVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
+import { CaretDown, Check, Lightning, Star } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { requestSignIn } from "../site/auth";
 import { signedIn } from "../api";
 import { DateSelect, SortSelect } from "./Filters";
-import { F, MAX_SEARCH_TERMS, PAGE_SIZE, U, appliedLabel, clearError, dom, dropSkill, loadJobs, loadMoreJobs, moreAvailable, openJobAndPush, resultNoun, searchSkill,
-  searchTermsInPlay, setMatchSkillsOpen, setSearch, showHeldJobs, toggleQueue, toggleStar, undoLastFilter, updatedAgo, lastAppliedFilter } from "./store";
-import { SENIORITY_LABELS, WORKPLACE_LABELS, ageDays, cityName, companyDomain, companyLabel, fmtInt, fmtPostedAgo, isPhone, isReposted, monogram, safeHref,
-  salarySource, type Job } from "./util";
+import { F, MAX_SEARCH_TERMS, U, appliedLabel, clearError, dom, dropSkill, lastAppliedFilter, loadJobs, loadMoreJobs, moreAvailable, openJobAndPush, resultNoun,
+  searchSkill, searchTermsInPlay, setMatchSkillsOpen, setSearch, showHeldJobs, toggleQueue, toggleStar, undoLastFilter, updatedAgo } from "./store";
+import { PHONE, SENIORITY_LABELS, WORKPLACE_LABELS, ageDays, companyDomain, companyLabel, fmtInt, fmtPostedAgo, isReposted, monogram, salarySource, useMedia,
+  type Job } from "./util";
+
+export const tag = "inline-flex max-w-full items-center rounded-sm border px-1.5 font-ui text-xs leading-[18px]";
 
 export function Logo({ domain, resolved, size, className = "" }: { domain?: string; resolved?: string | null; size: number; className?: string }) {
   const mono = monogram(domain);
-  const cls = `shrink-0 rounded-[4px] bg-white object-contain ring-1 ring-kumo-hairline ${className}`;
-  if (resolved === "" || !domain) return <img className={cls} src={mono} alt="" width={size} height={size} />;
+  const cls = cn("shrink-0 rounded-sm object-contain", className);
+  if (resolved === "" || !domain) return <img className={cn(cls, "outline outline-border -outline-offset-1")} src={mono} alt="" width={size} height={size} />;
   return <img className={cls} src={`/logo/${encodeURIComponent(domain)}.png`} alt="" width={size} height={size} loading="lazy"
     onError={(e) => { const img = e.currentTarget; img.onerror = null; img.src = mono; }} />;
 }
 
-// Marks the search words inside a row's text, from the start of a word.
+// The search words inside a row's text, from the start of a word.
 function Highlight({ text }: { text?: string | null }) {
   const safe = text ?? "";
   const terms = [...searchTermsInPlay(), ...U.searchRelated].filter((t) => t.length > 1);
@@ -37,31 +40,29 @@ function Highlight({ text }: { text?: string | null }) {
   for (const m of safe.matchAll(re)) {
     const i = m.index!;
     if (i > last) out.push(safe.slice(last, i));
-    out.push(<mark key={i} className="rounded-[2px] bg-kumo-success-tint text-inherit">{m[0]}</mark>);
+    out.push(<mark key={i} className="rounded-xs bg-accent text-inherit">{m[0]}</mark>);
     last = i + m[0].length;
   }
   if (last < safe.length) out.push(safe.slice(last));
   return <>{out}</>;
 }
 
-export function SalaryChip({ j, className = "" }: { j: Job; className?: string }) {
+export function SalaryChip({ j }: { j: Job }) {
   if (!j.salary_text) return null;
   const { estimate, note } = salarySource(j);
   return (
-    <span title={note} className={`inline-flex max-w-full items-center gap-1 rounded-[4px] border border-kumo-brand px-1.5 py-px text-xs ${estimate ? "" : "bg-kumo-success-tint"} ${className}`}>
-      {estimate ? <span className="text-kumo-default">Est.</span> : null}
-      <span className="truncate font-medium text-kumo-brand">{j.salary_text}</span>
+    <span title={note} className="inline-flex shrink-0 items-center gap-1 font-ui text-xs font-semibold text-foreground">
+      {estimate ? <span className="font-normal">Est.</span> : null}{j.salary_text}
     </span>
   );
 }
 
-const ROW_SKILLS_SHOWN = 3;
-export function SkillChips({ j, limit = ROW_SKILLS_SHOWN }: { j: Job; limit?: number }) {
+export function SkillChips({ j, limit = 3 }: { j: Job; limit?: number }) {
   return (
     <>
       {(j.skills || "").split(",").filter(Boolean).slice(0, limit).map((s) => (
         <button key={s} type="button" title={`Search for ${s}`} onClick={(e) => { e.stopPropagation(); searchSkill(s); }}
-          className="inline-flex max-w-full cursor-pointer items-center rounded-[4px] border border-kumo-hairline bg-transparent px-1.5 py-px text-xs text-kumo-subtle hover:bg-kumo-tint">
+          className={cn(tag, "cursor-pointer bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground")}>
           <span className="truncate">{s}</span>
         </button>
       ))}
@@ -77,10 +78,8 @@ function MatchLine({ j }: { j: Job }) {
   return (
     <>
       <SalaryChip j={j} />
-      {hits.slice(0, 3).map((sk) => (
-        <span key={sk} className="inline-flex items-center gap-1 rounded-[4px] border border-kumo-brand px-1.5 py-px text-xs text-kumo-brand"><Check size={10} aria-hidden="true" />{sk}</span>
-      ))}
-      <span className="min-w-0 truncate text-xs text-kumo-subtle" title={summary}>{summary}</span>
+      {hits.slice(0, 3).map((sk) => <span key={sk} className={cn(tag, "gap-1 border-ring text-foreground")}><Check size={10} aria-hidden="true" />{sk}</span>)}
+      <span className="min-w-0 truncate font-ui text-xs text-muted-foreground" title={summary}>{summary}</span>
     </>
   );
 }
@@ -91,9 +90,9 @@ export function QueueButton({ job, label }: { job: Job; label?: boolean }) {
   if (!FILLABLE_ATS.has(job.ats || "") || U.appliedAt.has(job.id)) return null;
   const on = U.queue.has(job.id);
   return (
-    <Button variant={on ? "primary" : "secondary"} size="sm" shape={label ? "base" : "square"} aria-pressed={on} title="Queue for auto apply" aria-label="Queue for auto apply"
-      icon={<Lightning weight={on ? "fill" : "regular"} />} onClick={(e) => { e.stopPropagation(); toggleQueue(job.id); }}>
-      {label ? (on ? "Queued" : "Auto apply") : ""}
+    <Button variant="outline" size={label ? "default" : "icon"} aria-pressed={on} title="Queue for auto apply" aria-label={label ? undefined : "Queue for auto apply"}
+      className={cn("font-normal", on && "border-primary bg-primary text-primary-foreground")} onClick={(e) => { e.stopPropagation(); toggleQueue(job.id); }}>
+      <Lightning weight={on ? "fill" : "regular"} />{label ? (on ? "Queued" : "Auto apply") : null}
     </Button>
   );
 }
@@ -113,7 +112,7 @@ function PlaceLine({ j }: { j: Job }) {
   return <>{parts.flatMap((p, i) => (i ? [" · ", p] : [p]))}</>;
 }
 
-function Row({ j }: { j: Job }) {
+function Row({ j, index, size }: { j: Job; index: number; size: number }) {
   const age = ageDays(j.posted_at);
   const fresh = age !== null && age <= 3 && !isReposted(j);
   const starred = U.starred.has(j.id);
@@ -121,57 +120,56 @@ function Row({ j }: { j: Job }) {
   const selected = j.id === U.selected;
   const domain = companyDomain(j);
   const ageText = applied || fmtPostedAgo(j, age);
-  const ageCls = applied ? "text-kumo-brand" : fresh ? "text-kumo-brand" : "text-kumo-subtle";
+  const ageCls = applied || fresh ? "font-semibold text-foreground" : "text-muted-foreground";
   const open = () => openJobAndPush(j.id);
   return (
-    <div data-row-id={j.id} role="button" tabIndex={0} aria-label={`${j.title}, ${companyLabel(j)}`}
-      onClick={(e) => { const t = e.target as HTMLElement; if (t.closest("a, button")) return; open(); }}
-      onKeyDown={(e) => { if (e.key !== "Enter" && e.key !== " ") return; if ((e.target as HTMLElement).closest("a, button")) return; e.preventDefault(); open(); }}
-      className={`grid cursor-pointer grid-cols-[28px_44px_minmax(0,1fr)] gap-x-3 border-b border-kumo-hairline px-3 py-2.5 outline-none focus-visible:bg-kumo-tint min-[801px]:grid-cols-[28px_44px_minmax(0,1fr)_auto]
-        ${selected ? "bg-kumo-success-tint" : "hover:bg-kumo-tint"}`}>
-      <button type="button" aria-pressed={starred} aria-label={`${starred ? "Saved" : "Save"} ${j.title}`} title={signedIn() ? "Save to your account" : "Save (this browser only)"}
-        onClick={(e) => { e.stopPropagation(); toggleStar(j.id); }}
-        className={`-ml-1 grid h-7 w-7 cursor-pointer place-items-center self-start rounded-[4px] border-0 bg-transparent ${starred ? "text-kumo-brand" : "text-kumo-inactive hover:text-kumo-default"}`}>
-        <Star size={16} weight={starred ? "fill" : "regular"} />
-      </button>
-      <Logo domain={j.company_domain} resolved={j.logo_url} size={44} className="self-start" />
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <a href={`/job/${encodeURIComponent(j.id)}`} title={j.title} className="min-w-0 truncate font-medium text-kumo-strong no-underline hover:underline"
+    <div data-id={j.id} data-row-id={j.id} role="listitem" aria-posinset={index + 1} aria-setsize={size} aria-current={selected || undefined}
+      onClick={(e) => { if ((e.target as HTMLElement).closest("a, button")) return; open(); }}
+      className={cn("grid cursor-pointer grid-cols-[40px_minmax(0,1fr)_28px] gap-x-3 border-b px-4 py-3.5 min-[801px]:min-h-[84px] min-[801px]:grid-cols-[44px_minmax(0,1fr)_auto] min-[801px]:border-b-0 min-[801px]:border-l-[3px] min-[801px]:border-l-transparent min-[801px]:py-3 min-[801px]:pl-[13px]",
+        selected ? "bg-accent min-[801px]:border-l-foreground" : "hover:bg-muted")}>
+      <Logo domain={j.company_domain} resolved={j.logo_url} size={44} className="size-10 self-start min-[801px]:size-11" />
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="min-w-0 font-ui leading-[1.35]">
+          <a href={`/job/${encodeURIComponent(j.id)}`} title={j.title} className="text-[15px] font-semibold text-foreground no-underline hover:underline focus-visible:rounded-xs max-[800px]:line-clamp-2"
             onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return; e.preventDefault(); open(); }}>
             <Highlight text={j.title} />
           </a>
-          {j.seniority ? <Badge variant="outline">{SENIORITY_LABELS[j.seniority] || j.seniority}</Badge> : null}
-          {j.confidence === "best_effort" ? <span title="Read from the company's careers page, so it may be out of date."><Badge variant="warning">Unverified</Badge></span> : null}
-          {j.closed_at ? <span title="This job is no longer open"><Badge variant="neutral">Closed</Badge></span> : null}
+          {j.seniority ? <span className={cn(tag, "ml-1.5 border-[1.5px] border-foreground align-[2px] font-semibold text-foreground")}>{SENIORITY_LABELS[j.seniority] || j.seniority}</span> : null}
+          {j.confidence === "best_effort" ? <span title="Read from the company's careers page, so it may be out of date." className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Unverified</span> : null}
+          {j.closed_at ? <span title="This job is no longer open" className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Closed</span> : null}
         </div>
-        <div className="flex min-w-0 items-baseline gap-1 text-sm">
-          <span className="min-w-0 truncate">
-            {domain ? <a href={`/company/${encodeURIComponent(domain)}`} title={`Every open job at ${companyLabel(j)}`} className="font-medium text-kumo-default no-underline hover:underline"><Highlight text={companyLabel(j)} /></a>
-              : <span className="font-medium text-kumo-default"><Highlight text={companyLabel(j)} /></span>}
-            {j.department ? <span className="text-kumo-subtle"> · <Highlight text={j.department} /></span> : null}
+        <div className="min-w-0 truncate font-ui text-sm text-foreground max-[800px]:text-[13px]">
+          {domain ? <a href={`/company/${encodeURIComponent(domain)}`} title={`Every open job at ${companyLabel(j)}`} className="text-foreground no-underline hover:underline"><Highlight text={companyLabel(j)} /></a>
+            : <Highlight text={companyLabel(j)} />}
+          {j.department ? <> · <Highlight text={j.department} /></> : null}
+          <span className="text-muted-foreground max-[800px]:hidden">{j.location || j.workplace_type ? " · " : ""}<PlaceLine j={j} /></span>
+        </div>
+        <div className={cn("flex min-w-0 items-center gap-2", !(U.matchedSkills.size || j.salary_text || j.skills) && "min-[801px]:hidden")}>
+          <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+            {U.matchedSkills.size ? <MatchLine j={j} /> : <><SalaryChip j={j} /><SkillChips j={j} /></>}
           </span>
-          <span className={`shrink-0 text-xs min-[801px]:hidden ${ageCls}`}> · {ageText}</span>
-        </div>
-        <div className="truncate text-sm text-kumo-subtle"><PlaceLine j={j} /></div>
-        <div className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden">
-          {U.matchedSkills.size ? <MatchLine j={j} /> : <><SalaryChip j={j} /><SkillChips j={j} /></>}
+          <span className={cn("shrink-0 pl-2 font-ui text-xs min-[801px]:hidden", ageCls)}>{ageText}</span>
         </div>
       </div>
-      <div className={`hidden self-start pt-0.5 text-right font-mono text-xs min-[801px]:block ${ageCls}`}>{ageText}</div>
+      <div className={cn("hidden self-start pt-0.5 text-right font-ui text-[13px] whitespace-nowrap min-[801px]:block", ageCls)}>{ageText}</div>
+      <button type="button" aria-pressed={starred} aria-label={`${starred ? "Saved" : "Save"} ${j.title}`} title={signedIn() ? "Save to your account" : "Save (this browser only)"}
+        onClick={(e) => { e.stopPropagation(); toggleStar(j.id); }}
+        className={cn("grid size-7 cursor-pointer place-items-center self-start rounded-sm min-[801px]:hidden", starred ? "text-[var(--ooj-green-text)]" : "text-muted-foreground hover:text-foreground")}>
+        <Star size={18} weight={starred ? "fill" : "regular"} />
+      </button>
     </div>
   );
 }
 
+// One bone row, the real row's shape, so nothing moves when rows land.
 function Bones({ n }: { n: number }) {
   return (
     <div aria-hidden="true">
       {Array.from({ length: n }, (_, i) => (
-        <div key={i} className="grid grid-cols-[28px_44px_minmax(0,1fr)_auto] gap-x-3 border-b border-kumo-hairline px-3 py-2.5">
-          <span />
-          <SkeletonLine blockHeight={44} minWidth={44} maxWidth={44} />
-          <div className="flex flex-col gap-1.5"><SkeletonLine minWidth={40} maxWidth={70} /><SkeletonLine minWidth={30} maxWidth={50} /><SkeletonLine minWidth={20} maxWidth={40} /></div>
-          <SkeletonLine minWidth={8} maxWidth={8} />
+        <div key={i} className="grid grid-cols-[40px_minmax(0,1fr)_28px] gap-x-3 border-b px-4 py-3.5 min-[801px]:min-h-[84px] min-[801px]:grid-cols-[44px_minmax(0,1fr)_auto] min-[801px]:border-b-0 min-[801px]:py-3">
+          <Skeleton className="size-10 min-[801px]:size-11" />
+          <div className="flex flex-col gap-2 pt-0.5"><Skeleton className="h-3.5 w-3/5" /><Skeleton className="h-3 w-2/5" /><Skeleton className="h-3 w-1/4" /></div>
+          <Skeleton className="h-3 w-10" />
         </div>
       ))}
     </div>
@@ -180,33 +178,34 @@ function Bones({ n }: { n: number }) {
 
 function EmptyState() {
   const e = U.empty!;
-  if (e.saved === "none") return <Empty size="sm" icon={<Star size={32} className="text-kumo-inactive" />} title="No saved jobs yet" description="Save a job to find it here." />;
-  if (e.saved === "gone") return <Empty size="sm" icon={<Star size={32} className="text-kumo-inactive" />} title="No saved jobs to show" description="The jobs you saved are no longer on the board." />;
+  const box = (title: string, text?: ReactNode, actions?: ReactNode) => (
+    <div className="flex flex-col items-center gap-2 px-4 py-12 text-center font-ui" id="jobs-empty">
+      <strong className="text-base text-foreground">{title}</strong>
+      {text ? <p className="m-0 text-sm text-muted-foreground">{text}</p> : null}
+      {actions ? <div className="mt-2 flex flex-wrap justify-center gap-2">{actions}</div> : null}
+    </div>
+  );
+  if (e.saved === "none") return box("No saved jobs yet", "Save a job to find it here.");
+  if (e.saved === "gone") return box("No saved jobs to show", "The jobs you saved are no longer on the board.");
   const last = lastAppliedFilter();
+  const act = (key: string, label: string, run: () => void) => <Button key={key} variant="outline" size="sm" onClick={run}>{label}</Button>;
   if (e.search) {
     const { terms, mode } = e.search;
     const actions: ReactNode[] = [];
     if (mode === "all" && terms.length > 1) {
-      actions.push(<Button key="any" variant="secondary" size="sm" onClick={() => setSearch({ mode: "any" })}>Search any of these words</Button>);
+      actions.push(act("any", "Search any of these words", () => setSearch({ mode: "any" })));
       for (const term of terms.slice(-2).reverse()) {
-        actions.push(<Button key={`drop:${term}`} variant="secondary" size="sm" onClick={() => {
+        actions.push(act(`drop:${term}`, `Without ${term}`, () => {
           const kept = searchTermsInPlay().filter((t) => t !== term.toLowerCase()).map((t) => (t.includes(" ") ? `"${t}"` : t)).join(" ");
           setSearch({ search: kept });
-        }}>Without {term}</Button>);
+        }));
       }
     }
-    actions.push(<Button key="clear" variant="secondary" size="sm" onClick={() => setSearch({ search: "", mode: "", exact: "" })}>Clear the search</Button>);
-    if (last && !last.label.startsWith('"')) actions.push(<Button key="undo" variant="secondary" size="sm" onClick={undoLastFilter}>Remove {last.label}</Button>);
-    return (
-      <Empty size="sm" icon={<MagnifyingGlass size={32} className="text-kumo-inactive" />} title="No results"
-        description={`${mode === "any" ? "No job mentions any of these words" : `No job has all ${terms.length} of these words`}: ${terms.join(" · ")}`}
-        contents={<div className="flex flex-wrap justify-center gap-2">{actions}</div>} />
-    );
+    actions.push(act("clear", "Clear the search", () => setSearch({ search: "", mode: "", exact: "" })));
+    if (last && !last.label.startsWith('"')) actions.push(act("undo", `Remove ${last.label}`, undoLastFilter));
+    return box("No results", `${mode === "any" ? "No job mentions any of these words" : `No job has all ${terms.length} of these words`}: ${terms.join(" · ")}`, actions);
   }
-  return (
-    <Empty size="sm" icon={<MagnifyingGlass size={32} className="text-kumo-inactive" />} title="No results"
-      contents={last ? <Button variant="secondary" size="sm" onClick={undoLastFilter}>Remove {last.label}</Button> : undefined} />
-  );
+  return box("No results", undefined, last ? act("undo", `Remove ${last.label}`, undoLastFilter) : undefined);
 }
 
 // Words past the cap, and whether related roles are in.
@@ -217,44 +216,45 @@ export function SearchNotice() {
   const related = (!info.exact && info.expanded) || [];
   const exact = info.exact && (info.terms || []).length;
   if (!ignored.length && !related.length && !exact) return null;
+  const link = "cursor-pointer font-semibold text-[var(--ooj-green-text)] underline-offset-2 hover:underline";
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-kumo-hairline px-3 py-1.5 text-xs text-kumo-subtle">
+    <div id="search-notice" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-5 py-2 font-ui text-[13px] text-muted-foreground">
       {ignored.length ? <span>Searching the first {MAX_SEARCH_TERMS} words. Not used: {ignored.join(" · ")}</span> : null}
-      {related.length ? <><span title={`Also matching ${related.join(", ")}.`}>Also showing related jobs.</span><Button variant="ghost" size="xs" onClick={() => setSearch({ exact: "1" })}>Show exact matches only</Button></> : null}
-      {exact ? <><span>Showing exact matches only.</span><Button variant="ghost" size="xs" onClick={() => setSearch({ exact: "" })}>Include related jobs</Button></> : null}
+      {related.length ? <><span title={`Also matching ${related.join(", ")}.`}>Also showing related jobs.</span><button type="button" className={link} onClick={() => setSearch({ exact: "1" })}>Show exact matches only</button></> : null}
+      {exact ? <><span>Showing exact matches only.</span><button type="button" className={link} onClick={() => setSearch({ exact: "" })}>Include related jobs</button></> : null}
     </div>
   );
 }
 
 // Best matches: the skills the order is built from.
 export function MatchPanel() {
+  const link = "font-semibold text-[var(--ooj-green-text)] underline-offset-2 hover:underline";
   if (U.matchPrompt && !F.skills.length) {
     return (
-      <div className="border-b border-kumo-hairline px-3 py-2 text-sm text-kumo-subtle">
+      <div id="match-panel" className="border-b px-5 py-2.5 font-ui text-sm text-muted-foreground">
         Best matches orders jobs by the skills on your resume.{" "}
-        {signedIn() ? <a className="text-kumo-link underline" href="/account/skills">Add your resume</a>
-          : <><button type="button" className="cursor-pointer border-0 bg-transparent p-0 text-kumo-link underline" onClick={requestSignIn}>Log in</button>, then add your resume on your account page.</>}
+        {signedIn() ? <a className={link} href="/account#skills">Add your resume</a>
+          : <><button type="button" className={cn(link, "cursor-pointer")} onClick={requestSignIn}>Log in</button>, then add your resume on your account page.</>}
       </div>
     );
   }
   if (!F.skills.length || F.starred_only) return null;
   const open = U.matchSkillsOpen;
   return (
-    <div className="border-b border-kumo-hairline px-3 py-2">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Button variant="ghost" size="xs" aria-expanded={open} aria-controls="match-skills" onClick={() => setMatchSkillsOpen(!open)}>
-          My skills <Badge variant="secondary" className="ml-1">{F.skills.length}</Badge> <CaretDown size={12} className={open ? "rotate-180" : ""} aria-hidden="true" />
-        </Button>
-        <span className="text-kumo-subtle" title="Jobs that share at least one of your resume skills, ordered by how many. Newer jobs count higher, and every two weeks since posting counts as one skill fewer.">Ranked by resume skills</span>
-        <a className="ml-auto text-kumo-link underline" href="/account/skills">Edit skills</a>
+    <div id="match-panel" className="border-b px-5 py-2.5 font-ui">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <button type="button" aria-expanded={open} aria-controls="match-skills" onClick={() => setMatchSkillsOpen(!open)}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-foreground px-3 py-0.5 font-semibold text-foreground hover:bg-muted">
+          My skills <span className="tabular-nums text-muted-foreground">{F.skills.length}</span><CaretDown size={12} className={cn("transition-transform", open && "rotate-180")} aria-hidden="true" />
+        </button>
+        <span className="text-muted-foreground" title="Jobs that share at least one of your resume skills, ordered by how many. Newer jobs count higher, and every two weeks since posting counts as one skill fewer.">Ranked by resume skills</span>
+        <a className={cn(link, "ml-auto")} href="/account#skills">Edit skills</a>
       </div>
       {open ? (
-        <div id="match-skills" className="mt-1.5 flex flex-wrap gap-1">
+        <div id="match-skills" className="mt-2 flex flex-wrap gap-1.5">
           {F.skills.map((s) => (
             <button key={s} type="button" title={`Stop matching on ${s}`} onClick={() => dropSkill(s)}
-              className="inline-flex cursor-pointer items-center gap-1 rounded-[4px] border border-kumo-hairline bg-transparent px-1.5 py-px text-xs text-kumo-default hover:bg-kumo-tint">
-              {s} <span aria-hidden="true">✕</span>
-            </button>
+              className={cn(tag, "cursor-pointer gap-1 bg-transparent text-foreground hover:bg-muted")}>{s} <span aria-hidden="true">✕</span></button>
           ))}
         </div>
       ) : null}
@@ -265,74 +265,118 @@ export function MatchPanel() {
 function CountLine() {
   const data = U.jobs;
   const updated = updatedAgo();
-  if (U.skeleton) return <div className="flex flex-col gap-1"><SkeletonLine minWidth={30} maxWidth={40} /><SkeletonLine minWidth={20} maxWidth={30} /></div>;
-  if (F.starred_only) return <span className="text-sm text-kumo-strong">{data?.jobs.length ? <><b>{fmtInt(data.jobs.length)}</b> saved</> : ""}</span>;
+  const title = "font-display text-[17px] font-medium text-foreground [&_b]:font-medium [&_b]:tabular-nums";
+  if (U.skeleton) return <span className="flex flex-col gap-1.5" aria-hidden="true"><Skeleton className="h-4 w-36" /><Skeleton className="h-3 w-48" /></span>;
+  if (F.starred_only) return <span id="result-count" className={title}>{data?.jobs.length ? <><b>{fmtInt(data.jobs.length)}</b> saved</> : ""}</span>;
   if (!data || !data.jobs.length) {
-    return <span className="flex flex-col"><span className="text-sm text-kumo-strong">No {resultNoun()}</span><span className="text-xs text-kumo-subtle">{updated}</span></span>;
+    return <span className="flex flex-col"><span id="result-count" className={title}>No {resultNoun()}</span><span id="result-sub" className="font-ui text-xs text-muted-foreground">{updated}</span></span>;
   }
   const total = data.total;
   const shown = data.jobs.length;
   const to = total == null ? shown : Math.min(shown, total);
   return (
     <span className="flex min-w-0 flex-col">
-      <span className="truncate text-sm text-kumo-strong">{total == null ? <><b>{fmtInt(shown)}+</b> {resultNoun()}</> : <><b className="text-kumo-brand">{fmtInt(total)}</b> {resultNoun()}</>}</span>
-      <span className="truncate text-xs text-kumo-subtle">{[`Showing 1-${to}`, updated].filter(Boolean).join(" · ")}</span>
+      <span id="result-count" className={cn(title, "truncate")}>{total == null ? <><b>{fmtInt(shown)}+</b> {resultNoun()}</> : <><b>{fmtInt(total)}</b> {resultNoun()}</>}</span>
+      <span id="result-sub" className="truncate font-ui text-xs text-muted-foreground">{[`Showing 1–${to}`, updated].filter(Boolean).join(" · ")}</span>
     </span>
   );
 }
 
-export function List() {
-  const listRef = useRef<HTMLDivElement>(null);
-  const rowsRef = useRef<HTMLDivElement>(null);
-  const moreRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { dom.list = listRef.current; dom.rows = rowsRef.current; return () => { dom.list = null; dom.rows = null; }; }, []);
-  // The next page is already arriving as the last rows come into view;
-  // on a phone the page scrolls, not the list, so the viewport is the root.
-  useEffect(() => {
-    const el = moreRef.current;
+// Rows fill the space under the head; the virtualizer only needs to know
+// where they start inside the thing that scrolls.
+function useRowsStart(rows: React.RefObject<HTMLDivElement | null>, scroller: () => Element | null) {
+  const [start, setStart] = useState(0);
+  useLayoutEffect(() => {
+    const el = rows.current;
     if (!el) return;
-    let obs: IntersectionObserver | null = null;
-    const wire = () => {
-      obs?.disconnect();
-      obs = new IntersectionObserver(([e]) => { if (e.isIntersecting && moreAvailable()) loadMoreJobs(); },
-        { root: isPhone() ? null : listRef.current, rootMargin: "600px 0px" });
-      obs.observe(el);
+    const measure = () => {
+      const s = scroller();
+      const top = s ? el.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop : el.getBoundingClientRect().top + window.scrollY;
+      setStart(Math.round(top));
     };
-    wire();
-    const mq = matchMedia("(max-width: 800px)");
-    mq.addEventListener("change", wire);
-    return () => { obs?.disconnect(); mq.removeEventListener("change", wire); };
-  }, []);
-  const jobs = U.jobs?.jobs || [];
-  const bones = Math.min(PAGE_SIZE, Math.max(16, jobs.length));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el.parentElement || el);
+    return () => ro.disconnect();
+  });
+  return start;
+}
+
+function VirtualRows({ jobs, v, start }: { jobs: Job[]; v: Virtualizer<any, Element>; start: number }) {
+  const items = v.getVirtualItems();
+  // The next page is asked for while the last rows are still a screen away.
+  const last = items[items.length - 1];
+  useEffect(() => { if (last && last.index >= jobs.length - 8 && moreAvailable()) loadMoreJobs(); }, [last?.index, jobs.length]);
+  useEffect(() => {
+    dom.reveal = (id) => {
+      const i = jobs.findIndex((j) => j.id === id);
+      if (i >= 0) v.scrollToIndex(i, { align: "auto" });
+    };
+    return () => { dom.reveal = null; };
+  }, [jobs, v]);
   return (
-    <section ref={listRef} aria-label="Jobs" className="relative flex min-h-0 flex-col min-[1100px]:overflow-y-auto">
-      <div data-list-head className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-kumo-hairline bg-kumo-canvas px-3 py-2">
+    <div id="jobs-body" role="list" aria-label="Jobs" className="relative" style={{ height: v.getTotalSize() }}>
+      {items.map((it) => (
+        <div key={jobs[it.index].id} data-index={it.index} ref={v.measureElement} className="absolute top-0 left-0 w-full"
+          style={{ transform: `translateY(${it.start - start}px)` }}>
+          <Row j={jobs[it.index]} index={it.index} size={U.jobs?.total ?? jobs.length} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const ROW_ESTIMATE = 92;
+function BoxRows({ jobs, scroller }: { jobs: Job[]; scroller: React.RefObject<HTMLElement | null> }) {
+  const rows = useRef<HTMLDivElement>(null);
+  const start = useRowsStart(rows, () => scroller.current);
+  const v = useVirtualizer({ count: jobs.length, getScrollElement: () => scroller.current, estimateSize: () => ROW_ESTIMATE, overscan: 6,
+    scrollMargin: start, getItemKey: (i) => jobs[i].id, scrollPaddingStart: 72 });
+  return <div ref={rows}><VirtualRows jobs={jobs} v={v} start={start} /></div>;
+}
+function PageRows({ jobs }: { jobs: Job[] }) {
+  const rows = useRef<HTMLDivElement>(null);
+  const start = useRowsStart(rows, () => null);
+  const v = useWindowVirtualizer({ count: jobs.length, estimateSize: () => 104, overscan: 6, scrollMargin: start, getItemKey: (i) => jobs[i].id,
+    scrollPaddingStart: 72, scrollPaddingEnd: 80 });
+  return <div ref={rows}><VirtualRows jobs={jobs} v={v as unknown as Virtualizer<any, Element>} start={start} /></div>;
+}
+
+export function List() {
+  const box = useRef<HTMLElement>(null);
+  const rows = useRef<HTMLDivElement>(null);
+  const phone = useMedia(PHONE);
+  useEffect(() => { dom.list = phone ? null : box.current; dom.rows = rows.current; return () => { dom.list = null; dom.rows = null; }; }, [phone]);
+  const jobs = U.jobs?.jobs || [];
+  return (
+    <section ref={box} aria-label="Job list" className="relative flex min-h-0 flex-col min-[801px]:overflow-y-auto min-[801px]:rounded-t-[10px] min-[801px]:border min-[801px]:border-b-0 min-[801px]:bg-card">
+      <div data-list-head className="sticky top-0 z-10 hidden items-center justify-between gap-3 border-b bg-card px-5 py-3 min-[801px]:flex">
         <div aria-live="polite" className="min-w-0"><CountLine /></div>
-        <div className="hidden items-center gap-1.5 min-[801px]:flex"><DateSelect /><SortSelect /></div>
+        <div className="flex items-center gap-2"><DateSelect /><SortSelect /></div>
       </div>
       <MatchPanel />
       <SearchNotice />
       {U.held ? (
-        <div className="sticky top-14 z-10 flex justify-center">
-          <Button variant="primary" size="sm" className="-mt-px shadow-none" onClick={() => showHeldJobs()}>{fmtInt(U.held)} new {U.held === 1 ? "job" : "jobs"} · Show</Button>
+        <div className="sticky top-[72px] z-10 flex h-0 justify-center overflow-visible">
+          <Button size="sm" className="mt-2 rounded-full" onClick={() => showHeldJobs()}>{fmtInt(U.held)} new {U.held === 1 ? "job" : "jobs"} · Show</Button>
         </div>
       ) : null}
       {U.error ? (
-        <div className="p-3">
-          <Banner variant="error" size="sm" title={U.error.text} action={U.error.retry ? <Button size="xs" variant="secondary" onClick={() => { clearError(); loadJobs(); }}>Try again</Button> : <Button size="xs" variant="ghost" onClick={clearError}>Dismiss</Button>} />
+        <div id="jobs-error" role="status" aria-live="polite" className="m-4 flex flex-wrap items-center gap-3 rounded-md border border-destructive px-3 py-2 font-ui text-sm text-destructive">
+          <span>{U.error.text}</span>
+          {U.error.retry ? <Button size="xs" variant="outline" onClick={() => { clearError(); loadJobs(); }}>Try again</Button>
+            : <Button size="xs" variant="ghost" onClick={clearError}>Dismiss</Button>}
         </div>
       ) : null}
-      <div ref={rowsRef}>
-        {U.skeleton ? <><span className="sr-only" role="status">Loading jobs</span><Bones n={bones} /></>
-          : U.empty ? <div className="p-4"><EmptyState /></div>
-          : jobs.map((j) => <Row key={j.id} j={j} />)}
+      <div ref={rows} className="min-[801px]:pb-2">
+        {U.skeleton ? <><span id="jobs-loading" className="sr-only" role="status">Loading jobs</span><Bones n={16} /></>
+          : U.empty ? <EmptyState />
+          : !jobs.length ? null
+          : phone ? <PageRows jobs={jobs} /> : <BoxRows jobs={jobs} scroller={box} />}
       </div>
-      <div ref={moreRef} className={`flex justify-center p-3 ${moreAvailable() ? "" : "hidden"}`}>
-        <Button variant="ghost" size="sm" loading={U.loadingMore} onClick={loadMoreJobs}>{U.loadingMore ? "Loading" : "Load more"}</Button>
+      <div id="jobs-more" className={cn("flex justify-center p-3", !moreAvailable() && "hidden")}>
+        <Button id="jobs-more-btn" variant="outline" size="sm" disabled={U.loadingMore} onClick={loadMoreJobs}>{U.loadingMore ? "Loading…" : "Load more"}</Button>
       </div>
-      {F.starred_only ? null : null}
-      {cityName ? null : null}
     </section>
   );
 }

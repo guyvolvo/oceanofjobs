@@ -33,7 +33,9 @@ export class BoardPage {
     this.page = page;
     this.search = page.locator("#f-search");
     this.resultCount = page.locator("#result-count");
-    this.rows = page.locator("#jobs-body tr");
+    // A job row on both boards: tr[data-id] on the live one, a virtual row
+    // div[data-id] on the new one (off-screen rows are not in the page).
+    this.rows = page.locator("#jobs-body [data-id]");
     this.emptyState = page.locator("#jobs-empty");
     this.errorState = page.locator("#jobs-error");
     this.companyChip = page.locator("#company-chip");
@@ -80,12 +82,12 @@ export class BoardPage {
     }).toPass();
   }
 
-  /** The "of N" in "Showing 1–50 of 118,974 roles", or null when empty. */
+  /** The N in "118,974 jobs", or null while the count is still "50+". */
   async total(): Promise<number | null> {
     if (await this.emptyState.isVisible()) return 0;
-    const text = (await this.resultCount.textContent()) ?? "";
-    const match = text.replace(/,/g, "").match(/of\s*(\d+)/i);
-    return match ? Number(match[1]) : null;
+    const text = ((await this.resultCount.textContent()) ?? "").replace(/,/g, "");
+    const match = text.match(/^\s*(\d+)(\+?)/);
+    return match && !match[2] ? Number(match[1]) : null;
   }
 
   /**

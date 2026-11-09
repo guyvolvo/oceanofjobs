@@ -10,7 +10,8 @@ import { chromium } from "../../tests/e2e/node_modules/playwright/index.mjs";
 const args = process.argv.slice(2);
 const out = args[0];
 const base = args.includes("--local") ? args[args.indexOf("--local") + 1] : "http://127.0.0.1:4173";
-const PAGES = ["/privacy", "/terms", "/refunds", "/contact", "/no-such-page"];
+// --pages /board,/privacy picks the pages whose Tab stops are checked.
+const PAGES = args.includes("--pages") ? args[args.indexOf("--pages") + 1].split(",") : ["/privacy", "/terms", "/refunds", "/contact", "/no-such-page"];
 mkdirSync(out, { recursive: true });
 
 const focused = (p) => p.evaluate(() => {
@@ -24,7 +25,7 @@ const browser = await chromium.launch();
 const report = {};
 for (const theme of ["light", "dark"]) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await ctx.addInitScript((t) => { localStorage.setItem("ooj_cookie_consent", "no"); localStorage.setItem("iljobs_theme", t); }, theme);
+  await ctx.addInitScript((t) => { localStorage.setItem("ooj_cookie_consent", "no"); localStorage.setItem("iljobs_theme", t); localStorage.setItem("iljobs_geo_asked", "1"); }, theme);
   for (const path of PAGES) {
     const p = await ctx.newPage();
     await p.goto(base + path, { waitUntil: "networkidle" });

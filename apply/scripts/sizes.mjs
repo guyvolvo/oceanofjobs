@@ -2,14 +2,16 @@
 // same-origin script, module preload and stylesheet the delivered HTML
 // names, raw and gzip -9 in KB. The same method as the parity audit's
 // sizes.mjs, but over HTTP, so live and local are measured alike.
-// usage: node scripts/sizes.mjs [--local http://127.0.0.1:4173] [--live https://oceanofjobs.com] [--json file]
+// usage: node scripts/sizes.mjs [--local http://127.0.0.1:4173] [--live https://oceanofjobs.com] [--pages name=/path,...] [--json file]
 import { writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
 const args = process.argv.slice(2);
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const SITES = { new: opt("--local", "http://127.0.0.1:4173"), live: opt("--live", "https://oceanofjobs.com") };
-const PAGES = { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/no-such-page" };
+// --pages board=/board,privacy=/privacy picks the pages.
+const PAGES = opt("--pages") ? Object.fromEntries(opt("--pages").split(",").map((p) => [p.slice(0, p.indexOf("=")), p.slice(p.indexOf("=") + 1)]))
+  : { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/no-such-page" };
 
 const get = async (url) => Buffer.from(await (await fetch(url, { headers: { "user-agent": "ooj-sizes (GET only)" } })).arrayBuffer());
 const kb = (n) => Math.round(n / 102.4) / 10;

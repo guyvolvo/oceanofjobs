@@ -96,10 +96,10 @@ function SignInHost() {
   return used ? <Suspense fallback={null}><SignInWindow open={open} onOpenChange={setOpen} error={error} setError={setError} /></Suspense> : null;
 }
 
-export function Header({ current }: { current?: string }) {
+export function Header({ current, className }: { current?: string; className?: string }) {
   const who = useWho();
   return (
-    <div className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md">
+    <div className={cn("sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md", className)}>
       <header className="flex h-16 items-center gap-6 px-4 leading-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:px-[max(40px,calc((100%-1100px)/2))]">
         <div className="flex-1 justify-self-start"><Brand /></div>
         <nav aria-label="Main" className="hidden items-center gap-7 sm:flex">

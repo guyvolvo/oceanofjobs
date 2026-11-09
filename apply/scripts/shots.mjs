@@ -12,7 +12,8 @@ const args = process.argv.slice(2);
 const out = args[0];
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const SITES = { live: opt("--live", "https://oceanofjobs.com"), new: opt("--local", "http://127.0.0.1:4173") };
-const PAGES = { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/this-page-does-not-exist", "404-job": "/jobs/senior-backend-engineer-0a1b2c3d4e" };
+// --pages board=/board,board-tech=/board?roles=tech picks the pages.
+const PAGES = opt("--pages") ? Object.fromEntries(opt("--pages").split(",").map((p) => [p.slice(0, p.indexOf("=")), p.slice(p.indexOf("=") + 1)])) : { privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/this-page-does-not-exist", "404-job": "/jobs/senior-backend-engineer-0a1b2c3d4e" };
 const VIEWS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
 
 mkdirSync(out, { recursive: true });
@@ -22,13 +23,14 @@ for (const [view, vp] of Object.entries(VIEWS)) for (const theme of ["light", "d
   const { width, height, ...rest } = vp;
   const ctx = await browser.newContext({ viewport: { width, height }, ...rest });
   // No cookie banner over the page, and the theme chosen before first paint.
-  await ctx.addInitScript((t) => { localStorage.setItem("ooj_cookie_consent", "no"); localStorage.setItem("iljobs_theme", t); }, theme);
+  await ctx.addInitScript((t) => { localStorage.setItem("ooj_cookie_consent", "no"); localStorage.setItem("iljobs_theme", t); localStorage.setItem("iljobs_geo_asked", "1"); }, theme);
   for (const [name, path] of Object.entries(PAGES)) {
     const page = await ctx.newPage();
     const errors = [];
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 200)); });
     page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
-    await page.goto(base + path, { waitUntil: "networkidle" });
+    // An app page (the board) polls and may never go network-idle: shoot it after a settle.
+    await page.goto(base + path, { waitUntil: "networkidle", timeout: 20_000 }).catch(() => page.waitForTimeout(3000));
     await page.evaluate(() => document.fonts.ready);
     const m = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
     const file = `${name}-${view}-${theme}-${site}.jpg`;

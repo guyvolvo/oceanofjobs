@@ -1,6 +1,6 @@
-import { Workspace } from "../site/Workspace";
-import { boot } from "../site/boot";
+// /board in the browser: hydrates the prerendered empty board, then the
+// store boots (Board.tsx).
+import { hydrate } from "../shell/hydrate";
+import { Board } from "./Board";
 
-boot(<Workspace current="jobs" title="Jobs" note="Shell check: the board is ported in src/board.">
-  <p className="text-kumo-subtle">Placeholder.</p>
-</Workspace>);
+hydrate(<Board />);
