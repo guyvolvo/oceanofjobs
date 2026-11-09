@@ -52,7 +52,13 @@ BUCKET = os.environ["DATA_BUCKET"]
 # reserved concurrency on this account), a run longer than the 5-minute
 # schedule overlapped the next one, which polled the same boards and lost
 # its state save. Runs reached 415s on 2026-10-04 and 301s on 10-07.
-PROBE_DEADLINE_MIN = 3.5
+#
+# 5 again since 2026-11-09: the schedule is every 15 minutes now
+# (infra/scrape_lambda.tf), so a 7-minute run can't overlap the next. With
+# the 900-board cap gone (2026-11-08), Monday's US morning brought 2,500 to
+# 2,700 boards due a run; 3.5 minutes polled about 2,000 and left 740 to
+# pile onto the next run (the scrape-fast-backlog alarm).
+PROBE_DEADLINE_MIN = 5
 
 # The old DynamoDB validator table. Read once, only when the S3 poll
 # state is missing, to seed it (see scrape_state.load). Everything else

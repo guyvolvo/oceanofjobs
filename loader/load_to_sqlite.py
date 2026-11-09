@@ -2435,6 +2435,10 @@ def main() -> int:
                           "words remain searchable through jobs_fts either way.")
     ap.add_argument("--logos", type=Path,
                      help="company-logos.json, stamped onto the snapshot before it ships. Logos live in their own file on their own cadence (resolve_company_logos.py): resolving one costs several requests and then never changes, while this snapshot is rewritten every few minutes.")
+    ap.add_argument("--gazetteer", type=Path,
+                     help="gazetteer.tsv.gz (scripts/geonames_coverage.py --gazetteer-out). With --box, each sweep "
+                          "places a batch of location strings in the location_places side table and records how "
+                          "(loader/location_places.py). Without it nothing is created.")
     ap.add_argument("--known-baseline", type=Path,
                      help="known.json as it stood when this run started. With it, a company that is in "
                           "the live known.json now, was not in the baseline, and was not in this run's "
@@ -2576,6 +2580,18 @@ def main() -> int:
                     print(f"places: filled {n_places} rows from their location text", file=sys.stderr)
             except Exception as e:
                 print(f"places backfill failed (non-fatal): {e!r}", file=sys.stderr)
+            # Box only, and only once a gazetteer has been put beside the
+            # database: until then this does nothing, so shipping the code
+            # creates no table. Imported here so the scrape Lambdas, which
+            # carry this file but never pass --gazetteer, never load it.
+            if args.box and sweep_due and args.gazetteer and args.gazetteer.exists():
+                try:
+                    import location_places
+                    done = location_places.backfill(conn, args.gazetteer, now_iso())
+                    if done.get("rows"):
+                        print(f"location places: {json.dumps(done)}", file=sys.stderr)
+                except Exception as e:
+                    print(f"location places failed (non-fatal): {e!r}", file=sys.stderr)
             lap("logos+places")
             update_meta(conn, clustering=sweep_due)
             lap("meta")

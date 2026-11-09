@@ -393,6 +393,11 @@ def _apply_batch(pending: list[Path]) -> tuple[int, list[Path]]:
            "--last-fragment", DELTA_PREFIX + take[-1].name]
     if logos.exists():
         cmd += ["--logos", str(logos)]
+    # Placing location strings starts the day this file is put on the box,
+    # not when the code ships (loader/location_places.py).
+    gazetteer = DB.with_name("gazetteer.tsv.gz")
+    if gazetteer.exists():
+        cmd += ["--gazetteer", str(gazetteer)]
     if PRIMARY and len(pending) - len(take) <= len(take):
         # Caps the file instead of letting it grow forever. Paced to
         # once a day inside archive.py. Only once the queue is about
