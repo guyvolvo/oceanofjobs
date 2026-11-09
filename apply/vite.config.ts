@@ -43,6 +43,8 @@ const HEAD = `<meta charset="utf-8" />
       document.documentElement.setAttribute("data-mode", light ? "light" : "dark");
       if (!light) document.documentElement.setAttribute("data-theme", "dark");
       document.querySelector('meta[name="theme-color"]').content = light ? "#f2f0ef" : "#17181c";
+      // Signed in: the prerendered pages keep "Log in" hidden until React swaps in the account menu.
+      try { if ((JSON.parse(localStorage.getItem("iljobs_auth_tokens") || "null") || {}).id_token) document.documentElement.setAttribute("data-auth", ""); } catch (e) {}
     })();
   </script>
   <script src="/consent.js"></script>
@@ -88,6 +90,7 @@ const LIVE = { target: "https://oceanofjobs.com", changeOrigin: true, secure: tr
 export default defineConfig({
   base: "/apply/",
   plugins: [react(), tailwindcss(), site()],
+  resolve: { alias: { "@": resolve(__dirname, "src") } },
   build: {
     outDir: "dist",
     emptyOutDir: true,

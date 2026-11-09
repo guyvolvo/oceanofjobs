@@ -1,11 +1,9 @@
-// The legal pages: /privacy, /terms and /refunds are the one entry, and
-// the address picks the document. The text is legal copy, kept word for
-// word from frontend/<page>.html; consent.js owns the cookie settings
-// link ([data-cookie-settings]) and the privacy page's #cookies anchor.
+// The legal documents: /privacy, /terms and /refunds. The text is legal
+// copy, kept word for word from frontend/<page>.html (scripts/nojs_check.py
+// compares it with the live pages). consent.js owns the cookie settings
+// button ([data-cookie-settings]) and the privacy page's #cookies anchor.
 import type { ComponentType } from "react";
-import { PublicPage } from "../site/PublicPage";
-import { boot } from "../site/boot";
-import "./legal.css";
+import { Page } from "../shell/Page";
 
 function Privacy() {
   return (
@@ -264,7 +262,30 @@ function Refunds() {
   );
 }
 
-const DOCS: Record<string, ComponentType> = { "/privacy": Privacy, "/terms": Terms, "/refunds": Refunds };
-const Doc = DOCS[location.pathname.replace(/\/$/, "")] || Privacy;
+export type Doc = "privacy" | "terms" | "refunds";
+const DOCS: Record<Doc, ComponentType> = { privacy: Privacy, terms: Terms, refunds: Refunds };
 
-boot(<PublicPage><article className="legal-doc mx-auto max-w-[70ch] pt-8 pb-4"><Doc /></article></PublicPage>);
+// The landing page's reading column (.legal-doc on the old pages): a 760px
+// measure, 72px under the bar, headings in the page face, text in the body grey.
+const DOC = [
+  "mx-auto max-w-[760px] text-body",
+  "[&_h1]:m-0 [&_h1]:font-heading [&_h1]:text-[32px] sm:[&_h1]:text-[40px] [&_h1]:font-medium [&_h1]:leading-[1.1] [&_h1]:tracking-[-0.03em] [&_h1]:text-foreground",
+  "[&_.updated]:mt-3 [&_.updated]:mb-7 [&_.updated]:text-sm [&_.updated]:text-dim",
+  "[&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-medium [&_h2]:leading-[1.3] [&_h2]:tracking-[-0.01em] [&_h2]:text-foreground",
+  "[&_p]:mt-0 [&_p]:mb-3.5 [&_p]:text-base [&_p]:leading-[1.65] [&_li]:text-base [&_li]:leading-[1.65]",
+  "[&_ul]:mt-0 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_li+li]:mt-2",
+  "[&_strong]:font-medium [&_strong]:text-foreground",
+  "[&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-3 [&_a:hover]:text-link-hover",
+  "[&_button]:cursor-pointer [&_button]:text-foreground [&_button]:underline [&_button]:underline-offset-3",
+].join(" ");
+
+export function Legal({ doc }: { doc: Doc }) {
+  const Body = DOCS[doc];
+  return (
+    <Page footer>
+      <div className="px-4 pt-8 pb-20 sm:px-10 sm:pb-28 min-[901px]:pt-[72px]">
+        <article className={DOC}><Body /></article>
+      </div>
+    </Page>
+  );
+}
