@@ -37,7 +37,11 @@ tmp = Path(tempfile.mkdtemp())
 try:
     # When the sweep started.
     baseline = [row("old.com"), row("dropped.com"), row("swept-away.com"),
-                row("eramtalent.com", "workable")]
+                row("eramtalent.com", "workable"),
+                # Added by the batch merge days before this run: never in
+                # domains.txt, so never probed by it (2026-11-07: 1,244 of
+                # these were dropped, 19,204 -> 17,960).
+                row("batch-merged.com", "workable")]
     # What the sweep probed (domains.txt at checkout) and resolved.
     resolved = [{"domain": "old.com", "ats": "greenhouse"},
                 {"domain": "swept-away.com", "ats": None, "retryable": False},
@@ -60,17 +64,20 @@ try:
     real_pull = lts.s3_pull
     lts.s3_pull = fake_pull
     try:
+        # dropped.com left domains.txt: --prune-stale demoted it in this run.
         n = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
-                                               tmp / "known-at-start.json", tmp / "resolved.json")
+                                               tmp / "known-at-start.json", tmp / "resolved.json",
+                                               exclude={"dropped.com"})
     finally:
         lts.s3_pull = real_pull
     out = {e["domain"] for e in json.loads((tmp / "known.json").read_text())}
 
     check("companies added during the run are kept", {"atera.com", "paragon-solutions.invalid"} <= out, repr(out))
     check("a board that did not answer the run is kept", "eramtalent.com" in out, repr(out))
-    check("the count says how many", n == 3, repr(n))
+    check("a company the batch merge added before the run, never probed by it, is kept", "batch-merged.com" in out, repr(out))
+    check("the count says how many", n == 4, repr(n))
     check("the run's own answer stays", "old.com" in out)
-    check("a company pruned from domains.txt stays pruned", "dropped.com" not in out, repr(out))
+    check("a company pruned from domains.txt (exclude) stays pruned", "dropped.com" not in out, repr(out))
     check("a company the run probed and lost stays lost", "swept-away.com" not in out, repr(out))
 
     # Nothing in S3: nothing to keep, and the export is untouched.
