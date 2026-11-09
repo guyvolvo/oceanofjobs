@@ -698,7 +698,9 @@
   // sign-up wall (a password field on show) or a CAPTCHA to solve.
   function wall() {
     const pw = docs().some((d) => deep(d, 'input[type="password"]').some((el) => shown(el) && el.getBoundingClientRect().width > 2));
-    return { signIn: pw, captcha: captcha() };
+    // Also the "I'm not a robot" box in the form (BambooHR, JazzHR), which keeps submitButton() from answering.
+    const f = markedForm();
+    return { signIn: pw, captcha: captcha() || (!!f && captchaIn(f)) };
   }
 
   // A confirmation, in a few languages. Counted, since a posting can say

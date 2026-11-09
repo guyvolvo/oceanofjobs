@@ -60,6 +60,8 @@ SETTLE = {
     (RESERVED, FAILED): "release", (RESERVED, SKIPPED): "release", (RESERVED, NEEDS_INPUT): "release",
     (RESERVED, ABANDONED): "release",
     (STARTED, SUBMITTED): "charge", (STARTED, UNCONFIRMED): "charge", (STARTED, FAILED): "release",
+    # The site's human check refused the click: nothing went, the user sends it (R6).
+    (STARTED, NEEDS_INPUT): "release",
     (UNCONFIRMED, SUBMITTED): "none",
     # Only an unconfirmed the expiry made (reason "expired"): the start was
     # acknowledged, then the failure report came after the hold ran out.

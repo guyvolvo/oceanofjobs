@@ -114,8 +114,9 @@ const results = [
     (n, g, m) => n === 1 && g.length === 1 && g[0].body.mode === "auto" && /Application submitted/.test(m)),
   await scenario("Full automatic on Free fills and waits", { fill: "full", plan: "free", captcha: false },
     (n, g, m) => n === 0 && g.length === 0 && /Full automatic needs the Basic or Pro plan/.test(m)),
-  await scenario("Full automatic with a reCAPTCHA script fills and waits", { fill: "full", plan: "pro", captcha: true },
-    (n, g, m) => n === 0 && g.length === 0 && /requires you to submit the form yourself/.test(m)),
+  // An invisible human check gets Submit tried once (a refusal on the page comes back as not submitted).
+  await scenario("Full automatic with a reCAPTCHA script tries Submit once", { fill: "full", plan: "pro", captcha: true },
+    (n, g, m) => n === 1 && g.length === 1 && g[0].body.mode === "auto" && /Application submitted/.test(m)),
 ];
 const strayHosts = [...new Set(stray.map((u) => new URL(u).host))];
 console.log("requests answered locally instead of the network:", strayHosts.join(", ") || "none");

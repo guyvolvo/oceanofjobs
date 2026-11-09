@@ -432,6 +432,13 @@ await check("wall: a password field on show is a sign-in wall", async () => {
   assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.wall()), { signIn: false, captcha: false });
 });
 
+// BambooHR and JazzHR, live on 2026-11-09: a reCAPTCHA checkbox in the form.
+// A run hands that form to the user (Needs attention), not "no Submit button".
+await check("wall: an I'm-not-a-robot box in the form is a CAPTCHA", async () => {
+  await serve(`<form>${FIELDS}<iframe src="https://www.google.com/recaptcha/api2/anchor?k=test" srcdoc="<p>I'm not a robot</p>" style="width:304px;height:78px"></iframe><button>Submit Application</button></form>`);
+  assert.deepEqual(await page.evaluate(async () => { await globalThis.oojAts.generic.read(); return globalThis.oojAts.generic.wall(); }), { signIn: false, captcha: true });
+});
+
 await check("a bot trap is never read, so never filled", async () => {
   await serve(`<form>${FIELDS}<label>Leave empty <input data-automation-id="beecatcher" name="x"></label><button>Submit</button></form>`);
   const labels = await page.evaluate(async () => (await globalThis.oojAts.generic.read()).fields.map((f) => f.label));
