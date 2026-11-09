@@ -11,9 +11,9 @@ A token is not a session, and each has a scope. An "mcp" token reaches
 the four AREAS below, each as its owner chose when making it: no access,
 read, or write (which includes read). A token made before permissions
 existed writes all four, as it always could. An "extension" token (made
-by the website for the browser extension) reaches saved jobs and
-/api/me/apply/*. serve.py holds the map. Neither can mint or revoke
-tokens.
+by the website for the browser extension, one per browser) reaches
+saved jobs and /api/me/apply/*. serve.py holds the map. Neither can
+mint or revoke tokens.
 """
 
 import base64
@@ -27,6 +27,8 @@ from boto3.dynamodb.conditions import Key
 PREFIX = "ooj_"
 ROW = "#token#"
 MAX_PER_USER = 5
+# Extension tokens, one per connected browser, counted apart from MAX_PER_USER.
+MAX_EXTENSIONS = 3
 EXPIRY_DAYS = (30, 90, None)  # None: never
 SCOPES = ("mcp", "extension")
 AREAS = ("saved", "queue", "alerts", "preferences")
@@ -114,11 +116,13 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
         permissions = clean_permissions({a: "write" for a in AREAS} if permissions is None else permissions)
     existing = list_tokens(table, user_id)
     if scope == "extension":
-        # One extension per account: connecting again replaces the old token
-        # rather than piling up a new one each time.
-        for t in existing:
-            if t["scope"] == "extension":
-                revoke(table, user_id, t["id"])
+        # Each browser keeps its own token, so connecting a second computer
+        # doesn't sign the first one out. Reconnecting adds a token, so past
+        # MAX_EXTENSIONS the least recently used one goes.
+        ext = sorted((t for t in existing if t["scope"] == "extension"),
+                     key=lambda t: t["last_used_at"] or t["created_at"] or "", reverse=True)
+        for t in ext[MAX_EXTENSIONS - 1:]:
+            revoke(table, user_id, t["id"])
         existing = [t for t in existing if t["scope"] != "extension"]
     if len(existing) >= MAX_PER_USER:
         raise ValueError(f"at most {MAX_PER_USER} tokens; revoke one first")

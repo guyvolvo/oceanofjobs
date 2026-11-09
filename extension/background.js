@@ -31,14 +31,19 @@ class HttpError extends Error {
 
 async function api(path, { method = 'GET', body, auth = true } = {}) {
   const headers = {};
+  const { token, authError } = auth ? await chrome.storage.local.get(['token', 'authError']) : {};
   if (auth) {
-    const { token } = await chrome.storage.local.get('token');
     if (!token) throw new HttpError(401, null);
     headers.Authorization = `Bearer ${token}`;
   }
   if (body) headers['Content-Type'] = 'application/json';
   const res = await fetch(API + path, { method, headers, body: body && JSON.stringify(body) });
-  if (res.status === 401 && auth) await chrome.storage.local.set({ authError: true });
+  // A 401 marks the connection expired and any answer that accepts the token
+  // clears that, but only for the token still stored: the website may have
+  // handed over a new one while this call was out.
+  if (auth && (res.status === 401 || (res.ok && authError)) && (await chrome.storage.local.get('token')).token === token) {
+    await chrome.storage.local.set({ authError: res.status === 401 });
+  }
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new HttpError(res.status, data);
   return data;
@@ -1411,10 +1416,13 @@ async function status() {
     connected: !!st.token && !st.authError, authError: !!st.authError, paused: !!st.paused,
     hasCv: !!st.cv, needs: [], lastRun: st.lastRun || null, lastError: st.lastError || null, pending: (st.outbox || []).length,
   };
-  if (!out.connected) return out;
+  // A token marked expired is asked about again: one 401 shouldn't need a reconnect.
+  if (!st.token) return out;
   try {
     const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const [summary, { needs }] = await Promise.all([api('/me/apply/summary?tz=' + tz), api('/me/apply/needs')]);
+    out.connected = true;
+    out.authError = false;
     out.summary = summary;
     out.usage = { plan: summary.plan, period: summary.period, remaining: summary.remaining };
     out.appliedToday = summary.applied_today;
