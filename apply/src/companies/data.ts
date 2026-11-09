@@ -1,8 +1,5 @@
 // What the directory and a company's panel share: the API's shapes, the
 // hiring-system names and the two localStorage keys the old page kept.
-import { SkeletonLine } from "@cloudflare/kumo/components/loader";
-import { createElement } from "react";
-
 export type Row = { domain: string; n: number; new_7d?: number; name: string | null; ats: string | null; has_logo?: boolean; trend?: (number | null)[] };
 export type Directory = { companies: Row[]; capped?: boolean; as_of?: string };
 export type Country = { value: string; label: string; n: number };
@@ -38,6 +35,3 @@ export const age = (iso: string | null) => {
   return hrs < 1 ? "just now" : hrs < 24 ? `${Math.floor(hrs)}h ago` : `${Math.floor(hrs / 24)}d ago`;
 };
 export const countryQuery = (country: string) => (country ? `&country=${encodeURIComponent(country)}` : "");
-
-// A bone of the given width in percent, in a block of the given height.
-export const Bone = ({ w, h = 20 }: { w: number; h?: number }) => createElement(SkeletonLine, { minWidth: w, maxWidth: w, blockHeight: h });

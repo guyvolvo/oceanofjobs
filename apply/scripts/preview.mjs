@@ -28,7 +28,7 @@ const DIST = join(APPLY, "dist");
 const FRONTEND = resolve(APPLY, "../frontend");
 // The pages whose HTML the switch takes from apply/dist. Rollback is
 // removing a name here and from the deploy's copy step (docs/UI_OVERHAUL_ROLLBACK.md).
-export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404"];
+export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404", "companies"];
 
 // The CloudFront function's PAGES, BOARD_KEYS and role-page list, verbatim.
 const PAGES = { "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
