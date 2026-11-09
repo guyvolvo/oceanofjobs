@@ -1682,7 +1682,7 @@ def _classify_with_company(conn: sqlite3.Connection, rows: list) -> None:
     conn.executemany("UPDATE jobs SET role_class = ?, role_score = ?, role_evidence = ? WHERE id = ?", second)
 
 
-def prune_stale_companies(conn: sqlite3.Connection, current_domains: set[str], ts: str) -> int:
+def prune_stale_companies(conn: sqlite3.Connection, current_domains: set[str], ts: str) -> list[str]:
     """A `--batch domains.txt` run's resolved.json has one entry per
     domain CURRENTLY in domains.txt/companies.yml -- the full universe
     this project means to track, hit or miss, this run (see main()'s
@@ -1713,7 +1713,7 @@ def prune_stale_companies(conn: sqlite3.Connection, current_domains: set[str], t
             """,
             (f"no longer in domains.txt/companies.yml as of {ts}", ts, domain),
         )
-    return len(stale)
+    return stale
 
 
 DEMOTED_EMPTY_MARK = "board empty for"
@@ -2276,16 +2276,19 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
     6,900 companies to 6,017, and Atera and Paragon, pinned that morning,
     went with them.
 
-    Kept: in the live file now and either
-      - absent from the baseline and not probed by this run, or
+    Kept: in the live file now, not in exclude, and either
+      - not probed by this run, whether it was in the baseline or not:
+        the batch merge's companies never are, since they were never in
+        domains.txt, or
       - probed by this run with an inconclusive answer (retryable): the
         board did not answer, which says nothing about whether the
         company still has one. The same day's sweep dropped 746 working
         boards that way, most of them added by the batch merge, so they
         were never in this run's own database to be kept by the loader.
-    A company the run probed and answered for is its answer to give, and
-    a company that was in the baseline and was not probed was dropped
-    from domains.txt on purpose, which is what --prune-stale is for.
+    A company the run probed and answered for is its answer to give. A
+    company leaves on purpose only through exclude: pruned from
+    domains.txt (--prune-stale) or released as empty (--demote-empty-days)
+    by this run.
     """
     live_path = known_out.with_name(known_out.stem + "-live.json")
     existed, _ = s3_pull(bucket, key, live_path)
@@ -2293,7 +2296,9 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
         return 0
     live = json.loads(live_path.read_text(encoding="utf-8"))
     try:
-        before = {e.get("domain") for e in json.loads(baseline.read_text(encoding="utf-8"))}
+        # Only that it is there: without the run's starting point, nothing
+        # says the file is the one this run began from.
+        json.loads(baseline.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         # No baseline to compare against: keep nothing rather than guess.
         return 0
@@ -2308,10 +2313,15 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
     # sweep inconclusively too, since the only board it has is the empty
     # one. Without this it would come straight back from the live file.
     exclude = exclude or set()
+    # Not "absent from the baseline": a company the batch merge added before
+    # this run started was in the baseline, was never in domains.txt, and so
+    # was never probed. That rule dropped 1,244 of them on 2026-11-07 (19,204
+    # in, 17,960 out) and 1,372 before 2026-11-04, and their boards went
+    # unpolled. Leaving known.json takes this run's own answer for the
+    # company, or an explicit removal (exclude: pruned or released here).
     added = [e for e in live
              if e.get("domain") and e["domain"] not in have and e["domain"] not in exclude
-             and (e["domain"] in unanswered
-                  or (e["domain"] not in before and e["domain"] not in swept))]
+             and (e["domain"] in unanswered or e["domain"] not in swept)]
     if added:
         known.extend(added)
         known_out.write_text(json.dumps(known, ensure_ascii=False), encoding="utf-8")
@@ -2486,6 +2496,7 @@ def main() -> int:
             print(f"pulled existing jobs.db from s3://{args.bucket}/{args.key}: {existed}", file=sys.stderr)
 
         demoted: list[str] = []
+        pruned: list[str] = []
         opened = time.monotonic()
         conn = open_db(args.out)
         if args.box:
@@ -2540,9 +2551,9 @@ def main() -> int:
                 load_deep(conn, args.deep)
             if args.prune_stale:
                 ts = now_iso()
-                n_pruned = prune_stale_companies(conn, current_domains, ts)
-                if n_pruned:
-                    print(f"pruned {n_pruned} companies no longer in domains.txt/companies.yml", file=sys.stderr)
+                pruned = prune_stale_companies(conn, current_domains, ts)
+                if pruned:
+                    print(f"pruned {len(pruned)} companies no longer in domains.txt/companies.yml", file=sys.stderr)
             if args.demote_empty_days:
                 demoted = demote_empty_boards(conn, now_iso(), args.demote_empty_days)
                 if demoted:
@@ -2627,7 +2638,7 @@ def main() -> int:
         if args.known_baseline:
             kept = keep_companies_added_meanwhile(args.bucket, args.known_key, known_out,
                                                   args.known_baseline, args.resolved,
-                                                  exclude=set(demoted))
+                                                  exclude=set(demoted) | set(pruned))
             print(f"known.json: kept {kept} companies added while this run was going", file=sys.stderr)
 
         # known.json has no reader that needs it pinned to one exact

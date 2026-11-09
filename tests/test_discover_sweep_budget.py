@@ -220,7 +220,7 @@ with tempfile.TemporaryDirectory() as td:
         pruned = prune_stale_companies(conn, current, TS_OLD)
     still = conn.execute("SELECT ats FROM companies WHERE domain = 'acme.com'").fetchone()["ats"]
     check("--prune-stale does not demote a deferred company",
-          pruned == 0 and still == "greenhouse", f"pruned={pruned} ats={still}")
+          not pruned and still == "greenhouse", f"pruned={pruned} ats={still}")
     # Windows will not delete an open file, and TemporaryDirectory
     # cleanup runs before the connection would otherwise be collected.
     conn.close()
