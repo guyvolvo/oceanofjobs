@@ -26,7 +26,7 @@ test('a form that only went away after the card pressed Submit is unconfirmed, n
   // generic.outcome on a form that vanished with no word from the site:
   // 'submitted' when asked loosely, unconfirmed when strict.
   const { ctx, settled } = card((ats, method, args) => ({
-    submitInfo: { text: 'Submit', selector: 'button' },
+    submitInfo: { text: 'Submit', selector: 'button', application: true },
     submit: { url: 'https://acme.example/apply' },
     outcome: args[2] === true ? { failed: 'unconfirmed: the form closed without a confirmation' } : 'submitted',
   })[method]);
@@ -36,7 +36,7 @@ test('a form that only went away after the card pressed Submit is unconfirmed, n
 });
 
 test('the site saying thanks still counts as submitted', async () => {
-  const { ctx, settled } = card((ats, method) => ({ submitInfo: { text: 'Submit' }, submit: {}, outcome: 'submitted' })[method]);
+  const { ctx, settled } = card((ats, method) => ({ submitInfo: { text: 'Submit', application: true }, submit: {}, outcome: 'submitted' })[method]);
   assert.deepEqual(plain(await ctx.submitHere({ url: 'https://acme.example/apply', frameId: 0 }, sender)), { submitted: true });
   assert.deepEqual(settled.map((s) => s[0]), ['submitted']);
 });
@@ -71,7 +71,7 @@ test('Greenhouse finding no button to press settles as failed, nothing sent', as
 
 test('a site with no dedicated filler still gets the generic Submit', async () => {
   const { out, pressed } = await popupFill('https://careers.acme.example/apply', {
-    'generic.submitInfo': { text: 'Submit' }, 'generic.submit': {}, 'generic.outcome': 'submitted',
+    'generic.submitInfo': { text: 'Submit', application: true }, 'generic.submit': {}, 'generic.outcome': 'submitted',
   });
   assert.deepEqual(out.sent, { submitted: true });
   assert.deepEqual(pressed, ['generic']);
@@ -98,8 +98,34 @@ async function filledRecord(run, settings, submitInfo) {
 test('the Filled record says why Full automatic held the fill', async () => {
   const popup = (ctx) => ctx.assist(7, 0, 'generic', { fields: [] }, 'https://careers.acme.example/apply', 'Engineer');
   assert.equal((await filledRecord(popup, { fill: 'full' }, null)).hold, 'no_submit_button');
-  assert.equal((await filledRecord(popup, { fill: 'half' }, { text: 'Submit' })).hold, 'half_automatic');
-  assert.ok(!('hold' in await filledRecord(popup, { fill: 'full' }, { text: 'Submit' })), 'not held: no code');
+  assert.equal((await filledRecord(popup, { fill: 'half' }, { text: 'Submit', application: true })).hold, 'half_automatic');
+  assert.ok(!('hold' in await filledRecord(popup, { fill: 'full' }, { text: 'Submit', application: true })), 'not held: no code');
+  // Surecomp's "Keep in touch" mailing list (2026-11-09): never sent, in either mode.
+  assert.equal((await filledRecord(popup, { fill: 'full' }, { text: 'Submit', application: false })).hold, 'not_application_form');
+  assert.equal((await filledRecord(popup, { fill: 'half' }, { text: 'Submit', application: false })).hold, 'not_application_form');
   const onCard = (ctx) => ctx.fillHere({ url: 'https://job-boards.greenhouse.io/acme/jobs/1', title: 'Engineer', company: 'acme' }, 7, 0);
   assert.equal((await filledRecord(onCard, { fill: 'half' })).hold, 'half_automatic');
+});
+
+// Surecomp, 2026-11-09: the card sent a mailing-list form as the
+// application and charged for it. A form generic.js doesn't see as an
+// application is never pressed, and no credit is reserved for it.
+test('Submit on a form that does not look like an application: nothing reserved, nothing pressed', async () => {
+  for (const info of [{ text: 'Submit', application: false }, { text: 'Submit' }]) {
+    const { ctx, settled, calls } = card((ats, method) => ({ submitInfo: info, submit: {}, outcome: 'submitted' })[method]);
+    let reserved = 0;
+    ctx.reserve = async () => { reserved++; return { attemptId: 'att-000001' }; };
+    const out = plain(await ctx.submitHere({ url: 'https://surecomp.com/careers/co/x', frameId: 0, auto: true }, sender));
+    assert.deepEqual(out, { error: 'not an application form' });
+    assert.equal(ctx.oojMatch.reasonText(out.error), "This page's form doesn't look like a job application, so it wasn't sent.");
+    assert.equal(reserved, 0);
+    assert.deepEqual(settled, []);
+    assert.ok(!calls.some(([, m]) => m === 'submit'));
+  }
+});
+
+test('a dedicated filler is not asked: its Submit goes on as before', async () => {
+  const { out, pressed } = await popupFill('https://job-boards.greenhouse.io/acme/jobs/1', { 'greenhouse.submit': true, 'greenhouse.outcome': 'submitted' });
+  assert.deepEqual(out.sent, { submitted: true });
+  assert.deepEqual(pressed, ['greenhouse']);
 });
