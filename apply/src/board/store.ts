@@ -70,18 +70,18 @@ export const U = {
   matchPrompt: false,
   matchSkillsOpen: false,
   geoPrompt: null as { code: string; name: string } | null,
-  alertsOpen: false,
   sheetOpen: false,
 };
 
 // Elements the loaders have to measure.
-export const dom = { list: null as HTMLElement | null, rows: null as HTMLElement | null };
+export const dom = { list: null as HTMLElement | null, rows: null as HTMLElement | null, reveal: null as ((id: string) => void) | null };
 
 let version = 0;
 const subs = new Set<() => void>();
 export function emit() { version++; subs.forEach((f) => f()); }
 const subscribe = (f: () => void) => { subs.add(f); return () => { subs.delete(f); }; };
-export const useBoard = () => useSyncExternalStore(subscribe, () => version);
+// The server render (and hydration) sees version 0 and the default state.
+export const useBoard = () => useSyncExternalStore(subscribe, () => version, () => 0);
 
 // storage
 
@@ -154,7 +154,7 @@ async function syncQueueFromServer() {
       api<{ queue?: { job_id: string }[] }>("/me/apply/queue"),
       api<{ applied?: { job_id: string; status: string; at?: string }[] }>("/me/apply/history").catch(() => null)]);
     U.queue = new Set((queue?.queue || []).map((r) => r.job_id));
-    U.appliedAt = new Map((history?.applied || []).filter((r) => r.status === "submitted" && r.at).map((r) => [r.job_id, r.at!]));
+    U.appliedAt = new Map((history?.applied || []).filter((r) => (r.status === "submitted" || r.status === "sent") && r.at).map((r) => [r.job_id, r.at!]));
   } catch { return; }
   emit();
 }
@@ -178,7 +178,7 @@ export async function toggleQueue(id: string) {
     on ? U.queue.delete(id) : U.queue.add(id);
     const e = err as { status?: number; message?: string };
     U.error = { text: on
-      ? `Couldn't queue that job. ${e.status === 403 || e.status === 422 ? e.message : "Try again."}`
+      ? `Couldn't queue that job. ${[403, 409, 422].includes(e.status || 0) ? e.message : "Try again."}`
       : "Couldn't take that job off your queue. Try again." };
     emit();
   }
@@ -245,7 +245,6 @@ export function buildShareParams() {
   if (F.roles !== DEFAULT_ROLES) p.set("roles", F.roles);
   if (F.sort !== (F.search ? "relevance" : "age")) p.set("sort", F.sort);
   if (F.dir !== "asc") p.set("dir", F.dir);
-  if (F.offset) p.set("offset", String(F.offset));
   if (U.selected) p.set("job", U.selected);
   return p;
 }
@@ -390,6 +389,9 @@ function getBootstrap(params: string): Promise<{ params: string; jobs: JobsRespo
 }
 
 let jobsRequestSeq = 0;
+// Bumped only by a load that replaces the list. The deferred count belongs
+// to the list, so a page appended to it must not throw the count away.
+let listSeq = 0;
 let jobsInFlight: AbortController | null = null;
 let jobCountInFlight: AbortController | null = null;
 let listParams: string | null = null;
@@ -403,22 +405,26 @@ export function countSearch() {
   if (w.ojCount) w.ojCount("search", F.search);
 }
 
+// The deep-linked job, kept open through the boot's own load only.
+let keepOpen: string | null = null;
+
 export async function loadJobs({ background = false, append: wantAppend = false } = {}) {
   let append = wantAppend;
   if (!append && !background) {
+    keepOpen = null;
     F.offset = 0;
     U.listEnded = false;
     U.listReloading = true;
   }
   if (background && (U.jobs?.jobs || []).length > PAGE_SIZE) return;
   const seq = ++jobsRequestSeq;
+  if (!append) listSeq = seq;
   if (!background) { heldJobs = null; U.held = 0; }
   if (jobsInFlight) jobsInFlight.abort();
   const inFlight = new AbortController();
   jobsInFlight = inFlight;
 
-  syncUrl();
-  saveFiltersToStorage();
+  if (!append) { syncUrl(); saveFiltersToStorage(); }
   if (!background) U.error = null;
   emit();
 
@@ -451,9 +457,10 @@ export async function loadJobs({ background = false, append: wantAppend = false 
   }
   emit();
 
-  const deferCount = !background;
+  // An appended page asks for no count: the list's own count is in flight.
+  const deferCount = !background && !append;
   try {
-    let data: JobsResponse = await getJSON(`/jobs?${params}${deferCount ? "&count=skip" : ""}`, inFlight.signal);
+    let data: JobsResponse = await getJSON(`/jobs?${params}${deferCount || append ? "&count=skip" : ""}`, inFlight.signal);
     if (seq !== jobsRequestSeq) return;
     if (data.total === null && cached && typeof cached.total === "number") data.total = cached.total;
     const changed = append || !cached || JSON.stringify(data) !== JSON.stringify(cached);
@@ -476,7 +483,7 @@ export async function loadJobs({ background = false, append: wantAppend = false 
     }
     U.skeleton = false;
     if (deferCount) loadJobCount(params, seq);
-    scheduleFacets();
+    if (!append) scheduleFacets();
   } catch (err) {
     if (seq !== jobsRequestSeq || (err as Error).name === "AbortError") return;
     if (!cached) {
@@ -515,7 +522,8 @@ function paintJobs(data: JobsResponse): boolean {
   if (U.selected !== null) {
     const still = data.jobs.some((j) => j.id === U.selected);
     if (still) requestAnimationFrame(revealSelectedRow);
-    else closeJobAndSync();
+    // A shared link (?job=) to a job past the first page stays open.
+    else if (U.selected !== keepOpen) closeJobAndSync();
   }
   return true;
 }
@@ -597,9 +605,11 @@ async function loadJobCount(params: string, seq: number) {
   jobCountInFlight = inFlight;
   try {
     const data = await getJSON<{ total: number }>(`/jobs?${params}&count=only`, inFlight.signal);
-    if (seq !== jobsRequestSeq || !U.jobs) return;
+    if (seq !== listSeq || !U.jobs) return;
     U.jobs = { ...U.jobs, total: data.total };
-    setCachedJobs(params, U.jobs);
+    // The cache holds the first page with its total, never appended pages.
+    const first = getCachedJobs(params);
+    if (first) setCachedJobs(params, { ...first, total: data.total });
     emit();
   } catch { /* the rows are up; the line keeps reading without a total */ } finally {
     if (jobCountInFlight === inFlight) jobCountInFlight = null;
@@ -656,17 +666,10 @@ function setCanonical(path: string) {
   if (link) link.href = `${location.origin}${path}`;
 }
 
+// The list is virtual, so the open row may not be in the page: the list
+// scrolls it into view by its index (List.tsx sets dom.reveal).
 export function revealSelectedRow() {
-  const list = dom.list;
-  const row = U.selected === null ? null : document.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(U.selected)}"]`);
-  if (!row) return;
-  if (isPhone() || !list) { row.scrollIntoView({ block: "nearest" }); return; }
-  const head = list.querySelector<HTMLElement>("[data-list-head]");
-  const top = head ? head.getBoundingClientRect().height : 0;
-  const lb = list.getBoundingClientRect();
-  const rb = row.getBoundingClientRect();
-  if (rb.top < lb.top + top) list.scrollTop -= lb.top + top - rb.top + 8;
-  else if (rb.bottom > lb.bottom) list.scrollTop += rb.bottom - lb.bottom + 8;
+  if (U.selected !== null) dom.reveal?.(U.selected);
 }
 
 async function fetchDescribed(job: Job): Promise<Job | null> {
@@ -710,6 +713,16 @@ export function stepJob(step: number) {
   const i = rows.findIndex((r) => r.id === U.selected);
   const next = rows[i + step];
   if (next) openJobAndPush(next.id);
+}
+// ArrowUp/ArrowDown anywhere on the board (app.js:3700): with nothing open,
+// down opens the first job and up the last; otherwise one step, held at the ends.
+export function arrowJob(down: boolean) {
+  const rows = U.jobs?.jobs || [];
+  if (!rows.length || U.skeleton) return false;
+  const at = rows.findIndex((r) => r.id === U.selected);
+  const next = at === -1 ? (down ? 0 : rows.length - 1) : Math.min(rows.length - 1, Math.max(0, at + (down ? 1 : -1)));
+  if (next !== at) openJobAndPush(rows[next].id);
+  return true;
 }
 export function closeJob() {
   U.selected = null;
@@ -1154,11 +1167,19 @@ function scheduleFacets() {
   facetsTimer = window.setTimeout(() => { refreshFacetOptions(); refreshScopedStats(); }, 400);
 }
 let facetsRequestSeq = 0;
-async function refreshFacetOptions() {
+// /api/facets is the box's slowest call, so each question is asked once: a
+// second call for the same filters (stats landing, a page appended) is
+// dropped while the first is in flight or answered. The two-minute
+// refresh forces a new one.
+let facetsAsked: string | null = null;
+async function refreshFacetOptions({ force = false } = {}) {
+  const key = qs({ ...currentFilterParams(), skills: "" });
+  if (!force && key === facetsAsked) return;
+  facetsAsked = key;
   const seq = ++facetsRequestSeq;
   try {
     const facets = qs(countingParams())
-      ? await getJSON(`/facets?${qs({ ...currentFilterParams(), skills: "" })}`)
+      ? await getJSON(`/facets?${key}`)
       : await getStaticFacets(F.confidence || "verified");
     if (seq !== facetsRequestSeq) return;
     U.facetsLoaded = true;
@@ -1167,7 +1188,10 @@ async function refreshFacetOptions() {
       locations: normalizeLocationFacets(facets.locations), salary: facets.salary || null, salary_disclosed: facets.salary_disclosed || 0,
     };
     emit();
-  } catch { /* the rail keeps its previous counts */ }
+  } catch {
+    // The rail keeps its previous counts; the same filters may ask again.
+    if (seq === facetsRequestSeq) facetsAsked = null;
+  }
 }
 
 function scopeShape(src: Scope): Scope {
@@ -1195,7 +1219,7 @@ function getCachedStats(): Stats | null {
     return parsed && parsed.totals ? parsed : null;
   } catch { return null; }
 }
-export async function refreshStats() {
+export async function refreshStats({ force = false } = {}) {
   const cached = getCachedStats();
   if (cached) { U.stats = cached; setLastCheckedAt(cached.freshness?.last_checked); emit(); }
   try {
@@ -1203,7 +1227,7 @@ export async function refreshStats() {
     U.stats = stats;
     setLastCheckedAt(stats.freshness?.last_checked);
     emit();
-    refreshFacetOptions();
+    refreshFacetOptions({ force });
     refreshScopedStats({ force: true });
     try { localStorage.setItem(STATS_CACHE_KEY, JSON.stringify(stats)); } catch { /* speed-up only */ }
   } catch { /* a cached dashboard stays up */ }
@@ -1297,7 +1321,12 @@ export function answerCountry(accept: boolean) {
   else emit();
 }
 
-export function openAlerts(open: boolean) { U.alertsOpen = open; emit(); }
+// "Alert me for this search": the account page's alert form opens with
+// these filters in it (account/Alerts.tsx reads the prefill), as app.js:5294 did.
+export function alertForSearch() {
+  try { sessionStorage.setItem("iljobs_alert_prefill", JSON.stringify(currentFilterParams())); } catch { /* the form opens empty */ }
+  location.href = "/account#alerts";
+}
 export function openSheet(open: boolean) { U.sheetOpen = open; emit(); }
 export function clearError() { U.error = null; emit(); }
 
@@ -1323,7 +1352,7 @@ export function boot() {
   countSavedSearches();
   if (bootParams.get("view") === "matches") setView("matches");
   const deepLink = bootParams.get("job");
-  if (deepLink) openJob(deepLink).then(syncUrl);
+  if (deepLink) { keepOpen = deepLink; openJob(deepLink).then(syncUrl); }
 
   window.addEventListener("popstate", () => {
     applyStateFromUrl(location.search);
@@ -1341,7 +1370,7 @@ export function boot() {
     schedule();
     if (refreshing) return;
     refreshing = true;
-    try { await Promise.allSettled([loadJobs({ background: true }), refreshStats(), refreshFreshness()]); } finally { refreshing = false; }
+    try { await Promise.allSettled([loadJobs({ background: true }), refreshStats({ force: true }), refreshFreshness()]); } finally { refreshing = false; }
   }
   function schedule() {
     clearTimeout(boardTimer);
@@ -1367,7 +1396,14 @@ export function boot() {
 // Signing out drops the stored skills; the board follows. Signing in
 // brings the account's stars and queue.
 export function onAuthChange() {
-  if (!signedIn() && (F.sort === "match" || F.skills.length)) { F.skills = []; setView(F.roles === "all" ? "all" : "tech"); }
-  if (signedIn()) { syncSavedFromServer(); syncQueueFromServer(); }
+  if (signedIn()) { syncSavedFromServer(); syncQueueFromServer(); emit(); return; }
+  // auth.js's signOut has already cleared this browser's stars and cached
+  // pages; what is on screen goes with them.
+  U.starred = getStarred();
+  U.queue = new Set();
+  U.appliedAt = new Map();
+  U.matchPrompt = false;
+  if (F.sort === "match" || F.skills.length) { F.skills = []; setView(F.roles === "all" ? "all" : "tech"); return; }
+  if (F.starred_only) { loadJobs(); return; }
   emit();
 }

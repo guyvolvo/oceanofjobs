@@ -13,9 +13,9 @@ const out = args[0];
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const SITES = { live: opt("--live", "https://oceanofjobs.com"), new: opt("--local", "http://127.0.0.1:4173") };
 const ALL = { home: "/", privacy: "/privacy", terms: "/terms", refunds: "/refunds", contact: "/contact", "404": "/this-page-does-not-exist", "404-job": "/jobs/senior-backend-engineer-0a1b2c3d4e",
-  pricing: "/pricing", checkout: "/checkout?plan=basic", "checkout-none": "/checkout", companies: "/companies", "companies-panel": "/companies?company=amazon.com", stats: "/stats" };
-// --only companies,companies-panel shoots just those pages; --pages stats=/stats,home=/ names the paths too.
-const PAGES = opt("--pages") ? Object.fromEntries(opt("--pages").split(",").map((p) => p.split("=")))
+  pricing: "/pricing", checkout: "/checkout?plan=basic", "checkout-none": "/checkout", companies: "/companies", "companies-panel": "/companies?company=amazon.com", stats: "/stats", board: "/board" };
+// --only companies,companies-panel shoots just those pages; --pages board=/board,board-tech=/board?roles=tech names the paths too.
+const PAGES = opt("--pages") ? Object.fromEntries(opt("--pages").split(",").map((p) => [p.slice(0, p.indexOf("=")), p.slice(p.indexOf("=") + 1)]))
   : opt("--only") ? Object.fromEntries(opt("--only").split(",").map((k) => [k, ALL[k]])) : ALL;
 const VIEWS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } };
 
@@ -26,14 +26,15 @@ for (const [view, vp] of Object.entries(VIEWS)) for (const theme of ["light", "d
   const { width, height, ...rest } = vp;
   const ctx = await browser.newContext({ viewport: { width, height }, ...rest });
   // No cookie banner over the page, and the theme chosen before first paint.
-  await ctx.addInitScript((t) => { localStorage.setItem("ooj_cookie_consent", "no"); localStorage.setItem("iljobs_theme", t); }, theme);
-  for (const [name, path] of Object.entries(PAGES).filter(([n]) => !opt("--pages", "") || opt("--pages", "").split(",").includes(n))) {
+  await ctx.addInitScript((t) => { localStorage.setItem("ooj_cookie_consent", "no"); localStorage.setItem("iljobs_theme", t); localStorage.setItem("iljobs_geo_asked", "1"); }, theme);
+  for (const [name, path] of Object.entries(PAGES)) {
     const page = await ctx.newPage();
     const errors = [];
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 200)); });
     page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
-    // --wait load --settle 8000: for a page that never goes network-idle (stats keeps reading its database).
-    await page.goto(base + path, { waitUntil: opt("--wait", "networkidle") });
+    // An app page (the board, stats) may never go network-idle: shoot it after a settle.
+    // --wait load --settle 8000 waits for load, then a fixed time.
+    await page.goto(base + path, { waitUntil: opt("--wait", "networkidle"), timeout: 20_000 }).catch(() => page.waitForTimeout(3000));
     if (opt("--settle")) await page.waitForTimeout(Number(opt("--settle")));
     await page.evaluate(() => document.fonts.ready);
     const m = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));

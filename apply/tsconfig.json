@@ -12,8 +12,5 @@
     "types": [],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src"],
-  // The board port is not mounted yet and does not type-check (25 errors in
-  // Pane.tsx and List.tsx). It is migrated last; bring it back in then.
-  "exclude": ["src/board"]
+  "include": ["src"]
 }

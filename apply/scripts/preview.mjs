@@ -14,11 +14,12 @@
 //
 // Writes never leave this machine: any other method gets a 405 here.
 //
-// usage: node scripts/preview.mjs [--port 4173] [--prod-account] [--selftest]
+// usage: node scripts/preview.mjs [--port 4173] [--prod-account] [--migrate board] [--gzip] [--selftest]
 //   --prod-account  route /account/* as production does today (404) instead
 //                   of the proposed /account/* rule
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
+import { gzipSync } from "node:zlib";
 import { extname, join, resolve } from "node:path";
 import assert from "node:assert/strict";
 
@@ -76,14 +77,28 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", "
   ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".woff2": "font/woff2",
   ".txt": "text/plain; charset=utf-8", ".xml": "application/xml", ".wasm": "application/wasm" };
 
-async function proxy(req, res, path) {
+// --gzip: compress text the way CloudFront does, so load timings under a
+// throttled network compare with the live site's.
+function gzipped(req, res, status, headers, body) {
+  if (!/gzip/.test(req.headers["accept-encoding"] || "") || !/text|javascript|json|xml|svg/.test(headers["content-type"] || "")) {
+    res.writeHead(status, headers);
+    return res.end(body);
+  }
+  const { "content-length": _, ...rest } = headers;
+  res.writeHead(status, { ...rest, "content-encoding": "gzip", vary: "accept-encoding" });
+  res.end(gzipSync(body));
+}
+
+async function proxy(req, res, path, opts) {
   // Range passes through both ways: /stats reads its database (/explore*) by HTTP range request.
   const r = await fetch(LIVE + path, { method: req.method, redirect: "manual", headers: { "user-agent": "ooj-local-preview (GET only)", accept: req.headers.accept || "*/*",
     ...(req.headers.range ? { range: req.headers.range } : {}), "accept-encoding": "identity" } });
   const headers = {};
   for (const h of ["content-type", "cache-control", "location", "content-length", "content-range", "accept-ranges"]) if (r.headers.get(h)) headers[h] = r.headers.get(h);
+  const body = req.method === "HEAD" ? undefined : Buffer.from(await r.arrayBuffer());
+  if (opts.gzip && body && !headers["content-range"]) return gzipped(req, res, r.status, headers, body);
   res.writeHead(r.status, headers);
-  res.end(req.method === "HEAD" ? undefined : Buffer.from(await r.arrayBuffer()));
+  res.end(body);
 }
 
 function serve(opts) {
@@ -96,7 +111,7 @@ function serve(opts) {
       }
       const r = route(url.pathname, url.search, opts);
       if (r.redirect) { res.writeHead(301, { location: r.redirect }); return res.end(); }
-      if (r.pass || PUBLISHED.test(r.uri)) return await proxy(req, res, url.pathname + url.search);
+      if (r.pass || PUBLISHED.test(r.uri)) return await proxy(req, res, url.pathname + url.search, opts);
       const file = bucketFile(r.uri);
       if (!existsSync(file) || !statSync(file).isFile()) {
         // A private bucket answers a missing key with AccessDenied.
@@ -104,7 +119,9 @@ function serve(opts) {
         return res.end("<Error><Code>AccessDenied</Code></Error>");
       }
       // not_found_status: the 404 page carries a real 404.
-      res.writeHead(r.uri === "/404.html" ? 404 : 200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-cache" });
+      const head = { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-cache" };
+      if (opts.gzip && req.method === "GET") return gzipped(req, res, r.uri === "/404.html" ? 404 : 200, head, readFileSync(file));
+      res.writeHead(r.uri === "/404.html" ? 404 : 200, head);
       if (req.method === "HEAD") return res.end();
       createReadStream(file).pipe(res);
     } catch (e) {
@@ -149,6 +166,8 @@ if (import.meta.main ?? process.argv[1] === import.meta.filename) {
   if (args.includes("--selftest")) { selftest(); process.exit(0); }
   if (!existsSync(join(DIST, "privacy.html"))) { console.error("No build in apply/dist: run npm run build first."); process.exit(1); }
   const port = Number(args[args.indexOf("--port") + 1]) || 4173;
-  serve({ accountPrefix: !args.includes("--prod-account") }).listen(port, "127.0.0.1", () =>
+  // --migrate board: also serve these built pages, to review one before it is switched.
+  if (args.includes("--migrate")) MIGRATED.push(...args[args.indexOf("--migrate") + 1].split(","));
+  serve({ accountPrefix: !args.includes("--prod-account"), gzip: args.includes("--gzip") }).listen(port, "127.0.0.1", () =>
     console.log(`Local preview of oceanofjobs.com on http://127.0.0.1:${port} (new pages: ${MIGRATED.join(", ")}; GET-only proxy to ${LIVE})`));
 }

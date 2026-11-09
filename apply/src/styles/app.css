@@ -31,6 +31,7 @@
   --color-sidebar-accent: var(--accent); --color-sidebar-accent-foreground: var(--accent-foreground);
   --color-sidebar-border: var(--border); --color-sidebar-ring: var(--ring);
 }
+@source "../board";
 
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 

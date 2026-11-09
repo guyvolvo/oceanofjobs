@@ -10,6 +10,7 @@ import { createRequire } from "node:module";
 import { renderToString } from "react-dom/server";
 import { Checkout } from "./checkout/Checkout";
 import { Directory } from "./companies/Directory";
+import { Board } from "./board/Board";
 import { Contact } from "./contact/Contact";
 import { Home } from "./home/Home";
 import { Legal } from "./legal/Legal";
@@ -34,6 +35,7 @@ const PAGES: Record<string, () => ReactNode> = {
   checkout: () => <Checkout />,
   companies: () => <Directory />,
   stats: () => <StatsPage />,
+  board: () => <Board />,
 };
 // Pages whose entry calls hydrateIslands(): the text stays plain HTML.
 const ISLAND_PAGES = new Set(["privacy", "terms", "refunds", "contact", "404", "home"]);

@@ -1,5 +1,6 @@
 // The board's shapes (what /api/jobs, /api/facets and /api/stats answer)
 // and the formatting app.js used on them.
+import { useSyncExternalStore } from "react";
 
 export type Job = {
   id: string; title: string; url?: string; ats?: string; external_id?: string;
@@ -178,7 +179,17 @@ export async function copyText(url: string) {
   announce("Link copied");
 }
 
-export const PANE_SHEET = "(max-width: 1099px)";
+// app.js's breakpoints: up to 1100px the sidebar is a drawer and the pane
+// a sheet; up to 800px is the phone.
+export const PANE_SHEET = "(max-width: 1100px)";
 export const PHONE = "(max-width: 800px)";
 export const isSheet = () => matchMedia(PANE_SHEET).matches;
 export const isPhone = () => matchMedia(PHONE).matches;
+// False on the server and in the first (hydrating) render.
+export function useMedia(query: string) {
+  return useSyncExternalStore((fn) => {
+    const mq = matchMedia(query);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, () => matchMedia(query).matches, () => false);
+}
