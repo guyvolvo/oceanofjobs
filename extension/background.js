@@ -1388,10 +1388,11 @@ async function submitHere(msg, sender) {
 
 // generic.outcome() in the form's frame for up to 20 seconds. A navigation
 // ends the script early with no answer, so it goes in again on the new page.
+// Strict, as in runs: a form that only went away is unconfirmed (contract R4, R5).
 async function watchHere(tabId, frameId, before) {
   const until = Date.now() + 20000;
   while (Date.now() < until) {
-    const r = await inTab(tabId, 'generic', 'outcome', [before, until - Date.now()], frameId).catch(() => null);
+    const r = await inTab(tabId, 'generic', 'outcome', [before, until - Date.now(), true], frameId).catch(() => null);
     if (r) return r;
     await new Promise((res) => setTimeout(res, 1000));
   }
