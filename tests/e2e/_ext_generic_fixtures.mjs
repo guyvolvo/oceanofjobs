@@ -245,7 +245,7 @@ const EXPERIS = `<meta charset="utf-8"><title>איש/אשת תמיכה בכיר/
       </form></div>\`; });
   </script>`;
 
-await check("Experis: the Hebrew apply button opens the modal, placeholders name the fields, consent left alone, no Submit", async () => {
+await check("Experis: the Hebrew apply button opens the modal, placeholders name the fields, consent left alone, Submit flagged with the human check", async () => {
   await load(EXPERIS);
   const { fields } = await page.evaluate(() => globalThis.oojAts.generic.read());
   const plan = match.planFill(fields, profile, {});
@@ -261,7 +261,8 @@ await check("Experis: the Hebrew apply button opens the modal, placeholders name
     consent: [...document.querySelectorAll("#send-cv-form-CV input[type=checkbox]")].map((el) => el.checked),
   }));
   assert.deepEqual(got, { values: ["Test", "Person", "t@example.com", "+972 50 000 0000"], cv: "cv.pdf", withCv: true, linkedin: false, consent: [false, false] });
-  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.submitInfo()), { botCheck: true });
+  // Since 1.9.19 a page with a human check gets the card's Submit too, flagged botCheck.
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.submitInfo()), { text: "שליחה", selector: 'button[type="submit"]', botCheck: true });
 });
 
 await check("a custom dropdown: options read on open, then picked", async () => {
@@ -456,6 +457,15 @@ await check("wall: a password field on show is a sign-in wall", async () => {
 await check("wall: an I'm-not-a-robot box in the form is a CAPTCHA", async () => {
   await serve(`<form>${FIELDS}<iframe src="https://www.google.com/recaptcha/api2/anchor?k=test" srcdoc="<p>I'm not a robot</p>" style="width:304px;height:78px"></iframe><button>Submit Application</button></form>`);
   assert.deepEqual(await page.evaluate(async () => { await globalThis.oojAts.generic.read(); return globalThis.oojAts.generic.wall(); }), { signIn: false, captcha: true });
+});
+
+// SmartRecruiters' oneclick-ui when DataDome challenges the browser (seen
+// 2026-11-09): the page is only the challenge frame, whose address carries
+// the form's own in its referer. It is a CAPTCHA, not a form to open.
+await check("a DataDome challenge is a CAPTCHA, not an embedded form", async () => {
+  const src = "https://geo.captcha-delivery.com/captcha/?initialCid=x&referer=https%3A%2F%2Fjobs.smartrecruiters.com%2Foneclick-ui%2Fcompany%2FAcme%2Fpublication%2F1&t=fe";
+  await serve(`<iframe src="${src}" srcdoc="<p>Slide right to complete the puzzle</p>" style="width:100%;height:500px;border:0"></iframe>`);
+  assert.deepEqual(await page.evaluate(() => globalThis.oojAts.generic.read()), { error: "A CAPTCHA stands in front of the form. Solve it, then try again." });
 });
 
 await check("a bot trap is never read, so never filled", async () => {

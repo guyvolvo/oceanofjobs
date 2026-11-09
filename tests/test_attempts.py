@@ -321,6 +321,18 @@ with mock_aws():
     A.filled("u", "fil-000006", job(4), NOW)
     check("a fill the user sends themselves counts too", A.summary("u", NOW)["filled_today"] == 2)
 
+    # Why Full automatic held a fill: a short code on the Filled record, optional for old clients.
+    t, A = fresh_table()
+    a = A.filled("u", "hld-000001", {**job(1), "hold": "no_submit_button"}, NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000001"})["Item"]
+    check("the hold reason is stored on the Filled record", row.get("hold") == "no_submit_button" and a.get("hold") == "no_submit_button", repr(row))
+    A.filled("u", "hld-000002", job(2), NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000002"})["Item"]
+    check("an old client's fill, with no hold, is stored as before", "hold" not in row, repr(row))
+    A.filled("u", "hld-000003", {**job(3), "hold": "<script>" + "x" * 100}, NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000003"})["Item"]
+    check("a hold that isn't a short code is dropped, the fill still recorded", "hold" not in row and row["state"] == at.FILLED, repr(row))
+
     # A fill the user then sent with the site's button, seen by the extension.
     t, A = fresh_table()
     A.filled("u", "snt-000001", job(5), NOW)

@@ -310,7 +310,8 @@ async function inTab(tabId, ats, method, args = [], frameId) {
   return res && res.result;
 }
 
-async function waitForOutcome(tabId, atsName, redirectTo) {
+// frameId: a form embedded in another site's page, watched in its frame.
+async function waitForOutcome(tabId, atsName, redirectTo, frameId) {
   const ats = globalThis.oojAts[atsName];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let i = 0; i < 45; i++) {
@@ -318,8 +319,8 @@ async function waitForOutcome(tabId, atsName, redirectTo) {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
     if (!tab) return { failed: 'tab closed' };
     if (redirectTo && tab.url && tab.url.startsWith(redirectTo)) return 'submitted';
-    if (tab.status !== 'complete' || !ats.onSite(tab.url)) continue;
-    const r = await inTab(tabId, atsName, 'outcome').catch(() => null);
+    if (tab.status !== 'complete' || (!frameId && !ats.onSite(tab.url))) continue;
+    const r = await inTab(tabId, atsName, 'outcome', [], frameId).catch(() => null);
     if (r) return r;
   }
   return { failed: 'no confirmation after submitting' };
@@ -937,10 +938,12 @@ async function pageCompany(tabId) {
 
 // A fill the user will check and send: in History as Filled, no credit.
 // Then the tab is watched for the user sending it (watchSend).
-async function recordFilled(job, tabId, frameId, email) {
+// held: autoWhy's answer, kept on the record as a code (oojMatch.holdCode).
+async function recordFilled(job, tabId, frameId, email, held) {
   const attemptId = newAttemptId();
+  const hold = oojMatch.holdCode(held);
   await sendDurable('/me/apply/filled', { attempt_id: attemptId, job_id: job.id, url: job.url, title: job.title,
-    company: job.company_name || job.company_domain });
+    company: job.company_name || job.company_domain, ...(hold ? { hold } : {}) });
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab) return;
   await setWatch(tabId, { attemptId, email: String(email || '').trim().toLowerCase(), url: tab.url, until: Date.now() + WATCH_FOR, clickAt: 0 });
@@ -1028,11 +1031,11 @@ async function fillHere(msg, tabId, frameId) {
   // Filling costs nothing (R8); a credit is reserved only when Submit is
   // pressed on the card, by the user or by Full automatic (startSubmit).
   const result = await fillAndMark(tabId, frameId, name, page, job, ctx, plan, suggested);
-  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email);
   // The dedicated filler presses its own button and handles a CAPTCHA
   // (ats outcome), as in automatic runs: reCAPTCHA sits on every
   // Greenhouse and Ashby form, so generic's bot check isn't asked here.
   const why = autoWhy(a, job, msg.url, result, { text: 'Submit' });
+  await recordFilled(await jobForTab(tabId, msg.url, msg.title, msg.company), tabId, frameId, a.profile.contact && a.profile.contact.email, why);
   return { ...result, auto: why === null, held: why || '' };
 }
 
@@ -1230,7 +1233,8 @@ async function fillTab(tabId) {
   const r = await assist(tabId, frameId, name, page, tab.url, tab.title);
   if (!r.auto) return r;
   // Full automatic: the card's Submit (submitHere), pressed for the user.
-  return { ...r, sent: await submitHere({ url: tab.url, frameId, title: tab.title, company: new URL(tab.url).hostname, auto: true },
+  return { ...r, sent: await submitHere({ url: tab.url, frameId, title: tab.title, company: new URL(tab.url).hostname, auto: true,
+    ats: name, redirectTo: page.redirectTo },
     { tab: { id: tabId }, frameId }) };
 }
 
@@ -1269,9 +1273,9 @@ async function assist(tabId, frameId, name, page, url, title) {
   let stop = null;
   if (workday) stop = await walkPages(tabId, frameId, page, fillPage);
   else await fillPage(page);
-  await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email);
   const submit = stop ? null : await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
   const why = autoWhy(a, job, url, result, submit);
+  await recordFilled(job, tabId, frameId, a.profile.contact && a.profile.contact.email, why);
   if (workday && why === 'needs input' && result.missing.length) {
     // Full automatic stopped on a question: in Needs attention, as a run
     // puts it, and the credit goes back at once.
@@ -1392,11 +1396,15 @@ async function assistHere(msg, sender) {
 // "Submit application" on the card of a page with no dedicated filler:
 // claim a credit, press the form's own button, watch for a confirmation.
 // The credit counts only when one shows; otherwise it is given back.
+// msg.ats: the popup's fill on a site with a dedicated filler presses that
+// filler's button and watches its outcome, as runs do (Greenhouse waits
+// for the CV upload first).
 async function submitHere(msg, sender) {
   const tabId = sender.tab.id;
   await setWatch(tabId, null); // the card's own attempt records this send
   const frameId = msg.frameId != null ? msg.frameId : sender.frameId;
-  const info = await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null);
+  const ats = msg.ats && msg.ats !== 'generic' && globalThis.oojAts[msg.ats].submit ? msg.ats : 'generic';
+  const info = ats === 'generic' ? await inTab(tabId, 'generic', 'submitInfo', [], frameId).catch(() => null) : { text: 'Submit' };
   if (!info || !info.text) return { error: oojMatch.reasonText('submit button not found') };
   const job = await jobForTab(tabId, msg.url, msg.title, msg.company);
   const held = await reserve(job);
@@ -1410,8 +1418,10 @@ async function submitHere(msg, sender) {
   let before = null;
   let out;
   try {
-    before = await inTab(tabId, 'generic', 'submit', [], frameId);
-    out = before ? await watchHere(tabId, frameId, before, globalThis.oojAts.workday.onSite(msg.url)) : { failed: 'submit button not found' };
+    before = await inTab(tabId, ats, 'submit', [], frameId);
+    out = !before ? { failed: 'submit button not found' }
+      : ats === 'generic' ? await watchHere(tabId, frameId, before, globalThis.oojAts.workday.onSite(msg.url))
+      : await waitForOutcome(tabId, ats, msg.redirectTo, frameId);
   } catch (e) {
     out = { failed: String(e.message || e).slice(0, 200) };
   }
@@ -1428,12 +1438,13 @@ async function submitHere(msg, sender) {
 
 // generic.outcome() in the form's frame for up to 20 seconds. A navigation
 // ends the script early with no answer, so it goes in again on the new page.
-// On Workday its own confirmation, as in runs: a form that only went away is unconfirmed.
+// Strict, as in runs: a form that only went away is unconfirmed (contract R4, R5).
+// On Workday its own confirmation, as in runs.
 async function watchHere(tabId, frameId, before, workday) {
   const until = Date.now() + 20000;
   while (Date.now() < until) {
     const r = await (workday ? inTab(tabId, 'workday', 'outcome', [before, until - Date.now()])
-      : inTab(tabId, 'generic', 'outcome', [before, until - Date.now()], frameId)).catch(() => null);
+      : inTab(tabId, 'generic', 'outcome', [before, until - Date.now(), true], frameId)).catch(() => null);
     if (r) return r;
     await new Promise((res) => setTimeout(res, 1000));
   }

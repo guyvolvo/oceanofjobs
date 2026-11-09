@@ -58,7 +58,8 @@
     [/\b(race|ethnicity|ethnicities|ethnic (origin|background|group))\b/, 'race'],
     // "Armed forces", not "military service": in Israel that is an ordinary question.
     [/\bveteran\b|\bserved in the (\w+ )?armed forces\b/, 'veteran'],
-    [/\bdisability\b|\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
+    // "Impairment of independence" is an auditor's conflict question, not EEO.
+    [/\bdisability\b|^(?!.*\b(independence|objectivity|audit|auditor)\b).*\bimpairment\b|\blong term (health )?condition\b|(^| )מוגבלות( |$)/, 'disability'],
     // Contact fields by label alone, for forms whose field names mean nothing.
     // Anchored, so a custom question that mentions an email is left alone.
     // Also in French, Spanish, Italian, Portuguese, German, Dutch, Polish
@@ -416,6 +417,16 @@
     return screened || null;
   }
 
+  // autoSubmit's answer as the short code the Filled record keeps, so the
+  // server and the owner see why a fill wasn't submitted. null: not held.
+  const HOLDS = {
+    '': 'half_automatic', 'full automatic needs a paid plan': 'needs_paid_plan', 'no submit button': 'no_submit_button',
+    'needs input': 'needs_answer', 'limit reached': 'limit_reached', 'already applied': 'already_applied',
+    'already tried': 'already_tried', 'blocked company': 'blocked_company', 'applied to this company recently': 'applied_recently',
+    'below your minimum match': 'below_min_match',
+  };
+  const holdCode = (why) => (why == null ? null : HOLDS[why] || String(why).toLowerCase().replace(/[^a-z]+/g, '_').slice(0, 40));
+
   // The frame holding the application form, from executeScript results
   // over every frame of a tab ({frameId, result: generic formHere()}).
   // The highest score wins; null when no frame has a form.
@@ -547,7 +558,7 @@
 
   const api = {
     notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, planFill, isEeo, isStatement, mustAnswer, suggestable,
-    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
+    appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, holdCode, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.oojMatch = api;

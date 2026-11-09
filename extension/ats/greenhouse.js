@@ -11,7 +11,7 @@
 // The service worker loads it with importScripts for matches(); the rest
 // runs in the job tab, injected next to lib/match.js.
 (function (root) {
-  const HOSTS = ['boards.greenhouse.io', 'job-boards.greenhouse.io'];
+  const HOSTS = ['boards.greenhouse.io', 'job-boards.greenhouse.io', 'boards.eu.greenhouse.io', 'job-boards.eu.greenhouse.io'];
 
   function onSite(url) {
     try { return HOSTS.includes(new URL(url).hostname); } catch { return false; }

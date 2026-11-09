@@ -372,6 +372,19 @@ test('autoSubmit: Full automatic submits on Basic and Pro once nothing is left f
   }
 });
 
+test('holdCode: why a fill was held, as the short code the Filled record keeps', () => {
+  const ready = { fill: 'full', plan: 'pro', submit: true, missing: [], errors: [], remaining: 5, screened: null };
+  const code = (o) => m.holdCode(m.autoSubmit({ ...ready, ...o }));
+  assert.equal(code({}), null, 'not held: Full automatic submits');
+  assert.equal(code({ fill: 'half' }), 'half_automatic');
+  assert.equal(code({ plan: 'free' }), 'needs_paid_plan');
+  assert.equal(code({ submit: false }), 'no_submit_button');
+  assert.equal(code({ missing: ['Phone'] }), 'needs_answer');
+  assert.equal(code({ remaining: 0 }), 'limit_reached');
+  assert.equal(code({ screened: 'applied to this company recently' }), 'applied_recently');
+  assert.equal(m.holdCode('Some new reason!'), 'some_new_reason_', 'an unknown reason still fits the server');
+});
+
 test('sentText: what a Submit came to, for the card and the popup', () => {
   assert.equal(m.sentText({ submitted: true }), m.SUBMITTED);
   assert.equal(m.sentText({ unknown: true }), m.UNCONFIRMED);
@@ -409,6 +422,19 @@ test('demographic questions in other wordings are recognised; ordinary questions
   }
   assert.equal(m.classify({ label: 'What is your sex?' }), 'gender', 'a saved gender answer fills "Sex"');
   assert.equal(m.classify({ label: 'Do you have a long-term health condition or impairment?' }), 'disability');
+});
+
+test('an auditor independence question is not about disability; impairment questions still are', () => {
+  for (const label of ['Is there any perceived impairment of independence with you being our auditor?',
+    'Is there any impairment of independence or objectivity in relation to the audit of this company?',
+    'Do you have any relationship that could cause an impairment to your independence as an auditor?']) {
+    assert.notEqual(m.classify({ label }), 'disability', label);
+    assert.ok(!m.isEeo({ label, type: 'select', options: [] }), label);
+  }
+  for (const label of ['Do you have a physical or mental impairment?', 'Do you have an impairment, health condition or learning difference?',
+    'Do you consider yourself to have a disability or impairment?', 'Disability status']) {
+    assert.equal(m.classify({ label }), 'disability', label);
+  }
 });
 
 test('a phone number split in two (Workday): the country in its dropdown, the rest in the box', () => {
