@@ -213,6 +213,21 @@ with mock_aws():
           and m["held"] == 0 and m["charged"] == 0 and d["held"] == 0, repr((m, d)))
     check("and the job can be tried again", A.reserve("u", "late-000002", job(2), NOW + timedelta(minutes=42))["state"] == at.RESERVED)
 
+    # The site's human check refused the click after the start (extension
+    # viaGeneral): nothing was sent, so the credit goes back and the job
+    # waits in Needs attention for the user to send it.
+    t, A = fresh_table()
+    A.reserve("u", "bot-000001", job(1), NOW)
+    A.submission_started("u", "bot-000001", NOW)
+    refused = raises(lambda: A.settle("u", "bot-000001", at.NEEDS_INPUT, "ready to submit", NOW, []), at.Conflict)
+    m, d = counts(A)
+    check("a human check refused the click: released as Needs input", not refused
+          and A._get("u", at.ATTEMPT + "bot-000001")["state"] == at.NEEDS_INPUT and m["held"] == 0 and m["charged"] == 0 and d["held"] == 0,
+          repr((refused, m, d)))
+    A.expire("u", NOW + timedelta(minutes=31))
+    check("and expiry never charges it", counts(A)[0]["charged"] == 0 and A._get("u", at.ATTEMPT + "bot-000001")["state"] == at.NEEDS_INPUT)
+    check("it shows in Needs attention, ready to submit", [n.get("ready") for n in A.needs("u")] == [True], repr(A.needs("u")))
+
     # Expiry and submission start.
     t, A = fresh_table()
     A.reserve("u", "exp-000001", job(1), NOW)

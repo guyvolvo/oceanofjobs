@@ -69,6 +69,8 @@ test('pickOption handles yes/no, decline and partial labels', () => {
   assert.equal(m.pickOption(['Asian', 'Black or African American'], 'black'), 1);
   assert.equal(m.pickOption(['Israel +972', 'Italy +39'], 'Israel'), 0);
   assert.equal(m.pickOption(['Canada +1', 'United States +1'], 'United States'), 1);
+  // Greenhouse's phone Country list, live on 2026-11-09.
+  assert.equal(m.pickOption(['United Arab Emirates +971', 'United Kingdom +44', 'United States +1', 'United States Minor Outlying Islands +1'], 'United States'), 2);
   assert.equal(m.pickOption(['Yes', 'No'], 'Maybe'), -1);
   // Live Greenhouse veteran options: a loose match must not pick the wrong one.
   const veteran = ['I am not a protected veteran', 'I identify as one or more of the classifications of a protected veteran', "I don't wish to answer"];

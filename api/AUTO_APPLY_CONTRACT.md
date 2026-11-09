@@ -48,8 +48,10 @@ disputable (R12), and never retried automatically.
 
 R6. **Release when the site shows nothing was sent.** After a submission
 start, the form still on the page with the site's own validation errors
-settles as Failed and releases the credit. A disappearing form alone
-proves nothing either way.
+settles as Failed and releases the credit. The site's human check
+refusing the click (its refusal on the page) settles as Needs input and
+releases the credit, so the user can send it from Needs attention. A
+disappearing form alone proves nothing either way.
 
 R7. **Release every failure before submission start.** Page didn't load, no
 form, a field couldn't be filled, no submit button, a CAPTCHA, a question
@@ -118,12 +120,12 @@ answers.
 |---|---|---|---|
 | Queued | added by the user, the board or an assistant | none | Reserved, removed |
 | Reserved | start (R1, R2) | reserved | Submission started, Failed, Skipped, Needs input, Abandoned |
-| Submission started | acknowledged report (R3) | reserved | Submitted, Submission unconfirmed, Failed (R6 only) |
+| Submission started | acknowledged report (R3) | reserved | Submitted, Submission unconfirmed, Failed or Needs input (R6 only) |
 | Submitted | site confirmation (R4) | charged | final |
 | Submission unconfirmed | R5, or expiry after submission start (R9) | charged, provisionally | Submitted if confirmed later, Not sent (disputed), Failed if it came from expiry and the R6 report arrives late (released) |
 | Not sent (disputed) | accepted dispute (R12) | refunded | Queued, by the user |
 | Failed | R6, R7 | released | Queued (R11) |
-| Needs input | R7, R15 | released | Queued once answered |
+| Needs input | R6, R7, R15 | released | Queued once answered |
 | Skipped | not attempted | none | Queued (R11) |
 | Abandoned | expiry before submission start (R9) | released | Queued (R11) |
 | Filled | an unsent fill (R8) | none | Reserved, if the user sends it from the card |

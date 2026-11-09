@@ -35,6 +35,18 @@ const form = () => `<!doctype html><html><head><title>Engineer at Example</title
 ${withQuestion ? '<label for="why">Why do you want to work here?</label><textarea id="why" name="why" required></textarea>' : ''}
 <button type="submit">Submit application</button></form></body></html>`;
 
+const ghContext = { state: { loaderData: { "routes/$board.jobs.$id": { jobPost: { redirect_to: null, questions: [
+  ["first_name", "First Name"], ["last_name", "Last Name"], ["email", "Email"]].map(([name, label]) => ({ label, required: true, fields: [{ name, type: "input_text" }] })) } } } } };
+let ghServed = 0;
+const ghForm = `<!doctype html><html><head><title>Engineer</title></head><body><h1>Engineer</h1>
+<script>window.__remixContext = ${JSON.stringify(ghContext)};</script>
+<form id="application-form"><label for="first_name">First Name</label><input id="first_name">
+<label for="last_name">Last Name</label><input id="last_name"><label for="email">Email</label><input id="email">
+<button type="submit">Submit application</button></form>
+<script>document.getElementById("application-form").addEventListener("submit", (e) => { e.preventDefault();
+  document.body.insertAdjacentHTML("beforeend", '<iframe src="https://www.google.com/recaptcha/api2/bframe?k=test" style="width:400px;height:580px;position:fixed;top:0;left:0"></iframe>'); });</script>
+</body></html>`;
+
 // The API stand-in: attempts with the contract's states, and failure
 // switches per operation.
 const server = { attempts: {}, calls: [], fail: {}, filled: [], gates: [] };
@@ -59,6 +71,10 @@ await ctx.route("**/*", async (r) => {
       const p = document.createElement("span"); p.className = "error"; p.textContent = "Email is required"; em.after(p); });</script>` : "";
     return r.fulfill({ contentType: "text/html", body: form().replace("</body>", check + "</body>") });
   }
+  // A Greenhouse-shaped page served here (never the real site), and the
+  // challenge its human check shows after the click.
+  if (u.hostname === "job-boards.greenhouse.io") { ghServed++; return r.fulfill({ contentType: "text/html", body: ghForm }); }
+  if (u.hostname === "www.google.com") return r.fulfill({ contentType: "text/html", body: "<!doctype html><p>Select all images with a bus</p>" });
   if (u.hostname !== "oceanofjobs.com") return r.continue();
   const p = u.pathname.replace("/api/me/apply/", "");
   const body = req.postDataJSON ? (() => { try { return req.postDataJSON(); } catch { return null; } })() : null;
@@ -95,6 +111,8 @@ async function apiAct(p, body) {
   if (!a) return [404, { code: "not_found", error: "no such attempt", retryable: false }];
   if (action === "submission-started") {
     server.gates.push(body);
+    // Only ever past the gate on the page served here.
+    if (server.ghOnly && !ghServed) return [409, { code: "not_eligible", error: "not the test page", retryable: false }];
     if (server.expireNext) { server.expireNext = false; a.state = "abandoned"; return [410, { code: "expired", error: "the reservation expired; don't submit", retryable: false }]; }
     if (a.state === "submission_started") return [200, { attempt: a, submit: true }];
     if (a.state !== "reserved") return [409, { code: "not_eligible", error: "not eligible", retryable: false }];
@@ -108,6 +126,7 @@ async function apiAct(p, body) {
     }
     a.state = body.outcome;
     a.settles = (a.settles || 0) + 1;
+    a.reason = body.reason;
     return [200, { attempt: a }];
   }
   return [404, { code: "not_found" }];
@@ -218,6 +237,27 @@ const edited = (server.gates[0] && server.gates[0].answers || []).find((x) => x.
 check("edited before Submit, it's sent as the user's answer, not the AI's", edited && edited.answer === "I've used it for years and want to work on it."
   && !edited.source, JSON.stringify(server.gates[0]));
 withQuestion = false;
+
+// 11. A run on a Greenhouse form whose human check puts up a challenge
+// after the click: nothing went, so Needs input ("ready to submit") for the
+// user to send, not Failed.
+await reset(); server.ghOnly = true;
+// A tab the extension opens loads its first address before Playwright's
+// routes cover it, so it opens blank and then goes to the job: the page
+// above, never the real site.
+await sw.evaluate(() => {
+  const create = chrome.tabs.create.bind(chrome.tabs);
+  chrome.tabs.create = async ({ url, ...rest }) => {
+    const tab = await create({ ...rest, url: "about:blank" });
+    await new Promise((r) => setTimeout(r, 1500));
+    return chrome.tabs.update(tab.id, { url });
+  };
+});
+const ghRun = await sw.evaluate(async (profile) => applyTo({ id: "00000000000000a1", url: "https://job-boards.greenhouse.io/example/jobs/123", ats: "greenhouse",
+  title: "Engineer", company_domain: "example.com" }, { profile, preferences: {}, settings: profile.settings, cv: null, serverAi: false }), profile);
+check("a run stopped by the site's human check after the click: Needs input, ready to submit", ghRun === "captcha"
+  && only().length === 1 && only()[0].state === "needs_input" && server.calls.some((c) => c.endsWith("/submission-started")),
+  JSON.stringify({ ghRun, a: only(), calls: server.calls }));
 
 // 9. The old routes aren't used for new attempts.
 const old = server.calls.filter((c) => /claim|result|usage/.test(c));

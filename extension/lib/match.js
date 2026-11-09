@@ -215,6 +215,9 @@
     const exact = opts.indexOf(want);
     if (exact >= 0) return exact;
     if (want === 'yes' || want === 'no') return opts.findIndex((o) => o.split(' ')[0] === want);
+    // A phone country list: "United States +1", next to "United States Minor Outlying Islands +1".
+    const coded = only((o) => o.replace(/( \d+)+$/, '') === want);
+    if (coded >= 0) return coded;
     const start = only((o) => o.startsWith(want + ' ') || want.startsWith(o + ' '));
     return start >= 0 ? start : only((o) => (' ' + o + ' ').includes(' ' + want + ' '));
   }

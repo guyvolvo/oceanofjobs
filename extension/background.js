@@ -579,8 +579,12 @@ async function applyTo(job, ctx) {
       return 'failed';
     }
     const [outcome, why] = afterClick(await waitForOutcome(tab.id, job.ats, page.redirectTo));
+    if (outcome === 'failed' && /^captcha/i.test(why)) {
+      // The site's human check stopped the click: nothing went, so the user sends it from Needs attention.
+      await settle(id, 'needs_input', 'ready to submit', []);
+      return 'captcha';
+    }
     await settle(id, outcome, why);
-    if (outcome === 'failed' && /^captcha/i.test(why)) return 'captcha';
     return outcome;
   } catch (e) {
     // After the gate the click may have happened: unconfirmed, never retried.
