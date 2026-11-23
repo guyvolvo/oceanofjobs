@@ -122,6 +122,8 @@ jobs:
             --exclude "explore.json" \
             --exclude "explore/*" \
             --exclude "companies/*" \
+            --exclude "jobs/*" \
+            --exclude "jobs.html" \
             --exclude "media/*" \
             --exclude "docs/*" \
             --exclude "apply/*" \

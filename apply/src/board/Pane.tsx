@@ -178,7 +178,7 @@ function Treemap({ rows }: { rows: { value: string; n: number }[] }) {
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const total = rows.reduce((a, r) => a + r.n, 0);
   return (
-    <div ref={ref} className="board-tree" style={{ aspectRatio: String(TREEMAP_RATIO) }}>
+    <div ref={ref} className="board-tree" style={{ height: `min(100%, calc(100cqw / ${TREEMAP_RATIO}))` }}>
       {tiles.map((t, i) => {
         const name = t.other ? "Other" : companyNameFor(t.value!);
         const pct = Math.round((t.n / total) * 100);
@@ -230,7 +230,8 @@ function Overview() {
   add(pending ? <Dots /> : s.companies_hiring == null ? (U.stats ? null : <Dots />) : fmtInt(s.companies_hiring), "Companies", trend(s.companies_now_basis, s.companies_7d_ago), sub(companiesPrev, "a week ago"));
   add(pending ? <Dots /> : s.new_jobs_7d == null ? (U.stats ? null : <Dots />) : fmtInt(s.new_jobs_7d), "New this week", trend(s.new_jobs_7d, s.prev_new_jobs_7d), sub(s.prev_new_jobs_7d, "the week before"));
   return (
-    <div className="flex min-h-full flex-col gap-6 px-5 py-6">
+    // The overview never scrolls: the chart takes the height left, up to its usual shape.
+    <div className="flex h-full flex-col gap-6 px-5 py-6">
       {tiles.length ? (
         <div className="grid grid-cols-2 gap-2">
           {tiles.map((t) => (
@@ -245,9 +246,9 @@ function Overview() {
         </div>
       ) : null}
       {hiring.length ? (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
           <h3 className="m-0 mb-2.5 font-ui text-sm font-semibold text-foreground">Companies with the most open jobs</h3>
-          <Treemap rows={hiring} />
+          <div className="@container min-h-0 flex-1"><Treemap rows={hiring} /></div>
         </div>
       ) : null}
       <p className="m-0 mt-auto font-ui text-sm text-muted-foreground">Select a job to see its details here.</p>
@@ -348,7 +349,8 @@ export function Pane() {
             </div>
           )}
         </div>
-        <div ref={bodyRef} className="pane-body min-h-0 flex-1 overflow-y-auto">
+        {/* The overview stays put, as on the old board; only a job's details scroll. */}
+        <div ref={bodyRef} className={cn("pane-body quiet-scroll min-h-0 flex-1", d ? "overflow-y-auto" : "overflow-hidden")}>
           {!d ? <Overview />
             : d.gone ? (
               <div className="flex flex-col items-center gap-2 px-5 py-12 text-center font-ui">
