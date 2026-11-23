@@ -34,7 +34,7 @@ const FRONTEND = resolve(APPLY, "../frontend");
 // deploy-frontend.yml reads (docs/UI_OVERHAUL_ROLLBACK.md).
 export const MIGRATED = JSON.parse(readFileSync(join(APPLY, "migrated.json"), "utf8"));
 // Built and reviewed but not shipped yet; --all serves them too.
-const READY = ["privacy", "terms", "refunds", "contact", "404", "home", "pricing", "checkout", "companies", "stats"];
+const READY = ["privacy", "terms", "refunds", "contact", "404", "home", "pricing", "checkout", "companies", "stats", "board"];
 
 // The CloudFront function's PAGES, BOARD_KEYS and role-page list, verbatim.
 const PAGES = { "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
@@ -158,7 +158,9 @@ function selftest() {
   t("/style.css", "", { uri: "/style.css" });
   t("/hero", "", { redirect: "/" });
   assert.equal(bucketFile("/contact.html"), join(DIST, "contact.html"));
-  assert.equal(bucketFile("/board.html"), join(FRONTEND, "board.html"));
+  // A page in migrated.json comes from the build, any other from frontend/.
+  assert.equal(bucketFile("/board.html"), join(MIGRATED.includes("board") ? DIST : FRONTEND, "board.html"));
+  assert.equal(bucketFile("/docs/index.html"), join(FRONTEND, "docs/index.html"));
   assert.ok(PUBLISHED.test("/companies/a.html") && PUBLISHED.test("/stats.json") && !PUBLISHED.test("/stats.js"));
   console.log("preview routing: all checks pass");
 }
