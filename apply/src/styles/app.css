@@ -73,6 +73,12 @@
   background: var(--color-card); color: var(--color-destructive); font: 500 12px/16px var(--font-sans); cursor: pointer; text-align: left; }
 .upstream-x { font-size: 15px; line-height: 16px; margin-left: 2px; opacity: 0.8; }
 .upstream-badge:hover .upstream-x { opacity: 1; }
+/* On a phone the bottom holds the cookie banner, the tab bar and the board's Alert me button,
+   so the badge sits under the top bar instead, with a finger-sized target. */
+@media (max-width: 800px) {
+  .upstream { top: calc(env(safe-area-inset-top, 0px) + 72px); bottom: auto; }
+  .upstream-badge { padding: 8px 12px; font-size: 13px; }
+}
 
 /* The avatar auth.js draws as HTML (avatarHtml): the photo covers the letter. Every page's header shows it. */
 .hero-avatar { position: relative; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;

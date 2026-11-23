@@ -119,7 +119,7 @@ export function Board() {
   return (
     <div className="board-page bg-background">
       <a className="fixed top-[-60px] left-4 z-[1000] rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground focus-visible:top-3" href="#main">Skip to content</a>
-      <Header current="jobs" className="static flex-none border-b-0 bg-transparent backdrop-blur-none min-[801px]:[&_header]:h-[74px]" />
+      <Header current="jobs" className="static flex-none border-b-0 min-[801px]:[&_header]:h-[74px]" />
       <div className="min-h-0 flex-1 min-[1101px]:grid min-[1101px]:grid-cols-[236px_minmax(0,1fr)]">
         <SideBar open={side} drawer={drawer} onClose={() => setSide(false)} />
         <div id="main" role="main" tabIndex={-1} className="flex min-h-0 flex-col gap-3 px-5 outline-none max-[800px]:gap-2.5 max-[800px]:px-4 max-[800px]:pt-2.5 min-[801px]:h-full">
