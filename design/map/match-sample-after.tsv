@@ -1,0 +1,175 @@
+id	method	country	state	city_string	open_job_placements	matched	admin1	feature_code	population	top_raw_locations	verdict	note
+P000	exact	US	IN	Crawfordsville	24	Crawfordsville	Indiana	PPLA2	16024	Crawfordsville, IN [10] || Crawfordsville, Indiana [1]	ok	
+P001	exact	US		Merrillville	28	Merrillville	Indiana	PPL	35224	Merrillville, us [14] || Client Site - USA - IN - Merrillville - 9850 Mississippi St [1]	ok	
+P002	exact	GB		Hartlepool	9	Hartlepool	England	PPLA2	88855	Hartlepool, gb [9]	ok	
+P003	exact	PL		Mirków	10	Mirków	Lower Silesia	PPL	1200	Mirków, pl [10]	ok	
+P004	exact	DE		Unterschleissheim	12	Unterschleißheim	Bavaria	PPL	28482	DEU - Bayern - Unterschleissheim [12]	ok	
+P005	exact	FR		Anglet	18	Anglet	New Aquitaine	PPL	40658	Anglet, fr [18]	ok	
+P006	exact	US	NM	Alamogordo	13	Alamogordo	New Mexico	PPLA2	30753	Alamogordo, New Mexico [13]	ok	
+P007	exact	DE		Feldkirchen	71	Feldkirchen	Bavaria	PPLA4	5573	Feldkirchen, de [5]	ok	
+P008	exact	NL		Raalte	14	Raalte	Overijssel	PPL	20015	Raalte, Overijssel, Nederland [1]	ok	
+P009	exact	FR		Sales	11	Sales	Auvergne-Rhône-Alpes	PPL	1698	Sales, Paris, Hybride [11]	wrong	raw 'Sales, Paris, Hybride': Sales is the department; matched Sales, a French village
+P010	exact	TH		Phuket	43	Phuket	Phuket	PPLA	79308	Berda Claude International School, Thailand, Phuket [2] || Mueang Phuket, Phuket, Thailand [1]	ok	
+P011	exact	US	CA	Marina del Rey	143	Marina del Rey	California	PPLX	8866	Marina del Rey, California, United States [14] || Marina del Rey, CA [8] || Marina del Rey, California [1]	ok	
+P012	exact	NL		Blerick	100	Blerick	Limburg	PPL	15820	Blerick, Limburg, Nederland [7]	ok	
+P013	exact	US		Katy	133	Katy	Texas	PPL	16158	Katy, us [110] || TX - Katy [23]	ok	
+P014	exact	PL		Rzeszów	40	Rzeszów	Subcarpathia	PPLA	198317	Rzeszów, pl [11] || Krakow, Rzeszów [2]	ok	
+P015	exact	GB		Kingsbury	14	Kingsbury	England	PPL	3730	Kingsbury, Greater London, Hendon, Greater London [1]	wrong	raw 'Kingsbury, Greater London'; matched Kingsbury, Warwickshire (52.56, -1.68)
+P016	exact	DE		Itzehoe	9	Itzehoe	Schleswig-Holstein	PPLA3	33047	Itzehoe, de [9]	ok	
+P017	exact	BG		Elin Pelin	14	Elin Pelin	Sofia	PPLA3	7373	Elin Pelin, bg [1]	ok	
+P018	exact	CA		Dunnville	9	Dunnville	Ontario	PPL	5907	Dunnville, Ontario, Canada [9]	ok	
+P019	exact	GB		Marylebone	14	Marylebone	England	PPLX	12157	Marylebone, gb [14]	ok	
+P020	exact	CH		Allschwil	29	Allschwil	Basel-Landschaft	PPL	18189	Allschwil, Switzerland [18] || Allschwil, ch [11]	ok	
+P021	exact	ES		Pamplona	14	Pamplona	Navarre	PPLA	208243	Pamplona, es [14]	ok	
+P022	exact	AU		Homebush	14	Homebush	New South Wales	PPLX	6787	Homebush, Australia [1]	ok	
+P023	exact	US	ID	EMMETT	14	Emmett	Idaho	PPLA2	6604	EMMETT, ID [1]	ok	
+P024	exact	AU		Sunshine Coast	91	Sunshine Coast	Queensland	PPLA2	398840	Sunshine Coast, au [34] || Brisbane, Australia, Sunshine Coast, Australia [2] || Brisbane, Australia, Sunshine Coast, Australia, Gold Coast, Australia [2]	ok	
+P025	exact	US		Lapel	71	Lapel	Indiana	PPL	2053	Lapel, us [5]	ok	
+P026	exact	DE		Büchen	15	Büchen	Schleswig-Holstein	PPLA4	5442	Büchen, Schleswig-Holstein [15]	ok	
+P027	exact	US	NY	Hampton Bays	9	Hampton Bays	New York	PPL	13603	Hampton Bays, New York [9]	ok	
+P028	exact	US	CA	Diamond Bar	58	Diamond Bar	California	PPL	56897	Corp-Main - Diamond Bar, CA [19] || Diamond Bar, California [13] || Corp-Offsite - Diamond Bar, CA [12]	ok	
+P029	exact	US		Hesperia	31	Hesperia	California	PPL	93295	Hesperia, us [17] || 10564 - CA - Hesperia - Hesperia - High Desert Gateway [1]	ok	
+P030	state	US	CA	Hawthorne	919	Hawthorne	California	PPL	88451	Hawthorne, CA [851] || Hawthorne, California, USA [25] || US - Hawthorne, CA (TDY) [16]	ok	
+P031	state	US	PA	Gettysburg	34	Gettysburg	Pennsylvania	PPLA2	7608	Gettysburg, PA [20] || Gettysburg, PA 17325 [1]	ok	
+P032	state	US	OH	COLUMBUS	24	Columbus	Ohio	PPLA	913175	COLUMBUS, OH [24]	ok	
+P033	state	US	TN	Brentwood	114	Brentwood	Tennessee	PPL	41763	Brentwood, TN [41] || Brentwood, Tennessee [22] || Brentwood, Tennessee, United States [12]	ok	
+P034	state	US	CA	Auburn	26	Auburn	California	PPLA2	13776	Auburn, California [12] || Auburn, California, United States, Rocklin, California, United States [1]	ok	
+P035	state	US	RI	Warwick	279	Warwick	Rhode Island	PPL	81699	Warwick, Rhode Island [26] || Warwick, RI [10] || Warwick, Rhode Island, United States [8]	ok	
+P036	state	US	PA	Erie	362	Erie	Pennsylvania	PPLA2	99475	Erie PA, 16502, 232 West 25th St [180] || Erie, PA [43] || Erie PA, 16502, 2315 Myrtle St [22]	ok	
+P037	state	US	FL	Auburndale	29	Auburndale	Florida	PPL	15035	Auburndale, FL [2]	ok	
+P038	state	US	MO	Warrenton	24	Warrenton	Missouri	PPLA2	8106	Warrenton, MO [10] || Warrenton MO [1]	ok	
+P039	state	US	MD	Westminster	17	Westminster	Maryland	PPLA2	18670	Westminster, MD [17]	ok	
+P040	state	US	TX	Beaumont	248	Beaumont	Texas	PPLA2	115282	Beaumont, TX [55] || Beaumont, Texas [21] || Beaumont, TX, USA [15]	ok	
+P041	state	US	WY	Cheyenne	104	Cheyenne	Wyoming	PPLA	65132	Cheyenne, WY [40] || Cheyenne, Wyoming, United States [12] || Corporate Office, Cheyenne WY [9]	ok	
+P042	state	US	CA	Cypress	19	Cypress	California	PPL	49290	Cypress, California, United States; Redondo Beach, California, United States [10] || Cypress, California, United States [9]	ok	
+P043	state	US	SC	Liberty	13	Liberty	South Carolina	PPL	3246	Liberty, SC [13]	ok	
+P044	state	US	NC	Spring Lake	29	Spring Lake	North Carolina	PPL	13234	Spring Lake, NC [2]	ok	
+P045	state	US	FL	Lake City	69	Lake City	Florida	PPLA2	12161	Lake City, FL [26] || 3049 North US 441, Lake City,FL 32055-4939 [3]	ok	
+P046	state	US	NM	Farmington	13	Farmington	New Mexico	PPL	42871	Farmington, New Mexico [13]	ok	
+P047	state	US	TX	McGregor	75	McGregor	Texas	PPL	5064	McGregor, TX [75]	ok	
+P048	state	US	WA	Aberdeen	15	Aberdeen	Washington	PPL	16276	Aberdeen, WA [15]	ok	
+P049	state	US	TN	Shelbyville	39	Shelbyville	Tennessee	PPLA2	21317	Shelbyville, TN [29] || Shelbyville, Tennessee [10]	ok	
+P050	state	US	OH	Fremont	11	Fremont	Ohio	PPLA2	16297	Fremont, OH [11]	ok	
+P051	state	US	SD	Brookings	34	Brookings	South Dakota	PPLA2	23657	Brookings, South Dakota [19] || Brookings,  22nd Ave S., Brookings, SD [15]	ok	
+P052	state	US	ME	Eddington	14	Eddington	Maine	PPL	2133	Eddington, Maine [1]	ok	
+P053	state	US	MS	Brookhaven	14	Brookhaven	Mississippi	PPLA2	12414	Brookhaven MS [1]	ok	
+P054	state	US	WI	Appleton	330	Appleton	Wisconsin	PPLA2	74139	Appleton, WI [146] || Appleton, Wisconsin [51] || Appleton, Wisconsin, United States [48]	ok	
+P055	state	US	KS	Hays	30	Hays	Kansas	PPLA2	21092	FHSU Main Campus (Hays, Kansas) [21] || Hays, Kansas [9]	ok	
+P056	state	US	IL	Niles	43	Niles	Illinois	PPL	29876	Niles, IL, US [14] || Fort Collins - Lincoln Campus HQ, Niles, IL, US, Zeeland, MI, US, Rockford - Rock Cut Campus (RCC), Rockford - Loves Park Campus (LPC) [1] || Chicago, Illinois, United States, Niles, Illinois, United States, Schaumburg, Illinois, United States, Arlington Heights, Illinois, Unit	ok	
+P057	state	US	NH	Bristol	15	Bristol	New Hampshire	PPL	1688	Bristol, NH [15]	ok	
+P058	state	US	TN	Jackson	112	Jackson	Tennessee	PPLA2	66975	Jackson, TN [34] || Jackson, Tennessee [11] || Jackson, TN, United States [10]	ok	
+P059	state	US	NH	Littleton	57	Littleton	New Hampshire	PPL	4412	Littleton, NH [4]	ok	
+P060	alias-he	IL		רמת השרון	43	Ramat HaSharon	Tel Aviv	PPL	47970	רמת השרון, דן , ישראל [2] || רמת השרון, הרצליה, רעננה וכפר סבא, Israel [1]	ok	
+P061	alias-he	IL		עפולה	22	Afula	Northern District	PPL	64452	עפולה, Israel [22]	ok	
+P062	alias-he	IL		הוד השרון	10	Hod HaSharon	Central District	PPL	66398	הוד השרון, Israel [10]	ok	
+P063	alias-he	IL		הר אדר	14	Har Adar	Jerusalem	STLMT	3300	הר אדר (קרוב לירושלים), Israel [1]	ok	
+P064	alias-he	IL		כפר יונה	14	Kfar Yona	Central District	PPL	24778	כפר יונה, Israel [1]	ok	
+P065	alias-he	IL		ראשון לציון	26	Rishon LeTsiyyon	Central District	PPL	259275	ראשון לציון, מרכז, ישראל [16] || ראשון לציון, Israel [10]	ok	
+P066	alias-he	IL		קרית מלאכי	43	Qiryat Mal’akhi	Southern District	PPL	27959	קרית מלאכי, Israel [2] || קרית מלאכי, רמלה, Israel [1]	ok	
+P067	alias-he	IL		לוד	14	Lod	Central District	PPL	94189	מודיעין, לוד, Israel [1]	ok	
+P068	alias-he	IL		בני ברק	14	Bnei Brak	Tel Aviv	PPL	229996	בני ברק, רמת גן , Israel [1]	ok	
+P069	alias-he	IL		אילת	26	Eilat	Southern District	PPL	56004	אילת, Israel [26]	ok	
+P070	alias-he	IL		מודיעין	14	Modi‘in Makkabbim Re‘ut	Central District	PPL	93277	מודיעין, לוד, Israel [1]	ok	
+P071	alias-he	IL		רמלה	14	Ramla	Central District	PPLA	76246	קרית מלאכי, רמלה, Israel [1]	ok	
+P072	alias-he	IL		באר יעקב	59	Be’er Ya‘aqov	Central District	PPL	37491	באר יעקב, Israel [59]	ok	
+P073	alias-en	DE		Greifswald	20	Universitäts- und Hansestadt Greifswald	Mecklenburg-Vorpommern	PPLA3	52731	Greifswald, de [11] || Berlin; Dresden; Düsseldorf; Frankfurt am Main; Greifswald; Hamburg; Köln; Leipzig; Mannheim; München; Nürnberg; Potsdam; Stuttgart [9]	ok	
+P074	alias-en	IL		Petah Tikva	245	Petaẖ Tiqva	Central District	PPL	270403	Petah Tikva, Israel [48] || Office - Israel - Petach Tikva [41] || פתח תקווה, Israel [33]	ok	
+P075	alias-en	KZ		Karaganda	43	Karagandy	Karaganda	PPLA	497777	Karaganda, Kazakhstan [3]	ok	
+P076	alias-en	MY		Perak	29	Kampung Perak	Pahang	PPL	44964	Sauk, Perak, Malaysia [2]	wrong, fixed	raw 'Sauk, Perak, Malaysia': Perak is the state; matched Kampung Perak in Pahang. Now a region after the region-before-alias rule, so not counted in alias-en
+P077	alias-en	ES		Seville	47	Sevilla	Andalusia	PPLA	686741	Seville, es [27] || Seville, Spain [20]	ok	
+P078	alias-en	ES		Donostia	32	Donostia / San Sebastián	Basque Country	PPLA2	185357	Donostia / San Sebastián, es [23] || Donostia, es [9]	ok	
+P079	alias-en	AE		Motor City	57	Dubai Motor City	Dubai	PPL	8561	Motor City, ae [4]	ok	
+P080	alias-en	US		St Augustine	29	Saint Augustine	Florida	PPLA2	12975	FL - St Augustine, 115 Jenkins St - Retail XFR1516 [2]	ok	
+P081	alias-en	US	NY	Long Island	64	Long Island City	New York	PPLX	25595	Long Island, NY [50] || Long Island, NY 11729, New York, NY 10012 [1]	wrong	raw 'Long Island, NY': the island; matched Long Island City, a Queens neighbourhood
+P082	alias-en	SA		Jubail	86	Al Jubayl	Eastern Province	PPL	237274	Jubail, sa [47] || Jubail, Saudi Arabia [39]	ok	
+P083	alias-en	US		Tyson'S Corner	9	Tysons	Virginia	PPL	19627	Mclean, Virginia, USA (Tyson'S Corner - Kate Spade) [9]	ok	
+P084	alias-en	DE		Hanau	16	Hanau am Main	Hesse	PPLA4	88648	Hanau, de [16]	ok	
+P085	alias-en	DK		Midtjylland	43	Karup	Central Jutland	PPL	2176	Hadsten, Midtjylland, Danmark [3]	wrong	raw 'Hadsten, Midtjylland, Danmark': Midtjylland is the region; matched Karup
+P086	alias-en	KR		Ansan	14	Ansan-si	Gyeonggi-do	PPL	623256	Ansan, Korea [1]	ok	
+P087	alias-en	GB		Hull	95	Kingston upon Hull	England	PPLA2	314018	Hull, gb [9] || Hull, East Riding of Yorkshire, United Kingdom [3] || Hull, United Kingdom [3]	ok	
+P088	alias-en	PH		Davao City	100	Davao	Davao Region	PPLA	1848947	Davao City, ph [7]	ok	
+P089	alias-en	IT		Reggio Emilia	45	Reggio nell'Emilia	Emilia-Romagna	PPLA2	171944	Reggio Emilia, it [45]	ok	
+P090	alias-en	CA		St-Laurent	29	Saint-Laurent	Quebec	PPLX	98828	St-Laurent, Quebec [2]	ok	
+P091	alias-en	SA		Al Jubail	158	Al Jubayl	Eastern Province	PPL	237274	Al Jubail, Saudi Arabia [109] || Al Jubail, sa [32] || Al Jubail, Eastern Province, Saudi Arabia [17]	ok	
+P092	alias-en	MT		St. Julian's	36	San Ġiljan	Saint Julian	PPLA	13792	St. Julian's, Malta [18] || St. Julian's, mt [18]	ok	
+P093	region	JP		Kanagawa	140	Kanagawa				Yokohama-shi, Kanagawa, JPN [11] || Sagamihara-shi, Kanagawa, JPN [8] || Kanagawa, Japan, Coperion [1]	ok	
+P094	region	CH		Uri	29	Uri				Schweiz / Uri [2]	ok	
+P095	region	ID		Aceh	14	Aceh				Indonesia - Aceh [1]	ok	
+P096	region	IL		Sharon	115	Sharon				Sharon, Israel [74] || אזור השרון, Israel [41]	ok	
+P097	region	MY		Selangor	184	Selangor				Petaling Jaya, Selangor, Malaysia [49] || Selangor, Malaysia [48] || MYS - Selangor - Petaling Jaya (Ascent Paradigm) [20]	ok	
+P098	region	IL		Gush Dan	14	Gush Dan				Tel Aviv-Yafo, Gush Dan, Israel [14]	ok	
+P099	region	BE		Flanders	18	Flanders				Flanders/Brussels, be [18]	ok	
+P100	region	CH		Basel-City	14	Basel-City				Basel-City - Switzerland, Wimsheim (bei Pforzheim) - Germany [1]	ok	
+P101	region	HU		Komárom-Esztergom	14	Komárom-Esztergom				Komárom, Komárom-Esztergom, HUN [1]	ok	
+P102	region	CO		Bogotá. D.C.	23	Bogota D.C.				11001, Bogotá. D.C., Distrito Capital de Bogotá [23]	ok	Bogota D.C. is the capital district; a region, though it is also the city
+P103	region	MT		Tas-Sliema	18	Tas-Sliema				Tas-Sliema, Malta [18]	wrong	Tas-Sliema is the town of Sliema; filed as a region, so it is not placed
+P104	region	CH		Vaud	14	Vaud				Aubonne, Vaud, Switzerland [1]	ok	
+P105	region	JP		Miyagi	14	Miyagi				Miyagi, JPN (Sendai-Izumi - Coach) [1]	ok	
+P106	region	IL		South	28	South				South, Israel [28]	ok	
+P107	region	IL		שפלה	339	Shfela				שפלה, Israel [188] || תל אביב והמרכז, שרון, שפלה, Israel [77] || תל אביב והמרכז, שפלה, Israel [47]	ok	
+P108	region	IL		Northern District	13	North				אזור הצפון, Israel [13]	ok	
+P109	region	IL		Central District	127	Center				אזור המרכז, Israel [127]	ok	
+P110	region	ID		Riau	14	Riau				Riau, Kuantan Sangingi, Indonesia [1]	ok	
+P111	region	MY		Pahang	43	Pahang				Pahang, my [2] || Pahang, Malaysia [1]	ok	
+P112	region	NG		Imo State	49	Imo State				Imo State, ng [49]	ok	
+P113	manual	IL		Yokneam	294	Yoqne‘am ‘Illit	Northern District	PPL	23796	Israel, Yokneam [157] || Israel, Yokneam, Israel, Tel Aviv [54] || Israel, Tel Aviv, Israel, Yokneam [35]	ok	
+Q000	exact	US	TX	Wilmer	37	Wilmer	Texas	PPL	3928	Wilmer, TX [21] || Wilmer, Texas, USA [16]	ok	
+Q001	exact	CA		BONNYVILLE	14	Bonnyville	Alberta	PPL	5975	COLD LAKE, Alberta, Canada, BONNYVILLE, Alberta, Canada [1]	ok	
+Q002	exact	GB		Kidderminster	15	Kidderminster	England	PPL	57400	Kidderminster, gb [15]	ok	
+Q003	exact	US		Opelika	58	Opelika	Alabama	PPLA2	29527	AL - Opelika [19] || Opelika, us [10] || AL, Opelika, 2546 Enterprise Drive [2]	ok	
+Q004	exact	US	MI	Holly	20	Holly	Michigan	PPL	6169	Holly, Michigan [20]	ok	
+Q005	exact	FR		Thiais	15	Thiais	Île-de-France	PPL	29724	Thiais, fr [15]	ok	
+Q006	exact	TH		Bang Kruai	14	Bang Kruai	Nonthaburi	PPLA2	78305	Bang Kruai, Nonthaburi, Thailand [1]	ok	
+Q007	exact	GB		Mansfield	32	Mansfield	England	PPL	171958	Mansfield, gb [32]	ok	
+Q008	exact	US	MI	Grandville	118	Grandville	Michigan	PPL	15953	Grandville, Michigan [18] || Grandville, MI [14] || 4747 Wilson AVE SW, Grandville, Michigan [4]	ok	
+Q009	exact	US	MA	Needham	47	Needham	Massachusetts	PPL	28886	Needham, MA [19] || Needham, Massachusetts [14] || USA - Massachusetts - Needham, USA - Massachusetts - Framingham, USA - Massachusetts - Boston [1]	ok	
+Q010	exact	US		Morehead City	100	Morehead City	North Carolina	PPL	9347	Morehead City, us [7]	ok	
+Q011	exact	TW		Taipei	2542	Taipei	Taiwan	PPLC	7871900	Taipei [942] || Taipei, Taiwan [702] || Taipei, tw [137]	ok	
+Q012	exact	US	WA	Yakima	63	Yakima	Washington	PPLA2	93701	Yakima, Washington [17] || Yakima, WA [17] || Yakima, WA, Ellensburg, WA [1]	ok	
+Q013	exact	US		Great Neck	34	Great Neck	New York	PPL	10143	Great Neck, United States [21] || Great Neck, us [13]	ok	
+Q014	exact	US	OK	Moore	11	Moore	Oklahoma	PPL	60451	Moore, Oklahoma [11]	ok	
+Q015	exact	US		Corpus Christi	145	Corpus Christi	Texas	PPLA2	316239	Corpus Christi, us [97] || TX - Corpus Christi [12] || USA, Texas, Corpus Christi [12]	ok	
+Q016	exact	GB		Bellshill	9	Bellshill	Scotland	PPL	19700	Bellshill, gb [9]	ok	
+Q017	exact	NL		Boxmeer	51	Boxmeer	North Brabant	PPL	12407	NLD - North Brabant - Boxmeer [39] || Boxmeer, Noord-Brabant, Nederland [12]	ok	
+Q018	exact	GB		Congresbury	10	Congresbury	England	PPLA3	3078	Congresbury, gb [10]	ok	
+Q019	exact	AU		Junortoun	14	Junortoun	Victoria	PPLX	3099	Junortoun, Victoria, Australia [1]	ok	
+Q020	exact	US		Clemmons	10	Clemmons	North Carolina	PPL	19844	Clemmons, us [10]	ok	
+Q021	exact	US	NY	Rockville Centre	14	Rockville Centre	New York	PPL	24201	Rockville Centre, NY [1]	ok	
+Q022	exact	US	TX	Grand Prairie	185	Grand Prairie	Texas	PPL	187809	Grand Prairie, TX [62] || Grand Prairie, Texas [44] || Grand Prairie, Texas, USA [15]	ok	
+Q023	exact	US	KS	Garnett	14	Garnett	Kansas	PPLA2	3258	Anderson County Hospital   |   421 S Maple St   |   Garnett   |   KS [14]	ok	
+Q024	exact	DE		Lilienthal	26	Lilienthal	Lower Saxony	PPLA4	18293	Lilienthal, de [26]	ok	
+Q025	exact	US		Naperville	176	Naperville	Illinois	PPL	147100	Naperville, us [20] || USA - Illinois - Naperville [13] || Naperville, United States [6]	ok	
+Q026	exact	US	MD	Aberdeen Proving Ground	74	Aberdeen Proving Ground	Maryland	PPL	2093	Aberdeen Proving Ground, MD, US [74]	ok	
+Q027	exact	US	MA	Raynham	86	Raynham	Massachusetts	PPL	13153	Raynham, MA - Alltown [6]	ok	
+Q028	exact	CH		Bulle	11	Bulle	Fribourg	PPL	23438	Bulle, ch [11]	ok	
+Q029	exact	GR		Athens	1264	Athens	Attica	PPLC	664046	Athens, Greece [559] || Athens [103] || Athens, gr [67]	ok	
+Q030	exact	US		Conyers	21	Conyers	Georgia	PPLA2	15875	Conyers, us [21]	ok	
+Q031	exact	BR		Cariacica	14	Cariacica	Espírito Santo	PPL	376200	Cariacica, Espirito Santo, Brasil [1]	ok	
+Q032	exact	US		East Hanover	14	East Hanover	New Jersey	PPL	12194	Business Unit Head Office - East Hanover, USA, Plant - Indianapolis, USA, Plant - Portland, USA, Plant - Chicago, USA, Plant - Naperville, USA, Plant - Richmond, USA, Plant - Twin Falls, USA [1]	ok	
+Q033	exact	US		Seguin	14	Seguin	Texas	PPLA2	27864	Bloomington, Minnesota, Peoria, Illinois, USA - TX - Seguin - Engine Assembly Plant Bldg 2 [1]	ok	
+Q034	exact	CA		Val-D'Or	16	Val-d'Or	Quebec	PPL	25541	Val-D'Or, QC [16]	ok	
+Q035	exact	US	FL	Doral	165	Doral	Florida	PPL	75874	Doral, FL [50] || Doral, FL, US [17] || Doral, Florida [16]	ok	
+Q036	exact	US	TX	Wink	83	Wink	Texas	PPL	1060	Wink, Texas, USA [83]	ok	
+Q037	exact	US	NJ	Delanco	24	Delanco	New Jersey	PPL	3211	Delanco, NJ [24]	ok	
+Q038	exact	US		Joplin	29	Joplin	Missouri	PPL	51818	Joplin, us [29]	ok	
+Q039	exact	US		Mercersburg	14	Mercersburg	Pennsylvania	PPL	1558	Mercersburg, United States [1]	ok	
+Q040	alias-en	GB		St Andrews	40	Saint Andrews	Scotland	PPL	18410	St Andrews, gb [40]	ok	
+Q041	alias-en	US	VA	Dulles	75	Dulles Town Center	Virginia	PPL	4601	Dulles, Virginia [18] || Dulles, VA, US, Sterling, VA, US [2] || Dulles, VA 20166 [2]	ok, nearby	Dulles, VA; point is Dulles Town Center, about 10 km away (same call as the baseline)
+Q042	alias-en	US		Daytona	29	Daytona Beach	Florida	PPL	72647	FL, Daytona, 2400 W. International Speedway Blvd. [2]	ok	
+Q043	alias-en	US		Tysons Corner	21	Tysons	Virginia	PPL	19627	Tysons Corner, us [21]	ok	
+Q044	alias-en	GB		Staines-upon-Thames	45	Staines	England	PPL	51040	Staines-upon-Thames, gb [45]	ok	
+Q045	alias-en	US		Dulles	29	Dulles Town Center	Virginia	PPL	4601	VA, Dulles, 45575 Dulles Eastern Plz [2]	ok, nearby	same as Q041
+Q046	alias-en	US		Ft. Worth	11	Fort Worth	Texas	PPLA2	1008106	Ft. Worth, us [11]	ok	
+Q047	alias-en	DE		Dessau-Roßlau	10	Dessau	Saxony-Anhalt	PPL	67747	Dessau-Roßlau, de [10]	ok	
+Q048	alias-en	CA		St. Laurent	105	Saint-Laurent	Quebec	PPLX	98828	Montreal (St. Laurent) [62] || Ottawa (St. Laurent), Ontario, Canada [2] || Ottawa, Montreal (St. Laurent) [1]	ok	
+Q049	alias-en	DE		Ingelheim	43	Ingelheim am Rhein	Rheinland-Pfalz	PPLA3	24998	Ingelheim, Germany [3]	ok	
+Q050	alias-en	SE		Göteborg	46	Gothenburg	Västra Götaland	PPLA	608462	Göteborg, se [32] || Göteborg, Sweden [1]	ok	
+Q051	alias-en	GB		Lytham	29	Lytham St Annes	England	PPL	42695	Lytham, gb [2]	ok	
+Q052	alias-en	US	CO	Ft. Collins	106	Fort Collins	Colorado	PPLA2	170924	Ft. Collins, Colorado, United States of America [10] || Spring, Texas, United States of America, Westford, Massachusetts, United States of America, Ft. Collins, Colorado, United States of America, Chippewa Falls, Wisconsin, United States of America, Durham, North Carolina, United States of America, 	ok	
+Q053	alias-en	CA		Quebec City	47	Québec	Quebec	PPLA	531902	Quebec City, Quebec [13] || Quebec City, Quebec, Canada [11] || Head Office, Quebec City, QC [9]	ok	
+Q054	alias-en	PH		Makati	180	Makati City	National Capital Region	PPLA2	510383	Makati, ph [43] || Makati, Philippines [32] || Makati, Metro Manila [24]	ok	
+Q055	alias-en	US	TX	Ft. Worth	51	Fort Worth	Texas	PPLA2	1008106	Ft. Worth, Texas [19] || Ft. Worth, TX, USA [12] || Malvern, PA, Charlotte, NC, Dallas/Ft. Worth, TX [11]	ok	
+Q056	alias-en	AE		Al Ain	21	Al Ain City	Abu Dhabi	PPL	846747	Al Ain, ae [21]	ok	
+Q057	alias-en	MX		Querétaro City	15	Santiago de Querétaro	Querétaro	PPLA	1594212	Querétaro City, mx [15]	ok	
+Q058	alias-en	JP		Ota-ku	11	Ōta	Tokyo	PPLA2	748081	Ota-ku, Tokyo, JPN [11]	ok	
+Q059	alias-en	AT		Klagenfurt	23	Klagenfurt am Wörthersee	Carinthia	PPLA	100316	Klagenfurt, at [9] || Graz, Austria, Klagenfurt, Austria [1]	ok	
