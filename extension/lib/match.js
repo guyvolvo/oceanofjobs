@@ -38,10 +38,18 @@
   };
 
   // Order matters: "require sponsorship to work" must not read as authorization.
+  // A null key leaves the question to a saved answer or the server.
   const BY_LABEL = [
-    [/linkedin/, 'linkedin'],
+    // Not "How did you hear about us? (LinkedIn, Indeed...)": that asks where, not for the profile link.
+    [/^(?!.*\b(hear|heard|find out|learn about|source|referr\w*)\b).*linkedin/, 'linkedin'],
     [/github/, 'github'],
+    // "Authorized to work without sponsorship?" asks the opposite of "needs sponsorship".
+    [/without (\w+ ){0,3}sponsor/, null],
     [/sponsor/, 'sponsorship'],
+    // The salary earned now, or a range offered, is not the expectation.
+    [/\b(current|present|previous|last|most recent) (\w+ )?(salary|compensation|pay)\b|\bsalary range\b/, null],
+    // The start date of a past job is not a notice period.
+    [/\bstart date (of|at|in) (your )?(last|current|previous|most recent|former)\b/, null],
     [/authorized to work|work authorization|eligible to work|right to work|legally (able|permitted) to work/, 'work_auth'],
     [/salary|compensation expectation|(expected|desired) (annual |yearly |base )?(pay|compensation)|salario|sueldo|expectativa (económica|salarial)|salaire|prétentions? salariales?|gehalt|gehaltsvorstellung|stipendio|\bral\b|salário|pretensão salarial|loon|salarisindicatie|wynagrodzeni/, 'salary'],
     // Not an education or job entry's "Start date month" (Greenhouse).
@@ -142,6 +150,20 @@
     if (theirs.every((c) => mine.includes(c))) return 'Yes';
     if (!theirs.some((c) => mine.includes(c))) return 'No';
     return undefined;
+  }
+
+  // workAuth answers for the job's country. "Authorized to work in the United
+  // Kingdom?" on an Israeli job asks about another one: the server reads that
+  // country from the question (ai_answers.draft). True when the question names
+  // no place, says "this country", or names the job's country.
+  function asksJobCountry(label, job) {
+    const where = (normalise(label).match(/\bin (.+)$/) || [])[1];
+    if (!where || /\b(this|the|that|your) (country|location|role|position|job)\b|\bwhere\b/.test(where)) return true;
+    return String((job && job.country) || '').split(',').some((c) => {
+      try {
+        return (' ' + where + ' ').includes(' ' + normalise(new Intl.DisplayNames(['en'], { type: 'region' }).of(c.trim().toUpperCase())) + ' ');
+      } catch { return false; }
+    });
   }
 
   function profileValue(key, profile, job) {
@@ -253,6 +275,7 @@
       // period list or a start date) gives way to a saved answer for this
       // exact question.
       let value = key ? profileValue(key, profile, job) : undefined;
+      if (key === 'work_auth' && !asksJobCountry(f.label, job)) value = undefined;
       if (key === 'phone' && split && value) value = nationalNumber(value);
       // A box for the city alone (Workday's beside Country and Postal Code) gets "Tel Aviv", not "Tel Aviv, Israel".
       if (key === 'location' && value && f.type !== 'combobox' && CITY.test(normalise(f.label))) value = value.split(',')[0].trim();
@@ -299,7 +322,8 @@
   const unattended = (profile) => !!profile && !!profile.settings && (profile.settings.fill === 'full' || profile.settings.mode === 'auto');
 
   // Consent, terms and privacy wording, in English and Hebrew.
-  const isStatement = (text) => /privacy|policy|acknowledg|consent|terms|certif|agree|attest|confirm that|מדיניות|פרטיות|מאשר|מסכים|תנאי/i.test(text);
+  // "certify", not "certif": "Do you hold a PMP certification?" is a question about the applicant.
+  const isStatement = (text) => /privacy|policy|acknowledg|consent|terms|\bcertify\b|agree|attest|\bi (hereby )?confirm\b|confirm that (the |all )?(information|details|above|statements?)\b|מדיניות|פרטיות|מאשר|מסכים|תנאי/i.test(text);
 
   // What a required box or agreement gets so the form can be sent, or
   // undefined. A lone box, or a group of one ("I agree"), is ticked: the

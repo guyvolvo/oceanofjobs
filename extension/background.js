@@ -198,7 +198,10 @@ async function draftAnswer(field, profile, preferences, job, ai) {
   const facts = {
     location: c.location,
     links: profile.links, work: profile.work, skills: preferences.skills, seniority: preferences.seniority,
-    saved_answers: (profile.answers || []).slice(0, 30),
+    // As the server's facts: never an unreviewed or rejected draft (one guess
+    // would feed the next) and never another job's answer (it names that company).
+    saved_answers: (profile.answers || []).filter((a) => !a.job_id && a.approval !== 'pending' && a.approval !== 'rejected')
+      .slice(0, 30).map((a) => ({ question: a.question, answer: String(a.answer).slice(0, 300) })),
   };
   const prompt = [
     `You are filling in a job application for the candidate below. Job: "${job.title}" at ${job.company_name || job.company_domain}.`,
@@ -279,7 +282,8 @@ async function answerUnknown(field, job, ctx) {
       ctx.serverAi = false;
     }
   }
-  if (!ctx.ai || !ctx.ai.key) return undefined;
+  // The own key's answer has none of the server's checks: Full automatic would send it unread.
+  if (!ctx.ai || !ctx.ai.key || ctx.settings.fill === 'full') return undefined;
   const answer = await draftAnswer(field, ctx.profile, ctx.preferences, job, ctx.ai).catch(() => undefined);
   if (!fits(field, answer)) return undefined;
   ctx.wroteIt = true;
@@ -1480,10 +1484,13 @@ async function watchHere(tabId, frameId, before, workday) {
 
 // The AI's best answer for a page the user will review: our server, or
 // the user's own key once the plan's AI answers run out. Not saved as a saved answer.
+// Full automatic submits without that review, so it gets the strict draft
+// (facts only, quoted) like a run, never a suggestion or the own key.
 async function suggestAnswer(field, job, ctx) {
+  const full = ctx.settings.fill === 'full';
   if (ctx.serverAi) {
     try {
-      const { answer } = await draft({ question: field.label, options: field.options || [], mode: 'suggest',
+      const { answer } = await draft({ question: field.label, options: field.options || [], ...(full ? {} : { mode: 'suggest' }),
         job: { id: job.id, title: job.title, company: job.company_name, location: job.location } });
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
@@ -1491,7 +1498,7 @@ async function suggestAnswer(field, job, ctx) {
       ctx.serverAi = false;
     }
   }
-  if (!ctx.ai || !ctx.ai.key) return undefined;
+  if (!ctx.ai || !ctx.ai.key || full) return undefined;
   const answer = await draftAnswer(field, ctx.profile, ctx.preferences, job, ctx.ai).catch(() => undefined);
   return fits(field, answer) ? answer : undefined;
 }

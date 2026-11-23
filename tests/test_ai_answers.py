@@ -135,7 +135,7 @@ check("a multiple-choice question sends its options and asks for one exactly",
 before = len(apply.get_profile(t, "u")["answers"])
 out = ai_answers.draft(t, "u", {"question": "Have you been employed by Nebius before?", "options": ["Yes", "No"], "mode": "suggest",
                                 "job": {"title": "SRE", "company": "Nebius", "location": "Amsterdam"}}, {}, run=run("No"), report=reported.append, now=NOW)
-check("a suggestion uses the suggest prompt and the job's location", out["suggested"] is True and "best helps the applicant" in sent[-1][0]["content"]
+check("a suggestion uses the suggest prompt and the job's location", out["suggested"] is True and "You suggest the answer" in sent[-1][0]["content"]
       and "SRE at Nebius (Amsterdam)" in sent[-1][1]["content"], sent[-1][1]["content"][-160:])
 check("and is not saved as a saved answer", len(apply.get_profile(t, "u")["answers"]) == before)
 # Saved answers go to the model as background at most 300 characters each;
