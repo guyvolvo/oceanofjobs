@@ -1,25 +1,29 @@
-// Preferences: what the reader wants, as opposed to what they can do
-// (Skills). One row per thing: its value in a line, and opened, the
-// control for that one value with Save. Opening a row is not a
+// /account/preferences: what the reader wants, as opposed to what they can
+// do (Resume skills). One row per thing: its value in a line, and opened,
+// the control for that one value with Save. Opening a row is not a
 // commitment: Cancel and closing both go back to what was last saved.
-// Every save PUTs the whole profile, skills included, so this tab and
-// Skills can't wipe each other.
+// Every save PUTs the whole profile, skills included, so this page and
+// Resume skills can't wipe each other.
 import { useEffect, useState, type ReactNode } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Input } from "@cloudflare/kumo/components/input";
-import { Radio } from "@cloudflare/kumo/components/radio";
-import { Select } from "@cloudflare/kumo/components/select";
+import { Button } from "@/components/ui/button";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { LoadingButton, SelectField, TextField } from "../fields";
 import { CaretRight } from "@phosphor-icons/react";
-import { cadenceSummary, DAY_NAMES, placeSummary, WORKPLACE_LABELS, zoneLabel, zones, type Cadence, type Profile } from "./data";
+import { useUnsaved } from "../unsaved";
+import { plural } from "../shared";
+import { Workspace } from "../site/Workspace";
+import { cadenceSummary, DAY_NAMES, PROFILE_FAILED, placeSummary, useProfile, WORKPLACE_LABELS, zoneLabel, zones, type Cadence, type Profile } from "./data";
 import { PlacePicker, useLocationOptions, WORKPLACE } from "./Alerts";
-import { Picker, Card } from "./ui";
+import { Card, ERROR, FORM, gate, LABEL, Loading, NOTE, Picker, ROW, SettingsNav, STACK, TEXT } from "./ui";
 
 type Row = "workplace" | "location" | "cadence";
 type Prefs = Pick<Profile, "workplace" | "country" | "city" | "cadence" | "digest_time" | "digest_tz" | "digest_day">;
 const pick = (p: Profile): Prefs => ({ workplace: [...p.workplace], country: [...p.country], city: [...p.city], cadence: p.cadence,
   digest_time: p.digest_time, digest_tz: p.digest_tz, digest_day: p.digest_day });
 
-export function Preferences({ profile, save, onEditing }: {
+function Preferences({ profile, save, onEditing }: {
   profile: Profile; save: (prefs: Prefs) => Promise<void>; onEditing: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState<Row | null>(null);
@@ -45,11 +49,11 @@ export function Preferences({ profile, save, onEditing }: {
     }
   };
   const actions = (clear?: () => void) => (
-    <div className="oj-row">
-      <Button variant="primary" loading={busy} onClick={submit}>Save</Button>
-      <Button variant="secondary" onClick={cancel}>Cancel</Button>
+    <div className={ROW}>
+      <LoadingButton loading={busy} onClick={submit}>Save</LoadingButton>
+      <Button variant="outline" onClick={cancel}>Cancel</Button>
       {clear ? <Button variant="ghost" onClick={clear}>Clear</Button> : null}
-      {error ? <span className="oj-error" role="status">{error}</span> : null}
+      {error ? <span className={ERROR} role="status">{error}</span> : null}
     </div>
   );
   const shown = open ? draft : pick(profile);
@@ -58,7 +62,7 @@ export function Preferences({ profile, save, onEditing }: {
   const zoneItems = Object.fromEntries(zoneList.map((z) => [z, zoneLabel(z)]));
 
   return (
-    <div className="oj-stack">
+    <div className={STACK}>
       <Card title="What you're looking for">
         <PrefRow id="workplace" label="Workplace" summary={workplaceText} open={open === "workplace"} onToggle={() => toggle("workplace")}>
           <Picker label="Workplace" placeholder="Workplace" options={WORKPLACE} value={draft.workplace} onChange={(v) => setDraft((d) => ({ ...d, workplace: v }))} />
@@ -72,22 +76,24 @@ export function Preferences({ profile, save, onEditing }: {
       </Card>
       <Card title="Alert settings">
         <PrefRow id="cadence" label="Alert intervals" summary={cadenceSummary({ ...profile, ...shown })} open={open === "cadence"} onToggle={() => toggle("cadence")}>
-          <Radio.Group value={draft.cadence} onValueChange={(v) => setDraft((d) => ({ ...d, cadence: v as Cadence }))}>
-            <Radio.Legend className="sr-only">Alert intervals</Radio.Legend>
-            <Radio.Item value="instant" label="Instant" />
-            <Radio.Item value="daily" label="Daily at" />
-            <Radio.Item value="weekly" label="Weekly at" />
-          </Radio.Group>
+          <FieldSet>
+            <FieldLegend className="sr-only">Alert intervals</FieldLegend>
+            <RadioGroup value={draft.cadence} onValueChange={(v) => setDraft((d) => ({ ...d, cadence: v as Cadence }))}>
+              {([["instant", "Instant"], ["daily", "Daily at"], ["weekly", "Weekly at"]] as const).map(([v, l]) => (
+                <div key={v} className="flex items-center gap-2"><RadioGroupItem value={v} id={`cadence-${v}`} /><Label htmlFor={`cadence-${v}`} className="font-normal">{l}</Label></div>
+              ))}
+            </RadioGroup>
+          </FieldSet>
           {draft.cadence !== "instant" ? (
-            <div className="oj-form">
+            <div className={FORM}>
               {draft.cadence === "weekly" ? (
-                <Select className="oj-select" label="Day" value={String(draft.digest_day)}
+                <SelectField label="Day" value={String(draft.digest_day)}
                   onValueChange={(v) => setDraft((d) => ({ ...d, digest_day: Number(v) }))}
                   items={Object.fromEntries(DAY_NAMES.map((n, i) => [String(i), n]))} />
               ) : null}
-              <Input label="Time" type="time" value={draft.digest_time}
+              <TextField label="Time" type="time" value={draft.digest_time}
                 onChange={(e) => { const v = e.target.value; if (/^\d\d:\d\d$/.test(v)) setDraft((d) => ({ ...d, digest_time: v })); }} />
-              <Select className="oj-select" label="Time zone" value={draft.digest_tz}
+              <SelectField label="Time zone" value={draft.digest_tz}
                 onValueChange={(v) => setDraft((d) => ({ ...d, digest_tz: String(v) }))} items={zoneItems} />
             </div>
           ) : null}
@@ -102,15 +108,41 @@ function PrefRow({ id, label, summary, open, onToggle, children }: {
   id: string; label: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode;
 }) {
   return (
-    <div className={`oj-pref${open ? " is-open" : ""}`}>
-      <button type="button" className="oj-pref-head" aria-expanded={open} aria-controls={`pref-edit-${id}`} onClick={onToggle}>
-        <span className="oj-pref-text">
-          <span className="oj-pref-label">{label}</span>
-          <span className="oj-note">{summary}</span>
+    <div className="border-t first:border-t-0">
+      <button type="button" aria-expanded={open} aria-controls={`pref-edit-${id}`} onClick={onToggle}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-0 py-3 text-left font-[inherit] text-[length:inherit] text-[color:inherit] focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <span className={TEXT}>
+          <span className={LABEL}>{label}</span>
+          <span className={NOTE}>{summary}</span>
         </span>
-        <CaretRight className="oj-pref-chev" size={16} aria-hidden="true" />
+        <CaretRight className={`flex-none text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} size={16} aria-hidden="true" />
       </button>
-      {open ? <div className="oj-pref-edit oj-stack" id={`pref-edit-${id}`}>{children}</div> : null}
+      {open ? <div className={`${STACK} pb-4`} id={`pref-edit-${id}`}>{children}</div> : null}
     </div>
   );
 }
+
+// The title row's one-line summary of the profile.
+function line(p: Profile) {
+  return [
+    p.workplace.length ? p.workplace.map((w) => WORKPLACE_LABELS[w] || w).join(", ") : "",
+    p.country.length + p.city.length ? plural(p.country.length + p.city.length, "place") : "",
+    ({ daily: `daily at ${p.digest_time}`, weekly: `weekly on ${DAY_NAMES[p.digest_day] || "Monday"}` } as Record<string, string>)[p.cadence] || "instant alerts",
+  ].filter(Boolean).join(" · ");
+}
+
+function PreferencesPage() {
+  const { profile, put, failed } = useProfile();
+  const [open, setOpen] = useState(false);
+  // A row open to edit is not lost to a stray click on a link: the
+  // browser asks before leaving. Nothing here mounts the save dialog.
+  useUnsaved("prefs", open, async () => false);
+  return (
+    <Workspace current="settings" title="Preferences" note={profile ? line(profile) : ""}>
+      <SettingsNav />
+      {failed ? <Card note={PROFILE_FAILED} /> : profile ? <Preferences profile={profile} onEditing={setOpen} save={async (prefs) => { await put(prefs); }} /> : <Loading />}
+    </Workspace>
+  );
+}
+
+export default gate("settings", PreferencesPage);

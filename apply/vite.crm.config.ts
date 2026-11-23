@@ -7,7 +7,7 @@ import react from "@vitejs/plugin-react";
 //   npx vite build --config vite.crm.config.ts
 export default defineConfig({
   base: "/",
-  // /apply's public files (site.css pulls in the site's stylesheet) aren't for this host.
+  // /apply has no public files this host needs.
   publicDir: false,
   plugins: [react()],
   build: {

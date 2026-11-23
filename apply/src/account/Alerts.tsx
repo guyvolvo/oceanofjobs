@@ -1,29 +1,35 @@
-// Alerts: the list (edit, pause, delete) and the one create/edit form,
-// which the overview borrows while its card has it open. The same rules
-// as app.js's renderAlertsList and wireAlertCreateForm, which drove the
-// old page.
-import { useCallback, useEffect, useState } from "react";
-import { Input } from "@cloudflare/kumo/components/input";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Switch } from "@cloudflare/kumo/components/switch";
-import { Table } from "@cloudflare/kumo/components/table";
-import { Loader } from "@cloudflare/kumo/components/loader";
+// /account/alerts: the list (edit, pause, delete) and the one create/edit
+// form, which the overview borrows while its card has it open. The same
+// rules as app.js's renderAlertsList and wireAlertCreateForm, which drove
+// the old page.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LoadingButton, TextField } from "../fields";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { api, send, ApiError } from "../api";
-import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, SENIORITY_LABELS, WORKPLACE_LABELS,
+import { useUnsaved } from "../unsaved";
+import { plural } from "../shared";
+import { Workspace } from "../site/Workspace";
+import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, SENIORITY_LABELS, useAlerts, useProfile, WORKPLACE_LABELS,
   type Alert, type Option, type Profile } from "./data";
-import { Card, ConfirmButton, Picker } from "./ui";
+import { ACTIONS_CELL, Card, ConfirmButton, ERROR, FORM, gate, JOB, Loading, NOTE, Picker, ROW, STACK, SUB, SWITCH, TABLE, TITLE } from "./ui";
 
 export type AlertDraft = { search: string; department: string[]; seniority: string[]; company: string[]; country: string[]; city: string[]; workplace: string[] };
 const BLANK: AlertDraft = { search: "", department: [], seniority: [], company: [], country: [], city: [], workplace: [] };
 const list = (v?: string) => (v ? String(v).split(",").filter(Boolean) : []);
 
-// The form's state, kept by the page so the overview and the Alerts tab
-// show one form, not two.
+// The form's state, kept by the page so the list and the form agree.
 export function useAlertForm(profile: Profile | null, reload: () => Promise<unknown>) {
   const [draft, setDraft] = useState<AlertDraft>(BLANK);
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  // The filter the form was filled from. Its keys the form has no field
+  // for (skills, salary_min, max_age_days, ats...) go back with the save.
+  const [base, setBase] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
 
   // A new alert starts from the reader's workplace and places in
@@ -34,7 +40,7 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
   }, [profile]);
   useEffect(() => { if (!editing) setDraft(withPrefs); }, [withPrefs, editing]);
 
-  const reset = () => { setEditing(null); setDraft(withPrefs({ ...BLANK })); };
+  const reset = () => { setEditing(null); setBase({}); setDraft(withPrefs({ ...BLANK })); };
   const say = (text: string, error = false) => {
     setFeedback({ text, error });
     setTimeout(() => setFeedback((f) => (f?.text === text ? null : f)), 3000);
@@ -45,18 +51,24 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
   const fill = (filter: Record<string, string>) => {
     const country = list(filter.country);
     if (filter.israel_only === "1" && !country.includes("IL")) country.unshift("IL");
+    // q and israel_only are folded into search and country above.
+    const { q: _q, israel_only: _il, ...rest } = filter;
+    setBase(rest);
     setDraft({ search: filter.search || filter.q || "", department: list(filter.department), seniority: list(filter.seniority),
       company: list(filter.company), country, city: list(filter.city), workplace: list(filter.workplace) });
   };
   const edit = (a: Alert) => { setEditing(a.alert_id); fill(a.filter || {}); };
 
   const submit = async (): Promise<boolean> => {
+    // A second Enter while the first save runs would create a twin alert.
+    if (inFlight.current) return false;
     const raw: Record<string, string> = {
       search: draft.search.trim(), department: draft.department.join(","), seniority: draft.seniority.join(","),
       company: draft.company.join(","), country: draft.country.join(","), city: draft.city.join(","), workplace: draft.workplace.join(","),
     };
-    const filter = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== ""));
+    const filter = Object.fromEntries(Object.entries({ ...base, ...raw }).filter(([, v]) => v !== "" && v != null));
     const id = editing;
+    inFlight.current = true;
     setBusy(true);
     try {
       if (id) await api(`/me/alerts/${id}`, send("PATCH", { filter }));
@@ -72,6 +84,7 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
       say(m || (id ? "Couldn't save the alert. Try again." : "Couldn't create the alert. Try again."), true);
       return false;
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -123,11 +136,11 @@ export function AlertFormView({ form, onDone, autoFocus }: { form: AlertForm; on
   const { draft, setDraft, editing } = form;
   const set = <K extends keyof AlertDraft>(k: K, v: AlertDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   return (
-    <form className="oj-stack" id="alert-create" noValidate
+    <form className={STACK} id="alert-create" noValidate
       onSubmit={async (e) => { e.preventDefault(); if (await form.submit()) onDone?.(); }}>
-      <h3 className="oj-card-title" id="alert-form-title">{editing ? "Edit alert" : "New alert"}</h3>
-      <div className="oj-form">
-        <Input label="Keywords" id="alert-f-search" name="search" autoComplete="off" placeholder="e.g. devops" autoFocus={autoFocus}
+      <h3 className={TITLE} id="alert-form-title">{editing ? "Edit alert" : "New alert"}</h3>
+      <div className={FORM}>
+        <TextField label="Keywords" id="alert-f-search" name="search" autoComplete="off" placeholder="e.g. devops" autoFocus={autoFocus}
           value={draft.search} onChange={(e) => set("search", e.target.value)} />
         <Picker label="Categories" placeholder="Categories" options={opts?.department || []} value={draft.department} onChange={(v) => set("department", v)} />
         <Picker label="Levels" placeholder="Levels" options={SENIORITY} value={draft.seniority} onChange={(v) => set("seniority", v)} />
@@ -136,11 +149,11 @@ export function AlertFormView({ form, onDone, autoFocus }: { form: AlertForm; on
           onChange={(country, city) => setDraft((d) => ({ ...d, country, city }))} />
         <Picker label="Workplace" placeholder="Workplace" options={WORKPLACE} value={draft.workplace} onChange={(v) => set("workplace", v)} />
       </div>
-      <div className="oj-row">
-        <Button type="submit" variant="primary" loading={form.busy} id="create-alert-btn">{editing ? "Save changes" : "Create alert"}</Button>
-        {editing ? <Button variant="ghost" onClick={form.reset}>Cancel</Button> : null}
-        {!opts ? <span className="oj-note oj-row"><Loader size="sm" /> Loading the lists</span> : null}
-        {form.feedback ? <span className={form.feedback.error ? "oj-error" : "oj-note"} role="status">{form.feedback.text}</span> : null}
+      <div className={ROW}>
+        <LoadingButton type="submit" loading={form.busy} id="create-alert-btn">{editing ? "Save changes" : "Create alert"}</LoadingButton>
+        {editing ? <Button type="button" variant="ghost" onClick={form.reset}>Cancel</Button> : null}
+        {!opts ? <span className={`${NOTE} ${ROW}`}><Spinner /> Loading the lists</span> : null}
+        {form.feedback ? <span className={form.feedback.error ? ERROR : NOTE} role="status">{form.feedback.text}</span> : null}
       </div>
     </form>
   );
@@ -177,7 +190,9 @@ export function useAlertActions(reload: () => Promise<unknown>) {
   };
 }
 
-export function Alerts({ alerts, error, form, reload }: {
+const PLAIN = "cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-[length:inherit] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+function Alerts({ alerts, error, form, reload }: {
   alerts: Alert[] | null; error: string; form: AlertForm; reload: () => Promise<unknown>;
 }) {
   const act = useAlertActions(reload);
@@ -185,43 +200,46 @@ export function Alerts({ alerts, error, form, reload }: {
   // An alert deleted from under an open edit leaves nothing to save to.
   useEffect(() => { if (alerts && form.editing && !alerts.some((a) => a.alert_id === form.editing)) form.reset(); }, [alerts]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="oj-stack">
+    <div className={STACK}>
       <Card title="Your alerts">
-        {error ? <p className="oj-note">{error}</p>
-          : !alerts ? <div className="oj-row oj-note"><Loader /> Loading</div>
-          : !alerts.length ? <p className="oj-note">No alerts yet. Pick some filters below and create one.</p>
+        {error ? <p className={NOTE}>{error}</p>
+          : !alerts ? <Loading />
+          : !alerts.length ? <p className={NOTE}>No alerts yet. Pick some filters below and create one.</p>
           : (
-            <div className="oj-table">
+            <div className={TABLE}>
               <Table>
-                <Table.Header>
-                  <Table.Row><Table.Head>Alert</Table.Head><Table.Head>Email me</Table.Head><Table.Head><span className="sr-only">Delete</span></Table.Head></Table.Row>
-                </Table.Header>
-                <Table.Body>
+                <TableHeader>
+                  <TableRow><TableHead>Alert</TableHead><TableHead>Email me</TableHead><TableHead><span className="sr-only">Delete</span></TableHead></TableRow>
+                </TableHeader>
+                <TableBody>
                   {alerts.map((a) => {
                     const name = describeAlertFilter(a.filter || {});
                     return (
-                      <Table.Row key={a.alert_id} variant={a.alert_id === form.editing ? "selected" : "default"}>
-                        <Table.Cell>
-                          <button type="button" className="oj-plain oj-job" title="Edit this alert" onClick={() => form.edit(a)}>{name}</button>
-                          {dup.has(a.alert_id) ? <span className="oj-sub">Duplicate of {dup.get(a.alert_id)}</span> : null}
-                        </Table.Cell>
-                        <Table.Cell className="oj-nowrap">
-                          <Switch size="sm" checked={a.active} disabled={act.busy === a.alert_id} label={a.active ? "Active" : "Paused"}
-                            aria-label={a.active ? "Alert on. Pause it" : "Alert paused. Resume it"} onClick={() => act.toggle(a)} />
-                        </Table.Cell>
-                        <Table.Cell className="oj-actions-cell">
-                          <span className="oj-row oj-tight oj-nowrap">
+                      <TableRow key={a.alert_id} data-state={a.alert_id === form.editing ? "selected" : undefined}>
+                        <TableCell>
+                          <button type="button" className={`${PLAIN} ${JOB}`} title="Edit this alert" onClick={() => form.edit(a)}>{name}</button>
+                          {dup.has(a.alert_id) ? <span className={SUB}>Duplicate of {dup.get(a.alert_id)}</span> : null}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap! [overflow-wrap:normal]!">
+                          <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                            <Switch className={SWITCH} checked={a.active} disabled={act.busy === a.alert_id}
+                              aria-label={a.active ? "Alert on. Pause it" : "Alert paused. Resume it"} onCheckedChange={() => act.toggle(a)} />
+                            <span aria-hidden="true">{a.active ? "Active" : "Paused"}</span>
+                          </label>
+                        </TableCell>
+                        <TableCell className={ACTIONS_CELL}>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             {/* The form sits below the list: take the reader to it, which on a phone is off screen. */}
-                            <Button variant="secondary" icon={<PencilSimple />} aria-label={`Edit alert ${name}`}
-                              onClick={() => { form.edit(a); requestAnimationFrame(() => document.getElementById("alert-form-title")?.scrollIntoView({ block: "start", behavior: "smooth" })); }}>Edit</Button>
-                            <ConfirmButton size="sm" variant="ghost" shape="square" aria-label={`Delete alert ${name}`} title="Delete alert"
+                            <Button variant="outline" size="sm" aria-label={`Edit alert ${name}`}
+                              onClick={() => { form.edit(a); requestAnimationFrame(() => document.getElementById("alert-form-title")?.scrollIntoView({ block: "start", behavior: "smooth" })); }}><PencilSimple />Edit</Button>
+                            <ConfirmButton size="icon-sm" variant="ghost" aria-label={`Delete alert ${name}`} title="Delete alert"
                               disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>
                           </span>
-                        </Table.Cell>
-                      </Table.Row>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </Table.Body>
+                </TableBody>
               </Table>
             </div>
           )}
@@ -230,3 +248,27 @@ export function Alerts({ alerts, error, form, reload }: {
     </div>
   );
 }
+
+function AlertsPage() {
+  const { profile } = useProfile();
+  const { alerts, error, reload } = useAlerts();
+  const form = useAlertForm(profile, reload);
+  // The board's "Alert me for this search" lands here with its filters.
+  useEffect(() => {
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem("iljobs_alert_prefill"); sessionStorage.removeItem("iljobs_alert_prefill"); } catch { return; }
+    if (!raw) return;
+    try { form.fill(JSON.parse(raw)); } catch { /* an unreadable handoff is dropped */ }
+    requestAnimationFrame(() => document.getElementById("alert-create")?.scrollIntoView({ block: "start" }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A half-written alert is not lost to a stray click on a link: the
+  // browser asks before leaving.
+  useUnsaved("alert", !!form.draft.search.trim(), form.submit);
+  return (
+    <Workspace current="alerts" title="Alerts" note={!alerts ? "" : alerts.length ? plural(alerts.length, "alert") : "No alerts yet"}>
+      <Alerts alerts={alerts} error={error} form={form} reload={reload} />
+    </Workspace>
+  );
+}
+
+export default gate("alerts", AlertsPage);

@@ -1,24 +1,32 @@
-// The overview: four numbers, the weekly trend of the reader's matches,
-// the newest fits, the skills against demand, and the alerts. Every
-// number is the reader's own, from /api/me/dashboard (computed on the box
-// once a day, api/dashboard.py) and the alert and saved lists.
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
-import { LayerCard } from "@cloudflare/kumo/components/layer-card";
-import { Button, LinkButton } from "@cloudflare/kumo/components/button";
-import { Tabs } from "@cloudflare/kumo/components/tabs";
-import { Table } from "@cloudflare/kumo/components/table";
-import { Meter } from "@cloudflare/kumo/components/meter";
-import { SkeletonLine } from "@cloudflare/kumo/components/loader";
-import { ArrowDownRight, ArrowUpRight, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, X } from "@phosphor-icons/react";
-import { pub } from "../api";
-import { describeAlertFilter, fmt, MAX_SKILLS, starred, type Alert, type Dashboard, type Day, type Job } from "./data";
-import { AlertFormView, useAlertActions, type AlertForm } from "./Alerts";
-import { Card, ConfirmButton } from "./ui";
+// /account: four numbers, the weekly trend of the reader's matches, the
+// newest fits, the skills against demand, and the alerts. Every number is
+// the reader's own, from /api/me/dashboard (computed on the box once a
+// day, api/dashboard.py) and the alert and saved lists.
+import { lazy, Suspense, useState, type ReactNode } from "react";
+import { Alert as Notice, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { LoadingButton } from "../fields";
+import { Meter } from "../shared";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, WarningCircle, X } from "@phosphor-icons/react";
+import { GOOGLE } from "../shell/SignIn";
+import { Workspace } from "../site/Workspace";
+import { describeAlertFilter, EMPTY_PROFILE, fmt, MAX_SKILLS, placeSummary, provider, starred, useAlerts, useDashboard, useProfile, useSaved,
+  type Alert, type Dashboard, type Day, type Job } from "./data";
+import { AlertFormView, useAlertActions, useAlertForm, useLocationOptions, type AlertForm } from "./Alerts";
+import { ACTIONS_CELL, BODY, Card, ConfirmButton, gate, JOB, LINK, NOTE, PANEL, ROW, STACK, SUB, TABLE, TIGHT, TITLE, type User } from "./ui";
 
 const charts = () => import("./Charts");
 const TrendChart = lazy(() => charts().then((m) => ({ default: m.TrendChart })));
 const PayChart = lazy(() => charts().then((m) => ({ default: m.PayChart })));
 const DemandChart = lazy(() => charts().then((m) => ({ default: m.DemandChart })));
+
+const FIGURE = "text-[28px] font-medium leading-none text-foreground tabular-nums";
+const SPLIT = "grid grid-cols-1 gap-4 min-[960px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] [&>*]:min-w-0";
+const BONES = "h-[300px]";
 
 const dayLabel = (iso: string) => new Date(iso + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 function ago(iso: string) {
@@ -28,6 +36,12 @@ function ago(iso: string) {
   const d = Math.floor(h / 24);
   return d === 1 ? "yesterday" : `${d}d ago`;
 }
+function greeting(name: string) {
+  const h = new Date().getHours();
+  const part = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  const first = name.split(" ")[0];
+  return first ? `${part}, ${first}` : part;
+}
 
 // How a number moved against the period before, in percent. Nothing when
 // there was nothing to measure against, or when the record was thin then
@@ -36,12 +50,13 @@ function change(now: number | null, prev: number | null) {
   if (now == null || prev == null || !prev || prev < now / 4) return null;
   return Math.round(((now - prev) / prev) * 100);
 }
+const PILL = { up: "bg-[var(--ooj-green-tint)] text-[var(--ooj-green-text)]", down: "bg-destructive/10 text-destructive", flat: "bg-muted text-muted-foreground" };
 function Pill({ pct }: { pct: number | null }) {
   if (pct == null) return null;
   const dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
   const shown = Math.abs(pct) >= 1000 ? `${Math.round(Math.abs(pct) / 100) / 10}k` : Math.abs(pct);
   return (
-    <span className={`oj-pill oj-pill-${dir}`} title={`${pct > 0 ? "+" : ""}${pct}% against the period before`}>
+    <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[13px] font-medium tabular-nums ${PILL[dir]}`} title={`${pct > 0 ? "+" : ""}${pct}% against the period before`}>
       {dir === "up" ? <ArrowUpRight size={11} aria-hidden="true" /> : dir === "down" ? <ArrowDownRight size={11} aria-hidden="true" /> : null}
       <span className="sr-only">{dir === "up" ? "Up " : dir === "down" ? "Down " : ""}</span>{shown}%
     </span>
@@ -77,61 +92,32 @@ function pay(matches: Job[]) {
   return { med: q(0.5), lo: q(0.25), hi: q(0.75), n: pays.length, bins };
 }
 
-const bone = (w: number) => <SkeletonLine minWidth={w} maxWidth={w} />;
+const bone = (w: number) => <Skeleton className="h-4 max-w-full" style={{ width: w }} />;
+const block = (h: number) => <Skeleton className="w-full" style={{ height: h }} />;
 
 function Stat({ label, value, trend, aside, extra, title }: { label: string; value: ReactNode; trend?: ReactNode; aside?: ReactNode; extra?: ReactNode; title?: string }) {
   return (
-    <LayerCard>
-      <div className="oj-card-body oj-stat" title={title}>
-        <div className="oj-row oj-row-between"><span className="oj-row oj-tight"><span className="oj-figure">{value}</span>{trend}</span>{extra}</div>
-        <div className="oj-row oj-row-between"><span className="oj-note">{label}</span><span className="oj-note oj-aside">{aside}</span></div>
+    <div className={PANEL}>
+      <div className="flex flex-col gap-1.5 px-6 py-5 max-sm:p-4" title={title}>
+        <div className={`${ROW} justify-between`}><span className={`${ROW} ${TIGHT}`}><span className={FIGURE}>{value}</span>{trend}</span>{extra}</div>
+        <div className={`${ROW} justify-between`}><span className={NOTE}>{label}</span><span className={`${NOTE} text-right`}>{aside}</span></div>
       </div>
-    </LayerCard>
+    </div>
   );
 }
 
-// The three best matches for skills being edited, not yet saved. The
-// saved ones come with the dashboard. Cached ten minutes for this sitting:
-// the ranking is 1.8s of real work on the box.
-const MATCHES_KEY = "iljobs_acct_matches";
-function useEditedMatches(skills: string[], editing: boolean) {
-  const [jobs, setJobs] = useState<Job[] | null | "failed">(null);
-  const key = skills.join(",");
-  useEffect(() => {
-    if (!editing || !skills.length) return;
-    const q = new URLSearchParams({ skills: key, sort: "match", dir: "asc", limit: "3", count: "skip" }).toString();
-    try {
-      const hit = JSON.parse(sessionStorage.getItem(MATCHES_KEY) || "null");
-      if (hit && hit.key === q && Date.now() - hit.at < 10 * 60 * 1000) { setJobs(hit.jobs); return; }
-    } catch { /* private browsing, or someone else's JSON in our key */ }
-    setJobs(null);
-    let live = true;
-    const timer = setTimeout(async () => {
-      try {
-        const found = (await pub<{ jobs: Job[] }>(`/jobs?${q}`)).jobs || [];
-        try { sessionStorage.setItem(MATCHES_KEY, JSON.stringify({ key: q, at: Date.now(), jobs: found })); } catch { /* the list still draws */ }
-        if (live) setJobs(found);
-      } catch {
-        if (live) setJobs("failed");
-      }
-    }, 500);
-    return () => { live = false; clearTimeout(timer); };
-  }, [key, editing]); // eslint-disable-line react-hooks/exhaustive-deps
-  return jobs;
-}
-
+const LOGO = "h-7 w-7 flex-none rounded-md border";
 function Logo({ job }: { job: Job }) {
   const letter = (job.company_domain || job.company_name || "?").charAt(0).toUpperCase();
   const [failed, setFailed] = useState(job.logo_url === "" || !job.company_domain);
   return failed
-    ? <span className="oj-logo oj-logo-letter" aria-hidden="true">{letter}</span>
-    : <img className="oj-logo" src={`/logo/${encodeURIComponent(job.company_domain!)}.png`} alt="" width={28} height={28} loading="lazy" onError={() => setFailed(true)} />;
+    ? <span className={`${LOGO} inline-grid place-items-center bg-muted font-semibold text-foreground`} aria-hidden="true">{letter}</span>
+    : <img className={`${LOGO} bg-[var(--ooj-paper)] object-contain`} src={`/logo/${encodeURIComponent(job.company_domain!)}.png`} alt="" width={28} height={28} loading="lazy" onError={() => setFailed(true)} />;
 }
 
-export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJobs, alerts, form, formOpen, setFormOpen,
-  reloadAlerts, addSkill, toggleSave }: {
-  skills: string[]; savedSkills: string[]; places: string; dash: Dashboard | null; dashLoaded: boolean;
-  savedJobs: Job[] | null; alerts: Alert[] | null; form: AlertForm; formOpen: boolean; setFormOpen: (o: boolean) => void;
+function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, alerts, alertsError, form, formOpen, setFormOpen, reloadAlerts, addSkill, toggleSave }: {
+  skills: string[]; places: string; dash: Dashboard | null; dashLoaded: boolean;
+  savedJobs: Job[] | null; savedError: string; alerts: Alert[] | null; alertsError: string; form: AlertForm; formOpen: boolean; setFormOpen: (o: boolean) => void;
   reloadAlerts: () => Promise<unknown>; addSkill: (sk: string) => Promise<boolean>; toggleSave: (j: Job, on: boolean) => Promise<void>;
 }) {
   const [series, setSeries] = useState<"matches" | "roles">("matches");
@@ -139,8 +125,6 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
   const [adding, setAdding] = useState<string | null>(null);
   const [, repaint] = useState(0);
   const act = useAlertActions(reloadAlerts);
-  const editing = skills.join(",") !== savedSkills.join(",");
-  const edited = useEditedMatches(skills, editing);
 
   const matches = dash?.matches || [];
   const days = dash?.history?.days || [];
@@ -156,7 +140,7 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
   const savedN = savedJobs?.length || 0;
   const ready = dashLoaded;
 
-  const best = editing ? (edited === "failed" ? "failed" : edited) : (ready ? matches.slice(0, 3) : null);
+  const best = ready ? matches.slice(0, 3) : null;
   const want = new Set(skills);
   const stars = starred();
 
@@ -164,17 +148,16 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
   // matches name. Then the listed skills, capped so the card stays short.
   const counts = dash?.counts || {};
   const seen = new Map<string, number>();
-  const have = new Set(savedSkills);
-  for (const j of matches) for (const sk of (j.skills || "").split(",").filter(Boolean)) if (!have.has(sk)) seen.set(sk, (seen.get(sk) || 0) + 1);
+  for (const j of matches) for (const sk of (j.skills || "").split(",").filter(Boolean)) if (!want.has(sk)) seen.set(sk, (seen.get(sk) || 0) + 1);
   const gaps = [...seen.entries()].filter(([sk, c]) => matches.length && c / matches.length >= 0.2 && counts[sk] != null)
     .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([sk, c]) => ({ sk, n: counts[sk], share: Math.round((c / matches.length) * 100) }));
-  const mine = savedSkills.slice(0, 10).filter((sk) => counts[sk] != null).map((sk) => ({ sk, n: counts[sk] })).sort((a, b) => b.n - a.n);
+  const mine = skills.slice(0, 10).filter((sk) => counts[sk] != null).map((sk) => ({ sk, n: counts[sk] })).sort((a, b) => b.n - a.n);
   const cap = gaps.length ? 6 : 8;
   const more = mine.length - cap;
 
   const add = async (sk: string) => {
     if (skills.length >= MAX_SKILLS) {
-      setNote(<>You have the maximum of {MAX_SKILLS} skills. Remove one in <a className="oj-link" href="#skills">Skills</a> to add <b>{sk}</b>.</>);
+      setNote(<>You have the maximum of {MAX_SKILLS} skills. Remove one in <a className={LINK} href="/account/skills">Resume skills</a> to add <b>{sk}</b>.</>);
       return;
     }
     setAdding(sk);
@@ -189,54 +172,55 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
   const trendTitle = isM ? "New matches per week" : "Open jobs that fit you, weekly";
 
   return (
-    <div className="oj-stack">
-      <div className="oj-grid oj-stats">
+    <div className={STACK}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-4">
         <Stat label="New matches this week" value={!ready ? bone(64) : noSkills ? "–" : fmt(week)} trend={noSkills ? null : <Pill pct={change(week, before)} />}
-          aside={!ready ? bone(60) : noSkills ? <a className="oj-link" href="#skills">Add your skills</a> : before == null ? "" : `Prev: ${fmt(before)}`} />
+          aside={!ready ? bone(60) : noSkills ? <a className={LINK} href="/account/skills">Add your skills</a> : before == null ? "" : `Prev: ${fmt(before)}`} />
         <Stat label="Open jobs that fit you" value={!ready ? bone(64) : open == null ? "–" : fmt(open)} trend={<Pill pct={change(open, monthAgo)} />}
           aside={!ready ? bone(60) : monthAgo == null ? "" : `Prev: ${fmt(monthAgo)} / mo`} />
         <Stat label="Median salary / mo" value={!ready ? bone(64) : p ? k(p.med) : "–"}
-          extra={p ? <span className="oj-bins" aria-hidden="true"><Suspense fallback={null}><PayChart bins={p.bins} lo={p.lo} hi={p.hi} /></Suspense></span> : null}
+          extra={p ? <span className="block w-24 flex-none" aria-hidden="true"><Suspense fallback={null}><PayChart bins={p.bins} lo={p.lo} hi={p.hi} /></Suspense></span> : null}
           aside={!ready ? bone(60) : p ? `Mid: ${k(p.lo)}–${k(p.hi).slice(1)}` : noSkills ? "" : "Too few estimates yet"}
           title={p ? `Estimated from ${p.n} of your matches. The middle half pays ${k(p.lo)} to ${k(p.hi)} a month.` : undefined} />
-        <Stat label="Saved jobs" value={savedJobs ? fmt(savedN) : bone(40)}
-          extra={savedN ? <a className="oj-link" href="#saved">View</a> : null}
-          aside={!savedJobs ? bone(60) : savedN ? `${stillOpen} still open` : <a className="oj-link" href="/board">Save one from the board</a>} />
+        <Stat label="Saved jobs" value={savedJobs ? fmt(savedN) : savedError ? "–" : bone(40)}
+          extra={savedN ? <a className={LINK} href="/account/saved">View</a> : null}
+          aside={!savedJobs ? (savedError ? "Couldn't load" : bone(60)) : savedN ? `${stillOpen} still open` : <a className={LINK} href="/board">Save one from the board</a>} />
       </div>
 
-      {ready && !matches.length && !editing ? (
+      {ready && !matches.length ? (
         <Card title="Get matched to jobs">
-          <p className="oj-note">{skills.length
+          <p className={NOTE}>{skills.length
             ? `Your ${skills.length} skill${skills.length === 1 ? "" : "s"} don't match any open jobs yet. Add skills from a newer resume or widen your locations to see matches and salary estimates.`
             : "Add your skills from a resume, or widen your locations, to see matches and salary estimates."}</p>
-          <div className="oj-row">
-            <LinkButton variant="secondary" href="#skills" icon={<UploadSimple />}>Add skills from a resume</LinkButton>
-            <LinkButton variant="ghost" href="#preferences">Edit locations</LinkButton>
+          <div className={ROW}>
+            <Button variant="outline" asChild><a href="/account/skills"><UploadSimple />Add skills from a resume</a></Button>
+            <Button variant="ghost" asChild><a href="/account/preferences">Edit locations</a></Button>
           </div>
         </Card>
       ) : null}
 
-      <div className="oj-split">
-        <LayerCard>
-          <section className="oj-card-body" aria-labelledby="trend-title">
-            <div className="oj-row oj-row-between">
+      <div className={SPLIT}>
+        <div className={PANEL}>
+          <section className={BODY} aria-labelledby="trend-title">
+            <div className={`${ROW} justify-between`}>
               <div>
-                <h2 className="oj-card-title" id="trend-title">{trendTitle}</h2>
+                <h2 className={TITLE} id="trend-title">{trendTitle}</h2>
                 {weeks.length >= 2 ? (
-                  <div className="oj-row oj-tight"><span className="oj-figure">{fmt(trendValues[trendValues.length - 1])}</span>
+                  <div className={`${ROW} ${TIGHT}`}><span className={FIGURE}>{fmt(trendValues[trendValues.length - 1])}</span>
                     <Pill pct={isM ? change(trendValues[trendValues.length - 1], trendValues[trendValues.length - 2]) : change(open, monthAgo)} /></div>
                 ) : null}
               </div>
-              <Tabs variant="segmented" value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}
-                tabs={[{ value: "matches", label: "New matches" }, { value: "roles", label: "Open jobs" }]} />
+              <Tabs value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}>
+                <TabsList aria-label="Series"><TabsTrigger value="matches">New matches</TabsTrigger><TabsTrigger value="roles">Open jobs</TabsTrigger></TabsList>
+              </Tabs>
             </div>
-            {!ready ? <div className="oj-chart-bones"><SkeletonLine blockHeight={300} /></div>
+            {!ready ? <div className={BONES}>{block(300)}</div>
               : weeks.length < 2 ? (
-                <p className="oj-note">{skills.length ? "Not enough history yet. The weeks fill in as the board watches your matches."
-                  : <>Add <a className="oj-link" href="#skills">your skills</a> to see your matches week by week.</>}</p>
+                <p className={NOTE}>{skills.length ? "Not enough history yet. The weeks fill in as the board watches your matches."
+                  : <>Add <a className={LINK} href="/account/skills">your skills</a> to see your matches week by week.</>}</p>
               ) : (
                 <>
-                  <Suspense fallback={<div className="oj-chart-bones"><SkeletonLine blockHeight={300} /></div>}>
+                  <Suspense fallback={<div className={BONES}>{block(300)}</div>}>
                     <TrendChart labels={weeks.map((w) => dayLabel(w.day))} values={trendValues} name={isM ? "New matches" : "Open jobs"} />
                   </Suspense>
                   <table className="sr-only">
@@ -247,27 +231,26 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
                 </>
               )}
           </section>
-        </LayerCard>
+        </div>
 
-        <Card title="New best matches" action={<LinkButton variant="ghost" href="/board?view=matches">{week ? `View all ${fmt(week)}` : "View all"}</LinkButton>}>
-          {!skills.length ? <p className="oj-note">Add skills to see matches.</p>
-            : best === "failed" ? <p className="oj-note">Could not load matches.</p>
-            : !best ? <div className="oj-stack">{bone(220)}{bone(180)}{bone(200)}</div>
-            : !best.length ? <p className="oj-note">Nothing matches those skills yet.</p>
+        <Card title="New best matches" action={<Button variant="ghost" asChild><a href="/board?view=matches">{week ? `View all ${fmt(week)}` : "View all"}</a></Button>}>
+          {ready && !skills.length ? <p className={NOTE}>Add skills to see matches.</p>
+            : !best ? <div className={STACK}>{bone(220)}{bone(180)}{bone(200)}</div>
+            : !best.length ? <p className={NOTE}>Nothing matches those skills yet.</p>
             : (
-              <ul className="oj-matches">
+              <ul className="m-0 flex list-none flex-col p-0">
                 {best.map((j) => {
                   const hit = (j.skills || "").split(",").filter((sk) => want.has(sk)).length;
                   const on = stars.has(j.id);
                   return (
-                    <li key={j.id} className="oj-match">
+                    <li key={j.id} className="flex items-start gap-3 border-t py-3 first:border-t-0 first:pt-0">
                       <Logo job={j} />
-                      <div className="oj-grow">
-                        <a className="oj-job" href={`/job/${encodeURIComponent(j.id)}`}>{j.title}</a>
-                        <span className="oj-sub">{j.company_name || j.company_domain || ""}{j.location ? ` · ${j.location}` : ""}</span>
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <a className={JOB} href={`/job/${encodeURIComponent(j.id)}`}>{j.title}</a>
+                        <span className={SUB}>{j.company_name || j.company_domain || ""}{j.location ? ` · ${j.location}` : ""}</span>
                         <Meter label="Shared skills" value={hit} max={Math.max(1, want.size)} customValue={`${hit} of ${want.size}`} />
                       </div>
-                      <Button size="sm" variant={on ? "secondary" : "ghost"} shape="square" aria-pressed={on} aria-label={`${on ? "Saved" : "Save"}: ${j.title}`}
+                      <Button size="icon-sm" variant={on ? "secondary" : "ghost"} aria-pressed={on} aria-label={`${on ? "Saved" : "Save"}: ${j.title}`}
                         onClick={async () => { await toggleSave(j, !on); repaint((x) => x + 1); }}>
                         <BookmarkSimple weight={on ? "fill" : "regular"} />
                       </Button>
@@ -279,68 +262,69 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
         </Card>
       </div>
 
-      <div className="oj-split">
+      <div className={SPLIT}>
         <Card title="Open jobs per skill" action={
-          <span className="oj-row oj-tight">
-            <LinkButton variant="secondary" href="#preferences" title="Where these are counted. Change it in Preferences.">{places}</LinkButton>
-            <LinkButton variant="ghost" href="#skills">Edit skills</LinkButton>
+          <span className={`${ROW} ${TIGHT}`}>
+            <Button variant="outline" size="sm" asChild><a href="/account/preferences" title="Where these are counted. Change it in Preferences.">{places}</a></Button>
+            <Button variant="ghost" size="sm" asChild><a href="/account/skills">Edit skills</a></Button>
           </span>}>
-          {!savedSkills.length ? <p className="oj-note">Add skills to see demand for them.</p>
-            : !ready ? <div className="oj-stack">{bone(240)}{bone(200)}{bone(220)}{bone(180)}</div>
+          {ready && !skills.length ? <p className={NOTE}>Add skills to see demand for them.</p>
+            : !ready ? <div className={STACK}>{bone(240)}{bone(200)}{bone(220)}{bone(180)}</div>
             : (
               <>
-                {gaps.length ? <p className="oj-note">Gaps · in {gaps.map((g) => `${g.share}%`).join(" and ")} of your matches</p> : null}
-                <Suspense fallback={<SkeletonLine blockHeight={120} />}>
+                {gaps.length ? <p className={NOTE}>Gaps · in {gaps.map((g) => `${g.share}%`).join(" and ")} of your matches</p> : null}
+                <Suspense fallback={block(120)}>
                   <DemandChart rows={[...gaps.map((g) => ({ sk: g.sk, n: g.n, gap: true })), ...mine.slice(0, cap).map((r) => ({ ...r, gap: false }))]} />
                 </Suspense>
                 {gaps.length ? (
-                  <div className="oj-row">
+                  <div className={ROW}>
                     {gaps.map((g) => (
-                      <Button key={g.sk} variant="secondary" loading={adding === g.sk} aria-label={`Add ${g.sk} to your skills`}
-                        title={`${g.sk} is named by ${g.share}% of your matches; ${fmt(g.n)} open jobs ask for it`} onClick={() => add(g.sk)}>Add {g.sk}</Button>
+                      <LoadingButton key={g.sk} variant="outline" loading={adding === g.sk} disabled={!!adding} aria-label={`Add ${g.sk} to your skills`}
+                        title={`${g.sk} is named by ${g.share}% of your matches; ${fmt(g.n)} open jobs ask for it`} onClick={() => add(g.sk)}>Add {g.sk}</LoadingButton>
                     ))}
                   </div>
                 ) : null}
-                {more > 0 ? <a className="oj-link" href="#skills">Show {more} more →</a> : null}
-                {note ? <p className="oj-note" role="status">{note}</p> : null}
+                {more > 0 ? <a className={LINK} href="/account/skills">Show {more} more</a> : null}
+                {note ? <p className={NOTE} role="status">{note}</p> : null}
               </>
             )}
         </Card>
 
-        <Card title={<>Alerts {sent ? <span className="oj-note">· sent {ago(sent)}</span> : null}</>}
-          action={<Button variant="secondary" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
+        <Card title={<>Alerts {sent ? <span className={NOTE}>· sent {ago(sent)}</span> : null}</>}
+          action={<Button variant="outline" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
           {formOpen ? <AlertFormView form={form} autoFocus onDone={() => setFormOpen(false)} />
-            : !alerts ? <div className="oj-stack">{bone(220)}{bone(180)}</div>
-            : !alerts.length ? <p className="oj-note">No alerts yet. Create one and new listings that match it are emailed to you.</p>
+            : alertsError && !alerts ? <p className={NOTE}>{alertsError}</p>
+            : !alerts ? <div className={STACK}>{bone(220)}{bone(180)}</div>
+            : !alerts.length ? <p className={NOTE}>No alerts yet. Create one and new listings that match it are emailed to you.</p>
             : (
-              <div className="oj-table">
+              <div className={TABLE}>
                 <Table>
-                  <Table.Header><Table.Row><Table.Head>Alert</Table.Head><Table.Head>Status</Table.Head><Table.Head><span className="sr-only">Actions</span></Table.Head></Table.Row></Table.Header>
-                  <Table.Body>
+                  <TableHeader><TableRow><TableHead>Alert</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                  <TableBody>
                     {alerts.map((a) => {
                       const f = a.filter || {};
                       const kw = f.search || f.q || "";
                       const rest = describeAlertFilter({ ...f, search: "", q: "" });
                       const name = describeAlertFilter(f);
                       return (
-                        <Table.Row key={a.alert_id}>
-                          <Table.Cell className={a.active ? undefined : "oj-muted"}>
+                        <TableRow key={a.alert_id}>
+                          <TableCell className={cn(!a.active && "text-muted-foreground")}>
                             {kw ? <b>"{kw}" </b> : null}{kw && rest === "All jobs" ? "" : rest}
-                          </Table.Cell>
-                          <Table.Cell><span className="oj-row oj-tight oj-nowrap">{a.active ? <><Check aria-hidden="true" />Active</> : <><Pause aria-hidden="true" />Paused</>}</span></Table.Cell>
-                          <Table.Cell className="oj-actions-cell">
-                            <span className="oj-row oj-tight oj-nowrap">
-                              <Button variant="secondary" disabled={act.busy === a.alert_id} onClick={() => act.toggle(a)}>{a.active ? "Pause" : "Resume"}</Button>
-                              <Button size="sm" variant="ghost" shape="square" aria-label={`Edit alert ${name}`} title="Edit alert"
+                          </TableCell>
+                          <TableCell><span className="inline-flex items-center gap-1.5 whitespace-nowrap">{a.active ? <><Check aria-hidden="true" />Active</> : <><Pause aria-hidden="true" />Paused</>}</span></TableCell>
+                          <TableCell className={ACTIONS_CELL}>
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                              <Button variant="outline" size="sm" disabled={act.busy === a.alert_id} onClick={() => act.toggle(a)}>{a.active ? "Pause" : "Resume"}</Button>
+                              <Button size="icon-sm" variant="ghost" aria-label={`Edit alert ${name}`} title="Edit alert"
                                 onClick={() => { form.edit(a); setFormOpen(true); }}><PencilSimple /></Button>
-                              <ConfirmButton size="sm" variant="ghost" shape="square" title="Delete alert" aria-label={`Delete alert ${name}`}
+                              <ConfirmButton size="icon-sm" variant="ghost" title="Delete alert" aria-label={`Delete alert ${name}`}
                                 disabled={act.busy === a.alert_id} onConfirm={() => act.remove(a)}><X /></ConfirmButton>
                             </span>
-                          </Table.Cell>
-                        </Table.Row>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </Table.Body>
+                  </TableBody>
                 </Table>
               </div>
             )}
@@ -349,3 +333,44 @@ export function Overview({ skills, savedSkills, places, dash, dashLoaded, savedJ
     </div>
   );
 }
+
+function OverviewPage({ who }: { who: User }) {
+  const { profile, put, failed } = useProfile();
+  const { dash, loaded } = useDashboard(profile);
+  const alerts = useAlerts();
+  const saved = useSaved();
+  const places = useLocationOptions();
+  const form = useAlertForm(profile, alerts.reload);
+  const [formOpen, setFormOpen] = useState(false);
+  const p = profile || EMPTY_PROFILE;
+  const country = p.country.length === 1 ? p.country[0] : "";
+  const openHref = p.skills.length ? `/board?view=matches&skills=${encodeURIComponent(p.skills.join(","))}${country ? `&country=${country}` : ""}` : "/board?view=matches";
+  const signedInWith = provider(who.idToken);
+  const newAlert = () => {
+    setFormOpen(true);
+    requestAnimationFrame(() => document.getElementById("alert-create")?.scrollIntoView({ block: "nearest" }));
+  };
+  return (
+    <Workspace current="overview" title="Account"
+      note={<span className="[overflow-wrap:anywhere]">{greeting(who.name)}. {who.email}
+        {signedInWith ? <span className="inline-flex items-center gap-1 whitespace-nowrap"> · {GOOGLE} Signed in with {signedInWith}</span> : null}</span>}
+      actions={<>
+        <Button variant="outline" asChild><a href="/account/skills"><UploadSimple />Add skills from a resume</a></Button>
+        <Button variant="outline" onClick={newAlert}><Bell />New alert</Button>
+        <Button asChild><a href={openHref}>See best matches <ArrowRight /></a></Button>
+      </>}>
+      {failed ? (
+        <Notice variant="destructive" className="mb-4"><WarningCircle weight="fill" />
+          <AlertTitle>Couldn't load your profile</AlertTitle>
+          <AlertDescription>Your skills and places aren't shown. Reload the page to try again.</AlertDescription>
+        </Notice>
+      ) : null}
+      <Overview skills={p.skills} places={placeSummary(p, places.labels)} dash={dash} dashLoaded={!!profile && loaded}
+        savedJobs={saved.jobs} savedError={saved.error} alerts={alerts.alerts} alertsError={alerts.error} form={form} formOpen={formOpen} setFormOpen={setFormOpen} reloadAlerts={alerts.reload}
+        addSkill={async (sk) => { try { await put({ skills: [...new Set([...p.skills, sk])] }); return true; } catch { return false; } }}
+        toggleSave={saved.toggle} />
+    </Workspace>
+  );
+}
+
+export default gate("overview", OverviewPage);

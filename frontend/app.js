@@ -1772,8 +1772,8 @@ function skeletonRowCount() {
 // the snapshot. The keys must match loader/bootstrap.py's VIEWS, and a
 // request for anything else gets no file and a normal fetch.
 const BOOTSTRAP_FILES = {
-  "confidence=all&roles=tech&sort=age&dir=asc&limit=50&offset=0": "/bootstrap.json",
-  "country=IL&confidence=all&roles=tech&sort=age&dir=asc&limit=50&offset=0": "/bootstrap-il.json",
+  "confidence=all&sort=age&dir=asc&limit=50&offset=0": "/bootstrap.json",
+  "country=IL&confidence=all&sort=age&dir=asc&limit=50&offset=0": "/bootstrap-il.json",
 };
 const bootstrapFetches = new Map();
 function getBootstrap(params) {

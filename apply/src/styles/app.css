@@ -1,0 +1,75 @@
+/* The styles of the pages built on shadcn/ui (docs/FRONTEND_STANDARD.md).
+   Colours, fonts and radii come only from tokens.css, which is generated
+   from DESIGN.md. Tailwind reads only the folders listed below, so the
+   Kumo pages' classes stay out of this file. */
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "./tokens.css";
+
+@source "../components";
+@source "../shell";
+@source "../legal";
+@source "../notfound";
+@source "../contact";
+@source "../home";
+@source "../pricing";
+@source "../checkout";
+@source "../companies";
+@source "../stats";
+@source "../site";
+@source "../workspace";
+@source "../account";
+@source "../apply";
+@source "../shared.tsx";
+@source "../unsaved.tsx";
+@source "../fields.tsx";
+
+/* shadcn's sidebar names its colours; they are the page's own tokens. */
+@theme inline {
+  --color-sidebar: var(--background); --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-primary: var(--primary); --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--accent); --color-sidebar-accent-foreground: var(--accent-foreground);
+  --color-sidebar-border: var(--border); --color-sidebar-ring: var(--ring);
+}
+@source "../board";
+
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+/* Geist ships 400 and 500 only. As on live, 600 and 700 match no face, so the browser draws them bold from 500. */
+@font-face { font-family: "Geist"; src: url("/fonts/Geist-400-latin.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Geist"; src: url("/fonts/Geist-500-latin.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Overused Grotesk"; src: url("/fonts/OverusedGrotesk-VF.woff2") format("woff2-variations"); font-weight: 300 900; font-display: swap; }
+@font-face { font-family: "Urbanist"; src: url("/fonts/Urbanist-VF-latin.woff2") format("woff2-variations"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Source Sans 3"; src: url("/fonts/SourceSans3-VF-latin.woff2") format("woff2-variations"); font-weight: 200 900; font-display: swap; }
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html { background: var(--color-background); }
+  body { margin: 0; background: var(--color-background); color: var(--color-foreground); font: 400 16px/1.5 var(--font-sans); -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+}
+
+/* The head script marks a signed-in page before paint (vite.config.ts HEAD),
+   so the prerendered "Log in" does not flash before the account menu. */
+[data-auth] [data-signed-out] { visibility: hidden; }
+
+/* The plans' launch deal, gone from 2027-01-01 without a rebuild: the head script marks <html>. */
+[data-deal-over] [data-deal] { display: none; }
+
+/* The cookie banner is drawn by frontend/consent.js, outside React. Accept
+   is the primary choice, as on the old pages. */
+#cookie-banner { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 60; max-width: 560px; margin: 0 auto; padding: 14px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  background: var(--color-background); color: var(--color-foreground); font-size: 14px; }
+#cookie-banner p { margin: 0; }
+#cookie-banner a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+#cookie-banner .cookie-actions { display: flex; justify-content: flex-end; gap: 8px; }
+#cookie-banner button { height: 32px; padding: 0 12px; border: 1px solid var(--color-input); border-radius: var(--radius-md); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+#cookie-banner .cookie-yes { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-primary-foreground); }
+
+/* The outage badge, drawn by frontend/upstream.js outside React (vite.config.ts HEAD loads it on every page). */
+.upstream { position: fixed; right: 16px; bottom: 16px; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: calc(100% - 32px); }
+.upstream-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--color-destructive); border-radius: 9999px;
+  background: var(--color-card); color: var(--color-destructive); font: 500 12px/16px var(--font-sans); cursor: pointer; text-align: left; }
+.upstream-x { font-size: 15px; line-height: 16px; margin-left: 2px; opacity: 0.8; }
+.upstream-badge:hover .upstream-x { opacity: 1; }

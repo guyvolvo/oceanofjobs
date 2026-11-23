@@ -1,10 +1,11 @@
-// Forms with edits not yet saved, each with its own save. A tab switch
-// asks first (useLeaveGuard), and closing or leaving the page gets the
-// browser's own warning. Its own module so the account page can guard its
-// two top tabs without loading the auto apply dashboard.
+// Forms with edits not yet saved, each with its own save. Every link
+// between workspace pages is a full page load, so leaving or closing the
+// page gets the browser's own warning. An in-page action that would drop
+// the edits asks first through useLeaveGuard, which can run the saves.
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Dialog } from "@cloudflare/kumo/components/dialog";
+import { Button } from "@/components/ui/button";
+import { useReturnFocus } from "./fields";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 
 const unsaved = new Map<string, () => Promise<boolean>>();
 addEventListener("beforeunload", (e) => {
@@ -35,18 +36,19 @@ export function useLeaveGuard() {
     if (ok) leave(); else setNext(null);
   };
   const discard = () => { unsaved.clear(); leave(); };
+  const back = useReturnFocus(!!next);
   const dialog = (
-    <Dialog.Root open={!!next} onOpenChange={(o) => { if (!o) setNext(null); }}>
-      <Dialog className="oj-dialog">
-        <Dialog.Title className="oj-card-title">Save your changes?</Dialog.Title>
-        <Dialog.Description className="oj-note">You changed some settings on this tab and haven't saved them yet.</Dialog.Description>
-        <div className="oj-row oj-dialog-actions">
+    <Dialog open={!!next} onOpenChange={(o) => { if (!o) setNext(null); }}>
+      <DialogContent onCloseAutoFocus={back}>
+        <DialogTitle>Save your changes?</DialogTitle>
+        <DialogDescription>You changed some settings on this tab and haven't saved them yet.</DialogDescription>
+        <DialogFooter>
           <Button variant="ghost" onClick={() => setNext(null)}>Keep editing</Button>
-          <Button variant="secondary" onClick={discard}>Discard</Button>
-          <Button variant="primary" loading={saving} onClick={save}>Save</Button>
-        </div>
-      </Dialog>
-    </Dialog.Root>
+          <Button variant="outline" onClick={discard}>Discard</Button>
+          <Button disabled={saving} onClick={save}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
   return { guard, dialog };
 }

@@ -1,0 +1,19 @@
+/* What the workspace pages need beyond Tailwind on the tokens
+   (src/styles/app.css): the avatar auth.js draws as HTML, the skip link
+   the pages not yet on src/shell still use, and the resume field's pulse. */
+
+/* The site's avatar mark (auth.js avatarHtml). */
+.hero-avatar { position: relative; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  overflow: hidden; background: var(--primary); color: var(--primary-foreground); font: 600 13px/1 var(--font-sans); flex: none; }
+.hero-avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+.skip-link { position: fixed; left: 16px; top: -60px; z-index: 1000; padding: 8px 12px; border-radius: var(--radius-md);
+  background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; }
+.skip-link:focus-visible { top: 12px; }
+
+/* The resume field, when a setting sent the reader here (RESUME_FOCUS):
+   a pulsing ring until the field is touched. */
+@keyframes attention {
+  0%, 100% { outline-offset: 0; outline-color: var(--ooj-trend-down); }
+  50% { outline-offset: 4px; outline-color: transparent; }
+}
