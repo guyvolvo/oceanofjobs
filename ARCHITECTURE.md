@@ -99,7 +99,7 @@ everything else             ──► CloudFront ──► S3                   
 
 Two routers, on purpose. CloudFront's cache behaviors
 (`infra/cloudfront.tf`) can send every one of those paths to the box,
-with the tunnel hostname `box.oceanofjobs.com` as a second custom
+with the tunnel hostname `box.opentechjobs.org` as a second custom
 origin, and that is what happens whenever the Worker
 (`infra/cloudflare-worker.js`) is over budget or has no route:
 Cloudflare fails the route open. The Worker is on `/api/*` alone for
