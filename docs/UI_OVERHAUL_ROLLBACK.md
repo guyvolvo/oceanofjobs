@@ -9,18 +9,17 @@ prefix on every deploy, so merging ships these pages at once:
 - `/apply` and `/account`: the new workspace (`apply/index.html`,
   `apply/account.html`, `src/workspace`). It replaces the Kumo dashboard and
   account page that `main` serves today.
-- `/contact`: the new contact page. The step "Put the migrated pages with
-  the static pages" copies every page named in `apply/migrated.json`
-  (today only `contact`) over its static twin, `frontend/contact.html`.
-  There is no static contact page in git; the Kumo one it replaces was
-  `apply/src/Contact.tsx`, which this branch deletes.
+- Every public page: home, board, companies, stats, pricing, checkout,
+  contact, privacy, terms, refunds and 404. The step "Put the migrated
+  pages with the static pages" copies every page named in
+  `apply/migrated.json` over its static twin in `frontend/` (home goes to
+  `index.html`). There is no static contact page in git; the Kumo one it
+  replaces was `apply/src/Contact.tsx`, which this branch deletes.
 
-Every other page (home, board, companies, stats, pricing, checkout, the
-legal pages, 404) is still served from `frontend/`. Their React versions
-are built and prerendered but not uploaded over the static ones. Preview
-them with `node apply/scripts/preview.mjs --all`.
+`/job`, `/company`, `/jobs/*` and `/companies/<letter>` stay on the API's
+server rendering and the sitemap's pages, as before.
 
-## Before the merge: the `/account/*` rule
+## Before the merge: the `/account/*` rule (live since #33, 2026-11-23)
 
 The workspace routes `/account/alerts`, `/account/settings`,
 `/account/billing` and the other sections on the client. Production
