@@ -51,7 +51,7 @@ const alpha = (hex: string, a: string) => (/^#[0-9a-f]{6}$/i.test(hex) ? hex + a
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const tooltip = (t: Tokens) => ({
   backgroundColor: t.paper, borderColor: t.line, borderWidth: 1, padding: [6, 10],
-  textStyle: { color: t.ink, fontFamily: t.font, fontSize: 12 }, extraCssText: "box-shadow:none;border-radius:6px;",
+  textStyle: { color: t.ink, fontFamily: t.font, fontSize: 12 }, extraCssText: "box-shadow:none;border-radius:16px;",
 });
 const tipHead = (t: Tokens, s: string) => `<div style="color:${t.text};margin-bottom:2px">${esc(s)}</div>`;
 const tipRow = (label: string, value: string) => `<div style="display:flex;justify-content:space-between;gap:16px"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;

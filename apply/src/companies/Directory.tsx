@@ -297,7 +297,7 @@ export function Directory() {
           <div aria-hidden="true" className={cn("fixed inset-0 z-40 hidden bg-overlay", pill && "max-[800px]:block")} />
 
           <div className="min-[1101px]:grid min-[1101px]:grid-cols-[minmax(0,1fr)_clamp(420px,34vw,600px)] min-[1101px]:items-start min-[1101px]:gap-2.5">
-            <section aria-label="Companies" className="min-w-0 overflow-hidden rounded-[10px] border bg-card max-[800px]:-mx-4 max-[800px]:rounded-none max-[800px]:border-x-0">
+            <section aria-label="Companies" className="min-w-0 overflow-hidden rounded-lg border bg-card max-[800px]:-mx-4 max-[800px]:rounded-none max-[800px]:border-x-0">
               <div className="flex min-h-16 items-center justify-between gap-3 border-b px-5 py-2 max-[800px]:px-3">
                 <div className="flex min-w-0 flex-col">
                   {head ? <span className="font-ui text-[17px] leading-tight font-medium text-foreground">{head}</span> : <Bone w="240px" h={14} className="max-w-[45vw]" />}
@@ -357,7 +357,7 @@ export function Directory() {
               className={cn("fixed inset-0 z-40 bg-overlay transition-opacity duration-250 min-[1101px]:hidden", picked ? "opacity-100" : "pointer-events-none invisible opacity-0")} />
             <aside id="company-panel" aria-label="Company" role={overlay && picked ? "dialog" : undefined} aria-modal={overlay && picked ? true : undefined}
               className={cn("flex flex-col bg-card",
-                "min-[1101px]:sticky min-[1101px]:top-[78px] min-[1101px]:h-[calc(100dvh-92px)] min-[1101px]:overflow-y-auto min-[1101px]:rounded-[10px] min-[1101px]:border",
+                "min-[1101px]:sticky min-[1101px]:top-[78px] min-[1101px]:h-[calc(100dvh-92px)] min-[1101px]:overflow-y-auto min-[1101px]:rounded-lg min-[1101px]:border",
                 "max-[1100px]:fixed max-[1100px]:inset-y-0 max-[1100px]:right-0 max-[1100px]:z-50 max-[1100px]:w-[min(440px,100%)] max-[1100px]:overflow-y-auto max-[1100px]:border-l max-[1100px]:transition-transform max-[1100px]:duration-250",
                 !picked && "max-[1100px]:invisible max-[1100px]:translate-x-full")}>
               {picked ? (

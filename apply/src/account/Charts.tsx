@@ -48,7 +48,7 @@ const alpha = (hex: string, a: number) => {
 };
 const tooltip = (t: Tokens) => ({
   backgroundColor: t.overlay, borderColor: t.line, borderWidth: 1, padding: [6, 10],
-  textStyle: { color: t.strong, fontFamily: t.font, fontSize: 12 }, extraCssText: "box-shadow:none;border-radius:8px;",
+  textStyle: { color: t.strong, fontFamily: t.font, fontSize: 12 }, extraCssText: "box-shadow:none;border-radius:16px;",
 });
 const short = (n: number) => (n >= 1000 ? `${+(n / 1000).toFixed(n % 1000 ? 1 : 0)}k` : String(Math.round(n)));
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));

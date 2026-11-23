@@ -28,7 +28,8 @@ const SEMANTIC = {
 };
 // Tailwind/shadcn font and radius names -> DESIGN.md typography roles and rounded keys.
 const FONTS = { sans: "display-feature-card", heading: "page-heading", display: "display-wordmark", body: "body", ui: "ui", mono: "data-mono" };
-const RADII = { xs: "micro", sm: "default", md: "default", lg: "menu", xl: "card-soft", "2xl": "note" };
+// One radius for every box and control (DESIGN.md "box", the theme switch's 16px); xs stays the focus ring's micro.
+const RADII = { xs: "micro", sm: "box", md: "box", lg: "box", xl: "box", "2xl": "box" };
 
 // The frontmatter is plain two-space YAML: sections, keys, and one more level.
 export function parseFrontmatter(md) {

@@ -89,7 +89,7 @@ export function PillPopover({ p }: { p: (typeof PILLS)[number] }) {
   return (
     <Popover open={U.railOpen === p.key} onOpenChange={(o) => setRailOpen(o ? p.key : null)}>
       <PopoverTrigger className={cn(pill, "data-[state=open]:bg-foreground data-[state=open]:text-background")} data-pill={p.key}><PillFace p={p} /></PopoverTrigger>
-      <PopoverContent align="start" sideOffset={6} className="max-h-[min(60vh,520px)] w-[320px] overflow-y-auto overscroll-contain rounded-[10px] bg-card p-2.5">
+      <PopoverContent align="start" sideOffset={6} className="max-h-[min(60vh,520px)] w-[320px] overflow-y-auto overscroll-contain rounded-lg bg-card p-2.5">
         {BODY[p.key]()}
       </PopoverContent>
     </Popover>
@@ -111,7 +111,7 @@ export function FilterSheet() {
   const n = U.empty || total == null ? null : fmtInt(total);
   return (
     <Sheet open={U.sheetOpen} onOpenChange={openSheet}>
-      <SheetContent side="bottom" className="h-[min(90svh,760px)] gap-0 rounded-t-[14px] bg-card p-0" showCloseButton={false} aria-describedby={undefined}
+      <SheetContent side="bottom" className="h-[min(90svh,760px)] gap-0 rounded-t-lg bg-card p-0" showCloseButton={false} aria-describedby={undefined}
         onCloseAutoFocus={(e) => { e.preventDefault(); document.getElementById("m-filters")?.focus(); }}>
         <div className="mx-auto mt-2 h-1 w-9 flex-none rounded-full bg-border" aria-hidden="true" />
         <div className="flex flex-none items-center justify-between border-b py-2 pr-2 pl-4">

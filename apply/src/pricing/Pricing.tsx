@@ -43,7 +43,7 @@ const Terms = ({ plan }: { plan: Plan }) => (
 function PlanTable() {
   const th = "border-b px-5 py-4 text-left align-top font-normal";
   return (
-    <div className="overflow-hidden rounded-[16px] border bg-background max-[700px]:hidden">
+    <div className="overflow-hidden rounded-lg border bg-background max-[700px]:hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-[15px] leading-[1.4]">
           <caption className="sr-only">Compare plans</caption>
@@ -80,7 +80,7 @@ function PlanCards() {
   return (
     <div className="hidden gap-3 max-[700px]:grid">
       {PLANS.map((p) => (
-        <section key={p.key} aria-labelledby={`m-plan-${p.key}`} className={cn("rounded-[16px] border bg-background p-5", p.key === HOT_PLAN && "bg-[linear-gradient(var(--muted),var(--muted))]")}>
+        <section key={p.key} aria-labelledby={`m-plan-${p.key}`} className={cn("rounded-lg border bg-background p-5", p.key === HOT_PLAN && "bg-[linear-gradient(var(--muted),var(--muted))]")}>
           <Name plan={p} as="h3" id={`m-plan-${p.key}`} />
           <p className="m-0"><Price plan={p} className="text-[28px]" /></p>
           <p className="mt-2 mb-0 text-sm leading-[1.45] text-muted-foreground">{p.desc}</p>
@@ -109,7 +109,7 @@ export function Pricing() {
           <h1 id="pricing-title" className={h}>Pricing plans</h1>
           <p className="mt-3.5 mb-0 max-w-[620px] text-[17px] leading-[1.55] text-body">{PRICING_INTRO}</p>
           {/* The plans on a dither panel, as on the home page. */}
-          <div className="relative isolate mt-[68px] before:pointer-events-none before:absolute before:-inset-6 before:-z-10 before:rounded-[16px] before:bg-[url(/img/dither-pricing.png)] before:bg-[length:1920px_1200px] before:bg-center before:opacity-90 before:brightness-90 before:[image-rendering:pixelated] max-[640px]:before:inset-x-[-16px]">
+          <div className="relative isolate mt-[68px] before:pointer-events-none before:absolute before:-inset-6 before:-z-10 before:rounded-lg before:bg-[url(/img/dither-pricing.png)] before:bg-[length:1920px_1200px] before:bg-center before:opacity-90 before:brightness-90 before:[image-rendering:pixelated] max-[640px]:before:inset-x-[-16px]">
             <PlanTable />
             <PlanCards />
           </div>

@@ -12,7 +12,7 @@ import { fmtInt } from "./util";
 const VIEWS = [["tech", "Tech jobs"], ["all", "All jobs"], ["matches", "Best matches"], ["saved", "Saved"]] as const;
 export const sideRow = "flex min-h-8 w-full cursor-pointer items-center justify-between gap-2 rounded-sm px-2 text-left font-ui text-sm text-foreground hover:bg-muted";
 const on = "bg-foreground/[0.18] font-semibold hover:bg-foreground/[0.18]";
-const group = "flex flex-none flex-col gap-0.5 rounded-[10px] border bg-card p-1.5";
+const group = "flex flex-none flex-col gap-0.5 rounded-lg border bg-card p-1.5";
 const title = "px-2 py-1.5 font-sans text-xs text-muted-foreground";
 
 export function ViewSwitch({ onPick }: { onPick?: () => void }) {

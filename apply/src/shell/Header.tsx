@@ -59,7 +59,7 @@ function NavMenu({ section, current }: { section: Section; current?: string }) {
       </button>
       <div id={panel} hidden={!open} className="absolute top-[calc(100%+10px)] -left-[19px] z-40 flex min-w-[180px] flex-col rounded-lg border bg-background p-1.5 animate-in fade-in-0 slide-in-from-top-1">
         {section.items!.map((l) => (
-          <a key={l.href} href={l.href} className="flex items-center justify-between gap-[18px] rounded-[6px] px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent focus-visible:bg-accent">
+          <a key={l.href} href={l.href} className="flex items-center justify-between gap-[18px] rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent focus-visible:bg-accent">
             <span>{l.label}</span>{l.icon ? <l.icon size={16} className="flex-none opacity-55" aria-hidden="true" /> : null}
           </a>
         ))}
@@ -101,7 +101,7 @@ export function SignInHost() {
 export function Header({ current, className }: { current?: string; className?: string }) {
   const who = useWho();
   return (
-    <div className={cn("sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md", className)}>
+    <div className={cn("sticky top-0 z-30 bg-background/80 backdrop-blur-md", className)}>
       <header className="flex h-16 items-center gap-6 px-4 leading-none sm:grid sm:grid-cols-[1fr_auto_1fr] sm:px-[max(40px,calc((100%-1100px)/2))]">
         <div className="flex-1 justify-self-start"><Brand /></div>
         <nav aria-label="Main" className="hidden items-center gap-7 sm:flex">

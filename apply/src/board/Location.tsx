@@ -61,7 +61,7 @@ export default function LocationPanel({ open, query, onClose }: { open: boolean;
   };
   if (!open) return null;
   return (
-    <div className="absolute top-[calc(100%+8px)] left-0 z-40 w-[min(420px,calc(100vw-32px))] rounded-[10px] border bg-card p-1.5"
+    <div className="absolute top-[calc(100%+8px)] left-0 z-40 w-[min(420px,calc(100vw-32px))] rounded-lg border bg-card p-1.5"
       onKeyDownCapture={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(true); } }}>
       <Tree id="f-location-list" aria-label="Places" selectionMode="multiple" selectedKeys={selected} onSelectionChange={change}
         expandedKeys={expanded} onExpandedChange={(k) => setOpened(new Set(k))}

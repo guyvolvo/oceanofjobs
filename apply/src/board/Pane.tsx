@@ -323,7 +323,7 @@ export function Pane() {
     <>
       <div className={cn("board-scrim bg-overlay min-[1101px]:hidden", U.paneOpen && "open")} aria-hidden="true" onClick={() => { if (U.selected !== null) closeJobAndSync(); }} />
       <aside ref={paneRef} id="job-detail" role="complementary" aria-label="Job detail" inert={sheet && !U.paneOpen}
-        className={cn("board-pane flex min-h-0 flex-col bg-card min-[1101px]:relative min-[1101px]:rounded-t-[10px] min-[1101px]:border min-[1101px]:border-b-0", U.paneOpen && "open")}>
+        className={cn("board-pane flex min-h-0 flex-col bg-card min-[1101px]:relative min-[1101px]:rounded-t-lg min-[1101px]:border min-[1101px]:border-b-0", U.paneOpen && "open")}>
         <div data-pane-head className="relative flex min-h-[64px] shrink-0 items-center gap-1 border-b px-3 max-[800px]:h-14 max-[800px]:min-h-14">
           {d ? (
             <>

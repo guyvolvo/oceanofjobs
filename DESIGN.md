@@ -255,6 +255,7 @@ rounded:
   note: "18px"
   tile-feature-phone: "32px"
   pill: "999px"
+  box: "16px"
 spacing:
   gutter: "clamp(20px, 4vw, 64px)"
   rule: "2px"
@@ -797,6 +798,12 @@ plan. Everything within them (inputs, chips, buttons, badges) stays 4px.
 a reader already reads as "this toggles", and both sit on the landing
 page where there is no table grid for a 4px box to align to.
 
+**The React pages (apply/) use one radius, 16px (`box`), for every box
+and control, by request (2026-11-23): the theme switch's, a 32px pill.
+Shorter controls come out fully round, cards and fields get the same
+curve. Focus rings keep 2px; checkboxes keep their small square corner.**
+The rest of this section describes the static pages.
+
 4px radius is the default for every discrete bordered box, buttons
 (`.btn`, `.job-detail-apply`, `.job-detail-star`, `.job-detail-icon-btn`),
 chips and badges (`.chip`, `.badge`, `.job-salary.estimate`), pagination
@@ -1141,7 +1148,8 @@ more than it does.
 ## Do's and Don'ts
 
 ### Do:
-- **Do** use 4px radius on every discrete bordered box (see Shapes
+- **Do** use 16px (`box`) on every box and control on the React pages,
+  and 4px on every discrete bordered box on the static pages (see Shapes
   above); keep it at 0 only for the grid-tile cards, table, and dividers
   that stay sharp there. Check with the user before adding a new sharp
   exception, not before rounding something new.
