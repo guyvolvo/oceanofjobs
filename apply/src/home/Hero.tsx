@@ -379,7 +379,7 @@ export function HeroStage() {
         <button type="button" className="hero-slide-arrow" data-step="1" aria-label="Next preview"><svg viewBox="0 -960 960 960" width="18" height="18" aria-hidden="true"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z" /></svg></button>
       </div>
       <div className="ext-install" data-for="0">
-        <a className="home-pill" href="https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi" target="_blank" rel="noopener">Add to Chrome</a>
+        <a className="home-promo-badge" href="https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi" target="_blank" rel="noopener"><img src="/img/chrome-web-store-badge.png" width="159" height="48" alt="Available in the Chrome Web Store" /></a>
         <p>Free to install.</p>
       </div>
       <McpInstall />
@@ -411,15 +411,6 @@ export function Hero() {
       <div className="home-hero-grid">
         <div className="home-hero-text">
           <h1 id="home-title">Automate your<br />job search</h1>
-          <div className="home-promo">
-            <p className="home-promo-eyebrow"><span className="home-promo-icon" aria-hidden="true" />Try out the new free browser extension</p>
-            <h2 className="home-promo-title">Apply 20x faster with auto apply</h2>
-            <p className="home-promo-text">Fill repetitive job applications automatically and instantly.</p>
-            <div className="home-promo-actions">
-              <a className="home-promo-badge" href="https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi" target="_blank" rel="noopener"><img src="/img/chrome-web-store-badge.png" width="159" height="48" alt="Available in the Chrome Web Store" /></a>
-              <a className="home-promo-link" href="/docs/extension">See docs</a>
-            </div>
-          </div>
           <Island name="hero-search" component={HeroSearch} props={{}} />
           <div className="mt-[18px] flex flex-wrap gap-2.5">
             <a className="home-docs" href="/docs">Docs<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9" /></svg></a>

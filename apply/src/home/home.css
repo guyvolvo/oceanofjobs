@@ -84,19 +84,8 @@ button.home-pill:disabled, button.home-soft:disabled { cursor: default; opacity:
   color: var(--h-text);
 }
 .home-hero p { max-width: 480px; margin: 22px 0 0; font-size: 17px; line-height: 26px; color: var(--h-muted); }
-.home-promo { --promo: var(--h-link-hover); margin-top: 24px; max-width: 480px; padding: 20px 22px 22px; border: 1px solid color-mix(in srgb, var(--promo) 45%, transparent); border-radius: 16px; background: color-mix(in srgb, var(--promo) 4%, var(--h-bg)); }
-:root[data-mode="dark"] .home-promo { --promo: #6aa982; }
-.home-hero .home-promo p { max-width: none; margin: 0; }
-.home-hero .home-promo-eyebrow { display: flex; align-items: flex-start; gap: 8px; color: var(--promo); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-.home-promo-icon { flex: none; width: 16px; height: 16px; background: currentColor; -webkit-mask: url(/img/sparkles.png) center / contain no-repeat; mask: url(/img/sparkles.png) center / contain no-repeat; }
-.home-promo-title { margin: 10px 0 0; color: var(--h-text); font: 600 22px/28px var(--font-sans); letter-spacing: -0.02em; }
-.home-hero .home-promo .home-promo-text { margin-top: 14px; font-size: 15px; line-height: 22px; color: var(--h-muted); }
-.home-promo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-top: 14px; }
 .home-promo-badge { display: block; padding: 0 6px; border-radius: 10px; background: #fff; line-height: 0; }
 .home-promo-badge img { display: block; width: auto; height: 48px; }
-.home-promo-link { display: inline-flex; align-items: center; gap: 6px; color: var(--h-text); font: 500 14px/1 var(--font-sans); }
-.home-promo-link svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
-.home-promo-link:hover svg { transform: translateX(3px); }
 .home-search {
   display: flex;
   align-items: center;
