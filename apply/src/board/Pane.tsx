@@ -234,10 +234,11 @@ function Overview() {
       {tiles.length ? (
         <div className="grid grid-cols-2 gap-2">
           {tiles.map((t) => (
-            <div key={t.label} className="flex min-w-0 flex-col gap-1 rounded-lg bg-muted px-4 py-3.5 font-ui">
+            <div key={t.label} className="@container flex min-w-0 flex-col gap-1 rounded-lg bg-muted px-4 py-3.5 font-ui">
               <span className="text-sm text-foreground">{t.label}</span>
-              {/* Proportional figures in the display face: the mono face set "280 , 340" with gaps. */}
-              <span className="flex flex-wrap items-baseline gap-x-1.5 font-display text-[28px] leading-[1.1] text-foreground tabular-nums">{t.value}{t.delta}</span>
+              {/* Proportional figures in the display face: the mono face set "280 , 340" with gaps.
+                  One line always: the figure shrinks with a narrow tile instead of pushing the change below it. */}
+              <span className="flex items-baseline gap-x-1.5 whitespace-nowrap font-display text-[length:min(28px,15cqi)] leading-[1.1] text-foreground tabular-nums">{t.value}{t.delta}</span>
               <span className="min-h-4 truncate text-xs text-muted-foreground">{t.sub}</span>
             </div>
           ))}
