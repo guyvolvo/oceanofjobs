@@ -65,8 +65,8 @@ await p.goto(`${BASE}/apply`, { waitUntil: "load" });
 await p.locator("main h1", { hasText: "Overview" }).waitFor({ timeout: 15000 });
 await p.evaluate(() => { window.__nav = 1; });
 await at("/apply", "Overview", "Overview");
-// Every page's code loads once the first page is up.
-const preloaded = await p.waitForFunction(() => performance.getEntriesByType("resource").some((r) => /account\/Billing/.test(r.name)), null, { timeout: 5000 })
+// Every page's code loads once the first page is up (account/Billing.tsx on the dev server, Billing-<hash>.js built).
+const preloaded = await p.waitForFunction(() => performance.getEntriesByType("resource").some((r) => /Billing[-.]/.test(r.name)), null, { timeout: 5000 })
   .then(() => true, () => false);
 check(preloaded, "the other pages' code loads in the background");
 
