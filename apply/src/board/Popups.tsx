@@ -2,7 +2,7 @@
 // pills' popovers, the phone's filters sheet and the country prompt.
 // Loaded once the rows are up (Filters.tsx loadPopups), so none of it is
 // in the first load; until then the pills are plain buttons that look the same.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -138,9 +138,12 @@ export function FilterSheet() {
 
 // "Are you in X?", once ever (store.maybeAskCountry). Escape and the scrim mean Skip.
 export function GeoPrompt() {
-  const g = U.geoPrompt;
+  // The last question stays while the dialog fades out, so it never reads "Are you in ?".
+  const last = useRef(U.geoPrompt);
+  if (U.geoPrompt) last.current = U.geoPrompt;
+  const g = last.current;
   return (
-    <Dialog open={!!g} onOpenChange={(o) => { if (!o) answerCountry(false); }}>
+    <Dialog open={!!U.geoPrompt} onOpenChange={(o) => { if (!o) answerCountry(false); }}>
       <DialogContent showCloseButton={false} className="w-[400px] max-w-[calc(100vw-32px)] gap-3 font-ui">
         <DialogTitle className="m-0 font-display text-[22px] font-normal">Are you in {g?.name}?</DialogTitle>
         <DialogDescription className="m-0 text-sm text-muted-foreground">We guessed your country from your connection. Skip to see jobs from every country.</DialogDescription>
