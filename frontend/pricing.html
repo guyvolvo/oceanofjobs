@@ -44,6 +44,9 @@
   <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
   <link rel="stylesheet" href="/style.css" />
+  <!-- LAUNCH50 ends 2026-12-31 (api/dodo.py then charges full price), so the deal lines go from 2027-01-01. -->
+  <style>[data-deal-over] [data-deal] { display: none; }</style>
+  <script>if (Date.now() >= Date.UTC(2027, 0, 1)) document.documentElement.setAttribute("data-deal-over", "");</script>
   <!-- The board's theme choice is honoured here too. Dark is this page's
        own deeper ground, #0e0f11, rather than the board's #17181c. -->
   <script>
@@ -121,8 +124,8 @@
               <tr>
                 <th scope="row"><span class="sr-only">Get the plan</span></th>
                 <td><a class="home-soft home-soft-sm" href="/account">Get started</a><p class="ptable-terms">No credit card required.</p></td>
-                <td class="ptable-hot"><a class="home-pill" href="/checkout?plan=basic">Start 7-day free trial</a><p class="ptable-terms">Then <strong class="price3-deal">50% off your first month.</strong></p></td>
-                <td><a class="home-soft home-soft-sm" href="/checkout?plan=pro">Get Pro</a><p class="ptable-terms"><strong class="price3-deal">50% off your first month.</strong></p></td>
+                <td class="ptable-hot"><a class="home-pill" href="/checkout?plan=basic">Start 7-day free trial</a><p class="ptable-terms" data-deal>Then <strong class="price3-deal">50% off your first month.</strong></p></td>
+                <td><a class="home-soft home-soft-sm" href="/checkout?plan=pro">Get Pro</a><p class="ptable-terms" data-deal><strong class="price3-deal">50% off your first month.</strong></p></td>
               </tr>
             </tfoot>
           </table>
@@ -158,7 +161,7 @@
                 <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>Skip reviewing AI answers</span></li>
               </ul>
               <a class="home-pill" href="/checkout?plan=basic">Start 7-day free trial</a>
-              <p class="ptable-terms">Then <strong class="price3-deal">50% off your first month.</strong></p>
+              <p class="ptable-terms" data-deal>Then <strong class="price3-deal">50% off your first month.</strong></p>
             </section>
             <section class="pcard" aria-labelledby="m-plan-pro">
               <h3 class="ptable-plan" id="m-plan-pro">Pro</h3>
@@ -170,7 +173,7 @@
                 <li><svg class="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10"/><path d="M5.8 10.4l2.8 2.8 5.6-6"/></svg><span>3,000 AI-generated answers a month</span></li>
               </ul>
               <a class="home-soft home-soft-sm" href="/checkout?plan=pro">Get Pro</a>
-              <p class="ptable-terms"><strong class="price3-deal">50% off your first month.</strong></p>
+              <p class="ptable-terms" data-deal><strong class="price3-deal">50% off your first month.</strong></p>
             </section>
           </div>
         </div>
