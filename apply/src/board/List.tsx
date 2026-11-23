@@ -3,7 +3,7 @@
 // empty and error states. Rows are virtual (TanStack Virtual): only the
 // ones near the screen are in the page, so tests and code find a row by
 // its data-id, never by its position.
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useVirtualizer, useWindowVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import { CaretDown, Check, Lightning, Star } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -27,14 +27,20 @@ export function Logo({ domain, resolved, size, className = "" }: { domain?: stri
     onError={(e) => { const img = e.currentTarget; img.onerror = null; img.src = mono; }} />;
 }
 
-// The search words inside a row's text, from the start of a word.
-function Highlight({ text }: { text?: string | null }) {
-  const safe = text ?? "";
+// The search words, one pattern for every row (VirtualRows builds it once a render).
+function highlightPattern() {
   const terms = [...searchTermsInPlay(), ...U.searchRelated].filter((t) => t.length > 1);
-  if (!terms.length || !safe) return <>{safe}</>;
-  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).sort((a, b) => b.length - a.length).join("|");
-  let re: RegExp;
-  try { re = new RegExp(`(?<![\\p{L}\\p{N}])(${pattern})`, "giu"); } catch { return <>{safe}</>; }
+  return terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).sort((a, b) => b.length - a.length).join("|");
+}
+function highlightRe(pattern: string) {
+  if (!pattern) return null;
+  try { return new RegExp(`(?<![\\p{L}\\p{N}])(${pattern})`, "giu"); } catch { return null; }
+}
+
+// The search words inside a row's text, from the start of a word.
+function Highlight({ text, re }: { text?: string | null; re: RegExp | null }) {
+  const safe = text ?? "";
+  if (!re || !safe) return <>{safe}</>;
   const out: ReactNode[] = [];
   let last = 0;
   for (const m of safe.matchAll(re)) {
@@ -70,11 +76,11 @@ export function SkillChips({ j, limit = 3 }: { j: Job; limit?: number }) {
   );
 }
 
-function MatchLine({ j }: { j: Job }) {
+function MatchLine({ j, matched }: { j: Job; matched: Set<string> }) {
   const listed = (j.skills || "").split(",").filter(Boolean);
-  const hits = listed.filter((sk) => U.matchedSkills.has(sk));
-  const asks = listed.filter((sk) => !U.matchedSkills.has(sk));
-  const summary = `${hits.length} of ${U.matchedSkills.size}` + (asks.length ? ` · missing ${asks.join(", ")}` : "");
+  const hits = listed.filter((sk) => matched.has(sk));
+  const asks = listed.filter((sk) => !matched.has(sk));
+  const summary = `${hits.length} of ${matched.size}` + (asks.length ? ` · missing ${asks.join(", ")}` : "");
   return (
     <>
       <SalaryChip j={j} />
@@ -97,27 +103,30 @@ export function QueueButton({ job, label }: { job: Job; label?: boolean }) {
   );
 }
 
-function PlaceLine({ j }: { j: Job }) {
+// The picked countries' codes and names, lowercased, one a line: a string, so Row's memo compares it.
+const wantedPlaces = () => F.country.flatMap((c) => [c.toLowerCase(), (U.facets.locations.find((x) => x.value === c)?.label || "").toLowerCase()]).filter(Boolean).join("\n");
+
+function PlaceLine({ j, re, wanted }: { j: Job; re: RegExp | null; wanted: string }) {
   const parts: ReactNode[] = [];
   if (j.location) {
     const places = String(j.location).split(/\s*;\s*|\s*\|\s*/).filter(Boolean);
-    if (places.length < 2) parts.push(<Highlight key="l" text={j.location} />);
+    if (places.length < 2) parts.push(<Highlight key="l" text={j.location} re={re} />);
     else {
-      const wanted = F.country.flatMap((c) => [c.toLowerCase(), (U.facets.locations.find((x) => x.value === c)?.label || "").toLowerCase()]).filter(Boolean);
-      const pick = places.find((p) => wanted.some((w) => p.toLowerCase().includes(w))) || places[0];
-      parts.push(<span key="l" title={places.join("; ")}><Highlight text={pick} /> + {places.length - 1} more</span>);
+      const want = wanted ? wanted.split("\n") : [];
+      const pick = places.find((p) => want.some((w) => p.toLowerCase().includes(w))) || places[0];
+      parts.push(<span key="l" title={places.join("; ")}><Highlight text={pick} re={re} /> + {places.length - 1} more</span>);
     }
   }
   if (j.workplace_type) parts.push(<span key="w">{WORKPLACE_LABELS[j.workplace_type] || j.workplace_type}</span>);
   return <>{parts.flatMap((p, i) => (i ? [" · ", p] : [p]))}</>;
 }
 
-function Row({ j, index, size }: { j: Job; index: number; size: number }) {
+// Memoized: a store emit re-renders the list, and only rows whose props changed redraw.
+type RowProps = { j: Job; index: number; size: number; selected: boolean; starred: boolean; applied: string | null; re: RegExp | null;
+  matched: Set<string>; wanted: string; signed: boolean };
+const Row = memo(function Row({ j, index, size, selected, starred, applied, re, matched, wanted, signed }: RowProps) {
   const age = ageDays(j.posted_at);
   const fresh = age !== null && age <= 3 && !isReposted(j);
-  const starred = U.starred.has(j.id);
-  const applied = appliedLabel(j.id);
-  const selected = j.id === U.selected;
   const domain = companyDomain(j);
   const ageText = applied || fmtPostedAgo(j, age);
   const ageCls = applied || fresh ? "font-semibold text-foreground" : "text-muted-foreground";
@@ -132,34 +141,34 @@ function Row({ j, index, size }: { j: Job; index: number; size: number }) {
         <div className="min-w-0 font-ui leading-[1.35]">
           <a href={`/job/${encodeURIComponent(j.id)}`} title={j.title} className="text-[15px] font-semibold text-foreground no-underline hover:underline focus-visible:rounded-xs max-[800px]:line-clamp-2"
             onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return; e.preventDefault(); open(); }}>
-            <Highlight text={j.title} />
+            <Highlight text={j.title} re={re} />
           </a>
           {j.seniority ? <span className={cn(tag, "ml-1.5 border-[1.5px] border-foreground align-[2px] font-semibold text-foreground")}>{SENIORITY_LABELS[j.seniority] || j.seniority}</span> : null}
           {j.confidence === "best_effort" ? <span title="Read from the company's careers page, so it may be out of date." className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Unverified</span> : null}
           {j.closed_at ? <span title="This job is no longer open" className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Closed</span> : null}
         </div>
         <div className="min-w-0 truncate font-ui text-sm text-foreground max-[800px]:text-[13px]">
-          {domain ? <a href={`/company/${encodeURIComponent(domain)}`} title={`Every open job at ${companyLabel(j)}`} className="text-foreground no-underline hover:underline"><Highlight text={companyLabel(j)} /></a>
-            : <Highlight text={companyLabel(j)} />}
-          {j.department ? <> · <Highlight text={j.department} /></> : null}
-          <span className="text-muted-foreground max-[800px]:hidden">{j.location || j.workplace_type ? " · " : ""}<PlaceLine j={j} /></span>
+          {domain ? <a href={`/company/${encodeURIComponent(domain)}`} title={`Every open job at ${companyLabel(j)}`} className="text-foreground no-underline hover:underline"><Highlight text={companyLabel(j)} re={re} /></a>
+            : <Highlight text={companyLabel(j)} re={re} />}
+          {j.department ? <> · <Highlight text={j.department} re={re} /></> : null}
+          <span className="text-muted-foreground max-[800px]:hidden">{j.location || j.workplace_type ? " · " : ""}<PlaceLine j={j} re={re} wanted={wanted} /></span>
         </div>
-        <div className={cn("flex min-w-0 items-center gap-2", !(U.matchedSkills.size || j.salary_text || j.skills) && "min-[801px]:hidden")}>
+        <div className={cn("flex min-w-0 items-center gap-2", !(matched.size || j.salary_text || j.skills) && "min-[801px]:hidden")}>
           <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-            {U.matchedSkills.size ? <MatchLine j={j} /> : <><SalaryChip j={j} /><SkillChips j={j} /></>}
+            {matched.size ? <MatchLine j={j} matched={matched} /> : <><SalaryChip j={j} /><SkillChips j={j} /></>}
           </span>
           <span className={cn("shrink-0 pl-2 font-ui text-xs min-[801px]:hidden", ageCls)}>{ageText}</span>
         </div>
       </div>
       <div className={cn("hidden self-start pt-0.5 text-right font-ui text-[13px] whitespace-nowrap min-[801px]:block", ageCls)}>{ageText}</div>
-      <button type="button" aria-pressed={starred} aria-label={`${starred ? "Saved" : "Save"} ${j.title}`} title={signedIn() ? "Save to your account" : "Save (this browser only)"}
+      <button type="button" aria-pressed={starred} aria-label={`${starred ? "Saved" : "Save"} ${j.title}`} title={signed ? "Save to your account" : "Save (this browser only)"}
         onClick={(e) => { e.stopPropagation(); toggleStar(j.id); }}
         className={cn("grid size-7 cursor-pointer place-items-center self-start rounded-sm min-[801px]:hidden", starred ? "text-[var(--ooj-green-text)]" : "text-muted-foreground hover:text-foreground")}>
         <Star size={18} weight={starred ? "fill" : "regular"} />
       </button>
     </div>
   );
-}
+});
 
 // One bone row, the real row's shape, so nothing moves when rows land.
 function Bones({ n }: { n: number }) {
@@ -286,19 +295,24 @@ function CountLine() {
 // where they start inside the thing that scrolls.
 function useRowsStart(rows: React.RefObject<HTMLDivElement | null>, scroller: () => Element | null) {
   const [start, setStart] = useState(0);
+  const measure = () => {
+    const el = rows.current;
+    if (!el) return;
+    const s = scroller();
+    const top = s ? el.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop : el.getBoundingClientRect().top + window.scrollY;
+    setStart(Math.round(top));
+  };
+  const latest = useRef(measure);
+  latest.current = measure;
+  // Every render: a banner or the phone's chips above move the rows without resizing what the observer watches.
+  useLayoutEffect(measure);
   useLayoutEffect(() => {
     const el = rows.current;
     if (!el) return;
-    const measure = () => {
-      const s = scroller();
-      const top = s ? el.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop : el.getBoundingClientRect().top + window.scrollY;
-      setStart(Math.round(top));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
+    const ro = new ResizeObserver(() => latest.current());
     ro.observe(el.parentElement || el);
     return () => ro.disconnect();
-  });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return start;
 }
 
@@ -307,6 +321,11 @@ function VirtualRows({ jobs, v, start }: { jobs: Job[]; v: Virtualizer<any, Elem
   // The next page is asked for while the last rows are still a screen away.
   const last = items[items.length - 1];
   useEffect(() => { if (last && last.index >= jobs.length - 8 && moreAvailable()) loadMoreJobs(); }, [last?.index, jobs.length]);
+  const pattern = highlightPattern();
+  const re = useMemo(() => highlightRe(pattern), [pattern]);
+  const wanted = wantedPlaces();
+  const signed = signedIn();
+  const size = U.jobs?.total ?? jobs.length;
   useEffect(() => {
     dom.reveal = (id) => {
       const i = jobs.findIndex((j) => j.id === id);
@@ -316,12 +335,16 @@ function VirtualRows({ jobs, v, start }: { jobs: Job[]; v: Virtualizer<any, Elem
   }, [jobs, v]);
   return (
     <div id="jobs-body" role="list" aria-label="Jobs" className="relative" style={{ height: v.getTotalSize() }}>
-      {items.map((it) => (
-        <div key={jobs[it.index].id} data-index={it.index} ref={v.measureElement} className="absolute top-0 left-0 w-full"
-          style={{ transform: `translateY(${it.start - start}px)` }}>
-          <Row j={jobs[it.index]} index={it.index} size={U.jobs?.total ?? jobs.length} />
-        </div>
-      ))}
+      {items.map((it) => {
+        const j = jobs[it.index];
+        return (
+          <div key={j.id} data-index={it.index} ref={v.measureElement} className="absolute top-0 left-0 w-full"
+            style={{ transform: `translateY(${it.start - start}px)` }}>
+            <Row j={j} index={it.index} size={size} selected={j.id === U.selected} starred={U.starred.has(j.id)} applied={appliedLabel(j.id)}
+              re={re} matched={U.matchedSkills} wanted={wanted} signed={signed} />
+          </div>
+        );
+      })}
     </div>
   );
 }

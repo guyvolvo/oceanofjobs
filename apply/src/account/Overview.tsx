@@ -279,7 +279,7 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, ale
                 {gaps.length ? (
                   <div className={ROW}>
                     {gaps.map((g) => (
-                      <LoadingButton key={g.sk} variant="outline" loading={adding === g.sk} aria-label={`Add ${g.sk} to your skills`}
+                      <LoadingButton key={g.sk} variant="outline" loading={adding === g.sk} disabled={!!adding} aria-label={`Add ${g.sk} to your skills`}
                         title={`${g.sk} is named by ${g.share}% of your matches; ${fmt(g.n)} open jobs ask for it`} onClick={() => add(g.sk)}>Add {g.sk}</LoadingButton>
                     ))}
                   </div>

@@ -27,17 +27,19 @@ const ROUTES: Record<string, Page> = {
 };
 
 const HASHES: Record<string, string> = {
-  "#queue": "/apply/queue", "#needs": "/apply/needs", "#history": "/apply/history", "#agent": "/apply/agent", "#settings": "/apply/settings",
+  "#queue": "/apply/queue", "#needs": "/apply/needs", "#history": "/apply/history", "#agent": "/apply/agent",
   "#aa-settings": "/apply/settings", "#autoapply": "/apply",
   "#alerts": "/account/alerts", "#saved": "/account/saved", "#skills": "/account/skills", "#preferences": "/account/preferences",
-  "#billing": "/account/billing", "#overview": "/account",
+  "#billing": "/account/billing",
 };
 
 function route(): string {
   let p = location.pathname.replace(/\/$/, "") || "/apply";
-  const h = location.hash;
-  if (h && HASHES[h]) {
-    p = HASHES[h];
+  // #settings and #overview mean the page they were sent with: emails link /account#settings.
+  const base = p.startsWith("/account") ? "/account" : "/apply";
+  const to = { ...HASHES, "#settings": `${base}/settings`, "#overview": base }[location.hash];
+  if (to) {
+    p = to;
     history.replaceState(null, "", p + location.search);
   }
   return ROUTES[p] ? p : p.startsWith("/account") ? "/account" : "/apply";

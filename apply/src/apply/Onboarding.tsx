@@ -12,9 +12,8 @@ import { LoadingButton } from "../fields";
 import { apply, send, type Plan, type Profile } from "../api";
 import { connectExtension, type Ext } from "../ext";
 import { ResumeField, type Resume } from "./Agent";
-import { SETUP } from "../shared";
+import { SETUP, STORE_URL as STORE } from "../shared";
 import { LINK } from "./Page";
-const STORE = "https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi";
 
 // Google's Material Symbols (outlined, 400), as the site's own icons are.
 const ICON = {

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { AreaField, CheckField, LoadingButton, SelectField, TextField } from "../fields";
 import { ApiError, apply, send, type Profile } from "../api";
 import { ConfirmDanger, NeedsResume, SETUP } from "../shared";
-import { useUnsaved } from "../unsaved";
+import { useLeaveGuard, useUnsaved } from "../unsaved";
 import { useExtension, type Ext } from "../ext";
 import { BOX } from "./Agent";
 import { useApplyData } from "./data";
@@ -314,9 +314,12 @@ export default function SettingsPage() {
   const ext = useExtension();
   // The setup guide changes the settings, so the form reads them again after it.
   const [settingsKey, setSettingsKey] = useState(0);
+  // Finishing the setup reloads the form, so unsaved edits are saved or discarded first.
+  const { guard, dialog } = useLeaveGuard();
   return (
     <ApplyPage current="apply-settings" title="Auto apply settings" note="What the extension fills in, where it finds jobs, and how far it goes on its own." data={data}
-      actions={<Button variant="outline" onClick={() => dispatchEvent(new Event(SETUP))}>Run setup again</Button>}>
+      actions={<Button variant="outline" onClick={() => guard(() => dispatchEvent(new Event(SETUP)))}>Run setup again</Button>}>
+      {dialog}
       <Onboarding plan={data.summary?.plan} ext={ext} onDone={() => setSettingsKey((k) => k + 1)} />
       <Settings key={settingsKey} ext={ext} />
     </ApplyPage>

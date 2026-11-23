@@ -37,7 +37,7 @@ const Cta = ({ plan }: { plan: Plan }) => (
   </Button>
 );
 const Terms = ({ plan }: { plan: Plan }) => (
-  <p className="mt-2.5 mb-0 text-[13px] text-dim">{plan.terms.before}{plan.terms.deal ? <strong className="font-semibold text-foreground">{plan.terms.deal}</strong> : null}</p>
+  <p className="mt-2.5 mb-0 text-[13px] text-dim" data-deal={plan.terms.deal ? "" : undefined}>{plan.terms.before}{plan.terms.deal ? <strong className="font-semibold text-foreground">{plan.terms.deal}</strong> : null}</p>
 );
 
 function PlanTable() {

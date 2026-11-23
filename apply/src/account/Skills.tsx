@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils";
 import { LoadingButton } from "../fields";
 import { UploadSimple, X } from "@phosphor-icons/react";
 import { Workspace } from "../site/Workspace";
-import { boardLink, EMPTY_PROFILE, plural, PROFILE_FAILED, readCv, skillsIn, useProfile } from "./data";
+import { plural } from "../shared";
+import { useUnsaved } from "../unsaved";
+import { boardLink, EMPTY_PROFILE, PROFILE_FAILED, readCv, skillsIn, useProfile } from "./data";
 import { Card, ERROR, gate, NOTE, ROW, SettingsNav, STACK, TITLE } from "./ui";
 
 const CHIP = "inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-secondary px-2.5 py-1 font-[inherit] text-[length:inherit] text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -72,8 +74,10 @@ function SkillsPage() {
     try {
       await put({ skills });
       toast.success("Saved.");
+      return true;
     } catch (err) {
       toast.error((err as Error).message || "Could not save.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -98,6 +102,8 @@ function SkillsPage() {
     }
   };
   const pick = () => fileRef.current?.click();
+  // Skills found in a CV live only here until Save: leaving asks first.
+  useUnsaved("skills", !!profile && skills.join(",") !== profile.skills.join(","), save);
 
   return (
     <Workspace current="settings" title="Resume skills" note={skills.length ? `${plural(skills.length, "skill")} matched against every listing` : "No skills yet"}

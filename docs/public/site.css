@@ -1,6 +1,6 @@
 /* The site header's styles (app/layout.tsx): frontend/style.css in its own
    cascade layer, above Tailwind's reset and Fumadocs' base and below their
-   components and utilities, as on /apply (apply/public/site.css). */
+   components and utilities. */
 @layer properties, theme, base, site, components, utilities;
 @import url("/style.css") layer(site);
 

@@ -15,9 +15,8 @@ and design until a page is switched over.
   migrated. Never wrap a shadcn component in it.
 - TanStack Virtual only for the board's job list, when the board is
   migrated.
-- No Kumo (`@cloudflare/kumo`) in new or migrated code, and no MUI. Kumo is
-  still installed for the pages that have not moved yet; it goes when the
-  last of them does.
+- No Kumo (`@cloudflare/kumo`) and no MUI. Kumo is still installed only
+  for the CRM (`apply/src/crm`, built apart by `vite.crm.config.ts`).
 - Icons: `@phosphor-icons/react`, the site's set. shadcn components that
   ship with lucide get the Phosphor equivalent.
 
@@ -66,8 +65,10 @@ and design until a page is switched over.
   header's menus are disclosures for that reason, not Radix dropdowns.
 - Keep each page's canonical, title, description, Open Graph and Twitter
   tags and JSON-LD the same as the live page's. `npm run check:html`
-  (`apply/scripts/nojs_check.py`) compares them, with the word count, the
-  links and the `<main>` text, against oceanofjobs.com.
+  (`apply/scripts/nojs_check.py`) compares every one of them by value, and
+  fails on fewer internal links, under 95% of live's word count, or less of
+  the live `<main>` text, against oceanofjobs.com. Run the preview with
+  `--all` to check pages that are not shipped yet.
 - `/job/<id>`, `/company/...`, `/jobs/*` and `/companies/<letter>` stay
   server-rendered by the API. Link to them; never build them here.
 
@@ -93,7 +94,11 @@ and design until a page is switched over.
 - `node scripts/sizes.mjs`: first-load JS plus CSS (gzip) no worse than
   the live page's by more than an agreed margin.
 - Preview with `npm run preview:site`, which serves the build the way
-  CloudFront would route it (`apply/scripts/preview.mjs`).
+  CloudFront would route it (`apply/scripts/preview.mjs`). It serves the
+  pages the deploy ships, listed in `apply/migrated.json`; `--all` or
+  `--migrate <page>` adds the others.
+- A page switches by adding its name to `apply/migrated.json`. The deploy
+  reads the same file.
 
 ## Copy
 

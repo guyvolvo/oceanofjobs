@@ -14,19 +14,27 @@ import { useAuth, type Who } from "../site/auth";
 import type { WorkKey } from "../site/nav";
 import { SignInPage } from "../site/SignIn";
 import { Workspace } from "../site/Workspace";
-import type { Option } from "./data";
+import { LINK, PANEL } from "../apply/Page";
+import { REJECTED, type Option } from "./data";
 
 export type User = NonNullable<Who>;
 
 // Every account page needs a token: signed out, it is the sign-in alone.
 // The page unmounts on a sign-out, so nothing of the last reader stays on
 // screen, and the overview's cached numbers go with it (auth.js clears the
-// stars and the job cache itself).
+// stars and the job cache itself). A token the API refused (data.ts
+// authGuard) gets the sign-in too, until a new one arrives.
 export function gate(current: WorkKey, Page: ComponentType<{ who: User }>) {
   return function Gated() {
     const who = useAuth();
+    const [refused, setRefused] = useState("");
     useEffect(() => { if (!who) try { localStorage.removeItem("iljobs_dash_v1"); } catch { /* storage blocked */ } }, [who]);
-    return who ? <Page who={who} /> : <Workspace current={current}><SignInPage /></Workspace>;
+    useEffect(() => {
+      const on = () => setRefused(who?.idToken || "");
+      addEventListener(REJECTED, on);
+      return () => removeEventListener(REJECTED, on);
+    }, [who]);
+    return who && who.idToken !== refused ? <Page who={who} /> : <Workspace current={current}><SignInPage /></Workspace>;
   };
 }
 
@@ -37,7 +45,6 @@ export const NOTE = "m-0 text-muted-foreground";
 export const ERROR = "m-0 text-destructive";
 export const TITLE = "m-0 text-base font-semibold leading-tight text-foreground";
 export const BODY = "flex flex-col gap-3 px-6 py-5 max-sm:p-4";
-export const LINK = "text-foreground underline decoration-1 underline-offset-[3px] hover:text-link-hover hover:decoration-2";
 export const JOB = "font-medium text-foreground no-underline hover:underline [overflow-wrap:anywhere]";
 export const SUB = "block text-sm text-muted-foreground [overflow-wrap:anywhere]";
 export const LABEL = "font-medium text-foreground";
@@ -45,10 +52,10 @@ export const TEXT = "flex min-w-0 flex-col gap-0.5";
 export const TABLE = "[&_table]:w-full [&_td]:align-top [&_th]:align-top [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]";
 export const ACTIONS_CELL = "w-[1%] whitespace-nowrap! text-right";
 export const FORM = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-x-4 gap-y-3";
-// A layer card: the page's paper, one hairline round it. No shadow (DESIGN.md).
-export const PANEL = "rounded-lg border bg-card text-card-foreground";
 // Switches here are green when on, as every other "on" mark.
 export const SWITCH = "data-[state=checked]:bg-ring data-[state=unchecked]:bg-dim";
+
+export { LINK, PANEL };
 
 export const Loading = () => <div className="flex items-center gap-2 text-muted-foreground"><Spinner /> Loading</div>;
 

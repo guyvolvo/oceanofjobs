@@ -7,6 +7,9 @@
 // Selectors are ones both boards share (#f-search, #result-count,
 // #jobs-body [data-id], #job-detail.open, #m-alert, ...). The new list is
 // virtual, so rows are found by data-id, never by position on the page.
+// The new board must also pass the asserts below (the address after
+// load, at most one /api/facets per search); a failure exits 1. --live ""
+// runs the new board alone.
 // usage: node scripts/board_parity.mjs [--local http://127.0.0.1:4179] [--live https://oceanofjobs.com] [--only regex] [--json file]
 import { writeFileSync } from "node:fs";
 import { chromium } from "../../tests/e2e/node_modules/playwright/index.mjs";
@@ -21,6 +24,9 @@ const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch:
 const EMPTY_FACETS = JSON.stringify({ categories: [], seniority: [], workplace: [], companies: [], locations: [], salary: null, salary_disclosed: 0 });
 
 const browser = await chromium.launch({ args: ["--disable-extensions"] });
+
+const fails = [];
+function expect(site, ok, what) { if (site === "new" && !ok) fails.push(what); }
 
 async function open(base, ctxOpts = DESKTOP, { init, facets } = {}) {
   const ctx = await browser.newContext(ctxOpts);
@@ -63,6 +69,7 @@ async function scenario(name, fn) {
   if (only && !only.test(name)) return;
   results[name] = {};
   for (const [site, base] of Object.entries(SITES)) {
+    if (!base) continue;
     try { results[name][site] = await fn(base, site); } catch (e) { results[name][site] = { error: e.message.split("\n")[0] }; }
   }
   console.log(`\n## ${name}`);
@@ -70,7 +77,7 @@ async function scenario(name, fn) {
 }
 
 // 1. The audit's 29 live URL shapes: count, address after load, pane, canonical.
-const firstJob = (await (await fetch(`${SITES.live}/api/jobs?confidence=all&sort=age&dir=asc&limit=1&offset=0&count=skip`, { headers: { "user-agent": "ooj-board-parity (GET only)" } })).json()).jobs[0];
+const firstJob = (await (await fetch(`${SITES.live || "https://oceanofjobs.com"}/api/jobs?confidence=all&sort=age&dir=asc&limit=1&offset=0&count=skip`, { headers: { "user-agent": "ooj-board-parity (GET only)" } })).json()).jobs[0];
 const CASES = [
   "", "?roles=all", "?roles=tech", "?starred=1", `?job=${firstJob.id}`, `?company=${firstJob.company_domain}`, "?department=Data%20%26%20AI",
   "?search=python", "?search=python%20django&search_mode=any", "?search=%22data%20engineer%22&search_exact=1", "?q=python", "?q=python&keywords=django;flask",
@@ -78,20 +85,36 @@ const CASES = [
   "?salary_min=20000", "?salary_known=1", "?max_age_days=7", "?sort=company&dir=asc", "?offset=50", "?confidence=all", "?view=matches",
   "?skills=python", "?max_age_days=banana", "?sort=%3Cscript%3E", "?utm_source=x&search=react",
 ];
-await scenario("url shapes", async (base) => {
+// The new board's address once each case has loaded: defaults dropped, bad values gone, q and keywords as the search.
+const enc = (o) => `?${new URLSearchParams(o)}`;
+const EXPECTED_URL = {
+  "?roles=all": "", "?roles=tech": "?roles=tech", "?starred=1": "?starred=1", [`?job=${firstJob.id}`]: enc({ job: firstJob.id }),
+  [`?company=${firstJob.company_domain}`]: enc({ company: firstJob.company_domain }), "?department=Data%20%26%20AI": "?department=Data+%26+AI",
+  "?search=python": "?search=python", "?search=python%20django&search_mode=any": "?search=python+django&search_mode=any",
+  "?search=%22data%20engineer%22&search_exact=1": "?search=%22data+engineer%22&search_exact=1", "?q=python": "?search=python",
+  "?q=python&keywords=django;flask": "?search=python+django+flask", "?country=IL": "?country=IL", "?israel_only=1": "?country=IL",
+  "?city=IL:Tel%20Aviv": "?city=IL%3ATel+Aviv", "?workplace=remote": "?workplace=remote", "?roles=all&workplace=remote": "?workplace=remote",
+  "?seniority=senior": "?seniority=senior", "?salary_min=20000": "?salary_min=20000", "?salary_known=1": "?salary_known=1",
+  "?max_age_days=7": "?max_age_days=7", "?sort=company&dir=asc": "", "?offset=50": "", "?confidence=all": "", "?view=matches": "",
+  "?skills=python": "?skills=python&sort=match", "?max_age_days=banana": "", "?sort=%3Cscript%3E": "", "?utm_source=x&search=react": "?search=react",
+};
+await scenario("url shapes", async (base, site) => {
   const out = [];
   for (const c of CASES) {
     const { ctx, page, errors } = await open(base);
     await page.goto(`${base}/board${c}`, { waitUntil: "domcontentloaded" });
     await settle(page, 2500);
-    out.push({ case: c, ...(await state(page)), errors: errors.length });
+    const s = await state(page);
+    out.push({ case: c, ...s, errors: errors.length });
+    const want = `/board${EXPECTED_URL[c] ?? c}`;
+    expect(site, s.url === want, `url shapes: ${c || "(none)"} ended at ${s.url}, expected ${want}`);
     await ctx.close();
   }
   return out;
 });
 
 // 2. /api/facets per search: the page load, then typing "python".
-await scenario("facets per search", async (base) => {
+await scenario("facets per search", async (base, site) => {
   const { ctx, page, seen } = await open(base);
   await page.goto(`${base}/board?roles=all`, { waitUntil: "domcontentloaded" });
   await settle(page, 4000);
@@ -102,6 +125,7 @@ await scenario("facets per search", async (base) => {
   await page.waitForResponse((r) => /\/api\/jobs\?.*search=python/.test(r.url()), { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(6000);
   const r = { onLoad, perSearch: seen.facets.length, urls: seen.facets.map((u) => new URL(u).search) };
+  expect(site, onLoad <= 1 && r.perSearch <= 1, `facets per search: ${onLoad} on load and ${r.perSearch} for one search, at most 1 each`);
   await ctx.close();
   return r;
 });
@@ -231,3 +255,8 @@ await scenario("phone layout", async (base) => {
 
 await browser.close();
 if (opt("--json")) writeFileSync(opt("--json"), JSON.stringify(results, null, 1));
+for (const [name, r] of Object.entries(results)) if (r.new?.error) fails.push(`${name}: ${r.new.error}`);
+if (fails.length) {
+  console.error(`\n${fails.length} failed on the new board:\n${fails.map((f) => `  ${f}`).join("\n")}`);
+  process.exitCode = 1;
+}

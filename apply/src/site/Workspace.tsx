@@ -10,21 +10,24 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuBadge,
   SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Brand, SignInHost } from "../shell/Header";
+import { Brand, SignInHost, toggleTheme } from "../shell/Header";
+import { useDark } from "../shell/state";
 import { requestSignIn, syncConsentOnce, useAuth, type Who } from "./auth";
 import { GROUPS, type WorkKey } from "./nav";
-import { Avatar } from "./SiteHeader";
-import { useTheme } from "./theme";
 
 const OPEN_KEY = "ooj_side_open";
 const readOpen = () => { try { return localStorage.getItem(OPEN_KEY) !== "0"; } catch { return true; } };
 
+function Avatar({ who, className = "" }: { who: NonNullable<Who>; className?: string }) {
+  return <span className={className} dangerouslySetInnerHTML={{ __html: avatarHtml(who.email, who.idToken) }} />;
+}
+
 function Account({ who }: { who: Who }) {
-  const [dark, toggle] = useTheme();
+  const dark = useDark();
   const { state, isMobile } = useSidebar();
   const folded = state === "collapsed" && !isMobile;
   useEffect(() => { if (who) syncConsentOnce(); }, [who]);
-  const theme = <Button variant="ghost" size="icon-sm" aria-label={dark ? "Light mode" : "Dark mode"} onClick={toggle}>{dark ? <Sun /> : <Moon />}</Button>;
+  const theme = <Button variant="ghost" size="icon-sm" aria-label={dark ? "Light mode" : "Dark mode"} onClick={toggleTheme}>{dark ? <Sun /> : <Moon />}</Button>;
   if (!who) {
     return (
       <div className={cn("flex items-center gap-2", folded && "flex-col")}>
@@ -50,7 +53,7 @@ function Account({ who }: { who: Who }) {
         <DropdownMenuLabel className="max-w-[260px] truncate font-normal text-muted-foreground" title={who.email}>{who.email}</DropdownMenuLabel>
         <DropdownMenuItem asChild><a href="/account"><UserCircle />Account</a></DropdownMenuItem>
         <DropdownMenuItem asChild><a href="/contact"><ChatCircleDots />Contact</a></DropdownMenuItem>
-        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggle(); }}>{dark ? <Sun /> : <Moon />}{dark ? "Light mode" : "Dark mode"}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme(); }}>{dark ? <Sun /> : <Moon />}{dark ? "Light mode" : "Dark mode"}</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={() => signOut()}><SignOut />Log out</DropdownMenuItem>
       </DropdownMenuContent>

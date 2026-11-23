@@ -1,7 +1,7 @@
-// Forms with edits not yet saved, each with its own save. A tab switch
-// asks first (useLeaveGuard), and closing or leaving the page gets the
-// browser's own warning. Its own module so the account page can guard its
-// two top tabs without loading the auto apply dashboard.
+// Forms with edits not yet saved, each with its own save. Every link
+// between workspace pages is a full page load, so leaving or closing the
+// page gets the browser's own warning. An in-page action that would drop
+// the edits asks first through useLeaveGuard, which can run the saves.
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useReturnFocus } from "./fields";

@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiError, api, send } from "../api";
 import { LoadingButton, SelectField, TextField, useReturnFocus } from "../fields";
-import { useTheme } from "../site/theme";
+import { toggleTheme } from "../shell/Header";
+import { useDark } from "../shell/state";
 import { Workspace } from "../site/Workspace";
 import { EMPTY_PROFILE, type Access, type Alert, type SavedRow, type Token } from "./data";
 import { ACTIONS_CELL, Card, ConfirmButton, ERROR, gate, JOB, LABEL, Loading, NOTE, ROW, SettingsNav, STACK, SUB, SWITCH, TABLE, TEXT,
@@ -323,7 +324,7 @@ async function deleteEverything() {
 const WHAT = "This deletes your alerts, saved jobs, skill profile, auto apply details and history, resume and settings saved to cloud storage, and access tokens.";
 
 function Settings({ email }: { email: string }) {
-  const [dark, toggleTheme] = useTheme();
+  const dark = useDark();
   const [asking, setAsking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const back = useReturnFocus(asking);

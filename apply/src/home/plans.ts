@@ -15,7 +15,8 @@ export type Plan = {
   // The phone card's list.
   features: string[];
   cta: { label: string; href: string; primary: boolean };
-  // The line under the button; `deal` is set in bold.
+  // The line under the button; `deal` is set in bold, and a line with one
+  // is hidden from 2027-01-01, when LAUNCH50 ends (data-deal in app.css).
   terms: { before?: string; deal?: string };
 };
 

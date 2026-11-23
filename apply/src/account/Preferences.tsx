@@ -12,8 +12,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoadingButton, SelectField, TextField } from "../fields";
 import { CaretRight } from "@phosphor-icons/react";
 import { useUnsaved } from "../unsaved";
+import { plural } from "../shared";
 import { Workspace } from "../site/Workspace";
-import { cadenceSummary, DAY_NAMES, PROFILE_FAILED, placeSummary, plural, useProfile, WORKPLACE_LABELS, zoneLabel, zones, type Cadence, type Profile } from "./data";
+import { cadenceSummary, DAY_NAMES, PROFILE_FAILED, placeSummary, useProfile, WORKPLACE_LABELS, zoneLabel, zones, type Cadence, type Profile } from "./data";
 import { PlacePicker, useLocationOptions, WORKPLACE } from "./Alerts";
 import { Card, ERROR, FORM, gate, LABEL, Loading, NOTE, Picker, ROW, SettingsNav, STACK, TEXT } from "./ui";
 

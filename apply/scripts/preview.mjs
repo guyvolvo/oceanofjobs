@@ -4,8 +4,9 @@
 // does (infra/cloudfront.tf, legacy_domain_redirect + not_found_status).
 //
 //   bucket /              frontend/ (this branch)
-//   bucket /<page>.html   apply/dist/<page>.html for the pages in MIGRATED
-//                         (the switch copies them over frontend/<page>.html)
+//   bucket /<page>.html   apply/dist/<page>.html for the pages in
+//                         apply/migrated.json (the deploy copies them over
+//                         frontend/<page>.html, home over index.html)
 //   bucket /apply/        apply/dist/
 //   the box, the Worker, and files the box publishes into the bucket
 //   (/api, /job, /company, /logo, /descriptions, /mcp, /docs, sitemaps,
@@ -14,9 +15,11 @@
 //
 // Writes never leave this machine: any other method gets a 405 here.
 //
-// usage: node scripts/preview.mjs [--port 4173] [--prod-account] [--migrate board] [--gzip] [--selftest]
-//   --prod-account  route /account/* as production does today (404) instead
-//                   of the proposed /account/* rule
+// usage: node scripts/preview.mjs [--port 4173] [--all] [--migrate board] [--prod-account] [--gzip] [--selftest]
+//   --all           also serve every built page not shipped yet (READY)
+//   --migrate a,b   also serve these built pages
+//   --prod-account  route /account/<section> to 404, as production did before
+//                   the /account/* rule in infra/cloudfront.tf was applied
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { gzipSync } from "node:zlib";
@@ -27,9 +30,11 @@ const LIVE = "https://oceanofjobs.com";
 const APPLY = resolve(import.meta.dirname, "..");
 const DIST = join(APPLY, "dist");
 const FRONTEND = resolve(APPLY, "../frontend");
-// The pages whose HTML the switch takes from apply/dist. Rollback is
-// removing a name here and from the deploy's copy step (docs/UI_OVERHAUL_ROLLBACK.md).
-export const MIGRATED = ["privacy", "terms", "refunds", "contact", "404", "home", "pricing", "checkout", "companies", "stats"];
+// The pages whose HTML the deploy takes from apply/dist: the same file
+// deploy-frontend.yml reads (docs/UI_OVERHAUL_ROLLBACK.md).
+export const MIGRATED = JSON.parse(readFileSync(join(APPLY, "migrated.json"), "utf8"));
+// Built and reviewed but not shipped yet; --all serves them too.
+const READY = ["privacy", "terms", "refunds", "contact", "404", "home", "pricing", "checkout", "companies", "stats"];
 
 // The CloudFront function's PAGES, BOARD_KEYS and role-page list, verbatim.
 const PAGES = { "/stats": true, "/privacy": true, "/board": true, "/contact": true, "/companies": true, "/pricing": true, "/terms": true, "/refunds": true, "/checkout": true };
@@ -53,9 +58,7 @@ export function route(uri, search = "", { accountPrefix = true } = {}) {
   if (uri === "/docs") return { uri: "/docs/index.html" };
   if (uri.startsWith("/docs/") && !last.includes(".")) return { uri: uri + ".html" };
   if (uri === "/apply" || (uri.startsWith("/apply/") && !last.includes("."))) return { uri: "/apply/index.html" };
-  if (uri === "/account") return { uri: "/apply/account.html" };
-  // Proposed (audit blocker 3): the workspace routes /account/<section> on the client.
-  if (accountPrefix && uri.startsWith("/account/") && !last.includes(".")) return { uri: "/apply/account.html" };
+  if (uri === "/account" || (accountPrefix && uri.startsWith("/account/") && !last.includes("."))) return { uri: "/apply/account.html" };
   if (uri.startsWith("/companies/") && !last.includes(".")) return { uri: uri + ".html" };
   if (ROLE_PAGES.test(uri)) return { uri: uri + ".html" };
   if (uri !== "/" && !last.includes(".")) return { uri: PAGES[uri] ? uri + ".html" : "/404.html" };
@@ -67,7 +70,7 @@ const PUBLISHED = /^\/(docs\/|companies\/|jobs(\/|\.html)|explore|media\/|mail\/
 
 function bucketFile(key) {
   if (key.startsWith("/apply/")) return join(DIST, key.slice(7));
-  // The bucket's index.html is the build's home.html (the switch copies it to frontend/index.html).
+  // Once home is migrated, the bucket's index.html is the build's home.html (the deploy copies it to frontend/index.html).
   const page = key === "/index.html" ? "home" : key.slice(1, -5);
   if (key.endsWith(".html") && MIGRATED.includes(page)) return join(DIST, `${page}.html`);
   return join(FRONTEND, key);
@@ -154,8 +157,7 @@ function selftest() {
   t("/api/jobs", "?q=1", { pass: true });
   t("/style.css", "", { uri: "/style.css" });
   t("/hero", "", { redirect: "/" });
-  assert.equal(bucketFile("/privacy.html"), join(DIST, "privacy.html"));
-  assert.equal(bucketFile("/pricing.html"), join(DIST, "pricing.html"));
+  assert.equal(bucketFile("/contact.html"), join(DIST, "contact.html"));
   assert.equal(bucketFile("/board.html"), join(FRONTEND, "board.html"));
   assert.ok(PUBLISHED.test("/companies/a.html") && PUBLISHED.test("/stats.json") && !PUBLISHED.test("/stats.js"));
   console.log("preview routing: all checks pass");
@@ -166,7 +168,7 @@ if (import.meta.main ?? process.argv[1] === import.meta.filename) {
   if (args.includes("--selftest")) { selftest(); process.exit(0); }
   if (!existsSync(join(DIST, "privacy.html"))) { console.error("No build in apply/dist: run npm run build first."); process.exit(1); }
   const port = Number(args[args.indexOf("--port") + 1]) || 4173;
-  // --migrate board: also serve these built pages, to review one before it is switched.
+  if (args.includes("--all")) MIGRATED.push(...READY.filter((p) => !MIGRATED.includes(p)));
   if (args.includes("--migrate")) MIGRATED.push(...args[args.indexOf("--migrate") + 1].split(","));
   serve({ accountPrefix: !args.includes("--prod-account"), gzip: args.includes("--gzip") }).listen(port, "127.0.0.1", () =>
     console.log(`Local preview of oceanofjobs.com on http://127.0.0.1:${port} (new pages: ${MIGRATED.join(", ")}; GET-only proxy to ${LIVE})`));

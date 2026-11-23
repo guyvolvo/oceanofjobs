@@ -6,6 +6,7 @@ import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "@/components/ui/sonner";
 import { requestSignIn } from "./auth";
+import "../shell/stale";
 import "@/styles/app.css";
 import "./site.css";
 

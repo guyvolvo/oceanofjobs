@@ -6,6 +6,7 @@ import { StrictMode, type ComponentType, type ReactNode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { requestSignIn } from "../site/auth";
 import { notifyAuth } from "./state";
+import "./stale";
 import "@/styles/app.css";
 
 declare global {

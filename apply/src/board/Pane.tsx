@@ -9,16 +9,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Logo, QueueButton, SkillChips, tag } from "./List";
 import { F, U, activeFilterSummary, closeJobAndSync, companyLogoFor, companyNameFor, currentScopeMode, globalScope, jobPermalink, setCompany, stepJob, toggleStar } from "./store";
-import { PANE_SHEET, WORKPLACE_LABELS, ageDays, companyLabel, copyText, fmtAgeAgo, fmtInt, isPhone, isReposted, safeHref, salarySource, useMedia, type Job, type Scope } from "./util";
+import { copyText } from "../home/copy";
+import { PANE_SHEET, WORKPLACE_LABELS, ageDays, announce, companyLabel, fmtAgeAgo, fmtInt, isPhone, isReposted, safeHref, salarySource, useMedia, type Job, type Scope } from "./util";
 
 const apply = "inline-flex h-[38px] items-center justify-center gap-1.5 rounded-md border-2 border-[var(--ooj-green-text)] bg-[var(--ooj-green-text)] px-4 font-ui text-[13px] font-bold text-[var(--ooj-paper)] no-underline hover:opacity-90";
+const copyLink = (url: string) => copyText(url, () => announce("Link copied"));
 const iconBtn = "grid size-8 cursor-pointer place-items-center rounded-sm text-foreground hover:bg-muted disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent";
 
 function CopyButton({ text, square }: { text: string; square?: boolean }) {
   const [done, setDone] = useState(false);
   return (
     <Button variant={square ? "outline" : "ghost"} size={square ? "icon" : "default"} className="font-normal" aria-label="Copy a link to this job" title="Copy a link to this job"
-      onClick={() => { copyText(text); setDone(true); setTimeout(() => setDone(false), 1200); }}>
+      onClick={() => { copyLink(text); setDone(true); setTimeout(() => setDone(false), 1200); }}>
       {square ? <Copy /> : done ? "Copied" : "Copy link"}
     </Button>
   );
@@ -334,7 +336,7 @@ export function Pane() {
               </span>
               <span className="ml-auto flex items-center gap-1">
                 <button type="button" aria-label="Share" className={cn(iconBtn, "size-11 min-[801px]:hidden")}
-                  onClick={() => { const url = jobPermalink(d.id); if (navigator.share) navigator.share({ title: job?.title, url }).catch(() => {}); else copyText(url); }}><ShareNetwork size={20} /></button>
+                  onClick={() => { const url = jobPermalink(d.id); if (navigator.share) navigator.share({ title: job?.title, url }).catch(() => {}); else copyLink(url); }}><ShareNetwork size={20} /></button>
                 <button type="button" aria-label="Close job" className={cn(iconBtn, "border max-[800px]:hidden")} onClick={closeJobAndSync}><X size={16} /></button>
               </span>
             </>

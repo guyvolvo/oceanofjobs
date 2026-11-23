@@ -162,23 +162,6 @@ export function announce(text: string) {
   setTimeout(() => { el!.textContent = text; }, 50);
 }
 
-export async function copyText(url: string) {
-  if (!url) return;
-  try {
-    await navigator.clipboard.writeText(url);
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = url;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  }
-  announce("Link copied");
-}
-
 // app.js's breakpoints: up to 1100px the sidebar is a drawer and the pane
 // a sheet; up to 800px is the phone.
 export const PANE_SHEET = "(max-width: 1100px)";

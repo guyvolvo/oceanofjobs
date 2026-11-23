@@ -189,17 +189,20 @@ export async function toggleQueue(id: string) {
 const RETRY_WAITS = [600, 1500, 3500];
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function getJSON<T = any>(path: string, signal?: AbortSignal): Promise<T> {
+  // A retried /facets or /stats is more load on the box at its slowest; they wait for the next ask.
+  const retries = /^\/(facets|stats)(\?|$)/.test(path) ? 0 : RETRY_WAITS.length;
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {
       res = await fetch(`${API_BASE}${path}`, signal ? { signal } : undefined);
     } catch (err) {
-      if ((err as Error).name === "AbortError" || attempt >= RETRY_WAITS.length) throw err;
+      if ((err as Error).name === "AbortError" || attempt >= retries) throw err;
       await wait(RETRY_WAITS[attempt]);
       continue;
     }
     if (res.ok) return res.json();
-    if ((res.status >= 500 || res.status === 429) && attempt < RETRY_WAITS.length) {
+    // Never a 429: asking again inside Cloudflare's window only extends the block.
+    if (res.status >= 500 && attempt < retries) {
       await wait(RETRY_WAITS[attempt]);
       if (signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
       continue;
@@ -280,9 +283,19 @@ function clearFilters() {
   F.confidence = "all"; F.max_age_days = ""; F.salary_min = ""; F.salary_max = ""; F.salary_known = false; F.salary_disclosed = false;
   F.starred_only = false;
 }
+function defaultFilters() {
+  clearFilters();
+  F.skills = [];
+  F.roles = DEFAULT_ROLES;
+  F.sort = "age"; F.dir = "asc"; F.offset = 0;
+}
 
-export function applyStateFromUrl(search: string) {
+// reset: the URL is the whole state (Back, Forward, a saved search), so
+// nothing it leaves out may survive from the page before. Boot keeps the
+// stored location under it.
+export function applyStateFromUrl(search: string, { reset = false } = {}) {
   const p = new URLSearchParams(search);
+  if (reset) defaultFilters();
   // A CV match says "show me my matches", not inside whatever was typed.
   if (p.has("skills")) clearFilters();
   if (p.has("search")) F.search = p.get("search") || "";
@@ -295,7 +308,6 @@ export function applyStateFromUrl(search: string) {
   for (const key of ["department", "seniority", "company", "country", "city", "workplace", "skills"] as ListKey[]) {
     if (p.has(key)) F[key] = (p.get(key) || "").split(",").filter(Boolean);
   }
-  if (p.has("skills") && !p.has("sort") && F.skills.length) F.sort = "match";
   if (p.has("confidence")) F.confidence = p.get("confidence") || "all";
   if (p.get("israel_only") === "1" && !F.country.includes("IL")) F.country = [...F.country, "IL"];
   if (p.has("max_age_days")) { const v = cleanFilterValue("max_age_days", p.get("max_age_days")); if (v !== undefined) F.max_age_days = v; }
@@ -309,7 +321,8 @@ export function applyStateFromUrl(search: string) {
   if (p.has("sort")) {
     const v = cleanFilterValue("sort", p.get("sort"));
     if (v !== undefined) { F.sort = v; F.sortExplicit = true; }
-  } else followSearchSort();
+  } else if (p.has("skills") && F.skills.length) { F.sort = "match"; F.dir = "asc"; }
+  else followSearchSort();
   if (p.has("dir")) { const v = cleanFilterValue("dir", p.get("dir")); if (v !== undefined) F.dir = v; }
   if (p.has("offset")) { const n = parseInt(p.get("offset") || "", 10); F.offset = Number.isFinite(n) && n > 0 ? n : 0; }
 }
@@ -377,8 +390,8 @@ function setCachedJobs(params: string, data: JobsResponse | null) {
 
 // The precomputed first pages, keyed by the exact query they answer.
 const BOOTSTRAP_FILES: Record<string, string> = {
-  "confidence=all&roles=tech&sort=age&dir=asc&limit=50&offset=0": "/bootstrap.json",
-  "country=IL&confidence=all&roles=tech&sort=age&dir=asc&limit=50&offset=0": "/bootstrap-il.json",
+  "confidence=all&sort=age&dir=asc&limit=50&offset=0": "/bootstrap.json",
+  "country=IL&confidence=all&sort=age&dir=asc&limit=50&offset=0": "/bootstrap-il.json",
 };
 const bootstrapFetches = new Map<string, Promise<any>>();
 function getBootstrap(params: string): Promise<{ params: string; jobs: JobsResponse } | null> {
@@ -408,7 +421,8 @@ export function countSearch() {
 // The deep-linked job, kept open through the boot's own load only.
 let keepOpen: string | null = null;
 
-export async function loadJobs({ background = false, append: wantAppend = false } = {}) {
+// True when the page landed, so a failed or superseded append is not read as the list's end.
+export async function loadJobs({ background = false, append: wantAppend = false } = {}): Promise<boolean> {
   let append = wantAppend;
   if (!append && !background) {
     keepOpen = null;
@@ -416,7 +430,8 @@ export async function loadJobs({ background = false, append: wantAppend = false 
     U.listEnded = false;
     U.listReloading = true;
   }
-  if (background && (U.jobs?.jobs || []).length > PAGE_SIZE) return;
+  // The refresh would abort a page being appended.
+  if (background && (U.loadingMore || (U.jobs?.jobs || []).length > PAGE_SIZE)) return false;
   const seq = ++jobsRequestSeq;
   if (!append) listSeq = seq;
   if (!background) { heldJobs = null; U.held = 0; }
@@ -431,7 +446,7 @@ export async function loadJobs({ background = false, append: wantAppend = false 
   if (F.starred_only) {
     renderStarredOnly(seq, inFlight);
     scheduleFacets();
-    return;
+    return true;
   }
   U.empty = null;
 
@@ -439,7 +454,7 @@ export async function loadJobs({ background = false, append: wantAppend = false 
   let cached = getCachedJobs(params);
   if (!cached) {
     const boot = await getBootstrap(params);
-    if (seq !== jobsRequestSeq) return;
+    if (seq !== jobsRequestSeq) return false;
     if (boot && boot.params === params && boot.jobs && boot.jobs.jobs.length) cached = boot.jobs;
   }
 
@@ -461,14 +476,15 @@ export async function loadJobs({ background = false, append: wantAppend = false 
   const deferCount = !background && !append;
   try {
     let data: JobsResponse = await getJSON(`/jobs?${params}${deferCount || append ? "&count=skip" : ""}`, inFlight.signal);
-    if (seq !== jobsRequestSeq) return;
+    if (seq !== jobsRequestSeq) return false;
     if (data.total === null && cached && typeof cached.total === "number") data.total = cached.total;
     const changed = append || !cached || JSON.stringify(data) !== JSON.stringify(cached);
-    setCachedJobs(params, data);
-    if (changed && background && holdForReader(data)) return;
+    if (!append) setCachedJobs(params, data);
+    if (changed && background && holdForReader(data)) return true;
     if (append && params.replace(/&?offset=\d+/, "") !== listParams) append = false;
     if (append) {
-      const seen = new Set((U.jobs?.jobs || []).map((j) => (j.url || "").trim().toLowerCase() || `${j.company_domain}\u0000${j.external_id || j.id}`));
+      if (data.jobs.length < PAGE_SIZE) U.listEnded = true;
+      const seen =new Set((U.jobs?.jobs || []).map((j) => (j.url || "").trim().toLowerCase() || `${j.company_domain}\u0000${j.external_id || j.id}`));
       data = { ...data, jobs: dedupeJobs(data.jobs, seen) };
       U.jobs = { ...data, jobs: [...(U.jobs?.jobs || []), ...data.jobs], total: data.total ?? U.jobs?.total ?? null };
     } else {
@@ -478,19 +494,22 @@ export async function loadJobs({ background = false, append: wantAppend = false 
         heldJobs = null; U.held = 0;
         U.jobs = data;
         U.skeleton = false;
-        if (!paintJobs(data)) return;
+        if (!paintJobs(data)) return false;
       }
     }
     U.skeleton = false;
     if (deferCount) loadJobCount(params, seq);
     if (!append) scheduleFacets();
+    return true;
   } catch (err) {
-    if (seq !== jobsRequestSeq || (err as Error).name === "AbortError") return;
-    if (!cached) {
+    if (seq !== jobsRequestSeq || (err as Error).name === "AbortError") return false;
+    // A failed page 2 keeps the rows on screen; Load more asks again.
+    if (!cached && !append) {
       U.skeleton = false;
       U.jobs = null;
       U.error = { text: "Couldn't load jobs.", retry: true };
     }
+    return false;
   } finally {
     if (!append && !background) U.listReloading = false;
     emit();
@@ -646,10 +665,11 @@ export async function loadMoreJobs() {
   const previous = F.offset;
   F.offset = shown;
   try {
-    await loadJobs({ append: true });
-    if ((U.jobs?.jobs || []).length === shown) U.listEnded = true;
-  } catch {
-    F.offset = previous;
+    const ok = await loadJobs({ append: true });
+    // A page that answered but added nothing ends the list too (a short one already did).
+    if (ok && (U.jobs?.jobs || []).length === shown) U.listEnded = true;
+    // Unless a new search took over the offset meanwhile.
+    if (!ok && F.offset === shown) F.offset = previous;
   } finally {
     U.loadingMore = false;
     emit();
@@ -901,10 +921,7 @@ export function removeChip(kind: string, value: string) {
 export const anythingOn = () => activeChips().length > 0 || !!F.search || F.roles !== DEFAULT_ROLES || F.starred_only;
 
 export function resetAll() {
-  clearFilters();
-  F.skills = [];
-  F.roles = DEFAULT_ROLES;
-  F.sort = "age"; F.dir = "asc"; F.offset = 0;
+  defaultFilters();
   U.railQueries.clear();
   U.railFound.clear();
   loadJobs();
@@ -1013,6 +1030,8 @@ export function placeSearch(q: string) {
     try {
       const data = await getJSON<{ locations?: Country[] }>(`/places/search?${qs({ ...currentFilterParams(), country: "", city: "", name })}`);
       if (seq !== placeSeq) return;
+      // A new Map, so Location.tsx's memo on it sees the answer.
+      U.placeFound = new Map(U.placeFound);
       for (const f of data.locations || []) {
         const old = U.placeFound.get(f.value);
         const have = new Set((old?.cities || []).map((t) => t.value));
@@ -1110,7 +1129,7 @@ export function openSavedSearch(id: string) {
   const s = list.find((x) => x.id === id);
   if (!s) return;
   history.pushState(null, "", `/board?${s.query}`);
-  applyStateFromUrl(`?${s.query}`);
+  applyStateFromUrl(`?${s.query}`, { reset: true });
   if (U.selected) closeJob();
   loadJobs();
   s.seen_at = new Date().toISOString();
@@ -1355,7 +1374,7 @@ export function boot() {
   if (deepLink) { keepOpen = deepLink; openJob(deepLink).then(syncUrl); }
 
   window.addEventListener("popstate", () => {
-    applyStateFromUrl(location.search);
+    applyStateFromUrl(location.search, { reset: true });
     const jobId = new URLSearchParams(location.search).get("job");
     if (jobId) { if (jobId !== U.selected) openJob(jobId); }
     else if (U.selected) closeJob();

@@ -137,6 +137,8 @@ export function OutcomeSelect({ row, onChange }: { row: HistoryRow; onChange: ()
   return <SelectField aria-label={`Outcome for ${row.title || "this application"}`} value={value} onValueChange={pick} items={OUTCOME} className="min-w-36" />;
 }
 
+export const STORE_URL = "https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi";
+
 export const ATS: Record<string, string> = { greenhouse: "Greenhouse", ashby: "Ashby", workable: "Workable", workday: "Workday",
   smartrecruiters: "SmartRecruiters", bamboohr: "BambooHR", jazzhr: "JazzHR", recruitee: "Recruitee", lever: "Lever", teamtailor: "Teamtailor",
   pinpoint: "Pinpoint", breezy: "Breezy", personio: "Personio", comeet: "Comeet" };
@@ -195,7 +197,7 @@ export function ExtensionAction({ ext, queue, onOpened }: { ext: Ext; queue: Que
   }, [ext.checking, ext.installed, ext.connected]);
   if (ext.checking && !ext.installed) return <span className="flex items-center gap-2 text-muted-foreground"><Spinner /> Looking for the extension</span>;
   if (!ext.installed) {
-    return <p className="m-0 text-muted-foreground">Install the Ocean of Jobs extension to apply from here: <a className="text-foreground underline underline-offset-[3px] hover:text-link-hover" href="https://chromewebstore.google.com/detail/kihjppefdadlodaoecffiemijlielhdi" target="_blank" rel="noopener">Chrome Web Store</a>.</p>;
+    return <p className="m-0 text-muted-foreground">Install the Ocean of Jobs extension to apply from here: <a className="text-foreground underline underline-offset-[3px] hover:text-link-hover" href={STORE_URL} target="_blank" rel="noopener">Chrome Web Store</a>.</p>;
   }
   if (!ext.connected) {
     return (

@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { X } from "@phosphor-icons/react";
 import { Workspace } from "../site/Workspace";
-import { plural, safeHref, useSaved, type Job } from "./data";
+import { plural } from "../shared";
+import { safeHref, useSaved, type Job } from "./data";
 import { ACTIONS_CELL, Card, ConfirmButton, gate, JOB, Loading, NOTE, SUB, TABLE } from "./ui";
 
 function Saved({ jobs, error, removing, remove }: {

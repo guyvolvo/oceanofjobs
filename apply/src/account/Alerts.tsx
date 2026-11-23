@@ -2,7 +2,7 @@
 // form, which the overview borrows while its card has it open. The same
 // rules as app.js's renderAlertsList and wireAlertCreateForm, which drove
 // the old page.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -11,8 +11,9 @@ import { LoadingButton, TextField } from "../fields";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { api, send, ApiError } from "../api";
 import { useUnsaved } from "../unsaved";
+import { plural } from "../shared";
 import { Workspace } from "../site/Workspace";
-import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, plural, SENIORITY_LABELS, useAlerts, useProfile, WORKPLACE_LABELS,
+import { companyOptions, departmentOptions, describeAlertFilter, locationOptions, SENIORITY_LABELS, useAlerts, useProfile, WORKPLACE_LABELS,
   type Alert, type Option, type Profile } from "./data";
 import { ACTIONS_CELL, Card, ConfirmButton, ERROR, FORM, gate, JOB, Loading, NOTE, Picker, ROW, STACK, SUB, SWITCH, TABLE, TITLE } from "./ui";
 
@@ -25,6 +26,10 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
   const [draft, setDraft] = useState<AlertDraft>(BLANK);
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  // The filter the form was filled from. Its keys the form has no field
+  // for (skills, salary_min, max_age_days, ats...) go back with the save.
+  const [base, setBase] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
 
   // A new alert starts from the reader's workplace and places in
@@ -35,7 +40,7 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
   }, [profile]);
   useEffect(() => { if (!editing) setDraft(withPrefs); }, [withPrefs, editing]);
 
-  const reset = () => { setEditing(null); setDraft(withPrefs({ ...BLANK })); };
+  const reset = () => { setEditing(null); setBase({}); setDraft(withPrefs({ ...BLANK })); };
   const say = (text: string, error = false) => {
     setFeedback({ text, error });
     setTimeout(() => setFeedback((f) => (f?.text === text ? null : f)), 3000);
@@ -46,18 +51,24 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
   const fill = (filter: Record<string, string>) => {
     const country = list(filter.country);
     if (filter.israel_only === "1" && !country.includes("IL")) country.unshift("IL");
+    // q and israel_only are folded into search and country above.
+    const { q: _q, israel_only: _il, ...rest } = filter;
+    setBase(rest);
     setDraft({ search: filter.search || filter.q || "", department: list(filter.department), seniority: list(filter.seniority),
       company: list(filter.company), country, city: list(filter.city), workplace: list(filter.workplace) });
   };
   const edit = (a: Alert) => { setEditing(a.alert_id); fill(a.filter || {}); };
 
   const submit = async (): Promise<boolean> => {
+    // A second Enter while the first save runs would create a twin alert.
+    if (inFlight.current) return false;
     const raw: Record<string, string> = {
       search: draft.search.trim(), department: draft.department.join(","), seniority: draft.seniority.join(","),
       company: draft.company.join(","), country: draft.country.join(","), city: draft.city.join(","), workplace: draft.workplace.join(","),
     };
-    const filter = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== ""));
+    const filter = Object.fromEntries(Object.entries({ ...base, ...raw }).filter(([, v]) => v !== "" && v != null));
     const id = editing;
+    inFlight.current = true;
     setBusy(true);
     try {
       if (id) await api(`/me/alerts/${id}`, send("PATCH", { filter }));
@@ -73,6 +84,7 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
       say(m || (id ? "Couldn't save the alert. Try again." : "Couldn't create the alert. Try again."), true);
       return false;
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };

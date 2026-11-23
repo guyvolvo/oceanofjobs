@@ -27,8 +27,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "api"))
 import site_header  # noqa: E402
 
 FRONT = Path(__file__).resolve().parent.parent / "frontend"
-MARKED = [FRONT / n for n in ("stats.html", "404.html", "board.html", "companies.html")] \
-    + [FRONT.parent / "apply" / n for n in ("index.html", "account.html", "contact.html")]
+# The React pages (apply/*.html) draw their own header, so only the static pages are marked.
+MARKED = [FRONT / n for n in ("stats.html", "404.html", "board.html", "companies.html")]
 DOCS_HEADER = FRONT.parent / "docs" / "components" / "site-header.ts"
 PAGES = Path(__file__).resolve().parent / "pages"
 LEGAL = {

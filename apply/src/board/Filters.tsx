@@ -32,7 +32,8 @@ const fieldInput = "h-full min-w-0 flex-1 border-0 bg-transparent font-ui text-[
 // What: debounced, Enter applies now, Escape clears, "/" focuses.
 function SearchField() {
   const [value, setValue] = useState(F.search);
-  useEffect(() => setValue(F.search), [F.search]);
+  // Only a change from elsewhere (a skill chip, Back): the applied search is trimmed, the box mid-typing is not.
+  useEffect(() => setValue((v) => (v.trim() === F.search ? v : F.search)), [F.search]);
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -163,8 +164,7 @@ export function Pills() {
   );
 }
 
-// date and sort: the browser's own selects, as on the live board
-
+// date and sort: PillSelect, which brings in Radix only after the first render
 
 const SORTS: [string, string][] = [["match:asc", "Best match"], ["relevance:asc", "Relevance"], ["age:asc", "Newest"], ["age:desc", "Oldest"]];
 const sortValue = () => (F.sort === "age" ? `age:${F.dir}` : F.sort === "match" ? "match:asc" : "relevance:asc");

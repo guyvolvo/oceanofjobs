@@ -76,7 +76,6 @@ export function cadenceSummary(p: Profile): string {
   return "Instant, as matches appear";
 }
 
-export const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 export const fmt = (n: number | null | undefined) => Number(n || 0).toLocaleString();
 
 // Country names the facets gave, so a saved alert reads Israel rather than IL.
@@ -234,10 +233,13 @@ export function provider(idToken: string): string {
   return first?.providerName === "Google" ? "Google" : "";
 }
 
-// The pages' loads. Every one needs a token; a 401 means the token is no
-// good any more, so the reader is signed out and the page shows the sign-in.
+// The pages' loads. Every one needs a token. A 401 shows the sign-in in
+// place of the page (ui.tsx gate) but keeps the tokens: during an outage
+// the API answered 401 to valid ones, and api.ts already signs out when
+// Cognito refuses the refresh token.
+export const REJECTED = "ooj-account-401";
 function authGuard(err: unknown) {
-  if (err instanceof ApiError && err.status === 401) signOut();
+  if (err instanceof ApiError && err.status === 401) dispatchEvent(new Event(REJECTED));
 }
 export const PROFILE_FAILED = "Couldn't load your profile. Reload the page to try again.";
 const STUCK = "This is taking longer than it should. Reload the page to try again.";

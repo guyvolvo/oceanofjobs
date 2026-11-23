@@ -6,11 +6,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 // The whole site is this one Vite + React build: every page is an entry
 // here. Served from the site's bucket under apply/, so every asset URL
-// starts with /apply/. The deploy copies each page's HTML to where the
-// static page was (frontend/<page>.html), so every address and its
-// CloudFront rule stay as they are; index.html and account.html are the
-// workspace (src/workspace), which routes /apply/* and /account/* on the
-// client.
+// starts with /apply/. The deploy copies only the pages in migrated.json
+// to where the static page was (frontend/<page>.html), so each keeps its
+// address and CloudFront rule; the rest are built but not shipped yet.
+// index.html and account.html are the workspace (src/workspace), always
+// shipped, which routes /apply/* and /account/* on the client.
 const PAGES: Record<string, string> = {
   "/": "home.html",
   "/board": "board.html",
@@ -45,6 +45,8 @@ const HEAD = `<meta charset="utf-8" />
       document.querySelector('meta[name="theme-color"]').content = light ? "#f2f0ef" : "#17181c";
       // Signed in: the prerendered pages keep "Log in" hidden until React swaps in the account menu.
       try { if ((JSON.parse(localStorage.getItem("iljobs_auth_tokens") || "null") || {}).id_token) document.documentElement.setAttribute("data-auth", ""); } catch (e) {}
+      // LAUNCH50 ends 2026-12-31 (api/dodo.py then charges full price): app.css hides the [data-deal] lines.
+      if (Date.now() >= Date.UTC(2027, 0, 1)) document.documentElement.setAttribute("data-deal-over", "");
     })();
   </script>
   <script src="/consent.js"></script>

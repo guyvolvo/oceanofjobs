@@ -23,7 +23,7 @@ function Cta({ p }: { p: Plan }) {
   return (
     <>
       <a className={p.cta.primary ? "home-pill" : "home-soft home-soft-sm"} href={p.cta.href}>{p.cta.label}</a>
-      <p className="ptable-terms">{p.terms.before}{p.terms.deal ? <strong className="price3-deal">{p.terms.deal}</strong> : null}</p>
+      <p className="ptable-terms" data-deal={p.terms.deal ? "" : undefined}>{p.terms.before}{p.terms.deal ? <strong className="price3-deal">{p.terms.deal}</strong> : null}</p>
     </>
   );
 }
