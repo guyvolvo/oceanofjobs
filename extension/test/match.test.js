@@ -478,3 +478,38 @@ test('an education entry\'s "Start date month" is not the notice period (Greenho
   assert.equal(m.classify({ label: 'Start date' }), 'notice');
   assert.equal(m.classify({ label: 'What is your earliest start date?' }), 'notice');
 });
+
+test('a question that only mentions a profile field is not answered with it', () => {
+  const p = { contact: { location: 'Tel Aviv, Israel' }, links: { linkedin: 'https://linkedin.com/in/a', github: '' },
+    work: { authorized_countries: ['IL'], needs_sponsorship: true, salary: '30000 ILS/month', notice_period: '30 days' }, answers: [], settings: {} };
+  const value = (label, job = { id: 'j', country: 'IL' }) => {
+    const plan = m.planFill([{ name: 'q', label, required: true, type: 'text' }], p, job);
+    return plan.fills.length ? plan.fills[0].value : undefined;
+  };
+  // The opposite of "needs sponsorship".
+  assert.equal(value('Are you legally authorized to work in the United States without visa sponsorship?'), undefined);
+  assert.equal(value('Can you work in the US without requiring sponsorship now or in the future?'), undefined);
+  assert.equal(value('Will you now or in the future require visa sponsorship?'), 'Yes');
+  assert.equal(value('How did you hear about us? (LinkedIn, Indeed, a friend)'), undefined);
+  assert.equal(value('LinkedIn profile'), 'https://linkedin.com/in/a');
+  assert.equal(value('What is your current salary?'), undefined);
+  assert.equal(value('Is the salary range for this role (25k-30k) acceptable to you?'), undefined);
+  assert.equal(value('What are your salary expectations?'), '30000 ILS/month');
+  assert.equal(value('What was the start date of your most recent position?'), undefined);
+  assert.equal(value('Earliest start date'), '30 days');
+  // Work authorization: the country asked, not the job's.
+  assert.equal(value('Are you eligible to work in the United Kingdom?'), undefined);
+  assert.equal(value('Are you authorized to work in Israel?'), 'Yes');
+  assert.equal(value('Are you authorized to work in the country where this role is based?'), 'Yes');
+  assert.equal(value('Are you legally authorized to work in the U.S.?', { id: 'j', country: 'US' }), 'No');
+});
+
+test('mustAnswer: a question about a qualification is not an agreement', () => {
+  const yn = (label) => m.mustAnswer({ type: 'radio', options: ['Yes', 'No'], required: true, label });
+  assert.equal(yn('Do you hold an active PMP certification?'), undefined);
+  assert.equal(yn('Are you a certified public accountant (CPA)?'), undefined);
+  assert.equal(yn('Please confirm that you have 5+ years of hands-on Python experience'), undefined);
+  assert.equal(yn('I certify that the information I provided is true and complete'), 'Yes');
+  assert.equal(yn('Please confirm that the information above is accurate'), 'Yes');
+  assert.equal(yn('I confirm I have read the job description'), 'Yes');
+});
