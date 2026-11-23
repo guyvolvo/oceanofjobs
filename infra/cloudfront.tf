@@ -248,8 +248,8 @@ resource "aws_cloudfront_function" "legacy_domain_redirect" {
         return request;
       }
       // The account page is the other page of that build (apply/account.html).
-      // Its section is the hash, so only the bare path needs a rule.
-      if (uri === "/account") {
+      // It routes /account/<section> on the client, so it gets the same rule.
+      if (uri === "/account" || (uri.indexOf("/account/") === 0 && last.indexOf(".") === -1)) {
         request.uri = "/apply/account.html";
         return request;
       }
