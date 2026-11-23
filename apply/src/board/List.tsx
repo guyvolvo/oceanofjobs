@@ -372,7 +372,7 @@ export function List() {
   useEffect(() => { dom.list = phone ? null : box.current; dom.rows = rows.current; return () => { dom.list = null; dom.rows = null; }; }, [phone]);
   const jobs = U.jobs?.jobs || [];
   return (
-    <section ref={box} aria-label="Job list" className="relative flex min-h-0 flex-col min-[801px]:overflow-y-auto min-[801px]:rounded-t-lg min-[801px]:border min-[801px]:border-b-0 min-[801px]:bg-card">
+    <section ref={box} aria-label="Job list" className="quiet-scroll relative flex min-h-0 flex-col min-[801px]:overflow-y-auto min-[801px]:rounded-t-lg min-[801px]:border min-[801px]:border-b-0 min-[801px]:bg-card">
       <div data-list-head className="sticky top-0 z-10 hidden items-center justify-between gap-3 border-b bg-card px-5 py-3 min-[801px]:flex">
         <div aria-live="polite" className="min-w-0"><CountLine /></div>
         <div className="flex items-center gap-2"><DateSelect /><SortSelect /></div>
