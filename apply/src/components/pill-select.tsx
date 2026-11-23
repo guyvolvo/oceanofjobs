@@ -3,8 +3,9 @@
 // light and dark. A native <select> leaves the list to the operating
 // system: white with grey text over the dark theme.
 // Radix is imported after the first render, so it stays out of the
-// pages' first load: until then the pill is a plain button that looks the
-// same, and a click on it opens the list once Radix is in.
+// pages' first load, and drawn on the first open: until then the pill is a
+// plain button that looks the same, and a click on it opens the list once
+// Radix is in.
 import { useEffect, useState, type ReactNode } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -33,15 +34,16 @@ export function PillSelect({ id, label, value, options, onChange, prefix, classN
   const [, setLoaded] = useState(!!ui);
   const [wantOpen, setWantOpen] = useState(false);
   useEffect(() => {
-    if (ui) return;
     asked ??= import("@/components/ui/select").then((m) => { ui = m; });
-    asked.then(() => setLoaded(true), () => {});
   }, []);
-  if (!ui) {
+  // Radix is drawn on the first open only: mounting the board's three Selects took a throttled phone about 100 ms before the first rows.
+  const open = () => { setWantOpen(true); asked?.then(() => setLoaded(true), () => {}); };
+  if (!ui || !wantOpen) {
     const text = options.find(([v]) => v === value)?.[1] ?? "";
     return (
       <button type="button" id={id} aria-label={label} title={label} aria-haspopup="listbox" aria-expanded={false} data-size="default"
-        className={cn(plain, trigger, className)} onClick={() => setWantOpen(true)}>
+        className={cn(plain, trigger, className)} onClick={open}
+        onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); } }}>
         {prefix ? <span className="text-muted-foreground">{prefix}</span> : null}
         <span className={valueClassName}>{text}</span>
         <CaretDown className="size-4" aria-hidden="true" />
