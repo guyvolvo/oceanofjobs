@@ -344,6 +344,9 @@ def lambda_handler(event, context):
     so a failure anywhere in here costs a repeat rather than a listing.
     """
     s3 = boto3.client("s3")
+    # shortcut: S3 sizes are compressed once fragments are gzipped, so this budget
+    # is ~10x loose; this applier's schedule is disabled (the box applies), read
+    # deltas.unpacked_size of each before turning it back on.
     sized = list_fragments_sized(BUCKET)
     keys = [k for k, _ in sized]
     if not keys:

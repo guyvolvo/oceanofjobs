@@ -33,7 +33,8 @@ class S3:
         self.keys = keys
 
     def list_objects_v2(self, **kw):
-        return {"Contents": [{"Key": k} for k in self.keys], "IsTruncated": False}
+        self.listed = kw
+        return {"Contents": [{"Key": k} for k in self.keys if k > kw.get("StartAfter", "")], "IsTruncated": False}
 
     def download_file(self, bucket, key, path):
         Path(path).write_text("[]", encoding="utf-8")
@@ -59,12 +60,32 @@ def run(primary):
         return deleted, sorted(p.name for p in ff.SPOOL.glob("*.json")), prefix
 
 
+# S3 keeps fragments 7 days now (a log): the mirror never deletes.
 deleted, spool, prefix = run(primary=True)
-check("applied and set-aside leftovers are deleted from S3, the spooled one is not",
-      sorted(deleted) == [prefix + "a.json", prefix + "c.json"], repr(deleted))
-check("the new fragment is still fetched", spool == ["b.json", "d.json"], repr(spool))
-deleted, _, _ = run(primary=False)
-check("a box that is not the only applier deletes nothing", deleted == [], repr(deleted))
+check("nothing is deleted from S3, applied or not", deleted == [], repr(deleted))
+check("the new fragment is fetched", spool == ["b.json", "d.json"], repr(spool))
+
+# The listing starts LIST_MARGIN before the newest key taken, so a week of
+# retained fragments isn't listed every 30 s, and a slow upload with an
+# earlier key is still found.
+with tempfile.TemporaryDirectory() as d:
+    os.environ.update(DATA_BUCKET="test-bucket", DATA_PATH=str(Path(d) / "jobs.db"), OTJ_PRIMARY="1")
+    import boto3
+    import fetch_fragments as ff
+    ff = importlib.reload(ff)
+    ff.SPOOL.mkdir(parents=True)
+    p = ff.PREFIX
+    ff.SEEN.write_text(json.dumps([p + "20261102T100000000000-000-aa.json"]), encoding="utf-8")
+    late = p + "20261102T095500000000-000-bb.json"   # written before the newest key, landed after it
+    old = p + "20261101T080000000000-000-cc.json"    # a day old, long applied
+    s3 = S3([old, late, p + "20261102T100000000000-000-aa.json", p + "20261102T100100000000-000-dd.json"])
+    boto3.client = lambda name: s3
+    ff.main()
+    got = sorted(x.name for x in ff.SPOOL.glob("*.json"))
+    check("the listing starts 15 minutes before the newest key taken",
+          s3.listed.get("StartAfter") == p + "20261102T094500000000", repr(s3.listed))
+    check("a late upload inside the margin and a new key are fetched, the taken and the old are not",
+          got == ["20261102T095500000000-000-bb.json", "20261102T100100000000-000-dd.json"], repr(got))
 
 print()
 if failures:

@@ -67,6 +67,8 @@ check("guardrail skips read as words", apply.reason_text("blocked company") == "
 worded = handler._history_view([{"job_id": "eeeeeeeeeeeeeeee", "status": "failed",
                                  "reason": "The form was sent, but the site didn't confirm it. Look for a confirmation email."}])[0]
 check("a reason the extension already worded is still unconfirmed", worded["status"] == "unconfirmed", repr(worded))
+stuck = handler._history_view([{"job_id": "ffffffffffffffff", "status": "claimed", "reason": ""}])[0]
+check("a claim an old extension never reported on shows as in progress, a status the API lists", stuck["status"] == "in_progress", repr(stuck))
 
 print()
 if failures:

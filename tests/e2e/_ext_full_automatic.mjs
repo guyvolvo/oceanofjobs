@@ -23,17 +23,25 @@ const API = "https://ooj-test.invalid/api";
 const bg = path.join(ext, "background.js");
 fs.writeFileSync(bg, fs.readFileSync(bg, "utf8").replace("const API = 'https://oceanofjobs.com/api';", `const API = '${API}';`));
 
-const form = (captcha) => `<!doctype html><html><head><title>Software Engineer - Apply</title>
+// follow: a required question that shows up only once the sponsorship question is answered.
+// weak: no resume and one application question, so nothing says it is an application.
+const form = (captcha, follow, weak) => `<!doctype html><html><head><title>Software Engineer - Apply</title>
 ${captcha ? '<script src="https://www.google.com/recaptcha/api.js?render=x"></script>' : ""}</head>
 <body><h1>Software Engineer</h1>
 <form id="f">
   <label for="first">First name</label><input id="first" name="first_name" required>
   <label for="last">Last name</label><input id="last" name="last_name" required>
   <label for="email">Email</label><input id="email" name="email" type="email" required>
-  <label for="cv">Resume</label><input id="cv" name="resume" type="file">
-  <button type="submit">Submit application</button>
+  ${weak ? '<label for="pf">Portfolio URL</label><input id="pf" name="portfolio">' : '<label for="cv">Resume</label><input id="cv" name="resume" type="file">'}
+  ${follow ? `<fieldset><legend>Will you now or in the future require visa sponsorship? *</legend>
+    <label><input type="radio" name="sp" value="yes" required>Yes</label><label><input type="radio" name="sp" value="no">No</label></fieldset>
+  <div id="more"></div>` : ""}
+  <button type="submit">${weak ? "Submit" : "Submit application"}</button>
 </form>
 <script>
+  for (const r of document.querySelectorAll("input[name=sp]")) r.addEventListener("change", () => {
+    document.getElementById("more").innerHTML = '<label for="li">LinkedIn profile *</label><input id="li" name="linkedin" required>';
+  });
   window.submits = 0;
   document.getElementById("f").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -42,7 +50,7 @@ ${captcha ? '<script src="https://www.google.com/recaptcha/api.js?render=x"></sc
   });
 </script></body></html>`;
 
-const state = { fill: "half", plan: "pro", captcha: false, calls: [] };
+const state = { fill: "half", plan: "pro", captcha: false, follow: false, weak: false, calls: [] };
 const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), "ooj-full-")), {
   channel: "chromium", headless: true, viewport: { width: 1280, height: 900 },
   args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
@@ -50,14 +58,14 @@ const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.t
 const stray = [];
 await ctx.route("**/*", (r) => {
   const u = r.request().url();
-  if (u.startsWith(PAGE)) return r.fulfill({ contentType: "text/html", body: form(state.captcha) });
+  if (u.startsWith(PAGE)) return r.fulfill({ contentType: "text/html", body: form(state.captcha, state.follow, state.weak) });
   if (u.startsWith(API + "/")) {
     const at = u.slice(API.length);
     const body = r.request().postDataJSON?.() ?? null;
     state.calls.push({ at, body });
     if (at.startsWith("/me/apply/profile")) {
       return r.fulfill({ json: { profile: { contact: { first_name: "Dana", last_name: "Levi", email: "dana@example.com", phone: "", location: "" },
-        links: {}, work: {}, eeo: {}, answers: [],
+        links: { linkedin: "https://linkedin.com/in/dana" }, work: { needs_sponsorship: false }, eeo: {}, answers: [],
         settings: { mode: "queue", fill: state.fill, sources: ["ats_pages"], unknowns: "skip", guardrails: { blocked_companies: [] } } }, preferences: {} } });
     }
     if (at.startsWith("/me/apply/summary")) return r.fulfill({ json: { plan: state.plan, period: "day", remaining: 5, applied_today: 0 } });
@@ -112,10 +120,19 @@ const results = [
     (n, g, m) => n === 1 && g.length === 1 && g[0].body.mode === "card" && /Application submitted/.test(m), true),
   await scenario("Full automatic on Pro fills and submits once", { fill: "full", plan: "pro", captcha: false },
     (n, g, m) => n === 1 && g.length === 1 && g[0].body.mode === "auto" && /Application submitted/.test(m)),
-  await scenario("Full automatic on Free fills and waits", { fill: "full", plan: "free", captcha: false },
+  // The form holds back a send with the follow-up empty, so a submit means it was answered.
+  await scenario("Full automatic answers a question that shows up after an earlier answer", { fill: "full", plan: "pro", captcha: false, follow: true },
+    (n, g, m) => n === 1 && g.length === 1 && /Application submitted/.test(m)),
+  await scenario("Full automatic on Free fills and waits", { fill: "full", plan: "free", captcha: false, follow: false },
     (n, g, m) => n === 0 && g.length === 0 && /Full automatic needs the Basic or Pro plan/.test(m)),
-  await scenario("Full automatic with a reCAPTCHA script fills and waits", { fill: "full", plan: "pro", captcha: true },
-    (n, g, m) => n === 0 && g.length === 0 && /requires you to submit the form yourself/.test(m)),
+  // An invisible human check gets Submit tried once (a refusal on the page comes back as not submitted).
+  await scenario("Full automatic with a reCAPTCHA script tries Submit once", { fill: "full", plan: "pro", captcha: true },
+    (n, g, m) => n === 1 && g.length === 1 && g[0].body.mode === "auto" && /Application submitted/.test(m)),
+  // Surecomp, 2026-11-09: a form that doesn't look like an application is filled at most, never sent, and no credit is reserved.
+  await scenario("Full automatic on a form with no sign of an application: held, nothing reserved", { fill: "full", plan: "pro", captcha: false, weak: true },
+    (n, g, m) => n === 0 && g.length === 0 && !state.calls.some((c) => c.at === "/me/apply/attempts")
+      && state.calls.some((c) => c.at === "/me/apply/filled" && c.body.hold === "not_application_form")
+      && /doesn't look like a job application, so it wasn't sent\./.test(m)),
 ];
 const strayHosts = [...new Set(stray.map((u) => new URL(u).host))];
 console.log("requests answered locally instead of the network:", strayHosts.join(", ") || "none");

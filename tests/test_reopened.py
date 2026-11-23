@@ -19,6 +19,10 @@ for k, v in {"ALERTS_TABLE": "test-alerts", "DATA_BUCKET": "test-bucket", "DATA_
     os.environ.setdefault(k, v)
 
 from load_to_sqlite import load_resolved, open_db  # noqa: E402
+import load_to_sqlite  # noqa: E402
+# This file tests what a read closes, not when: one missed read closes here.
+# The grace period itself is tests/test_close_grace.py.
+load_to_sqlite.CLOSE_AFTER, load_to_sqlite.CLOSE_AFTER_READS = load_to_sqlite.timedelta(0), 1
 import handler  # noqa: E402
 import job_filters  # noqa: E402
 

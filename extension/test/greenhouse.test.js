@@ -38,6 +38,19 @@ test('matches job pages and the embed link, nothing else', () => {
   assert.ok(gh.onSite('https://job-boards.greenhouse.io/figma/jobs/5426468004/confirmation'));
 });
 
+test('EU boards get the Greenhouse filler, and the extension may run there', () => {
+  assert.ok(gh.matches('https://job-boards.eu.greenhouse.io/aisi/jobs/4847773101'));
+  assert.ok(gh.matches('https://job-boards.eu.greenhouse.io/embed/job_app?for=aisi&token=4847773101'));
+  // boards.eu answers with a 301 to job-boards.eu (2026-11-09).
+  assert.ok(gh.matches('https://boards.eu.greenhouse.io/aisi/jobs/4847773101'));
+  assert.ok(gh.onSite('https://job-boards.eu.greenhouse.io/aisi/jobs/4847773101/confirmation'));
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8'));
+  for (const host of ['https://job-boards.eu.greenhouse.io/*', 'https://boards.eu.greenhouse.io/*']) {
+    assert.ok(manifest.host_permissions.includes(host), host);
+    assert.ok(manifest.content_scripts.some((c) => c.js.includes('ats/greenhouse.js') && c.matches.includes(host)), host);
+  }
+});
+
 test('reads every question from the Figma page', () => {
   const { page } = fixture('figma.html');
   const names = page.fields.map((f) => f.name);
@@ -104,6 +117,25 @@ test('outcome decision', () => {
   assert.equal(gh.decide({ path: '/figma/jobs/5426468004', confirmation: false, captcha: true }).failed, 'captcha');
   assert.match(gh.decide({ path: '/figma/jobs/5426468004', confirmation: false, errors: ['Email'] }).failed, /Email/);
   assert.equal(gh.decide({ path: '/figma/jobs/5426468004', confirmation: false, errors: [] }), null);
+});
+
+test("Reddit: the required demographic survey is read with its options, and Full automatic declines it", () => {
+  const { page } = fixture('reddit.html');
+  const survey = page.fields.filter((f) => f.eeo);
+  assert.equal(survey.length, 6);
+  assert.ok(survey.every((f) => f.required && f.options.length >= 3 && /^\d+$/.test(f.name)));
+  const ethnicities = survey.find((f) => /ethnicities/.test(f.label));
+  assert.equal(ethnicities.type, 'multiselect');
+  const noEeo = { ...profile, eeo: {}, settings: { fill: 'full' } };
+  const { fills, missing } = m.planFill(page.fields, noEeo, {});
+  assert.deepEqual(missing.filter((f) => f.eeo), []);
+  for (const f of survey) {
+    const v = fills.find((x) => x.name === f.name).value;
+    assert.equal(v, 'decline');
+    assert.equal(f.options[m.pickOption(f.options, v)], "I don't wish to answer");
+  }
+  // Never handed to AI or recorded as an answer.
+  assert.deepEqual(m.suggestable(page.fields, { fills: [], missing: survey }), []);
 });
 
 test('a page without the Remix data is not a form', () => {

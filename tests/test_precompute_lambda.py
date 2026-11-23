@@ -113,8 +113,7 @@ check("shadow: hot.json goes to the frontend bucket", ("front", "hot.json") in s
 check("shadow: every object carries the source version",
       all(o["Metadata"].get("source-version") == "2026-10-16T10:00:00+00:00" for o in s3.objects.values()))
 check("shadow: the measurements come back", all(k in out for k in ("restore_s", "build_s", "peak_rss_mb", "db_mb")), out)
-check("shadow: freshness and duration reported", {m["MetricName"] for m in cw.data} >=
-      {"PrecomputeSourceLagSeconds", "PrecomputeDurationSeconds"})
+check("shadow: no metrics (no alarm reads them, each is billed)", not cw.data, cw.data)
 check("the restored copy is removed afterwards", not (TMP / "work" / "jobs.db").exists())
 
 # The same source again: nothing to do, nothing written.

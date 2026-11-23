@@ -47,4 +47,17 @@ with tempfile.TemporaryDirectory() as tmp:
     check("one result per line", out.read_text(encoding="utf-8").count("\n") == 3)
     check("an unreadable fragment is set aside", (tmp / "002.bad").exists())
 
+    # Gzipped fragments (the scrapers' format from 2026-11) read the same,
+    # beside plain ones still in the spool, and budget by their JSON size.
+    import gzip
+    from deltas import unpacked_size
+    g = tmp / "g"
+    g.mkdir()
+    (g / "001.json").write_bytes(gzip.compress(json.dumps(a).encode()))
+    (g / "002.json").write_text(json.dumps(b), encoding="utf-8")
+    n = shadow_apply._read(sorted(g.glob("*.json")), out)
+    check("a gzipped fragment beside a plain one reads in order", n == 3 and list(lts.iter_resolved(out)) == a + b)
+    check("budget size is the unpacked JSON, gzipped or plain",
+          unpacked_size(g / "001.json") == len(json.dumps(a).encode()) and unpacked_size(g / "002.json") == len(json.dumps(b).encode()))
+
 sys.exit(1 if failures else 0)

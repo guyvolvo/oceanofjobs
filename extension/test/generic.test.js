@@ -52,3 +52,64 @@ test('a form of only contact, address and card fields is no application', () => 
   assert.ok(!g.contactOnly([f('Full name'), f('Email', 'email'), f('Years of experience', 'number')]));
   assert.ok(!g.contactOnly([f('Do you need sponsorship?', 'checkbox')]), 'tick boxes alone are not a contact form either');
 });
+
+// weigh(): whether a form is a job application, from the words around it.
+// Labels as the pages had them. application: may be sent. unrelated: never read or filled.
+const isApp = (o, name) => { const w = g.weigh(o); assert.ok(w.application && !w.unrelated, `${name}: ${JSON.stringify(w)}`); };
+const isNot = (o, name) => { const w = g.weigh(o); assert.ok(!w.application && w.unrelated, `${name}: ${JSON.stringify(w)}`); };
+
+test('weigh: application forms, English and Hebrew', () => {
+  isApp({ labels: ['First Name', 'Last Name', 'Email', 'Phone', 'LinkedIn Profile', 'Website'], files: ['Resume/CV resume'], button: 'Submit application' }, 'Greenhouse');
+  isApp({ labels: ['Full name', 'Email', 'Phone', 'Current company', 'LinkedIn URL', 'GitHub URL', 'Additional information'], files: ['Resume/CV resume'], button: 'Submit application' }, 'Lever');
+  isApp({ labels: ['First name', 'Last name', 'Email', 'Phone', 'Portfolio', 'Personal note'], files: ['Resume resume', 'Cover letter coverLetter'], button: 'SUBMIT APPLICATION', ats: true }, 'Comeet frame');
+  isApp({ labels: ['Name', 'Email', 'What are your salary expectations?', 'What is your notice period?'], button: 'Send' }, 'no CV, two questions');
+  isApp({ labels: ['Name', 'Email', 'Will you now or in the future require visa sponsorship?', 'Gender', 'Veteran status'], files: ['Attach file'], text: 'Upload your CV' }, 'a file near CV words');
+  isApp({ labels: ['שם פרטי', 'שם משפחה', 'מייל', 'נייד'], files: ['העלאת קורות חיים file cv'], button: 'שליחה' }, 'Experis');
+  isApp({ labels: ['שם מלא', 'טלפון', 'קישור לפרופיל לינקדאין', 'ציפיות שכר'], button: 'הגשת מועמדות' }, 'Hebrew, no CV');
+  isApp({ labels: ['Vorname', 'Nachname', 'E-Mail', 'Gehaltsvorstellung', 'Frühester Eintrittstermin'], files: ['Lebenslauf'], button: 'Bewerbung absenden' }, 'German');
+  // An application that also offers news about jobs is still one.
+  isApp({ labels: ['First name', 'Email', 'Send me news about future jobs'], files: ['Resume'], context: 'Apply for this job' }, 'Comeet with a news box');
+  // An ATS's own page with nothing against it: Workday's My Information step.
+  isApp({ labels: ['Country', 'First Name', 'Phone Number'], button: 'Save and Continue', ats: true }, 'Workday step');
+  isApp({ labels: [], pinned: true }, "Workday's pinned Review page");
+});
+
+test('weigh: mailing list, contact, demo, event, download, search, login, comment', () => {
+  isNot({ labels: ['First Name *', 'Last Name *', 'Work Email *', 'Country *', 'I have read and accept the Privacy Policy | Personal emails will not be accepted', 'What is 6 + 8?'],
+    context: 'Keep in touch \n Please fill in the form if you would like to be added to our mailing list to receive Surecomp updates!', button: 'Submit', attrs: 'form1' }, 'Surecomp');
+  isNot({ labels: ['First name', 'Last name', 'Email', 'What is 6 + 8?'], button: 'Submit' }, 'a math check alone');
+  isNot({ labels: ['First name', 'Last name', 'Business email', 'Company name', 'Job title', 'Company size', 'Phone number'], context: 'Request a demo', button: 'Get a demo' }, 'demo');
+  isNot({ labels: ['Name', 'Email', 'Subject', 'Message'], context: 'Contact us', button: 'Send message' }, 'contact');
+  isNot({ labels: ['First name', 'Last name', 'Email', 'Company'], context: 'Register for the webinar', button: 'Register now' }, 'webinar');
+  isNot({ labels: ['Name', 'Work email', 'Company'], context: 'Download the 2026 trade finance whitepaper', button: 'Download' }, 'download');
+  isNot({ labels: ['Name', 'Email', 'Company', 'Message'], context: 'Talk to sales', button: 'Get a quote' }, 'sales');
+  isNot({ labels: ['Keywords', 'Location', 'Radius'], button: 'Search jobs' }, 'search');
+  isNot({ labels: ['Email', 'Remember me'], button: 'Sign in' }, 'login');
+  isNot({ labels: ['Name', 'Email', 'Website', 'Comment'], context: 'Leave a Reply', button: 'Post Comment', attrs: 'commentform' }, 'comment');
+  isNot({ labels: ['Email', 'Location'], context: 'Get job alerts for roles like this', button: 'Create alert' }, 'job alert');
+  isNot({ labels: ['Email', 'First name', 'Last name'], context: 'Stay updated', button: 'Subscribe', text: 'This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply.' }, 'newsletter under a reCAPTCHA notice');
+  isNot({ labels: ['שם מלא', 'אימייל'], context: 'הרשמה לניוזלטר', button: 'הרשמה' }, 'Hebrew newsletter');
+  isNot({ labels: ['שם', 'טלפון', 'אימייל', 'הודעה'], context: 'צרו קשר', button: 'שליחה' }, 'Hebrew contact');
+  isNot({ labels: ['שם', 'חברה', 'טלפון'], context: 'תיאום הדגמה', button: 'שלחו' }, 'Hebrew demo');
+  // An ATS vendor's own marketing form is no application either.
+  isNot({ labels: ['Name', 'Work email', 'Company size'], context: 'Request a demo of Comeet', ats: true }, 'ATS vendor demo');
+});
+
+test('weigh: a form with nothing either way can be filled but not sent', () => {
+  for (const [name, o] of [
+    ['name, email, phone', { labels: ['Full name', 'Email', 'Phone'], button: 'Submit' }],
+    ['one application question', { labels: ['Name', 'Email', 'LinkedIn profile'], button: 'Submit' }],
+    ['an apply heading over a subscribe box', { labels: ['Full name', 'Email', 'Phone', 'Subscribe to job alerts'], context: 'Apply for this job' }],
+    ['a Hebrew apply form with no CV', { labels: ['שם מלא', 'טלפון'], context: 'הגשת מועמדות למשרה' }],
+  ]) {
+    const w = g.weigh(o);
+    assert.ok(!w.application && !w.unrelated, `${name}: ${JSON.stringify(w)}`);
+  }
+});
+
+test('weigh: a score for the logs, highest for the application', () => {
+  const app = g.weigh({ labels: ['Email', 'LinkedIn'], files: ['Resume'], button: 'Submit application' });
+  const mail = g.weigh({ labels: ['Email', 'What is 6 + 8?'], context: 'Keep in touch', button: 'Submit' });
+  assert.ok(app.score > 0 && mail.score < 0, JSON.stringify({ app, mail }));
+  assert.deepEqual(g.weigh(), { application: false, unrelated: false, score: 0, cv: false, questions: 0, apply: false, ats: false, off: 0 });
+});

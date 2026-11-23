@@ -1,0 +1,7 @@
+[Unit]
+Description=Daily read of the Indexing API experiment cohort
+[Timer]
+OnCalendar=*-*-* 06:40:00 UTC
+Persistent=true
+[Install]
+WantedBy=timers.target

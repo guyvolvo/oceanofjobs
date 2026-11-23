@@ -48,8 +48,10 @@ disputable (R12), and never retried automatically.
 
 R6. **Release when the site shows nothing was sent.** After a submission
 start, the form still on the page with the site's own validation errors
-settles as Failed and releases the credit. A disappearing form alone
-proves nothing either way.
+settles as Failed and releases the credit. The site's human check
+refusing the click (its refusal on the page) settles as Needs input and
+releases the credit, so the user can send it from Needs attention. A
+disappearing form alone proves nothing either way.
 
 R7. **Release every failure before submission start.** Page didn't load, no
 form, a field couldn't be filled, no submit button, a CAPTCHA, a question
@@ -60,9 +62,13 @@ R8. **Filling is not sending.** A fill the user hasn't sent is Filled,
 recorded in History, never reserved or charged.
 
 R9. **Reservations expire after 30 minutes, on the server.** An attempt
-still Reserved at expiry becomes Abandoned and is released. An attempt in
-Submission started at expiry becomes Submission unconfirmed and is charged
-(R5). The server applies expiry whenever it reads a user's state and in a
+still Reserved 30 minutes after reservation becomes Abandoned and is
+released. Submission started restarts the 30 minutes, so a long fill
+cannot run the clock down before its outcome is reported. An attempt still
+in Submission started 30 minutes after that becomes Submission unconfirmed
+and is charged (R5). If its Failed report (R6) arrives after that expiry,
+the charge is released and the attempt becomes Failed; an unconfirmed the
+extension reported itself (R5) is never turned into Failed, only disputed. The server applies expiry whenever it reads a user's state and in a
 periodic sweep, so it never depends on the extension staying open.
 
 R10. **Idempotency.** Every attempt has an id made by the extension.
@@ -83,9 +89,12 @@ billing period; that is an allowance of requests, not a promise of 5
 refunds. A refund for one attempt can happen once. Submitted (confirmed by
 the site) is not disputable.
 
-R13. **Periods.** The period and the user's time zone are fixed on the
-attempt when it is reserved. A later report, a delayed settle or a time
-zone change never moves the charge to another period.
+R13. **Periods.** The user's time zone belongs to the account: the first
+request that sends one sets it, and later requests can't change it, so a
+client can't spread reservations across two calendar days by switching
+zones. The period and that time zone are fixed on the attempt when it is
+reserved. A later report, a delayed settle or a time zone change never
+moves the charge to another period.
 
 R14. **Limits.**
 - Free: 30 per calendar month. Basic: 100 per calendar month. Pro: 50 per
@@ -111,12 +120,12 @@ answers.
 |---|---|---|---|
 | Queued | added by the user, the board or an assistant | none | Reserved, removed |
 | Reserved | start (R1, R2) | reserved | Submission started, Failed, Skipped, Needs input, Abandoned |
-| Submission started | acknowledged report (R3) | reserved | Submitted, Submission unconfirmed, Failed (R6 only) |
+| Submission started | acknowledged report (R3) | reserved | Submitted, Submission unconfirmed, Failed or Needs input (R6 only) |
 | Submitted | site confirmation (R4) | charged | final |
-| Submission unconfirmed | R5, or expiry after submission start (R9) | charged, provisionally | Submitted if confirmed later, Not sent (disputed) |
+| Submission unconfirmed | R5, or expiry after submission start (R9) | charged, provisionally | Submitted if confirmed later, Not sent (disputed), Failed if it came from expiry and the R6 report arrives late (released) |
 | Not sent (disputed) | accepted dispute (R12) | refunded | Queued, by the user |
 | Failed | R6, R7 | released | Queued (R11) |
-| Needs input | R7, R15 | released | Queued once answered |
+| Needs input | R6, R7, R15 | released | Queued once answered |
 | Skipped | not attempted | none | Queued (R11) |
 | Abandoned | expiry before submission start (R9) | released | Queued (R11) |
 | Filled | an unsent fill (R8) | none | Reserved, if the user sends it from the card |

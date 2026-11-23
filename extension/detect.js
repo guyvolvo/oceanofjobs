@@ -26,6 +26,8 @@
   const dedicated = site && all[site].matches(location.href) ? all[site] : null;
   const isTop = window === window.top;
   let shown = false;
+  // A frame below showed its own card for its form (cardInFrame).
+  let yielded = false;
 
   // A form in an iframe shows its button on the page around it, where the
   // user sees it, and the fill goes to that frame. A fill that followed a
@@ -33,6 +35,11 @@
   if (isTop) {
     chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       if (msg.type === 'formBelow') show({ frameId: msg.frameId, url: msg.url });
+      else if (msg.type === 'cardInFrame') {
+        // Never a second card for the same form: this page's own goes, and it looks no more.
+        shown = yielded = true;
+        if (built && built.own) built.drop();
+      }
       else if (msg.type === 'fillFromApply') {
         // /apply opened this job: start the card's fill, as a click would.
         const go = built && built.root.querySelector('.go');
@@ -77,10 +84,24 @@
       shown = false;
     }
     show({ frameId: null, url: location.href });
+    // A form a dedicated filler knows, in a frame (Greenhouse's on a careers
+    // site), has its card here: the page around it shows none of its own.
+    if (!isTop) send({ type: 'cardInFrame' });
   }
 
-  let tries = 0;
-  const wait = setInterval(() => { if (look() || ++tries >= 20) clearInterval(wait); }, 500);
+  // Looked for after 500 ms, then again while the page changes (a form its
+  // script draws late), at most every 500 ms and for 30 seconds. Not
+  // sooner: a card added before a page hydrates (Greenhouse's React) breaks
+  // the hydration, and React redraws the page without the card.
+  let pending = null;
+  const watch = new MutationObserver(() => {
+    if (!pending) pending = setTimeout(() => { pending = null; if (look()) watch.disconnect(); }, 500);
+  });
+  setTimeout(() => {
+    if (look()) return;
+    watch.observe(document.documentElement, { childList: true, subtree: true });
+    setTimeout(() => watch.disconnect(), 30000);
+  }, 500);
   // A form that opens from an Apply button later on.
   const onClick = () => setTimeout(() => { if (look()) document.removeEventListener('click', onClick, true); }, 1500);
   document.addEventListener('click', onClick, true);
@@ -116,6 +137,8 @@
     building = shown = true;
     if (await send({ type: 'hidden', host: location.hostname })) return;
     const icon = (await send({ type: 'icon' })) || '';
+    // The frame's card came while this one was being made: it isn't made.
+    if (yielded && target.frameId == null) { building = false; return; }
     const name = dedicated ? 'Apply with Ocean of Jobs' : 'Fill with Ocean of Jobs';
     const host = document.createElement('div');
     host.setAttribute('data-ooj-fill', '');
@@ -154,9 +177,19 @@
       <button class="hide">Hide on this site until Chrome restarts</button>
     </div>`;
     document.documentElement.appendChild(host);
+    // A page that redraws its whole document (React hydrating Greenhouse's
+    // page) drops the card with it; for the first minute it is put back.
+    let dismissed = false;
+    // An extension updated, reloaded or turned off leaves this script behind
+    // with no worker to answer its buttons: the card goes rather than stay dead.
+    const keep = setInterval(() => {
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(keep); host.remove(); return; }
+      if (!dismissed && !host.isConnected) document.documentElement.appendChild(host);
+    }, 1000);
+    setTimeout(() => clearInterval(keep), 60000);
     const fab = root.querySelector('.fab');
     const c = root.querySelector('.c');
-    root.querySelector('.hide').addEventListener('click', () => { send({ type: 'hide', host: location.hostname }); host.remove(); });
+    root.querySelector('.hide').addEventListener('click', () => { dismissed = true; send({ type: 'hide', host: location.hostname }); host.remove(); });
     root.querySelector('.x').addEventListener('click', () => { c.hidden = true; fab.hidden = false; fab.focus(); });
     let ready = false;
     const open = () => {
@@ -193,7 +226,7 @@
       root.querySelector('.frame').hidden = false;
       root.querySelector('.link').addEventListener('click', () => send({ type: 'openOptions' }));
     }
-    built = { root, open };
+    built = { root, open, own: target.frameId == null, drop: () => { dismissed = true; clearInterval(keep); host.remove(); } };
     // Opened straight away: the user came here to apply.
     fab.click();
   }
@@ -244,7 +277,7 @@
     const to = { frameId: r.frameId != null ? r.frameId : target.frameId, url: r.url || target.url };
     msg.className = 'msg ok';
     msg.textContent = filledText(r) + ' ' + held(r)
-      + (r.submit ? 'Review your answers, then submit the application here.'
+      + (r.held === 'not an application form' ? '' : r.submit ? 'Review your answers, then submit the application here.'
         + (r.botCheck ? " If the site's human check stops it, use the site's Submit button." : '')
         : r.botCheck ? "Review your answers, then use the site's Submit button."
           : 'Review your answers, then submit the application on the page.');

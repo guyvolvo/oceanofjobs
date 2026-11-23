@@ -146,6 +146,10 @@ CREATE TABLE IF NOT EXISTS jobs (
                                             -- (deep scraper, JSON-LD or heuristic DOM scrape).
                                             -- Never blend best_effort silently into verified counts.
 
+    missing_since       TEXT,              -- when complete reads of its board stopped returning this
+    missing_reads       INTEGER,           -- open job, and how many in a row; it closes after 6h and 3
+                                            -- (loader close_missing_jobs). NULL/0 while it is seen.
+
     first_seen          TEXT NOT NULL,     -- ISO 8601, first load this job id appeared in
     last_seen           TEXT NOT NULL,     -- ISO 8601, most recent load it was still present
     closed_at           TEXT,              -- ISO 8601, set when a load no longer sees this id.

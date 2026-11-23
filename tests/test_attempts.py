@@ -191,6 +191,43 @@ with mock_aws():
     A.settle("u", "dup-000002", at.NEEDS_INPUT, "Needs your answer: Why us?", NOW)
     check("a release reported twice releases once", counts(A)[0]["held"] == 1, repr(counts(A)))
 
+    # A slow fill (2026-11-02 review): the hold runs from submission start,
+    # and a failure reported after an expiry gives the credit back.
+    t, A = fresh_table()
+    A.reserve("u", "slow-000001", job(1), NOW)
+    A.submission_started("u", "slow-000001", NOW + timedelta(minutes=29, seconds=30))
+    A.expire("u", NOW + timedelta(minutes=30, seconds=5))
+    check("started at 29:30, swept at 30:05: still open", A._get("u", at.ATTEMPT + "slow-000001")["state"] == at.STARTED)
+    A.settle("u", "slow-000001", at.FAILED, "the site showed errors", NOW + timedelta(minutes=30, seconds=20))
+    m, d = counts(A)
+    check("and the failure at 30:20 releases the credit, nothing charged", m["held"] == 0 and m["charged"] == 0 and d["held"] == 0,
+          repr((m, d)))
+    A.reserve("u", "late-000001", job(2), NOW)
+    A.submission_started("u", "late-000001", NOW)
+    A.expire("u", NOW + timedelta(minutes=31))
+    check("no report for 30 minutes after the start: unconfirmed and charged", counts(A)[0]["charged"] == 1)
+    A.settle("u", "late-000001", at.FAILED, "the site showed errors", NOW + timedelta(minutes=40))
+    A.settle("u", "late-000001", at.FAILED, "the site showed errors", NOW + timedelta(minutes=41))  # the outbox retried
+    m, d = counts(A)
+    check("a late failure report refunds the expired charge once", A._get("u", at.ATTEMPT + "late-000001")["state"] == at.FAILED
+          and m["held"] == 0 and m["charged"] == 0 and d["held"] == 0, repr((m, d)))
+    check("and the job can be tried again", A.reserve("u", "late-000002", job(2), NOW + timedelta(minutes=42))["state"] == at.RESERVED)
+
+    # The site's human check refused the click after the start (extension
+    # viaGeneral): nothing was sent, so the credit goes back and the job
+    # waits in Needs attention for the user to send it.
+    t, A = fresh_table()
+    A.reserve("u", "bot-000001", job(1), NOW)
+    A.submission_started("u", "bot-000001", NOW)
+    refused = raises(lambda: A.settle("u", "bot-000001", at.NEEDS_INPUT, "ready to submit", NOW, []), at.Conflict)
+    m, d = counts(A)
+    check("a human check refused the click: released as Needs input", not refused
+          and A._get("u", at.ATTEMPT + "bot-000001")["state"] == at.NEEDS_INPUT and m["held"] == 0 and m["charged"] == 0 and d["held"] == 0,
+          repr((refused, m, d)))
+    A.expire("u", NOW + timedelta(minutes=31))
+    check("and expiry never charges it", counts(A)[0]["charged"] == 0 and A._get("u", at.ATTEMPT + "bot-000001")["state"] == at.NEEDS_INPUT)
+    check("it shows in Needs attention, ready to submit", [n.get("ready") for n in A.needs("u")] == [True], repr(A.needs("u")))
+
     # Expiry and submission start.
     t, A = fresh_table()
     A.reserve("u", "exp-000001", job(1), NOW)
@@ -202,7 +239,8 @@ with mock_aws():
     check("and that attempt is abandoned and released", A._get("u", at.ATTEMPT + "exp-000002")["state"] == at.ABANDONED
           and counts(A)[0]["held"] == 1, repr(counts(A)))
     A.reserve("u", "exp-000003", job(3), NOW)
-    check("the refused start also settled the user's other expired attempt", A._get("u", at.ATTEMPT + "exp-000001")["state"] == at.UNCONFIRMED)
+    check("an attempt started at 29 minutes keeps a fresh hold from its start, so it is still open at 31",
+          A._get("u", at.ATTEMPT + "exp-000001")["state"] == at.STARTED)
     A.reserve("v", "exp-000003", job(3), NOW)  # another user, who never calls in again
     n = A.sweep(NOW + timedelta(minutes=45))
     check("the periodic sweep settles expired attempts of users who never call in", n == 2
@@ -283,6 +321,18 @@ with mock_aws():
     A.filled("u", "fil-000006", job(4), NOW)
     check("a fill the user sends themselves counts too", A.summary("u", NOW)["filled_today"] == 2)
 
+    # Why Full automatic held a fill: a short code on the Filled record, optional for old clients.
+    t, A = fresh_table()
+    a = A.filled("u", "hld-000001", {**job(1), "hold": "no_submit_button"}, NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000001"})["Item"]
+    check("the hold reason is stored on the Filled record", row.get("hold") == "no_submit_button" and a.get("hold") == "no_submit_button", repr(row))
+    A.filled("u", "hld-000002", job(2), NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000002"})["Item"]
+    check("an old client's fill, with no hold, is stored as before", "hold" not in row, repr(row))
+    A.filled("u", "hld-000003", {**job(3), "hold": "<script>" + "x" * 100}, NOW)
+    row = t.get_item(Key={"user_id": "u", "alert_id": at.ATTEMPT + "hld-000003"})["Item"]
+    check("a hold that isn't a short code is dropped, the fill still recorded", "hold" not in row and row["state"] == at.FILLED, repr(row))
+
     # A fill the user then sent with the site's button, seen by the extension.
     t, A = fresh_table()
     A.filled("u", "snt-000001", job(5), NOW)
@@ -290,8 +340,8 @@ with mock_aws():
     again = A.sent("u", "snt-000001", "page", NOW)
     row = next(r for r in A.history("u", NOW) if r["attempt_id"] == "snt-000001")
     s = A.summary("u", NOW)
-    check("a sent fill shows as submitted, costs nothing and reports the same twice",
-          a["state"] == at.SENT and again["state"] == at.SENT and row["status"] == "submitted" and not row["disputable"]
+    check("a sent fill shows as sent (never submitted: nothing confirmed it), costs nothing and reports the same twice",
+          a["state"] == at.SENT and again["state"] == at.SENT and row["status"] == "sent" and not row["disputable"]
           and s["used"] == 0 and s["in_progress"] == 0 and s["filled_today"] == 1, repr((a, row, s)))
     check("and the job can't be applied to again", raises(lambda: A.reserve("u", "snt-000002", job(5), NOW), at.JobTaken))
     A.reserve("u", "snt-000003", job(6), NOW)                     # a run holds the job

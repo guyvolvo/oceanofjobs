@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { QueueItem, Status } from "./api";
+import { apply, send, type HistoryRow, type Origin, type Outcome, type QueueItem, type Source, type Status } from "./api";
 import { ask, connectExtension, type Ext } from "./ext";
-import { LoadingButton, useReturnFocus } from "./fields";
+import { LoadingButton, SelectField, useReturnFocus } from "./fields";
 
 // The one warning colour on these pages: DESIGN.md has no amber, so a
 // warning is the trend-down red-orange, softer than an error's red.
@@ -49,6 +50,7 @@ const LOOK = {
 export const STATUS: Record<Status, { label: string; look: keyof typeof LOOK }> = {
   submitted: { label: "Submitted", look: "success" },
   unconfirmed: { label: "Submission unconfirmed", look: "warning" },
+  sent: { label: "Sent by you, not confirmed", look: "warning" },
   filled: { label: "Filled", look: "info" },
   in_progress: { label: "In progress", look: "secondary" },
   needs_input: { label: "Needs your input", look: "warning" },
@@ -75,6 +77,64 @@ export function Meter({ label, value, max, customValue }: { label: string; value
       <Progress value={pct} aria-label={label} aria-valuetext={customValue} />
     </div>
   );
+}
+
+// Where a job came from: a short name for the Overview's breakdown, and the
+// words after "From" on a row. A job from before sources were kept has none
+// and shows none.
+export const SOURCE: Record<Source, { name: string; from: string }> = {
+  board: { name: "Job board", from: "the board" },
+  alert: { name: "Alerts", from: "an alert" },
+  mcp: { name: "AI assistant (MCP)", from: "your AI assistant (MCP)" },
+  extension: { name: "Extension", from: "the extension" },
+  matches: { name: "Your matches", from: "your matches" },
+  other: { name: "Other", from: "elsewhere" },
+};
+
+// The first source, and on hover or focus every other place that tried to add the job.
+export function SourceLabel({ row }: { row: Origin }) {
+  if (!row.source || !SOURCE[row.source]) return null;
+  const label = `From ${SOURCE[row.source].from}`;
+  const others = (row.sources || []).slice(1).filter((x) => SOURCE[x.source]);
+  const look = "mt-0.5 block text-xs text-muted-foreground";
+  if (!others.length) return <span className={look}>{label}</span>;
+  const also = "Also added from " + others.map((x) => SOURCE[x.source].from + (x.at ? ` on ${fmtDate(x.at)}` : "")).join(", ") + ".";
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger className={cn(look, "cursor-default underline decoration-dotted underline-offset-3")} aria-label={`${label}. ${also}`}>
+          {label} +{others.length}
+        </TooltipTrigger>
+        <TooltipContent>{also}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+// Only an application that went out can have an outcome.
+export const SENT: Status[] = ["submitted", "unconfirmed", "sent"];
+
+export const OUTCOME: Record<Outcome | "none", string> = {
+  none: "Not marked", interview: "Interview", offer: "Offer", rejected: "Rejected", no_reply: "No reply",
+};
+
+// What the user says happened after applying. Only they set it; it never
+// changes the status or a credit.
+export function OutcomeSelect({ row, onChange }: { row: HistoryRow; onChange: () => void }) {
+  const [value, setValue] = useState<string>(row.outcome || "none");
+  useEffect(() => setValue(row.outcome || "none"), [row.outcome]);
+  const pick = async (v: string) => {
+    const before = value;
+    setValue(v);
+    try {
+      await apply(`history/${encodeURIComponent(row.job_id)}`, send("PATCH", { outcome: v }));
+      onChange();
+    } catch {
+      setValue(before);
+      toast.error("Couldn't save that", { description: "Try again." });
+    }
+  };
+  return <SelectField aria-label={`Outcome for ${row.title || "this application"}`} value={value} onValueChange={pick} items={OUTCOME} className="min-w-36" />;
 }
 
 export const ATS: Record<string, string> = { greenhouse: "Greenhouse", ashby: "Ashby", workable: "Workable", workday: "Workday",

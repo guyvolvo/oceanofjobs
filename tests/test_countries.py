@@ -385,7 +385,7 @@ check("Distributed, Global is neither",
       repr((cities_of("Distributed, Global"), countries_of("Distributed, Global"))))
 check("Hybrid is not a city", cities_of("Hybrid") == [], repr(cities_of("Hybrid")))
 
-for loc in ["Onsite", "On-site", "Anywhere", "Worldwide", "Global", "Flexible",
+for loc in ["Onsite", "On-site", "Anywhere", "Worldwide", "Global", "Flexible", "Telecommuter",
             "Various", "Multiple Locations", "Remote, EMEA", "Remote, Global",
             "Remote - APAC", "Europe"]:
     check("%r is not a city" % loc, cities_of(loc) == [], repr(cities_of(loc)))
@@ -439,8 +439,125 @@ check("and neither do the joined cities",
       repr(city_string("Tel Aviv, Israel; Herzliya; Ramat Gan")))
 
 
+# Regions outside the US: provinces, states and Länder.
+# Every location below is a real string from the live board. A region names
+# its country and is never a city; before this, Ontario was the city with
+# about 5,000 open jobs and "CA, Ontario, Brockville" was filed under the US.
+for loc, country, city in [
+        ("CA, Ontario, Brockville", "CA", "Brockville"),
+        ("Brockville, ON, CA", "CA", "Brockville"),
+        ("Montreal, Quebec", "CA", "Montreal"),
+        ("Montréal, Québec", "CA", "Montreal"),
+        ("Toronto, Ontario, CA", "CA", "Toronto"),
+        ("Edmonton, Alberta", "CA", "Edmonton"),
+        ("Edmonton, AB", "CA", "Edmonton"),
+        ("Mississauga, Ontario", "CA", "Mississauga"),
+        ("Bengaluru, Karnataka, India", "IN", "Bangalore"),
+        ("Düsseldorf, Nordrhein-Westfalen", "DE", "Düsseldorf"),
+        ("Melbourne, Victoria, Australia", "AU", "Melbourne"),
+        ("Dublin, Leinster, Ireland", "IE", "Dublin"),
+        ("Argentina, Santa Cruz, Rio Gallegos", "AR", "Rio Gallegos"),
+        ("Utrecht, Utrecht, Nederland", "NL", "Utrecht")]:
+    got = (country_string(loc), city_string(loc))
+    check("%r is %s and the city %s" % (loc, country, city), got == (country, city), repr(got))
+
+for loc, country in [("Karnataka", "IN"), ("Bayern", "DE"), ("Ontario", "CA"), ("Victoria, Australia", "AU")]:
+    got = (countries_of(loc), cities_of(loc))
+    check("%r is the region, in %s, with no city" % (loc, country), got == ([country], []), repr(got))
+
+# A region's name can also be a US city. Written first with a US state
+# after it, it is the city.
+for loc in ["Ontario, CA", "Ontario, California"]:
+    got = (countries_of(loc), cities_of(loc))
+    check("%r is Ontario, California" % loc, got == (["US"], ["Ontario"]), repr(got))
+# And a name that is a region in one country is a city in another.
+check("Victoria, BC is the city in Canada",
+      (countries_of("Victoria, BC"), cities_of("Victoria, BC")) == (["CA"], ["Victoria"]),
+      repr((countries_of("Victoria, BC"), cities_of("Victoria, BC"))))
+check("Quebec City stays a city", cities_of("Quebec City, QC") == ["Quebec City"],
+      repr(cities_of("Quebec City, QC")))
+
+# The two states that share a name with a city are the state after a city.
+for loc, city in [("Seattle, Washington", "Seattle"), ("Brooklyn, New York", "Brooklyn"),
+                  ("Washington, DC", "Washington"), ("Washington, D.C.", "Washington"),
+                  ("New York, NY", "New York")]:
+    check("%r is the city %s" % (loc, city), cities_of(loc) == [city], repr(cities_of(loc)))
+
+# A state stuck to a city or a ZIP code, and addresses that are not cities.
+for loc, city in [("Charlotte NC", ["Charlotte"]), ("Newton-MA", ["Newton"]),
+                  ("Erie PA, 16502, 232 West 25th St", ["Erie"]),
+                  ("Lehighton, PA - 500 St. Luke's Drive", ["Lehighton"]),
+                  ("TX 75062 Vizient Corporate HQ", []),
+                  ("Remote-NY", []),
+                  ("39.971850885, -74.947387747, NJ", [])]:
+    got = (countries_of(loc), cities_of(loc))
+    check("%r is US and %s" % (loc, city), got == (["US"], city), repr(got))
+check("a PO box is not a city",
+      (countries_of("P.O. Box 780, Haliburton, ON"), cities_of("P.O. Box 780, Haliburton, ON")) == (["CA"], ["Haliburton"]),
+      repr((countries_of("P.O. Box 780, Haliburton, ON"), cities_of("P.O. Box 780, Haliburton, ON"))))
+
+# The country in its own language.
+countries_are("Utrecht, Utrecht, Nederland", ["NL"])
+countries_are("Madrid, España", ["ES"])
+
+# A city's own-language name is the same filter option as its English one.
+for loc, city in [("Wien, at", "Vienna"), ("Milano, it", "Milan"), ("Lisboa, Portugal", "Lisbon"),
+                  ("Den Haag, Nederland", "The Hague"), ("Bruxelles, Belgique", "Brussels"),
+                  ("Bucuresti, Romania", "Bucharest")]:
+    check("%r is the city %s" % (loc, city), cities_of(loc) == [city], repr(cities_of(loc)))
+
+# Yokneam, however it is written, is one city in Israel.
+for loc in ["Yokneam", "Yokneam Illit", "יקנעם", "יקנעם עילית"]:
+    got = (countries_of(loc), cities_of(loc))
+    check("%r is IL and the city Yokneam" % loc, got == (["IL"], ["Yokneam"]), repr(got))
+
+# Nothing above may pull an American job into Israel or out of the US.
+for loc in ["Springfield, IL", "Chicago, IL", "Ontario, CA", "Newton-MA"]:
+    check("%r stays US" % loc, countries_of(loc) == ["US"], repr(countries_of(loc)))
+
+
+# places_of: each city with its own country and, in the US, its state.
+from countries import places_of  # noqa: E402
+
+for loc, expected in [
+        ("Austin, TX", [("US", "TX", "Austin")]),
+        ("Austin, Texas", [("US", "TX", "Austin")]),
+        ("Austin", [("US", None, "Austin")]),
+        ("Springfield, IL", [("US", "IL", "Springfield")]),
+        ("Tel Aviv, IL", [("IL", None, "Tel Aviv")]),
+        ("Seattle, Washington", [("US", "WA", "Seattle")]),
+        ("Washington, D.C.", [("US", "DC", "Washington")]),
+        ("Ontario, CA", [("US", "CA", "Ontario")]),
+        ("Erie PA, 16502, 232 West 25th St", [("US", "PA", "Erie")]),
+        ("MINNEAPOLIS, MN, IRVING, TX, CHANDLER, AZ",
+         [("US", "MN", "Minneapolis"), ("US", "TX", "IRVING"), ("US", "AZ", "CHANDLER")]),
+        # The board files this job under both cities in both countries. A
+        # place keeps the country written beside it.
+        ("Tel Aviv, Israel; New York, NY", [("IL", None, "Tel Aviv"), ("US", "NY", "New York")]),
+        ("Zurich, Switzerland, Brussels, Belgium", [("CH", None, "Zurich"), ("BE", None, "Brussels")]),
+        ("Torrington - Torrington, CT", [("US", "CT", "Torrington")]),
+        ("CA, Ontario, Brockville", [("CA", None, "Brockville")]),
+        ("Bengaluru, Karnataka, India", [("IN", None, "Bangalore")]),
+        ("Remote", []), ("", []), (None, [])]:
+    check("places_of(%r)" % loc, places_of(loc) == expected, repr(places_of(loc)))
+
+# A state is never guessed: one state after two cities belongs to the last.
+check("a state is only given to the city it follows",
+      places_of("Austin, Dallas, TX") == [("US", None, "Austin"), ("US", "TX", "Dallas")],
+      repr(places_of("Austin, Dallas, TX")))
+check("places_of names the same cities as cities_of",
+      all([p[2] for p in places_of(loc)] == cities_of(loc) for loc in DEDUPE_CORPUS),
+      repr([loc for loc in DEDUPE_CORPUS if [p[2] for p in places_of(loc)] != cities_of(loc)]))
+
+
 # Table invariants. These are cheap and they catch the typo in the pull
 # request that adds a city, which is the only way this data ever changes.
+clash = sorted(k for k in countries.ADMIN1_FOLDED
+               if k in countries.CITIES_FOLDED or k in countries.COUNTRY_NAMES_FOLDED)
+check("no region is also a listed city or country", not clash, repr(clash))
+bad_region_codes = sorted(set(countries.ADMIN1) - ALPHA2)
+check("every region points at a country the resolver knows", not bad_region_codes,
+      repr(bad_region_codes))
 bad_city_codes = sorted({v for v in CITIES.values()} - ALPHA2)
 check("every city points at a country the resolver knows", not bad_city_codes,
       repr(bad_city_codes))

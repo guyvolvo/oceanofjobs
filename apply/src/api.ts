@@ -16,14 +16,22 @@ export type Summary = {
   unconfirmed: number; needs_input: number; queued: number; disputes_left: number;
   ai: { used: number; limit: number | null }; tz: string;
 };
-export type Status = "submitted" | "unconfirmed" | "filled" | "in_progress" | "needs_input" | "failed" | "skipped" | "abandoned" | "not_sent_disputed";
-export type HistoryRow = {
+export type Status = "submitted" | "unconfirmed" | "sent" | "filled" | "in_progress" | "needs_input" | "failed" | "skipped" | "abandoned" | "not_sent_disputed";
+// Where a job came from, set by the server. The first source labels it;
+// sources is every place that tried to add it. None for jobs from before
+// 2026-10-28.
+export type Source = "board" | "alert" | "mcp" | "extension" | "matches" | "other";
+export type Origin = { source?: Source | null; source_at?: string | null; sources?: { source: Source; at: string | null }[] };
+// What the user reports after applying. Never a status.
+export type Outcome = "interview" | "offer" | "rejected" | "no_reply";
+export type HistoryRow = Origin & {
   job_id: string; attempt_id: string | null; company: string; title: string; url: string;
   link: string; status: Status; reason: string; at: string; disputable: boolean;
+  outcome?: Outcome | null; outcome_at?: string | null;
 };
 export type Need = { attempt_id: string; job_id: string; title: string; company: string; link: string; questions: string[];
   drafts?: Record<string, string>; ready?: boolean };
-export type QueueItem = { job_id: string; added_at: string; position: number; title: string; company: string; link: string; ats: string };
+export type QueueItem = Origin & { job_id: string; added_at: string; position: number; title: string; company: string; link: string; ats: string };
 export type Profile = {
   contact: { first_name: string; last_name: string; email: string; phone: string; location: string };
   links: { linkedin: string; github: string; website: string };

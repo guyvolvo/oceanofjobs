@@ -39,6 +39,7 @@ body { margin: 0; background: var(--color-kumo-canvas); color: var(--text-color-
 .crm-stat span { color: var(--text-color-kumo-subtle); font-size: 13px; }
 .crm-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .crm-charts .crm-wide { grid-column: 1 / -1; }
+.crm-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; }
 @media (max-width: 860px) { .crm-charts { grid-template-columns: 1fr; } }
 .crm-table { overflow-x: auto; }
 .crm-click { cursor: pointer; }

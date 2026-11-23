@@ -14,9 +14,11 @@ const dash = (range) => {
   const b = Array.from({ length: n }, (_, i) => key(n - 1 - i));
   return { complete: true, range, members: 28, new: range === "24h" ? 2 : 12, newsletter: 9, waitlist: { basic: 2, pro: 4 }, mcp: 4,
     signups: b.map((k, i) => [k, [0, 1, 0, 2, 0, 0, 1][i % 7]]), total: b.map((k, i) => [k, 16 + Math.round((i / n) * 12)]),
-    funnel: [["Signed up", 12], ["Extension", 6], ["Resume", 4], ["Applied", 3], ["Paid", 1]],
+    funnel: [["Signed up", 12], ["Extension", 6], ["Resume", 4], ["Applied (confirmed)", 3], ["Paid", 1]],
     providers: { google: 8, email: 3, github: 1 }, plans: { free: 11, pro: 1 },
-    apps_by_month: [["2026-05", 0], ["2026-06", 0], ["2026-07", 0], ["2026-08", 3], ["2026-09", 21], ["2026-10", 64]] };
+    applications: { confirmed: 41, unconfirmed: 6, sent: 5, failed: 9, weeks: range === "90d" ? 12 : range === "30d" ? 4 : 1, active_user_weeks: 18, per_user_week: 1.83, unconfirmed_per_user_week: 0.33, sent_per_user_week: 0.28, disputed: 2, older: 4,
+      by_time: b.map((k, i) => [k, [2, 0, 3, 1, 0, 2, 1][i % 7], [0, 1, 0, 0, 0, 0, 1][i % 7], [0, 0, 1, 0, 0, 1, 0][i % 7], [1, 0, 0, 1, 0, 0, 0][i % 7]]),
+      by_system: [["Greenhouse", 18, 2, 3, 3], ["Workday", 9, 3, 1, 4], ["Lever", 7, 1, 1, 0], ["Ashby", 5, 0, 0, 1], ["careers.acme.com", 2, 0, 0, 1]] } };
 };
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 1400 } });

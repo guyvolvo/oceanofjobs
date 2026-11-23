@@ -147,6 +147,7 @@ check("and never scheduled beyond the ceiling itself",
 
 # The hard cap, which makes a herd harmless even when jitter does not
 # prevent one. A full sweep has already blown probe.py's 200s timeout.
+scrape_state.MAX_PER_SWEEP = 900  # small enough for these fixtures to hit it
 many = {}
 scrape_state.record(many, [result("m%d.com" % i, unchanged=True) for i in range(3400)], T0)
 for r in many.values():
@@ -171,6 +172,13 @@ backlog = dict(staggered)
 due_now = scrape_state.due(backlog, entries(*backlog.keys(), "fresh.com"), T0)
 check("a never-seen board is swept even when the cap binds",
       "fresh.com" in {e["domain"] for e in due_now}, str(len(due_now)))
+
+# Under the cap the list still comes back most overdue first: the probe
+# works through it in order and the deadline defers the tail, so the
+# order decides who waits (2026-11-08: the cap was lifted for this).
+few = {d: v for d, v in staggered.items() if int(d[1:-4]) < 50}
+order = [e["domain"] for e in scrape_state.due(few, entries(*sorted(few)), T0)]
+check("below the cap, most overdue first", order[0] == "s49.com" and order[-1] == "s0.com", str(order[:3]))
 
 # Round trip through S3, gzipped, with the conditional write.
 s3 = FakeS3()

@@ -122,6 +122,16 @@ def main() -> int:
     after = coverage(DB)
     print(f"wrote {written}, cleared {cleared}; after: {after['named']}/{after['companies']} companies, "
           f"{after['open_named']}/{after['open_jobs']} open jobs named", file=sys.stderr)
+    # infra/alarms.tf pages on this. Until 2026-11-08 nothing watched it, and
+    # 49,511 open listings sat captioned with a bare domain unnoticed.
+    unnamed = after["open_jobs"] - after["open_named"]
+    try:
+        import boto3
+
+        boto3.client("cloudwatch").put_metric_data(Namespace="OceanOfJobs", MetricData=[
+            {"MetricName": "UnnamedOpenJobs", "Value": unnamed, "Unit": "Count"}])
+    except Exception as e:  # noqa: BLE001 -- the names are applied either way
+        print(f"UnnamedOpenJobs not sent: {e!r}", file=sys.stderr)
     return 0
 
 

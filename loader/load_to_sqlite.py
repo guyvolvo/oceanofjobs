@@ -279,6 +279,11 @@ _NEW_COLUMNS = {
     # reposts let through from 09:16 that day lost their old date.
     "first_posted_at": "TEXT",
     "reposts": "INTEGER",
+    # When a complete read of its board first came back without this open
+    # job, and how many complete reads in a row have since. NULL/0 while it
+    # keeps being seen. See close_missing_jobs.
+    "missing_since": "TEXT",
+    "missing_reads": "INTEGER",
 }
 
 
@@ -296,6 +301,8 @@ _NEW_COMPANY_COLUMNS = {
     # haven't looked up yet.
     "logo_url": "TEXT",
     "logo_source": "TEXT",
+    # When the board entry last applied was polled (probe.py observed_at).
+    "observed_at": "TEXT",
 }
 
 
@@ -442,6 +449,11 @@ def iter_resolved(path: Path):
                 yield json.loads(line)
 
 
+# How recently a Comeet board must have been read for a job first seen on
+# it to count as just posted (see already_tracked in load_resolved).
+TRACKED_WITHIN = timedelta(days=2)
+
+
 def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
                   drop_description: bool = False) -> set[str]:
     """Upsert probe.py's --json output. Every company in this file was
@@ -464,7 +476,10 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
     data = iter_resolved(resolved_path)
     covered: set[str] = set()
     ts = now_iso()
-    seen_ids_by_domain: dict[str, set[str]] = {}
+    seen_ids_by_domain: dict[tuple[str, str], set[str]] = {}  # (domain, ats) -> ids
+    # Boards whose read stopped at a cap (probe.py's Resolution.complete):
+    # what they did see counts, what they didn't proves nothing.
+    incomplete: set[tuple[str, str]] = set()
     # (job_id, description) for descriptions genuinely new or changed
     # this run. Uploaded once after the transaction rather than inline
     # per job: an S3 round trip inside the row loop would dominate the
@@ -501,6 +516,19 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
         # and put it straight into known.json again.
         if domain in SAME_COMPANY:
             continue
+
+        # Apply order is fragment-key order, which is the time a fragment
+        # was written, not when its board was polled. A sweep killed after
+        # a hang writes its old poll after a newer one; applied, that old
+        # board would close the newer jobs and reopen closed ones, and the
+        # 304s that follow would keep it so. Skip anything older than what
+        # was applied. Entries without a stamp (older producers) apply as before.
+        polled = r.get("observed_at")
+        if polled:
+            row = conn.execute("SELECT observed_at FROM companies WHERE domain = ?", (domain,)).fetchone()
+            if row and row[0] and row[0] > polled:
+                continue  # still covered: the company is tracked, only this entry is stale
+            conn.execute("UPDATE companies SET observed_at = ? WHERE domain = ?", (polled, domain))
 
         # "unchanged": probe.py's conditional re-poll got a 304 (or the
         # normalized content hash matched), so it deliberately did NOT
@@ -611,8 +639,16 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
         # the exact "brand new company's backlog reads as all 1-minute-
         # old" bug this check exists to prevent, just reached a different
         # way than the original Dream Security case.
+        #
+        # And polled recently. A board nobody read for weeks is as unknown
+        # as a new one: on 2026-11-04, 242 Comeet companies that had fallen
+        # out of known.json since September came back and 2,629 old jobs
+        # all read "posted 6m ago".
         already_tracked = bool(
-            conn.execute("SELECT 1 FROM companies WHERE domain = ? AND ats = 'comeet'", (domain,)).fetchone()
+            conn.execute(
+                "SELECT 1 FROM companies WHERE domain = ? AND ats = 'comeet' AND last_checked >= ?",
+                (domain, (datetime.fromisoformat(ts) - TRACKED_WITHIN).isoformat(timespec="seconds")),
+            ).fetchone()
         )
         # jsonld is probe.py's own best-effort tier (schema.org JobPosting
         # scraped off the company's careers page, no live API to verify
@@ -687,9 +723,11 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
             continue  # MISS (or inconclusive) this run: don't touch this domain's existing jobs
 
         ids = set()
+        boards = {ats}
         for j in r.get("jobs") or []:
             jid = job_id(domain, j.get("ats") or ats, j.get("external_id"), j.get("url"), j.get("title") or "")
             ids.add(jid)
+            boards.add(j.get("ats") or ats)
             job_confidence = "best_effort" if j.get("ats") == "jsonld" else "verified"
             # Compared against the stored hash before the upsert
             # overwrites it. An empty description means "this poll didn't
@@ -740,12 +778,21 @@ def load_resolved(conn: sqlite3.Connection, resolved_path: Path,
                 # single apply (1,347 rows and as many S3 reads, measured
                 # on a pass that changed nothing).
                 meta_before[jid] = (row["title"], row["location"], row["department"])
-        seen_ids_by_domain[domain] = ids
+        # Per board, not per domain: a read of one ATS says nothing about a
+        # company's jobs on another. Keyed by domain alone, every complete
+        # read of Accenture's 16-job Pinpoint board ran the clock on its
+        # Workday jobs past the 2,000 listing limit, and 976 live ones
+        # closed in an hour on 2026-11-05 (28 companies post on two ATSs).
+        # Two reads of one board in a run add up rather than replace.
+        for board in boards:
+            seen_ids_by_domain.setdefault((domain, board), set()).update(ids)
+            if r.get("complete") is False:
+                incomplete.add((domain, board))
         if adopted_from:
             _adopt_job_ages(conn, domain, adopted_from)
 
     conn.executemany("UPDATE jobs SET last_seen = ? WHERE id = ?", seen_again)
-    close_missing_jobs(conn, seen_ids_by_domain, ts)
+    close_missing_jobs(conn, seen_ids_by_domain, ts, incomplete)
 
     if meta_before:
         changed = []
@@ -1635,7 +1682,7 @@ def _classify_with_company(conn: sqlite3.Connection, rows: list) -> None:
     conn.executemany("UPDATE jobs SET role_class = ?, role_score = ?, role_evidence = ? WHERE id = ?", second)
 
 
-def prune_stale_companies(conn: sqlite3.Connection, current_domains: set[str], ts: str) -> int:
+def prune_stale_companies(conn: sqlite3.Connection, current_domains: set[str], ts: str) -> list[str]:
     """A `--batch domains.txt` run's resolved.json has one entry per
     domain CURRENTLY in domains.txt/companies.yml -- the full universe
     this project means to track, hit or miss, this run (see main()'s
@@ -1666,7 +1713,7 @@ def prune_stale_companies(conn: sqlite3.Connection, current_domains: set[str], t
             """,
             (f"no longer in domains.txt/companies.yml as of {ts}", ts, domain),
         )
-    return len(stale)
+    return stale
 
 
 DEMOTED_EMPTY_MARK = "board empty for"
@@ -1730,19 +1777,61 @@ def demote_empty_boards(conn: sqlite3.Connection, ts: str, days: int) -> list[st
     return demoted
 
 
-def close_missing_jobs(conn: sqlite3.Connection, seen_ids_by_domain: dict[str, set[str]], ts: str) -> None:
-    """A job still open in the DB, for a domain we successfully re-probed
-    this run, that didn't come back in this run's results: mark it closed.
+# A job closes only once complete reads of its board have gone without it
+# for this long AND this many times in a row. One missed read used to close
+# it on the spot, and a missed read is common: Workday and SmartRecruiters
+# page by offset, a board that posts while being read shifts a job across
+# a page boundary, and that read never sees it. Verified 2026-11-03 against
+# the sources: 25 of 26 SmartRecruiters jobs and 19 of 29 checkable Workday
+# jobs closed in the previous 48 hours were still open. Each one went
+# noindex, dropped out of alerts and came back on a later read.
+# Time is the rule (a board read every 15 minutes passes 3 reads in 45);
+# the count stops a board read once in 6 hours from closing on one miss.
+CLOSE_AFTER = timedelta(hours=6)
+CLOSE_AFTER_READS = 3
+
+
+def close_missing_jobs(conn: sqlite3.Connection, seen_ids_by_domain: dict[tuple[str, str], set[str]], ts: str,
+                       incomplete: set[tuple[str, str]] = frozenset()) -> dict[str, int]:
+    """Close the open jobs that complete reads have stopped returning.
+
+    Only domains this run read successfully are here at all: a failed read
+    (ats=None) and an "unchanged" 304 never reach this pass. A seen job's
+    missing clock resets. Keys are (domain, ats): a read only speaks for its
+    own board's jobs. A board in `incomplete` (the read stopped at a
+    cap) resets what it saw and starts no clock for what it didn't. Closing
+    sets closed_at once; re-running the same pass changes nothing.
     """
-    for domain, seen_ids in seen_ids_by_domain.items():
+    cutoff = (datetime.fromisoformat(ts) - CLOSE_AFTER).isoformat(timespec="seconds")
+    stats = {"closed": 0, "waiting": 0, "reset": 0, "incomplete_domains": 0}
+    for (domain, ats), seen_ids in seen_ids_by_domain.items():
         rows = conn.execute(
-            "SELECT id FROM jobs WHERE company_domain = ? AND closed_at IS NULL", (domain,)
-        ).fetchall()
-        missing = [row[0] for row in rows if row[0] not in seen_ids]
-        if missing:
-            conn.executemany(
-                "UPDATE jobs SET closed_at = ? WHERE id = ?", [(ts, jid) for jid in missing]
-            )
+            "SELECT id, missing_since FROM jobs WHERE company_domain = ? AND ats = ? AND closed_at IS NULL",
+            (domain, ats)).fetchall()
+        back = [(jid,) for jid, since in rows if since is not None and jid in seen_ids]
+        if back:
+            conn.executemany("UPDATE jobs SET missing_since = NULL, missing_reads = 0 WHERE id = ?", back)
+            stats["reset"] += len(back)
+        if (domain, ats) in incomplete:
+            stats["incomplete_domains"] += 1
+            continue
+        missing = [(ts, jid) for jid, _ in rows if jid not in seen_ids]
+        if not missing:
+            continue
+        conn.executemany(
+            "UPDATE jobs SET missing_since = COALESCE(missing_since, ?),"
+            " missing_reads = COALESCE(missing_reads, 0) + 1 WHERE id = ?", missing)
+        # Seen jobs were reset above, so every clock still running here is a missing one.
+        closing = conn.execute(
+            "SELECT id FROM jobs WHERE company_domain = ? AND ats = ? AND closed_at IS NULL"
+            " AND missing_since <= ? AND missing_reads >= ?",
+            (domain, ats, cutoff, CLOSE_AFTER_READS)).fetchall()
+        conn.executemany("UPDATE jobs SET closed_at = ? WHERE id = ?", [(ts, jid) for (jid,) in closing])
+        stats["closed"] += len(closing)
+        stats["waiting"] += len(missing) - len(closing)
+    if any(stats.values()):
+        print("close pass: " + ", ".join(f"{v} {k}" for k, v in stats.items()), file=sys.stderr)
+    return stats
 
 
 def load_deep(conn: sqlite3.Connection, deep_path: Path) -> None:
@@ -2031,6 +2120,43 @@ def s3_push(bucket: str, key: str, src: Path) -> None:
     boto3.client("s3").upload_file(str(src), bucket, key)
 
 
+# One PUT stops at 5 GiB (jobs-full-discover.db passed it on 2026-11-01:
+# EntityTooLarge). Above this size the push goes up in parts instead. Not
+# upload_file: its managed transfer refuses IfMatch and IfNoneMatch, and
+# the condition is the point of s3_push_conditional.
+PART_BYTES = 64 * 1024 * 1024
+
+
+def _put_multipart(s3, src: Path, kwargs: dict) -> dict:
+    """A multipart upload of src, with kwargs' IfMatch or IfNoneMatch on
+    the completing request, so a conflict still fails the whole upload.
+    Any failure aborts it, and no part is left stored."""
+    from concurrent.futures import ThreadPoolExecutor
+    from botocore.exceptions import ClientError
+
+    where = {"Bucket": kwargs["Bucket"], "Key": kwargs["Key"]}
+    upload_id = s3.create_multipart_upload(**where)["UploadId"]
+
+    def part(n: int) -> dict:
+        with open(src, "rb") as fh:
+            fh.seek((n - 1) * PART_BYTES)
+            body = fh.read(PART_BYTES)
+        return {"PartNumber": n, "ETag": s3.upload_part(**where, UploadId=upload_id, PartNumber=n, Body=body)["ETag"]}
+
+    try:
+        count = max(1, -(-src.stat().st_size // PART_BYTES))
+        # 8 parts in flight: about 512 MB held at once.
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            parts = list(ex.map(part, range(1, count + 1)))
+        return s3.complete_multipart_upload(**kwargs, UploadId=upload_id, MultipartUpload={"Parts": parts})
+    except BaseException:
+        try:
+            s3.abort_multipart_upload(**where, UploadId=upload_id)
+        except ClientError:
+            pass  # the bucket's abort-incomplete-uploads rule (infra/s3.tf) clears it in 3 days
+        raise
+
+
 def s3_push_conditional(bucket: str, key: str, src: Path, etag: str | None) -> bool:
     """Same upload as s3_push, except it fails cleanly (returns False)
     instead of overwriting anything if `key` has changed in S3 since the
@@ -2068,10 +2194,14 @@ def s3_push_conditional(bucket: str, key: str, src: Path, etag: str | None) -> b
     marker = _etag_marker(src)
     marker.unlink(missing_ok=True)
     try:
-        with open(src, "rb") as fh:
-            resp = s3.put_object(Body=fh, **kwargs)
+        if src.stat().st_size > PART_BYTES:
+            resp = _put_multipart(s3, src, kwargs)
+        else:
+            with open(src, "rb") as fh:
+                resp = s3.put_object(Body=fh, **kwargs)
     except ClientError as e:
-        if e.response["Error"]["Code"] in ("PreconditionFailed", "412"):
+        # 409 ConditionalRequestConflict: another conditional write to the key finished first.
+        if e.response["Error"]["Code"] in ("PreconditionFailed", "412", "ConditionalRequestConflict", "409"):
             return False
         raise
     # What S3 now holds is exactly this file, so the next s3_pull of it
@@ -2146,16 +2276,19 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
     6,900 companies to 6,017, and Atera and Paragon, pinned that morning,
     went with them.
 
-    Kept: in the live file now and either
-      - absent from the baseline and not probed by this run, or
+    Kept: in the live file now, not in exclude, and either
+      - not probed by this run, whether it was in the baseline or not:
+        the batch merge's companies never are, since they were never in
+        domains.txt, or
       - probed by this run with an inconclusive answer (retryable): the
         board did not answer, which says nothing about whether the
         company still has one. The same day's sweep dropped 746 working
         boards that way, most of them added by the batch merge, so they
         were never in this run's own database to be kept by the loader.
-    A company the run probed and answered for is its answer to give, and
-    a company that was in the baseline and was not probed was dropped
-    from domains.txt on purpose, which is what --prune-stale is for.
+    A company the run probed and answered for is its answer to give. A
+    company leaves on purpose only through exclude: pruned from
+    domains.txt (--prune-stale) or released as empty (--demote-empty-days)
+    by this run.
     """
     live_path = known_out.with_name(known_out.stem + "-live.json")
     existed, _ = s3_pull(bucket, key, live_path)
@@ -2163,7 +2296,9 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
         return 0
     live = json.loads(live_path.read_text(encoding="utf-8"))
     try:
-        before = {e.get("domain") for e in json.loads(baseline.read_text(encoding="utf-8"))}
+        # Only that it is there: without the run's starting point, nothing
+        # says the file is the one this run began from.
+        json.loads(baseline.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         # No baseline to compare against: keep nothing rather than guess.
         return 0
@@ -2178,10 +2313,15 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
     # sweep inconclusively too, since the only board it has is the empty
     # one. Without this it would come straight back from the live file.
     exclude = exclude or set()
+    # Not "absent from the baseline": a company the batch merge added before
+    # this run started was in the baseline, was never in domains.txt, and so
+    # was never probed. That rule dropped 1,244 of them on 2026-11-07 (19,204
+    # in, 17,960 out) and 1,372 before 2026-11-04, and their boards went
+    # unpolled. Leaving known.json takes this run's own answer for the
+    # company, or an explicit removal (exclude: pruned or released here).
     added = [e for e in live
              if e.get("domain") and e["domain"] not in have and e["domain"] not in exclude
-             and (e["domain"] in unanswered
-                  or (e["domain"] not in before and e["domain"] not in swept))]
+             and (e["domain"] in unanswered or e["domain"] not in swept)]
     if added:
         known.extend(added)
         known_out.write_text(json.dumps(known, ensure_ascii=False), encoding="utf-8")
@@ -2257,6 +2397,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--resolved", required=True, type=Path,
                      help="probe.py --json output (either --batch's full discovery run or --known's fast-poll run, same shape, loaded the same way)")
+    ap.add_argument("--last-fragment", help="the newest delta fragment in --resolved; kept in meta.last_fragment_key in the same transaction")
     ap.add_argument("--deep", type=Path, help="best-effort scraper output (optional)")
     ap.add_argument("--out", required=True, type=Path, help="local jobs.db path")
     ap.add_argument("--known-out", type=Path, default=None,
@@ -2304,6 +2445,10 @@ def main() -> int:
                           "words remain searchable through jobs_fts either way.")
     ap.add_argument("--logos", type=Path,
                      help="company-logos.json, stamped onto the snapshot before it ships. Logos live in their own file on their own cadence (resolve_company_logos.py): resolving one costs several requests and then never changes, while this snapshot is rewritten every few minutes.")
+    ap.add_argument("--gazetteer", type=Path,
+                     help="gazetteer.tsv.gz (scripts/geonames_coverage.py --gazetteer-out). With --box, each sweep "
+                          "places a batch of location strings in the location_places side table and records how "
+                          "(loader/location_places.py). Without it nothing is created.")
     ap.add_argument("--known-baseline", type=Path,
                      help="known.json as it stood when this run started. With it, a company that is in "
                           "the live known.json now, was not in the baseline, and was not in this run's "
@@ -2351,6 +2496,7 @@ def main() -> int:
             print(f"pulled existing jobs.db from s3://{args.bucket}/{args.key}: {existed}", file=sys.stderr)
 
         demoted: list[str] = []
+        pruned: list[str] = []
         opened = time.monotonic()
         conn = open_db(args.out)
         if args.box:
@@ -2376,6 +2522,11 @@ def main() -> int:
 
         with conn:
             current_domains = load_resolved(conn, args.resolved, args.drop_description)
+            if args.last_fragment:
+                # In this transaction, so the key always names exactly what the
+                # file holds: a restore replays the retained fragments after it.
+                conn.execute("INSERT INTO meta (key, value) VALUES ('last_fragment_key', ?) "
+                             "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (args.last_fragment,))
             lap("merge")
             sweep_due = (not args.box) or _box_sweep_due(conn)
             n_roles = classify_roles(conn)
@@ -2400,9 +2551,9 @@ def main() -> int:
                 load_deep(conn, args.deep)
             if args.prune_stale:
                 ts = now_iso()
-                n_pruned = prune_stale_companies(conn, current_domains, ts)
-                if n_pruned:
-                    print(f"pruned {n_pruned} companies no longer in domains.txt/companies.yml", file=sys.stderr)
+                pruned = prune_stale_companies(conn, current_domains, ts)
+                if pruned:
+                    print(f"pruned {len(pruned)} companies no longer in domains.txt/companies.yml", file=sys.stderr)
             if args.demote_empty_days:
                 demoted = demote_empty_boards(conn, now_iso(), args.demote_empty_days)
                 if demoted:
@@ -2440,6 +2591,18 @@ def main() -> int:
                     print(f"places: filled {n_places} rows from their location text", file=sys.stderr)
             except Exception as e:
                 print(f"places backfill failed (non-fatal): {e!r}", file=sys.stderr)
+            # Box only, and only once a gazetteer has been put beside the
+            # database: until then this does nothing, so shipping the code
+            # creates no table. Imported here so the scrape Lambdas, which
+            # carry this file but never pass --gazetteer, never load it.
+            if args.box and sweep_due and args.gazetteer and args.gazetteer.exists():
+                try:
+                    import location_places
+                    done = location_places.backfill(conn, args.gazetteer, now_iso())
+                    if done.get("rows"):
+                        print(f"location places: {json.dumps(done)}", file=sys.stderr)
+                except Exception as e:
+                    print(f"location places failed (non-fatal): {e!r}", file=sys.stderr)
             lap("logos+places")
             update_meta(conn, clustering=sweep_due)
             lap("meta")
@@ -2475,7 +2638,7 @@ def main() -> int:
         if args.known_baseline:
             kept = keep_companies_added_meanwhile(args.bucket, args.known_key, known_out,
                                                   args.known_baseline, args.resolved,
-                                                  exclude=set(demoted))
+                                                  exclude=set(demoted) | set(pruned))
             print(f"known.json: kept {kept} companies added while this run was going", file=sys.stderr)
 
         # known.json has no reader that needs it pinned to one exact

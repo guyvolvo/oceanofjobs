@@ -132,7 +132,15 @@ JITTER = 0.35
 # nothing and a backlog, however deep, drains a run at a time. Before
 # that, a run over its time saved no state and the next faced the same
 # pile: 45 minutes of that on 2026-09-14, 40 hours from 2026-09-28.
-MAX_PER_SWEEP = 900
+#
+# 20,000 since 2026-11-08, so the deadline is what decides. The tick went
+# from 5 to 15 minutes on 2026-11-02 (cost) and the cap stayed at 900, so
+# demand (about 2,300 boards a tick with 14,143 at the 4-hour ceiling)
+# outran it: 10,157 boards waited every run, a board that had just posted
+# waited about 3 hours behind them, and each run used 20 of its 210
+# seconds. A cap only means "stop early"; the deadline already stops a run
+# at the right place whatever the load, most overdue first.
+MAX_PER_SWEEP = 20_000
 
 _VALIDATORS = ("etag", "last_modified", "content_hash")
 
@@ -302,13 +310,13 @@ def due(state, entries, now=None):
         merged.update({k: row[k] for k in _VALIDATORS if k in row})
         scored.append((nxt.timestamp() if nxt else float("-inf"), merged))
 
-    if len(scored) <= MAX_PER_SWEEP:
-        return [e for _, e in scored]
-    # Most overdue first, so deferring is fair rather than arbitrary and
-    # nothing can be starved indefinitely.
+    # Most overdue first, always: the probe works through the list in this
+    # order and hands back whatever the deadline stops it reaching, so the
+    # order is what keeps deferring fair.
     scored.sort(key=lambda pair: pair[0])
-    print("%d boards due, sweeping the %d most overdue" % (len(scored), MAX_PER_SWEEP),
-          file=sys.stderr)
+    if len(scored) > MAX_PER_SWEEP:
+        print("%d boards due, sweeping the %d most overdue" % (len(scored), MAX_PER_SWEEP),
+              file=sys.stderr)
     return [e for _, e in scored[:MAX_PER_SWEEP]]
 
 

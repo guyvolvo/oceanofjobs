@@ -9,7 +9,7 @@ an actual SLA, so this Lambda now owns the recurring cadence entirely;
 scrape-fast.yml keeps workflow_dispatch only, for manual/on-demand runs.
 
 Each tick it polls the boards that are due, by each board's own
-backoff (loader/scrape_state.py), at most MAX_PER_SWEEP of them, with
+backoff (loader/scrape_state.py), most overdue first until the deadline, with
 the validators that turn most polls into a 304. Boards that changed go
 out as delta fragments (loader/deltas.py) for the box to apply; nothing
 here opens a database. This replaced a fixed rotation of 50-company
@@ -35,6 +35,7 @@ sys.path.insert(0, str(ROOT / "loader"))
 
 from deltas import put_fragment  # noqa: E402
 import scrape_state  # noqa: E402
+from probe import SLOW_BOARD_ATS  # noqa: E402
 TMP = Path("/tmp")
 BUCKET = os.environ["DATA_BUCKET"]
 # When the probe stops taking new boards. Whatever it polled by then is
@@ -51,7 +52,13 @@ BUCKET = os.environ["DATA_BUCKET"]
 # reserved concurrency on this account), a run longer than the 5-minute
 # schedule overlapped the next one, which polled the same boards and lost
 # its state save. Runs reached 415s on 2026-10-04 and 301s on 10-07.
-PROBE_DEADLINE_MIN = 3.5
+#
+# 5 again since 2026-11-09: the schedule is every 15 minutes now
+# (infra/scrape_lambda.tf), so a 7-minute run can't overlap the next. With
+# the 900-board cap gone (2026-11-08), Monday's US morning brought 2,500 to
+# 2,700 boards due a run; 3.5 minutes polled about 2,000 and left 740 to
+# pile onto the next run (the scrape-fast-backlog alarm).
+PROBE_DEADLINE_MIN = 5
 
 # The old DynamoDB validator table. Read once, only when the S3 poll
 # state is missing, to seed it (see scrape_state.load). Everything else
@@ -171,6 +178,11 @@ def lambda_handler(event, context):
     ours = [e for e in sweep if not scrape_state.worker_owns(e.get("domain"), claim)]
     if len(ours) < len(sweep):
         print(f"{len(sweep) - len(ours)} boards belong to the box worker, left to it")
+    # Boards probe.py --known skips (unresolved, or read hourly by the
+    # Workday Lambda). It never answers for them, so they were never
+    # scheduled and sat at the front of every run's list: 50 of 900 slots
+    # each run on 2026-11-08.
+    ours = [e for e in ours if e.get("ats") and e.get("token") and e["ats"] not in SLOW_BOARD_ATS]
     sweep = scrape_state.due(poll_state, ours)
     if not sweep:
         # Everything is inside its own interval. Nothing to do, and
@@ -240,6 +252,8 @@ def lambda_handler(event, context):
           + (f"; {deferred} boards not reached by the deadline, left for the next run" if deferred else ""))
     if errors:
         print(f"{len(errors)} known boards failed to re-poll: {len(errors)} companies")
+    # One JSON line for infra/alarms.tf's scrape-backlog metric filter.
+    print(json.dumps({"sweep_due": len(sweep), "sweep_deferred": deferred}))
 
     # The fragments above are one small write, not N partition rewrites.
     # That is what makes a wide sweep affordable: persisting a sweep used

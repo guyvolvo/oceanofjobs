@@ -22,6 +22,7 @@ retried, so the failure mode is doing the same work twice rather than
 losing a listing. Re-applying is harmless: load_resolved is an upsert.
 """
 
+import gzip
 import json
 import sys
 import uuid
@@ -79,6 +80,26 @@ def _chunks(payload: list[dict]):
         yield batch
 
 
+GZIP_MAGIC = bytes((0x1F, 0x8B))
+
+
+def unpack(body: bytes) -> bytes:
+    """A fragment's JSON bytes, gzipped or not. JSON never starts with the
+    gzip magic, so plain fragments written before the switch still read."""
+    return gzip.decompress(body) if body[:2] == GZIP_MAGIC else body
+
+
+def unpacked_size(path) -> int:
+    """Bytes of JSON a spooled fragment holds, which is what an apply has to
+    fit in memory. A gzip member ends with that size mod 2**32; fragments
+    are capped far below 4 GB."""
+    with open(path, "rb") as fh:
+        if fh.read(2) != GZIP_MAGIC:
+            return fh.seek(0, 2)
+        fh.seek(-4, 2)
+        return int.from_bytes(fh.read(4), "little")
+
+
 def put_fragment(bucket: str, results: list[dict]) -> list[str]:
     """Write one sweep's changed companies. Returns the keys written.
 
@@ -107,9 +128,11 @@ def put_fragment(bucket: str, results: list[dict]) -> list[str]:
         # Joined from the per-company bytes rather than re-serializing
         # the batch, which would double this function's peak memory on
         # the very machine whose memory is the point of the exercise.
-        body = b"[" + b",".join(batch) + b"]"
+        # Gzipped: the box downloads every fragment, ~10x fewer bytes.
+        # Readers take either form (unpack), so the key keeps .json.
+        body = gzip.compress(b"[" + b",".join(batch) + b"]", 6)
         s3.put_object(Bucket=bucket, Key=key, Body=body,
-                      ContentType="application/json")
+                      ContentType="application/gzip")
         keys.append(key)
     return keys
 
@@ -173,7 +196,7 @@ def read_fragments(bucket: str, keys: list[str]) -> list[dict]:
 
     def read(key: str) -> tuple[str, list[dict]]:
         try:
-            return key, json.loads(s3.get_object(Bucket=bucket, Key=key)["Body"].read())
+            return key, json.loads(unpack(s3.get_object(Bucket=bucket, Key=key)["Body"].read()))
         except Exception as e:
             print(f"couldn't read {key} (skipped): {e!r}", file=sys.stderr)
             return key, []

@@ -1,9 +1,11 @@
 name: deploy-infra
 
 # Terraform for infra/ (S3 buckets, Lambda, CloudFront, GitHub OIDC
-# roles). PRs get a plan for review; only pushes to the deploy branch can
-# apply, enforced both here and by the infra-deploy OIDC role's trust
-# policy on the AWS side.
+# roles). Only pushes to the deploy branch apply, enforced both here and
+# by the infra-deploy OIDC role's trust policy on the AWS side. No plan on
+# pull requests: that role trusts main only, so a PR run could never sign
+# in and the check failed on every infra PR (removed 2026-11-02). Plan a
+# change with a manual plan_only run, or locally: cd infra && terraform plan.
 #
 # Does NOT touch infra/bootstrap/, a one-time, apply-by-hand step (see
 # its own header) that creates the state bucket this workflow depends on.
@@ -17,8 +19,6 @@ name: deploy-infra
 # and the others can run unattended.
 
 on:
-  pull_request:
-    paths: ["infra/**"]
   push:
     branches: [main]
     paths: ["infra/**"]
@@ -26,8 +26,7 @@ on:
   # than files (the Google and GitHub OAuth credentials), so adding one
   # has to be appliable without an infra/ file changing to carry it.
   # plan_only: the plan with the deploy role's access and the repository's
-  # secrets, nothing applied. A pull request's plan can't take the role,
-  # which trusts main only.
+  # secrets, nothing applied.
   workflow_dispatch:
     inputs:
       plan_only:
@@ -38,7 +37,6 @@ on:
 permissions:
   id-token: write
   contents: read
-  pull-requests: write # to comment the plan on the PR
 
 env:
   AWS_REGION: il-central-1
@@ -46,7 +44,7 @@ env:
 
 jobs:
   plan:
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.plan_only)
+    if: github.event_name == 'workflow_dispatch' && inputs.plan_only
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -74,22 +72,8 @@ jobs:
           TF_VAR_origin_secret: ${{ secrets.OTJ_ORIGIN_SECRET }}
           TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
 
-      - if: github.event_name != 'pull_request'
-        run: |
+      - run: |
           { echo '### terraform plan'; echo '```'; cat plan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-
-      - if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const plan = fs.readFileSync('infra/plan.txt', 'utf8').slice(0, 60000);
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "### terraform plan\n```\n" + plan + "\n```",
-            });
 
   apply:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.plan_only)

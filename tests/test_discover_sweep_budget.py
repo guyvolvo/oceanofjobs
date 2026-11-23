@@ -220,7 +220,7 @@ with tempfile.TemporaryDirectory() as td:
         pruned = prune_stale_companies(conn, current, TS_OLD)
     still = conn.execute("SELECT ats FROM companies WHERE domain = 'acme.com'").fetchone()["ats"]
     check("--prune-stale does not demote a deferred company",
-          pruned == 0 and still == "greenhouse", f"pruned={pruned} ats={still}")
+          not pruned and still == "greenhouse", f"pruned={pruned} ats={still}")
     # Windows will not delete an open file, and TemporaryDirectory
     # cleanup runs before the connection would otherwise be collected.
     conn.close()
@@ -308,6 +308,25 @@ check("comeet, workday and jsonld are absent from FETCHERS, which is why the hel
       not {"comeet", "workday", "jsonld"} & set(probe.FETCHERS))
 check("an ats nobody knows is None, not a crash",
       probe._fetch_by_ats(None, "nosuchats", "whatever") is None)
+
+# A domain still being probed at the deadline no longer holds the run:
+# after the grace it comes back deferred and the rest is kept.
+import time  # noqa: E402
+saved = (probe.BATCH_DEADLINE, probe.DEADLINE_GRACE_S, probe.ABANDONED)
+try:
+    probe.BATCH_DEADLINE, probe.DEADLINE_GRACE_S = time.monotonic(), 0.5
+    sunk = []
+    t0 = time.monotonic()
+    got = probe.run_and_report(["slow.com", "fast.com"],
+                               lambda d: (time.sleep(5) if d == "slow.com" else None) or probe.Resolution(domain=d),
+                               True, sunk.append)
+    took = time.monotonic() - t0
+    by = {r.domain: r for r in got}
+    check("an unfinished domain is cut off after the grace, the finished one kept",
+          took < 2 and by["slow.com"].retryable and "deadline" in by["slow.com"].error and not by["fast.com"].error
+          and {r.domain for r in sunk} == {"slow.com", "fast.com"} and probe.ABANDONED, repr((took, by)))
+finally:
+    probe.BATCH_DEADLINE, probe.DEADLINE_GRACE_S, probe.ABANDONED = saved
 
 print()
 if failures:

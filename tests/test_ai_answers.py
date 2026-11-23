@@ -36,6 +36,11 @@ class FakeTable:
     def put_item(self, Item=None, **kw):
         self.items[(Item["user_id"], Item["alert_id"])] = dict(Item)
 
+    def query(self, KeyConditionExpression=None, **kw):
+        # apply.plan_of reads a user's #plan rows by prefix: user_id = u AND begins_with(alert_id, p).
+        user, prefix = (e.get_expression()["values"][1] for e in KeyConditionExpression.get_expression()["values"])
+        return {"Items": [dict(r) for (u, a), r in self.items.items() if u == user and a.startswith(prefix)]}
+
     def update_item(self, Key=None, ExpressionAttributeValues=None, UpdateExpression="", **kw):
         v = ExpressionAttributeValues
         if UpdateExpression.startswith("SET"):  # the per-minute counter (ai_answers._rate); its own tests are on moto

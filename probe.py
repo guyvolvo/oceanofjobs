@@ -197,6 +197,15 @@ class Resolution:
     # company that has no logo from one we failed to look up.
     logo_url: str | None = None
     logo_source: str | None = None
+    # When this board's poll finished (UTC ISO), stamped as the result is
+    # written out. The applier skips an entry older than the one it already
+    # applied, so a hung sweep's late fragment can't reopen or close jobs
+    # behind a newer poll (2026-11-02 review).
+    observed_at: str | None = None
+    # False when the read stopped at one of our caps (WORKDAY_MAX_JOBS and
+    # the like) on a board bigger than that: jobs it didn't reach are
+    # unknown, not closed, so the loader closes nothing from this read.
+    complete: bool = True
     # True when this board was checked and provably hasn't moved, either
     # a 304 or a matching normalized_job_hash. Critically NOT the same as
     # "the board is empty": jobs is [] in both cases, and
@@ -256,6 +265,15 @@ GUESS_SHARD: tuple[int, int] | None = None
 # and writes what it has beats a run that does more work and writes none
 # of it.
 BATCH_DEADLINE: float | None = None
+# The deadline only stops new domains starting. One already in progress
+# (a big board's descriptions) ran on past it: 26 to 31 October 2026 the
+# probe reached the job's 5.5-hour limit every day and saved nothing.
+# This long after the deadline, whatever is unfinished is handed back
+# deferred and the run moves on to writing what it has.
+DEADLINE_GRACE_S = 600
+# Set when run_and_report left workers running; main() then exits without
+# waiting for them.
+ABANDONED = False
 
 # ATSes whose per-job detail fetch runs even with FETCH_FULL_DESCRIPTIONS
 # off. A global flag is the wrong lever here because the two gated
@@ -326,6 +344,14 @@ def _cond_reset(etag: str | None = None, last_modified: str | None = None,
     _cond.guessing = False
     _cond.new_etag = None
     _cond.new_last_modified = None
+    _cond.capped = False
+
+
+def _capped(total: int | None, cap: int) -> None:
+    """Note a board bigger than the cap its fetcher reads up to. What the
+    read didn't reach is unknown rather than closed (see Resolution.complete)."""
+    if total and total > cap:
+        _cond.capped = True
 
 
 _cond_reset()
@@ -1392,6 +1418,7 @@ def f_smartrecruiters(sess, token):
     # would read as a hundred roles closed.
     pages = [d]
     total = int(d.get("totalFound") or 0)
+    _capped(total, _SMARTRECRUITERS_MAX_JOBS)
     if total > len(d["content"]):
         offsets = list(range(len(d["content"]), min(total, _SMARTRECRUITERS_MAX_JOBS), 100))
         rest = _fetch_all(lambda off: get_json(sess, f"{base}?limit=100&offset={off}"), offsets, workers=4)
@@ -2879,6 +2906,7 @@ def f_oracle_cx(sess, token, known_ids=None, description_budget=None):
         rows.extend(page)
         if len(page) < ORACLE_PAGE:
             break
+    _capped(total, ORACLE_MAX_JOBS)
 
     budget = description_budget if description_budget is not None else 0
     wanted = [_txt(r.get("Id")) for r in rows if not (known_ids and _txt(r.get("Id")) in known_ids)][:budget]
@@ -2960,6 +2988,7 @@ def f_eightfold(sess, token, known_ids=None, description_budget=None):
         rows.extend(page)
         if len(rows) >= min(total, EIGHTFOLD_MAX_JOBS):
             break
+    _capped(total, EIGHTFOLD_MAX_JOBS)
 
     out = []
     for row in rows:
@@ -4013,6 +4042,8 @@ WORKDAY_PAGE_SIZE = 20
 # request (see workday_page1), so a 1,600-posting tenant is 80 requests
 # in a few seconds once in a while rather than a wall every cycle.
 WORKDAY_MAX_JOBS = 3000
+# The most Workday's listing API will serve, whatever the board's size.
+WORKDAY_TOTAL_LIMIT = 2000
 # Measured live on 3M's board (2026-09-21): 16 pages at once all 200 in
 # 1.4s, 8 detail fetches at once in 0.7s, no 429 anywhere. Eight keeps
 # headroom under that and under session()'s per-host pool.
@@ -4233,7 +4264,13 @@ def f_workday(
     total, postings = _workday_list(sess, tenant, wd, site, None, max_jobs, page1)
     if total is None:
         return None
-    if israel_facets and total > max_jobs:
+    # Workday reports total as 2,000 for any bigger board and serves page 1
+    # again past offset 2,000 (checked 2026-11-04 on leidos, circlek, jll),
+    # so a total of 2,000 means "2,000 or more" and the read is not complete.
+    if total >= WORKDAY_TOTAL_LIMIT:
+        _cond.capped = True
+    _capped(total, max_jobs)
+    if israel_facets and (total > max_jobs or total >= WORKDAY_TOTAL_LIMIT):
         il_total, il_postings = _workday_list(sess, tenant, wd, site, israel_facets, WORKDAY_MAX_JOBS)
         if il_total is None:
             return None
@@ -5012,11 +5049,24 @@ def run_and_report(items: list, resolve_one, json_mode: bool, sink=None) -> list
     board's jobs at a time, and what was polled before a crash or the
     deadline is already written.
     """
+    global ABANDONED
     results = []
     t0 = time.time()
-    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        futs = {ex.submit(resolve_one, item): item for item in items}
-        for f in as_completed(futs):
+    ex = ThreadPoolExecutor(max_workers=WORKERS)
+    def one(item):
+        # Read in the worker thread that ran the fetch: _cond is per thread.
+        _cond.capped = False
+        r = resolve_one(item)
+        if _cond.capped:
+            r.complete = False
+        return r
+
+    futs = {ex.submit(one, item): item for item in items}
+    wait = None if BATCH_DEADLINE is None else max(0, BATCH_DEADLINE + DEADLINE_GRACE_S - time.monotonic())
+    done = set()
+    try:
+        for f in as_completed(futs, timeout=wait):
+            done.add(f)
             r = f.result()
             if sink is not None:
                 sink(r)
@@ -5024,6 +5074,16 @@ def run_and_report(items: list, resolve_one, json_mode: bool, sink=None) -> list
             results.append(r)
             if not json_mode:
                 print_row(r)
+    except TimeoutError:
+        for f, item in futs.items():
+            if f not in done:
+                r = _deferred(Resolution(domain=item if isinstance(item, str) else item["domain"]),
+                              "batch deadline reached while this domain was being probed")
+                if sink is not None:
+                    sink(r)
+                results.append(r)
+        ABANDONED = True
+    ex.shutdown(wait=not ABANDONED, cancel_futures=True)
     results.sort(key=lambda r: r.domain)
     if not json_mode:
         hits = [r for r in results if r.ats]
@@ -5128,6 +5188,7 @@ def main() -> int:
     sink = None
     if out_fh is not None:
         def sink(r):
+            r.observed_at = r.observed_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
             out_fh.write(json.dumps(asdict(r), ensure_ascii=False) + "\n")
             out_fh.flush()
 
@@ -5241,6 +5302,11 @@ def main() -> int:
               file=sys.stderr)
     if args.json:
         print(json.dumps([asdict(r) for r in results], indent=2, ensure_ascii=False))
+    if ABANDONED:
+        # Python waits for pool threads at exit, so the abandoned ones would hold the run open.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
     return 0
 
 

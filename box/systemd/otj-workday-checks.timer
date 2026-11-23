@@ -1,0 +1,7 @@
+[Unit]
+Description=Hourly per-job checks on Workday boards past the listing limit
+[Timer]
+OnCalendar=*-*-* *:20:00 UTC
+Persistent=true
+[Install]
+WantedBy=timers.target

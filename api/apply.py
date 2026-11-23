@@ -9,6 +9,9 @@ rows the alert evaluator never sees (no `active` attribute):
     #grant                  a plan the owner gave by hand in the CRM (crm/)
     #applied#<job id>       one row per job the extension claimed
     #queue#<job id>         a job the user approved for queue mode
+    #origin#<job id>        where the job came from: the first source and
+                            every other source that later tried to add it
+    #outcome#<job id>       what the user says happened after applying
 
 Credits are kept by attempts.py. The applied rows are the old claim and
 result path, still used by extensions before 1.9 and for skip records:
@@ -34,6 +37,10 @@ PLAN_ROW = "#plan"
 GRANT_ROW = "#grant"
 APPLIED = "#applied#"
 QUEUE = "#queue#"
+OUTCOME = "#outcome#"
+ORIGIN = "#origin#"
+# attempts.py's job lock, by canonical identity (read here to refuse a queue).
+JOBLOCK = "#joblock#"
 
 # Plan limits, as on the pricing page: (period, applications). The only
 # table: attempts.PLAN_LIMITS is built from it. Filling a form without
@@ -51,6 +58,13 @@ MODES = ("queue", "auto")
 # attempts.snapshot then uses new AI answers without approval).
 FILLS = ("half", "full")
 SOURCES = ("board", "matches", "ats_pages", "mcp")
+# Where a job came from (the #origin# row). Set by the server from the
+# caller's token; only a signed-in website session names its own surface
+# (board or alert). "matches" and "other" are for server-side callers.
+# Jobs from before 2026-10-28 have none, and show none.
+ORIGINS = ("board", "alert", "mcp", "extension", "matches", "other")
+# What the user reports after applying. Never touches credits or attempts.
+OUTCOMES = ("interview", "offer", "rejected", "no_reply")
 UNKNOWNS = ("skip", "ai")
 EEO_FIELDS = ("gender", "race", "veteran", "disability")
 MAX_ANSWERS = 200
@@ -282,12 +296,20 @@ def reusable_answers(answers: list[dict]) -> list[dict]:
     return [a for a in answers if (not job_specific(a["question"]) or a.get("job_id")) and a.get("approval") != "rejected"]
 
 
+# Dodo statuses under which a paid plan is in force (past_due is its grace period).
+PAID_STATUSES = ("active", "trialing", "past_due")
+
+
 def plan_of(table, user_id: str, now: datetime | None = None) -> str:
-    """The plan in force, the higher of: a paid plan while Dodo says it
-    is active or in its grace period (dodo.py keeps the row), and a plan given in
-    the CRM, through its end date (YYYY-MM-DD, UTC; none means no end)."""
-    item = table.get_item(Key={"user_id": user_id, "alert_id": PLAN_ROW}).get("Item") or {}
-    paid = item["plan"] if item.get("plan") in LIMITS and item.get("status") in ("active", "trialing", "past_due") else "free"
+    """The plan in force, the higher of: the best paid plan among the
+    account's subscriptions that Dodo says are active or in their grace
+    period (dodo.py keeps one #plan#<subscription id> row each), and a plan
+    given in the CRM, through its end date (YYYY-MM-DD, UTC; none means no
+    end). Accounts whose payments predate those rows have only #plan."""
+    rows = query_all(table, user_id, PLAN_ROW)
+    subs = [r for r in rows if r["alert_id"] != PLAN_ROW]
+    paid = max((r["plan"] for r in (subs or rows) if r.get("plan") in LIMITS and r.get("status") in PAID_STATUSES),
+               key=list(LIMITS).index, default="free")
     grant = table.get_item(Key={"user_id": user_id, "alert_id": GRANT_ROW}).get("Item") or {}
     today = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     given = grant["plan"] if grant.get("plan") in LIMITS and (not grant.get("until") or grant["until"] >= today) else "free"
@@ -372,38 +394,8 @@ def usage(table, user_id: str, now: datetime | None = None) -> dict:
     return {"plan": plan, "period": period, "limit": limit, "used": used, "remaining": max(0, limit - used)}
 
 
-class LimitReached(Exception):
-    pass
-
-
 class AlreadyApplied(Exception):
     pass
-
-
-def claim(table, user_id: str, body: dict, now: datetime | None = None) -> dict:
-    """Reserve one credit for one job before the extension submits it."""
-    now = now or datetime.now(timezone.utc)
-    job_id = str((body or {}).get("job_id") or "")
-    if not JOB_ID.match(job_id):
-        raise ValueError("job_id is not a job id")
-    existing = table.get_item(Key={"user_id": user_id, "alert_id": APPLIED + job_id}).get("Item")
-    if existing and _counts(existing, now):
-        raise AlreadyApplied("already applied to this job")
-    # The same job under another id: the board's listing and a careers page
-    # hashed by its address (extension/background.js pageJobId).
-    canon = canonical_job(body.get("url"))
-    if canon and any(_counts(r, now) and (r.get("canon") or canonical_job(r.get("url"))) == canon
-                     for r in _applied(table, user_id) if r.get("job_id") != job_id):
-        raise AlreadyApplied("already applied to this job")
-    u = usage(table, user_id, now)
-    if u["remaining"] <= 0:
-        when = "this month" if u["period"] == "month" else "today"
-        raise LimitReached(f"You've used all {u['limit']} applications on the {u['plan'].capitalize()} plan {when}.")
-    table.put_item(Item={"user_id": user_id, "alert_id": APPLIED + job_id, "job_id": job_id,
-                         "company": _text(body.get("company"), 200), "title": _text(body.get("title"), 300),
-                         "url": _text(body.get("url"), 1000), "canon": canon, "status": "claimed", "reason": "",
-                         "at": now.isoformat()})
-    return {"remaining": u["remaining"] - 1}
 
 
 def result(table, user_id: str, body: dict, now: datetime | None = None) -> None:
@@ -520,7 +512,49 @@ def queue(table, user_id: str) -> list[dict]:
     """The queue in the user's order: jobs placed with set_order first, by
     position, then the rest as they were added."""
     rows = sorted(query_all(table, user_id, QUEUE), key=lambda r: (r.get("position") is None, int(r.get("position") or 0), r.get("added_at") or ""))
-    return [{"job_id": r["job_id"], "added_at": r.get("added_at"), "position": i} for i, r in enumerate(rows)]
+    found = origins(table, user_id)
+    return [{"job_id": r["job_id"], "added_at": r.get("added_at"), "position": i, **found.get(r["job_id"], NO_ORIGIN)}
+            for i, r in enumerate(rows)]
+
+
+NO_ORIGIN = {"source": None, "source_at": None, "sources": []}
+
+
+def origins(table, user_id: str) -> dict:
+    """job id -> {"source", "source_at", "sources"}: the first source labels
+    the job; sources lists every one that tried to add it, first included."""
+    return {r["job_id"]: {"source": r["source"], "source_at": r.get("at"),
+                          "sources": [{"source": x["source"], "at": x.get("at")} for x in r.get("sources") or []]}
+            for r in query_all(table, user_id, ORIGIN)}
+
+
+def note_origin(table, user_id: str, job_id: str, source: str, now: datetime | None = None, first_only: bool = False) -> None:
+    """Records that source added the job. The first one stays the label;
+    a different later one is added to the list. first_only (the extension
+    starting a job itself) records only a job with no origin that isn't
+    queued: a queue row from before origins has none, and a guess would
+    be worse than nothing."""
+    if source not in ORIGINS:
+        raise ValueError(f"source must be one of {', '.join(ORIGINS)}")
+    key = {"user_id": user_id, "alert_id": ORIGIN + job_id}
+    row = table.get_item(Key=key).get("Item")
+    if first_only and (row or table.get_item(Key={"user_id": user_id, "alert_id": QUEUE + job_id}).get("Item")):
+        return
+    at = (now or datetime.now(timezone.utc)).isoformat()
+    if not row:
+        try:
+            table.put_item(Item={**key, "job_id": job_id, "source": source, "at": at, "sources": [{"source": source, "at": at}]},
+                           ConditionExpression="attribute_not_exists(alert_id)")
+            return
+        except table.meta.client.exceptions.ConditionalCheckFailedException:
+            row = table.get_item(Key=key).get("Item")
+    if source not in {x["source"] for x in row.get("sources") or []}:
+        # shortcut: read-modify-write, so two new sources at the same instant can lose one; it's a label, not a record of money
+        table.put_item(Item={**row, "sources": [*(row.get("sources") or []), {"source": source, "at": at}]})
+
+
+class InProgress(Exception):
+    pass
 
 
 def set_order(table, user_id: str, job_ids: list) -> None:
@@ -538,14 +572,61 @@ def set_order(table, user_id: str, job_ids: list) -> None:
             pass
 
 
-def enqueue(table, user_id: str, job_id: str, now: datetime | None = None) -> None:
+def enqueue(table, user_id: str, job_id: str, source: str, url: str | None = None, now: datetime | None = None,
+            requeue: bool = False) -> bool:
+    """Queue a job once, from whichever surface asks first. The same job
+    (by id or canonical identity, as attempts.py locks it) already queued
+    keeps its place and False comes back. One with an open attempt raises
+    InProgress; one Submitted or Submission unconfirmed raises
+    AlreadyApplied. The source is noted in every case except a requeue
+    (the job put back by Undo or after its questions were answered): that
+    keeps the sources it had, or none, rather than a guess."""
     if not JOB_ID.match(job_id):
         raise ValueError("not a job id")
-    table.put_item(Item={"user_id": user_id, "alert_id": QUEUE + job_id, "job_id": job_id,
-                         "added_at": (now or datetime.now(timezone.utc)).isoformat()})
+    if source not in ORIGINS:
+        raise ValueError(f"source must be one of {', '.join(ORIGINS)}")
+    canon = canonical_job(url) or "id:" + job_id
+    # Every surface that tries is remembered, even one refused below.
+    if not requeue:
+        note_origin(table, user_id, job_id, source, now)
+    if any(r["job_id"] == job_id or r.get("canon") == canon for r in query_all(table, user_id, QUEUE)):
+        return False
+    lock = table.get_item(Key={"user_id": user_id, "alert_id": JOBLOCK + canon}).get("Item")
+    if lock and lock.get("state") in ("reserved", "submission_started"):
+        raise InProgress("This job is being applied to now.")
+    if lock or submitted_already(table, user_id, job_id, url):
+        raise AlreadyApplied("You've already applied to this job.")
+    try:
+        table.put_item(Item={"user_id": user_id, "alert_id": QUEUE + job_id, "job_id": job_id, "canon": canon,
+                             "added_at": (now or datetime.now(timezone.utc)).isoformat()},
+                       ConditionExpression="attribute_not_exists(alert_id)")
+    except table.meta.client.exceptions.ConditionalCheckFailedException:
+        return False  # queued by another surface meanwhile
+    return True
 
 
 def dequeue(table, user_id: str, job_id: str) -> None:
     if not JOB_ID.match(job_id):
         raise ValueError("not a job id")
     table.delete_item(Key={"user_id": user_id, "alert_id": QUEUE + job_id})
+
+
+def outcomes(table, user_id: str) -> dict:
+    """job id -> {"outcome", "outcome_at"}, for History."""
+    return {r["job_id"]: {"outcome": r["outcome"], "outcome_at": r.get("outcome_at")} for r in query_all(table, user_id, OUTCOME)}
+
+
+def set_outcome(table, user_id: str, job_id: str, outcome, now: datetime | None = None) -> dict:
+    """What the user reports happened after applying, or "none" to clear it.
+    Its own row: no credit, attempt or job lock is read or written."""
+    if not JOB_ID.match(job_id):
+        raise ValueError("not a job id")
+    if outcome not in (*OUTCOMES, "none"):
+        raise ValueError(f"outcome must be one of {', '.join(OUTCOMES)} or none")
+    key = {"user_id": user_id, "alert_id": OUTCOME + job_id}
+    if outcome == "none":
+        table.delete_item(Key=key)
+        return {"job_id": job_id, "outcome": None, "outcome_at": None}
+    at = (now or datetime.now(timezone.utc)).isoformat()
+    table.put_item(Item={**key, "job_id": job_id, "outcome": outcome, "outcome_at": at})
+    return {"job_id": job_id, "outcome": outcome, "outcome_at": at}

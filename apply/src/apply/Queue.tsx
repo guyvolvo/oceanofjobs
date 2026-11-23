@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowDown, ArrowUp, Trash, Tray } from "@phosphor-icons/react";
 import { apply, send, type QueueItem } from "../api";
 import { useExtension } from "../ext";
-import { ATS, ExtensionAction, JobCell, fmtDate, plural } from "../shared";
+import { ATS, ExtensionAction, JobCell, SOURCE, SourceLabel, fmtDate, plural } from "../shared";
 import { useApplyData } from "./data";
 import { ApplyPage, Nothing, PANEL, Waiting } from "./Page";
 
@@ -19,6 +19,10 @@ export default function QueuePage() {
   const items = data.queue;
   const [rows, setRows] = useState<QueueItem[]>(items || []);
   useEffect(() => { if (items) setRows(items); }, [items]);
+  // From the Overview's breakdown (?source=mcp): one source only, so no reordering.
+  const source = new URLSearchParams(location.search).get("source");
+  const only = source && source in SOURCE ? (source as keyof typeof SOURCE) : null;
+  const shown = only ? rows.filter((r) => r.source === only) : rows;
 
   const move = async (i: number, d: -1 | 1) => {
     const next = rows.slice();
@@ -44,7 +48,7 @@ export default function QueuePage() {
     // Undo puts it back where it was, not at the end.
     const undo = async () => {
       try {
-        await apply(`queue/${encodeURIComponent(item.job_id)}`, send("PUT"));
+        await apply(`queue/${encodeURIComponent(item.job_id)}`, send("PUT", { source: item.source === "alert" ? "alert" : "board", requeue: true }));
         await setOrder(before.map((r) => r.job_id));
       } catch (e) {
         toast.error("Couldn't put the job back", { description: (e as Error).message });
@@ -57,7 +61,7 @@ export default function QueuePage() {
 
   return (
     <ApplyPage current="queue" title="Queue" data={data}
-      note={items ? (rows.length ? `${plural(rows.length, "job")}, applied in this order.` : "Jobs waiting for auto apply.") : undefined}
+      note={items ? (only ? <>{plural(shown.length, "job")} from {SOURCE[only].from}. <a className="underline underline-offset-3" href="/apply/queue">Show the whole queue</a></> : rows.length ? `${plural(rows.length, "job")}, applied in this order.` : "Jobs waiting for auto apply.") : undefined}
       actions={items ? <ExtensionAction ext={ext} queue={rows} onOpened={data.reload} /> : undefined}>
       {!items ? <Waiting /> : rows.length ? (
         <div className={PANEL}>
@@ -71,15 +75,17 @@ export default function QueuePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r, i) => (
+              {shown.map((r, i) => (
                 <TableRow key={r.job_id}>
-                  <TableCell className="whitespace-normal pl-4 align-top"><JobCell title={r.title} link={r.link} sub={r.company} /></TableCell>
+                  <TableCell className="whitespace-normal pl-4 align-top"><JobCell title={r.title} link={r.link} sub={r.company} /><SourceLabel row={r} /></TableCell>
                   <TableCell className="hidden align-top sm:table-cell">{ATS[r.ats] || r.ats || ""}</TableCell>
                   <TableCell className="hidden align-top tabular-nums sm:table-cell">{fmtDate(r.added_at)}</TableCell>
                   <TableCell className="pr-4 align-top">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon-sm" variant="ghost" aria-label={`Move ${r.title} up`} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp /></Button>
-                      <Button size="icon-sm" variant="ghost" aria-label={`Move ${r.title} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)}><ArrowDown /></Button>
+                      {only ? null : <>
+                        <Button size="icon-sm" variant="ghost" aria-label={`Move ${r.title} up`} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp /></Button>
+                        <Button size="icon-sm" variant="ghost" aria-label={`Move ${r.title} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)}><ArrowDown /></Button>
+                      </>}
                       <Button size="icon-sm" variant="ghost" aria-label={`Remove ${r.title}`} onClick={() => remove(r)}><Trash /></Button>
                     </div>
                   </TableCell>

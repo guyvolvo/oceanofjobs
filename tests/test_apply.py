@@ -114,25 +114,24 @@ u = apply.usage(t, "u", NOW)
 check("free plan: 10 a month", u == {"plan": "free", "period": "month", "limit": 10, "used": 0, "remaining": 10}, repr(u))
 
 jobs = [f"{i:016x}" for i in range(1, 32)]
-r = apply.claim(t, "u", {"job_id": jobs[0], "company": "Acme", "title": "Engineer"}, NOW)
-check("a claim takes one credit", r == {"remaining": 9})
-try:
-    apply.claim(t, "u", {"job_id": jobs[0]}, NOW)
-    check("the same job cannot be claimed twice", False)
-except apply.AlreadyApplied:
-    check("the same job cannot be claimed twice", True)
+
+
+def legacy_claim(table, job_id, url="", at=NOW):
+    """The row the retired /claim route wrote. usage, result and History still read these."""
+    table.put_item(Item={"user_id": "u", "alert_id": apply.APPLIED + job_id, "job_id": job_id, "company": "Acme",
+                         "title": "Engineer", "url": url, "canon": apply.canonical_job(url), "status": "claimed",
+                         "reason": "", "at": at.isoformat()})
+
+
+legacy_claim(t, jobs[0])
+check("a legacy claim holds one credit", apply.usage(t, "u", NOW)["remaining"] == 9)
 apply.result(t, "u", {"job_id": jobs[0], "status": "skipped", "reason": "needs answer: Why us?"}, NOW)
 check("a skipped job gives its credit back", apply.usage(t, "u", NOW)["remaining"] == 10)
-check("and can be claimed again later", apply.claim(t, "u", {"job_id": jobs[0]}, NOW) == {"remaining": 9})
+legacy_claim(t, jobs[0])
 apply.result(t, "u", {"job_id": jobs[0], "status": "submitted"}, NOW)
 for j in jobs[1:10]:
-    apply.claim(t, "u", {"job_id": j}, NOW)
+    legacy_claim(t, j)
 check("ten used", apply.usage(t, "u", NOW)["used"] == 10)
-try:
-    apply.claim(t, "u", {"job_id": jobs[10]}, NOW)
-    check("the eleventh claim is refused on free", False)
-except apply.LimitReached:
-    check("the eleventh claim is refused on free", True)
 later = NOW + timedelta(seconds=apply.CLAIM_HOLD_S + 1)
 check("claims with no result free themselves after the hold", apply.usage(t, "u", later)["used"] == 1)
 check("a new month starts empty", apply.usage(t, "u", datetime(2026, 11, 1, tzinfo=timezone.utc))["used"] == 0)
@@ -166,11 +165,72 @@ h = apply.history(t, "u")
 check("history lists every claimed job, newest first, with its status",
       len(h) == 10 and {"job_id", "status", "company", "at"} <= set(h[0]), repr(h[:1]))
 
-apply.enqueue(t, "u", jobs[5], NOW)
-apply.enqueue(t, "u", jobs[2], NOW + timedelta(minutes=1))
+apply.enqueue(t, "u", jobs[5], "board", now=NOW)
+apply.enqueue(t, "u", jobs[2], "board", now=NOW + timedelta(minutes=1))
 check("the queue keeps the order jobs were approved in", [q["job_id"] for q in apply.queue(t, "u")] == [jobs[5], jobs[2]])
 apply.dequeue(t, "u", jobs[5])
 check("and removes them", [q["job_id"] for q in apply.queue(t, "u")] == [jobs[2]])
+
+# Phase 1: where a job came from, one entry per job, and outcomes.
+t4 = FakeTable()
+gh = "https://job-boards.greenhouse.io/embed/job_app?for=celonis&token=8015242003"
+J1, J2, J3 = "1111111111111111", "2222222222222222", "3333333333333333"
+try:
+    apply.enqueue(t4, "u", J1, "admin", now=NOW)
+    check("a source outside the list is refused", False)
+except ValueError:
+    check("a source outside the list is refused", True)
+check("a new job is queued", apply.enqueue(t4, "u", J1, "mcp", gh, now=NOW) is True)
+check("the same job from the board isn't queued again", apply.enqueue(t4, "u", J1, "board", gh, now=NOW + timedelta(hours=1)) is False)
+check("nor under another id by its canonical identity",
+      apply.enqueue(t4, "u", J2, "board", "https://boards.greenhouse.io/celonis/jobs/8015242003", now=NOW) is False
+      and [q["job_id"] for q in apply.queue(t4, "u")] == [J1])
+q = apply.queue(t4, "u")[0]
+check("the first source labels the job, and the later one is kept beside it",
+      q["source"] == "mcp" and q["source_at"] == NOW.isoformat()
+      and [x["source"] for x in q["sources"]] == ["mcp", "board"], repr(q))
+apply.enqueue(t4, "u", J1, "board", gh, now=NOW + timedelta(hours=2))
+check("a source that tried before isn't listed twice", [x["source"] for x in apply.queue(t4, "u")[0]["sources"]] == ["mcp", "board"])
+lock = ("u", apply.JOBLOCK + "greenhouse:1")
+t4.items[lock] = {"user_id": "u", "alert_id": lock[1], "state": "reserved"}
+gh1 = "https://job-boards.greenhouse.io/embed/job_app?for=x&token=1"
+try:
+    apply.enqueue(t4, "u", J3, "board", gh1, now=NOW)
+    check("a job with an open attempt isn't queued", False)
+except apply.InProgress:
+    check("a job with an open attempt isn't queued", ("u", apply.QUEUE + J3) not in t4.items)
+for state in ("submitted", "unconfirmed", "sent"):
+    t4.items[lock]["state"] = state
+    try:
+        apply.enqueue(t4, "u", J3, "mcp", gh1, now=NOW)
+        check(f"a job that is {state} isn't queued", False)
+    except apply.AlreadyApplied:
+        check(f"a job that is {state} isn't queued", ("u", apply.QUEUE + J3) not in t4.items)
+check("a refused try still notes who tried", [x["source"] for x in apply.origins(t4, "u")[J3]["sources"]] == ["board", "mcp"])
+apply.note_origin(t4, "u", J1, "extension", first_only=True)
+apply.note_origin(t4, "u", "4444444444444444", "extension", now=NOW, first_only=True)
+got = apply.origins(t4, "u")
+check("the extension starting a job adds nothing to a queued one, and names one it found itself",
+      [x["source"] for x in got[J1]["sources"]] == ["mcp", "board"] and got["4444444444444444"]["source"] == "extension")
+t4.items[("u", apply.QUEUE + "5555555555555555")] = {"user_id": "u", "alert_id": apply.QUEUE + "5555555555555555", "job_id": "5555555555555555"}
+apply.note_origin(t4, "u", "5555555555555555", "extension", first_only=True)
+check("a job queued before sources were kept gets no guessed source", "5555555555555555" not in apply.origins(t4, "u")
+      and next(q for q in apply.queue(t4, "u") if q["job_id"] == "5555555555555555")["source"] is None)
+
+before = {k: dict(v) for k, v in t4.items.items()}
+got = apply.set_outcome(t4, "u", J1, "interview", NOW)
+check("an outcome is set with its time", got == {"job_id": J1, "outcome": "interview", "outcome_at": NOW.isoformat()}
+      and apply.outcomes(t4, "u")[J1]["outcome"] == "interview")
+check("and touches no other row", {k: v for k, v in t4.items.items() if not k[1].startswith(apply.OUTCOME)} == before)
+apply.set_outcome(t4, "u", J1, "no_reply", NOW)
+check("no reply is only what the user marks", apply.outcomes(t4, "u")[J1]["outcome"] == "no_reply")
+check("none clears it", apply.set_outcome(t4, "u", J1, "none")["outcome"] is None and J1 not in apply.outcomes(t4, "u"))
+for bad in ("hired", "", None, "submitted"):
+    try:
+        apply.set_outcome(t4, "u", J1, bad)
+        check(f"outcome {bad!r} is refused", False)
+    except ValueError:
+        check(f"outcome {bad!r} is refused", True)
 
 
 # Regression, bug 1 (2026-10-21): a submitted application is final. A
@@ -178,7 +238,7 @@ check("and removes them", [q["job_id"] for q in apply.queue(t, "u")] == [jobs[2]
 # skip, refunded, or claimed again, under its own id or another one.
 t2 = FakeTable()
 gh = "https://job-boards.greenhouse.io/embed/job_app?for=celonis&token=8015242003"
-apply.claim(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "url": gh, "company": "celonis.com", "title": "Engineer"}, NOW)
+legacy_claim(t2, "aaaaaaaaaaaaaaaa", gh)
 apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "submitted"}, NOW)
 used = apply.usage(t2, "u", NOW)["used"]
 apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "skipped", "reason": "You've already applied to this job."}, NOW)
@@ -187,27 +247,16 @@ check("a skip reported for a submitted job leaves it submitted", row["status"] =
 check("and refunds nothing", apply.usage(t2, "u", NOW)["used"] == used)
 apply.result(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "status": "failed", "reason": "no confirmation"}, NOW)
 check("nor can a failure overwrite it", t2.items[("u", apply.APPLIED + "aaaaaaaaaaaaaaaa")]["status"] == "submitted")
-try:
-    apply.claim(t2, "u", {"job_id": "aaaaaaaaaaaaaaaa", "url": gh}, NOW + timedelta(days=40))
-    check("a submitted job cannot be claimed again, even months later", False)
-except apply.AlreadyApplied:
-    check("a submitted job cannot be claimed again, even months later", True)
-try:
-    apply.claim(t2, "u", {"job_id": "bbbbbbbbbbbbbbbb", "url": "https://careers.celonis.com/open-roles?gh_jid=8015242003"}, NOW)
-    check("nor under another id, from the company's own careers page", False)
-except apply.AlreadyApplied:
-    check("nor under another id, from the company's own careers page", True)
+check("nor under another id, from the company's own careers page",
+      apply.submitted_already(t2, "u", "bbbbbbbbbbbbbbbb", "https://careers.celonis.com/open-roles?gh_jid=8015242003"))
 check("the queue guard sees it by id", apply.submitted_already(t2, "u", "aaaaaaaaaaaaaaaa"))
 check("and by the job itself", apply.submitted_already(t2, "u", "cccccccccccccccc", "https://boards.greenhouse.io/celonis/jobs/8015242003"))
 check("but not another job", not apply.submitted_already(t2, "u", "cccccccccccccccc", "https://boards.greenhouse.io/celonis/jobs/9999"))
 legacy = FakeTable()
 legacy.put_item(Item={"user_id": "u", "alert_id": apply.APPLIED + "dddddddddddddddd", "job_id": "dddddddddddddddd",
                       "url": "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808", "status": "submitted", "at": NOW.isoformat()})
-try:
-    apply.claim(legacy, "u", {"job_id": "eeeeeeeeeeeeeeee", "url": "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808/apply"}, NOW)
-    check("rows written before canonical ids still match by their url", False)
-except apply.AlreadyApplied:
-    check("rows written before canonical ids still match by their url", True)
+check("rows written before canonical ids still match by their url",
+      apply.submitted_already(legacy, "u", "eeeeeeeeeeeeeeee", "https://jobs.lever.co/shieldai/96d0e0da-6c0a-4918-af24-6e1d3e499808/apply"))
 
 # Regression, bug 2: a job skipped before any claim (a question the profile
 # can't answer) is recorded at no cost, so the next run sees it as tried.
@@ -216,7 +265,6 @@ apply.result(t3, "u", {"job_id": "ffffffffffffffff", "status": "skipped", "reaso
 row = t3.items.get(("u", apply.APPLIED + "ffffffffffffffff"))
 check("a skip with no claim is kept as a record", row and row["status"] == "skipped" and row["reason"] == "needs answer: Why us?", repr(row))
 check("and costs nothing", apply.usage(t3, "u", NOW)["used"] == 0)
-check("the job can still be claimed once the question is answered", apply.claim(t3, "u", {"job_id": "ffffffffffffffff"}, NOW) == {"remaining": 9})
 
 for url, want in [(gh, "greenhouse:8015242003"), ("https://boards.greenhouse.io/celonis/jobs/8015242003", "greenhouse:8015242003"),
                   ("https://jobs.ashbyhq.com/synthesia/ce402b96-d2c2-4651-bb20-2b8cf6166acc/application", "ashby:ce402b96-d2c2-4651-bb20-2b8cf6166acc"),

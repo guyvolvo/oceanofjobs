@@ -81,7 +81,7 @@ const INSTRUCTIONS =
   "Ocean of Jobs page) and apply_url (the employer's page) on their own lines, never inside a " +
   "table cell. Results are capped at 25 per call and offset 200; for " +
   "bulk data use the public REST API documented at " + SITE + "/api/help. " +
-  "The saved job, auto apply queue, alert and preference tools work on the user's own Ocean of " +
+  "The saved job, auto apply queue and history, alert and preference tools work on the user's own Ocean of " +
   "Jobs account and need a personal access token sent as Authorization: Bearer ooj_...; save or " +
   "queue a job, or create, change or delete an alert or a preference, only when the user asks for it.";
 
@@ -123,6 +123,20 @@ const LISTED_JOB = {
   required: [...JOB_REQUIRED, "other_locations", "salary"],
 };
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+
+// Where a job came from: the first surface that added it, and every one that tried.
+const ORIGIN_PROPS = {
+  source: {
+    type: ["string", "null"], enum: ["board", "alert", "mcp", "extension", "matches", "other", null],
+    description: "Where the job was first added from: the board, an alert, an AI assistant (mcp), the extension, auto apply's own matches or other. null for jobs added before 28 October 2026.",
+  },
+  sources: {
+    type: "array",
+    description: "Every place that tried to add this job, first one first, each with when.",
+    items: { type: "object", properties: { source: { type: "string" }, at: { type: ["string", "null"] } }, required: ["source", "at"] },
+  },
+};
+const OUTCOMES = ["interview", "offer", "rejected", "no_reply"];
 
 // An alert's filter is the board's own search, as /api/jobs query params;
 // the box refuses any other key. Several values are comma-separated.
@@ -346,7 +360,8 @@ const TOOLS = [
       "Ashby and Workable forms only (an apply_url on boards.greenhouse.io, job-boards.greenhouse.io, " +
       "jobs.ashbyhq.com or apply.workable.com); a job on any other site is refused, so pick those jobs. This sends a real application, so " +
       "queue a job only when the user asks for it. Needs the user's personal access token. " +
-      "Queueing the same job twice is harmless.",
+      "Queueing the same job twice is harmless: a job already in the queue, from anywhere, stays one entry. " +
+      "A job already applied to or being applied to is refused.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string", description: "The job's id, e.g. 67ff4ef965d91ef7." } },
@@ -376,7 +391,7 @@ const TOOLS = [
       type: "object",
       properties: {
         total: { type: "integer", description: "Every queued job, not only this list." },
-        jobs: { type: "array", items: { ...LISTED_JOB, properties: { ...LISTED_JOB.properties, added_at: { type: ["string", "null"] } } } },
+        jobs: { type: "array", items: { ...LISTED_JOB, properties: { ...LISTED_JOB.properties, added_at: { type: ["string", "null"] }, ...ORIGIN_PROPS } } },
         gone: { type: "array", items: { type: "string" }, description: "Queued ids that no longer have a listing." },
       },
       required: ["total", "jobs", "gone"],
@@ -399,6 +414,73 @@ const TOOLS = [
       required: ["id", "queued"],
     },
     annotations: { title: "Remove from the auto apply queue", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "list_auto_apply_history",
+    title: "List auto apply history",
+    description:
+      "The jobs the extension worked on for the user, newest first, with each one's status, where " +
+      "the job came from and the outcome the user reported. status is the extension's: submitted " +
+      "means the site confirmed it; unconfirmed means it was sent or may have been, with no " +
+      "confirmation; sent means the user sent it with the site's own button and the site didn't " +
+      "confirm it. Never call unconfirmed or sent submitted. outcome is only what the user marked (interview, " +
+      "offer, rejected, no_reply) and null when they haven't; never treat silence as no reply. " +
+      "Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "How many, 1 to 25. Default 10." } },
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        applications: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              title: { type: "string" },
+              company: { type: "string" },
+              status: { type: "string", enum: ["submitted", "unconfirmed", "sent", "filled", "in_progress", "needs_input", "failed", "skipped", "abandoned", "not_sent_disputed"] },
+              reason: { type: "string" },
+              at: { type: ["string", "null"] },
+              url: { type: ["string", "null"] },
+              ...ORIGIN_PROPS,
+              outcome: { type: ["string", "null"], enum: [...OUTCOMES, null], description: "What the user reported after applying, or null." },
+              outcome_at: { type: ["string", "null"] },
+            },
+            required: ["id", "title", "company", "status", "reason", "at", "url", "source", "sources", "outcome", "outcome_at"],
+          },
+        },
+      },
+      required: ["applications"],
+    },
+    annotations: { title: "List auto apply history", ...READ_ONLY },
+  },
+  {
+    name: "set_application_outcome",
+    title: "Mark what happened after applying",
+    description:
+      "Record what the user says happened with an application that went out (submitted, " +
+      "unconfirmed or sent): interview, offer, rejected or no_reply, or none to clear it. Only when the user " +
+      "tells you; never guess. It changes nothing else: not the status and not the user's credits. " +
+      "Needs the user's personal access token.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The job's id, from list_auto_apply_history." },
+        outcome: { type: "string", enum: [...OUTCOMES, "none"] },
+      },
+      required: ["id", "outcome"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, outcome: { type: ["string", "null"] }, outcome_at: { type: ["string", "null"] } },
+      required: ["id", "outcome", "outcome_at"],
+    },
+    annotations: { title: "Mark what happened after applying", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "list_alerts",
@@ -846,14 +928,14 @@ async function removeSavedJob(args, env, ctx, trace, now, token) {
 // The jobs behind a list of {job_id, <stamp>} rows from the user's account.
 // The listings themselves are public, so these go through the shared
 // cache like any get_job.
-async function withListings(items, limit, stamp, env, ctx, trace, now) {
+async function withListings(items, limit, stamps, env, ctx, trace, now) {
   const rows = await Promise.all(items.slice(0, limit).map(async (s) => {
     const { status, body } = await api(`/api/jobs/${encodeURIComponent(s.job_id)}`, {}, env, ctx, trace);
     return { s, job: status === 404 ? null : body };
   }));
   return {
     total: items.length,
-    jobs: rows.filter((r) => r.job).map((r) => ({ ...listedJob(r.job, now), [stamp]: r.s[stamp] ?? null })),
+    jobs: rows.filter((r) => r.job).map((r) => ({ ...listedJob(r.job, now), ...Object.fromEntries(stamps.map((k) => [k, r.s[k] ?? null])) })),
     gone: rows.filter((r) => !r.job).map((r) => r.s.job_id),
   };
 }
@@ -861,7 +943,7 @@ async function withListings(items, limit, stamp, env, ctx, trace, now) {
 async function listSavedJobs(args, env, ctx, trace, now, token) {
   const limit = int(args, "limit", 1, MAX_LIMIT, 10);
   const saved = ((await me("GET", "/api/me/saved", token, env)) || {}).saved || [];
-  return withListings(saved, limit, "saved_at", env, ctx, trace, now);
+  return withListings(saved, limit, ["saved_at"], env, ctx, trace, now);
 }
 
 async function queueForAutoApply(args, env, ctx, trace, now, token) {
@@ -879,7 +961,29 @@ async function removeFromAutoApplyQueue(args, env, ctx, trace, now, token) {
 async function listAutoApplyQueue(args, env, ctx, trace, now, token) {
   const limit = int(args, "limit", 1, MAX_LIMIT, 10);
   const queue = ((await me("GET", "/api/me/apply/queue", token, env)) || {}).queue || [];
-  return withListings(queue, limit, "added_at", env, ctx, trace, now);
+  const out = await withListings(queue, limit, ["added_at", "source", "sources"], env, ctx, trace, now);
+  for (const j of out.jobs) j.sources = j.sources || [];
+  return out;
+}
+
+async function listAutoApplyHistory(args, env, ctx, trace, now, token) {
+  const limit = int(args, "limit", 1, MAX_LIMIT, 10);
+  const rows = ((await me("GET", `/api/me/apply/history?limit=${limit}`, token, env)) || {}).applied || [];
+  return {
+    applications: rows.map((r) => ({
+      id: r.job_id, title: r.title || "", company: r.company || "", status: r.status, reason: r.reason || "", at: r.at ?? null,
+      url: !r.link ? null : r.link.startsWith("/") ? link(r.link) : r.link,
+      source: r.source ?? null, sources: r.sources || [], outcome: r.outcome ?? null, outcome_at: r.outcome_at ?? null,
+    })),
+  };
+}
+
+async function setApplicationOutcome(args, env, ctx, trace, now, token) {
+  const id = jobId(args);
+  const outcome = str(args, "outcome", 20);
+  if (![...OUTCOMES, "none"].includes(outcome)) throw new ToolError(`outcome must be one of ${OUTCOMES.join(", ")} or none.`);
+  const out = (await me("PATCH", `/api/me/apply/history/${id}`, token, env, { outcome })) || {};
+  return { id, outcome: out.outcome ?? null, outcome_at: out.outcome_at ?? null };
 }
 
 function alertId(args) {
@@ -949,7 +1053,8 @@ const HANDLERS = {
   search_jobs: searchJobs, get_job: getJob, get_company: getCompany,
   save_job: saveJob, list_saved_jobs: listSavedJobs, remove_saved_job: removeSavedJob,
   queue_for_auto_apply: queueForAutoApply, list_auto_apply_queue: listAutoApplyQueue,
-  remove_from_auto_apply_queue: removeFromAutoApplyQueue,
+  remove_from_auto_apply_queue: removeFromAutoApplyQueue, list_auto_apply_history: listAutoApplyHistory,
+  set_application_outcome: setApplicationOutcome,
   list_alerts: listAlerts, create_alert: createAlert, update_alert: updateAlert, delete_alert: deleteAlert,
   get_preferences: getPreferences, update_preferences: updatePreferences,
 };

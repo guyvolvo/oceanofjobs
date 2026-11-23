@@ -15,6 +15,7 @@ applied. infra/alarms.tf turns those into alarms. A source that has been
 quiet for three hours is not a quiet market, it is a stalled scraper.
 """
 
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,7 +24,9 @@ NAMESPACE = "OceanOfJobs"
 # The sources whose silence means something. Each is polled every few
 # minutes and posts many times an hour in normal times.
 SOURCES = ("greenhouse", "ashby", "smartrecruiters", "lever", "comeet", "workday")
-FRAGMENT_PREFIX = "deltas/"
+# Only the sources infra/alarms.tf watches are sent: each metric is billed
+# monthly past the free ten.
+ALARMED = ("greenhouse", "ashby", "smartrecruiters")
 
 
 def _parse(stamp: str) -> datetime | None:
@@ -54,11 +57,11 @@ def freshness_minutes(conn, now: datetime | None = None) -> dict[str, float]:
     return out
 
 
-def pending_fragments(s3, bucket: str) -> int:
-    """How many fragments the applier has not yet taken. One page: past a
-    thousand the exact number stops mattering."""
-    page = s3.list_objects_v2(Bucket=bucket, Prefix=FRAGMENT_PREFIX, MaxKeys=1000)
-    return int(page.get("KeyCount") or 0)
+def pending_fragments(spool: Path) -> int:
+    """How many fetched fragments wait for an apply. Counted in the box's
+    spool: S3 keeps every fragment for 7 days now (a log, see
+    box/shadow_apply.py), so its count no longer means a backlog."""
+    return sum(1 for _ in spool.glob("*.json"))
 
 
 def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None) -> dict:
@@ -73,17 +76,27 @@ def publish(db: Path, bucket: str, cw=None, s3=None, now: datetime | None = None
         fresh = freshness_minutes(conn, now)
     finally:
         conn.close()
-    s3 = s3 or boto3.client("s3")
-    pending = pending_fragments(s3, bucket) if bucket else None
+    pending = pending_fragments(db.parent / "deltas") if bucket else None
 
     data = [{"MetricName": "SourceFreshnessMinutes", "Dimensions": [{"Name": "ats", "Value": ats}],
-             "Value": round(minutes, 1), "Unit": "None"} for ats, minutes in sorted(fresh.items())]
+             "Value": round(minutes, 1), "Unit": "None"} for ats, minutes in sorted(fresh.items()) if ats in ALARMED]
     if pending is not None:
         data.append({"MetricName": "PendingFragments", "Value": pending, "Unit": "Count"})
+    disk = shutil.disk_usage(db.parent)
+    data.append({"MetricName": "DiskUsedPercent", "Value": round(100 * disk.used / disk.total, 1), "Unit": "Percent"})
+    not_polled = None
+    if bucket:
+        try:
+            import known_gap
+
+            not_polled = known_gap.count(db, bucket, s3)
+            data.append({"MetricName": "CompaniesNotPolled", "Value": not_polled, "Unit": "Count"})
+        except Exception as e:  # noqa: BLE001 -- never costs the freshness numbers
+            print(f"known.json gap check failed: {e!r}", file=sys.stderr)
     if data:
         cw = cw or boto3.client("cloudwatch")
         cw.put_metric_data(Namespace=NAMESPACE, MetricData=data)
-    return {"freshness_minutes": fresh, "pending_fragments": pending}
+    return {"freshness_minutes": fresh, "pending_fragments": pending, "companies_not_polled": not_polled}
 
 
 def heartbeat(cw=None) -> None:

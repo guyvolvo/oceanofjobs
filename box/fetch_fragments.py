@@ -26,6 +26,7 @@ import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import boto3
@@ -33,21 +34,20 @@ import boto3
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "loader"))
 
-from deltas import PREFIX, delete_fragments  # noqa: E402
+from deltas import PREFIX  # noqa: E402
 
 DB = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db"))
 BUCKET = os.environ["DATA_BUCKET"]
-# The box is the only applier (see shadow_apply.py), so it owns deletion.
-PRIMARY = os.environ.get("OTJ_PRIMARY") == "1"
 SPOOL = DB.parent / "deltas"
 # Keys this box has already taken a copy of, whether or not that copy
 # has been applied and deleted since. Without it, every fetch would
 # re-download everything the spool has already handed to an apply.
 SEEN = DB.parent / "fetched-fragments.json"
-# Enough history that a key cannot be forgotten while it is still listed
-# in S3. The Lambda clears fragments within minutes and the sweep writes
-# a handful every five, so this is hours of margin.
+# Enough history to cover LIST_MARGIN many times over: only keys inside
+# the margin are listed again, and the sweeps write a handful a minute.
 REMEMBER = 20000
+# How far before the newest key taken each listing starts (see _start_after).
+LIST_MARGIN = timedelta(minutes=15)
 WORKERS = 8
 # The spool is a queue, not an archive. Past this the box is so far
 # behind that hoarding more would fill the disk before it caught up, and
@@ -60,6 +60,22 @@ def _load_seen() -> list[str]:
         return json.loads(SEEN.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
+
+
+def _start_after(seen: list[str]) -> str | None:
+    """Where the listing starts: the newest key taken, minus a margin.
+
+    S3 keeps 7 days of fragments now (a log, not a queue), so listing the
+    whole prefix every 30 s would be dozens of LIST pages a run. Keys sort
+    by the time a fragment was written, but a slow upload can land after a
+    later key was already listed, so the listing reaches back LIST_MARGIN
+    and `known` drops what was taken already."""
+    newest = max((k for k in seen if k.startswith(PREFIX)), default="")
+    try:
+        at = datetime.strptime(newest[len(PREFIX):len(PREFIX) + 21], "%Y%m%dT%H%M%S%f")
+    except ValueError:
+        return None
+    return PREFIX + (at - LIST_MARGIN).strftime("%Y%m%dT%H%M%S%f")
 
 
 def _spool_bytes() -> int:
@@ -75,8 +91,9 @@ def main() -> int:
     s3 = boto3.client("s3")
     keys: list[str] = []
     token = None
+    start = _start_after(seen)
     while True:
-        kw = {"Bucket": BUCKET, "Prefix": PREFIX, "MaxKeys": 1000}
+        kw = {"Bucket": BUCKET, "Prefix": PREFIX, "MaxKeys": 1000, **({"StartAfter": start} if start else {})}
         if token:
             kw["ContinuationToken"] = token
         page = s3.list_objects_v2(**kw)
@@ -84,15 +101,6 @@ def main() -> int:
         token = page.get("NextContinuationToken")
         if not page.get("IsTruncated"):
             break
-
-    if PRIMARY:
-        # Taken and no longer spooled means applied, set aside as .bad, or
-        # held nothing; any of those whose S3 delete failed would otherwise
-        # sit in the bucket forever, since a known key is never fetched again.
-        spooled = {p.name for p in SPOOL.glob("*.json")}
-        stale = [k for k in keys if k in known and k[len(PREFIX):] not in spooled]
-        if stale:
-            print(f"cleared {delete_fragments(BUCKET, stale)} of {len(stale)} leftover fragments")
 
     wanted = sorted(k for k in keys if k not in known)
     if not wanted:

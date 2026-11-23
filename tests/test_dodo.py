@@ -50,6 +50,19 @@ class FakeTable:
         item = self.items.get((Key["user_id"], Key["alert_id"]))
         return {"Item": dict(item)} if item else {}
 
+    def query(self, KeyConditionExpression=None, **kw):
+        terms = []
+        stack = [KeyConditionExpression]
+        while stack:
+            expr = stack.pop().get_expression()
+            if expr["operator"] == "AND":
+                stack += list(expr["values"])
+            else:
+                terms.append((expr["operator"], expr["values"][0].name, expr["values"][1]))
+        rows = [r for r in self.items.values()
+                if all(r.get(n) == v if op == "=" else str(r.get(n, "")).startswith(v) for op, n, v in terms)]
+        return {"Items": [dict(r) for r in rows]}
+
 
 class FakeDodo:
     """Answers dodo._call's requests and keeps them."""
@@ -74,9 +87,9 @@ def signed(body, ts=None, wid="msg_1", secret=SECRET):
     return {"Webhook-Id": wid, "Webhook-Timestamp": ts, "Webhook-Signature": f"v1,{sig}"}
 
 
-def sub_event(status="active", product="pdt_basic", at="2026-10-27T10:00:00Z", user="u1", customer="cus_1", kind=None):
+def sub_event(status="active", product="pdt_basic", at="2026-10-27T10:00:00Z", user="u1", customer="cus_1", kind=None, sub="sub_1"):
     return json.dumps({"business_id": "bus_1", "type": kind or f"subscription.{status}", "timestamp": at,
-                       "data": {"payload_type": "Subscription", "subscription_id": "sub_1", "status": status, "product_id": product,
+                       "data": {"payload_type": "Subscription", "subscription_id": sub, "status": status, "product_id": product,
                                 "customer": {"customer_id": customer, "email": "a@b.c"},
                                 "metadata": {"user_id": user} if user else {}, "next_billing_date": "2026-11-27T10:00:00Z"}})
 
@@ -111,13 +124,33 @@ check("past_due keeps its name, so the plan stays through Dodo's grace period", 
 dodo.apply_event(t, json.loads(sub_event(product="pdt_unknown", at="2026-10-30T10:00:00Z")))
 check("an unknown product gives no paid plan", t.items[("u1", "#plan")]["plan"] == "free")
 
+# Two subscriptions on one account (2026-11-02 review): an upgrade bought
+# through /pricing starts a second one, and cancelling the old Basic must
+# not end the new Pro.
+import apply  # noqa: E402
+t = FakeTable()
+dodo.apply_event(t, json.loads(sub_event(product="pdt_basic", sub="sub_b", at="2026-10-27T10:00:00Z")))
+dodo.apply_event(t, json.loads(sub_event(product="pdt_pro", sub="sub_p", at="2026-10-28T10:00:00Z")))
+dodo.apply_event(t, json.loads(sub_event(status="cancelled", product="pdt_basic", sub="sub_b", at="2026-10-29T10:00:00Z")))
+check("cancelling the old Basic after buying Pro keeps Pro", apply.plan_of(t, "u1") == "pro"
+      and t.items[("u1", "#plan")]["plan"] == "pro" and t.items[("u1", "#plan")]["status"] == "active", repr(t.items.get(("u1", "#plan"))))
+dodo.apply_event(t, json.loads(sub_event(status="cancelled", product="pdt_pro", sub="sub_p", at="2026-10-30T10:00:00Z")))
+check("and cancelling Pro too leaves free, shown as canceled", apply.plan_of(t, "u1") == "free"
+      and t.items[("u1", "#plan")]["status"] == "canceled")
+t = FakeTable()
+t.put_item(Item={"user_id": "u1", "alert_id": "#plan", "plan": "pro", "status": "active", "subscription_id": "sub_p",
+                 "event_at": "2026-10-28T10:00:00Z", "provider": "dodo"})
+dodo.apply_event(t, json.loads(sub_event(status="cancelled", product="pdt_basic", sub="sub_b", at="2026-10-29T10:00:00Z")))
+check("an account that paid before per-subscription rows keeps that plan when another subscription ends",
+      apply.plan_of(t, "u1") == "pro" and ("u1", "#plan#sub_p") in t.items, repr(sorted(t.items)))
+
 # Finding the account.
 t = FakeTable()
 t.put_item(Item={"user_id": dodo.CUSTOMERS, "alert_id": "cus_9", "owner": "u9"})
 dodo.apply_event(t, json.loads(sub_event(user=None, customer="cus_9")))
 check("without metadata, the customer names the account", t.items[("u9", "#plan")]["plan"] == "basic")
 out = dodo.apply_event(t, json.loads(sub_event(user=None, customer="cus_unknown")))
-check("no metadata and an unknown customer changes nothing", "no account" in out and len(t.items) == 2, out)
+check("no metadata and an unknown customer changes nothing", "no account" in out and len(t.items) == 3, out)
 
 # Refunds cancel.
 t = FakeTable()

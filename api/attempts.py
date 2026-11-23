@@ -2,9 +2,9 @@
 and disputes, as api/AUTO_APPLY_CONTRACT.md defines them.
 
 Extension 1.9 and later reserve, gate and settle through these, and call
-apply.result only to record a skip. 1.8 and earlier (1.7.0 is still the
-store's public version on 2026-10-22) use apply.claim and apply.result, so
-every reserve and summary counts those rows too.
+apply.result only to record a skip. The 1.8-era claim route is gone
+(no calls after 2026-10-21, removed 2026-11-02); the #applied rows it wrote
+still count in every reserve and summary for their period.
 
 Rows, all in the alerts table under the user's id:
 - #attempt#<id>: one attempt. Its job, the period and time zone fixed at
@@ -33,13 +33,14 @@ from botocore.exceptions import ClientError
 import apply
 
 ATTEMPT = "#attempt#"
-JOBLOCK = "#joblock#"
+JOBLOCK = apply.JOBLOCK
 LEDGER_MONTH = "#ledger#month#"
 LEDGER_DAY = "#ledger#day#"
 HOLD = timedelta(minutes=30)
 DISPUTE_WINDOW = timedelta(days=14)
 DISPUTES_PER_PERIOD = 5
 ATTEMPT_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+HOLD_CODE = re.compile(r"[a-z_]{1,40}")
 
 # (limit per month, limit per day) by plan, from apply.LIMITS. R14.
 PLAN_LIMITS = {plan: (n, None) if period == "month" else (None, n) for plan, (period, n) in apply.LIMITS.items()}
@@ -60,7 +61,12 @@ SETTLE = {
     (RESERVED, FAILED): "release", (RESERVED, SKIPPED): "release", (RESERVED, NEEDS_INPUT): "release",
     (RESERVED, ABANDONED): "release",
     (STARTED, SUBMITTED): "charge", (STARTED, UNCONFIRMED): "charge", (STARTED, FAILED): "release",
+    # The site's human check refused the click: nothing went, the user sends it (R6).
+    (STARTED, NEEDS_INPUT): "release",
     (UNCONFIRMED, SUBMITTED): "none",
+    # Only an unconfirmed the expiry made (reason "expired"): the start was
+    # acknowledged, then the failure report came after the hold ran out.
+    (UNCONFIRMED, FAILED): "refund",
 }
 
 
@@ -118,6 +124,27 @@ def _zone(tz: str | None) -> ZoneInfo:
         return ZoneInfo(tz or "UTC")
     except (ZoneInfoNotFoundError, ValueError):
         return ZoneInfo("UTC")
+
+
+TZ_ROW = "#tz"
+
+
+def account_tz(table, user_id: str, sent: str | None, save: bool = True) -> str:
+    """The account's time zone, which decides the day and month a credit
+    counts in. Set by the first request that sends one and kept, so a client
+    can't spread reservations over two calendar days by switching zones
+    (2026-11-02 review). save=False for reads, which never write."""
+    row = table.get_item(Key={"user_id": user_id, "alert_id": TZ_ROW}).get("Item")
+    if row or not save:
+        return row["tz"] if row else str(_zone(sent))
+    tz = str(_zone(sent))
+    try:
+        table.put_item(Item={"user_id": user_id, "alert_id": TZ_ROW, "tz": tz}, ConditionExpression="attribute_not_exists(alert_id)")
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
+        return table.get_item(Key={"user_id": user_id, "alert_id": TZ_ROW})["Item"]["tz"]  # set by a racing request
+    return tz
 
 
 def periods(now: datetime, tz: str | None) -> tuple[str, str]:
@@ -322,11 +349,14 @@ class Attempts:
         try:
             self.table.update_item(
                 Key={"user_id": user_id, "alert_id": ATTEMPT + attempt_id},
-                UpdateExpression="SET #s = :started, started_at = :t, audit = list_append(audit, :ev)"
+                # The hold restarts here: a long fill must not run the expiry
+                # down before the outcome can be reported (R6, R9).
+                UpdateExpression="SET #s = :started, started_at = :t, expires_at = :exp, audit = list_append(audit, :ev)"
                                  + (", ai_answers = :snap" if snap else ""),
                 ConditionExpression="#s = :reserved AND expires_at > :t",
                 ExpressionAttributeNames={"#s": "state"},
                 ExpressionAttributeValues={":started": STARTED, ":reserved": RESERVED, ":t": now.isoformat(),
+                                           ":exp": (now + HOLD).isoformat(),
                                            ":ev": [self._audit("submission_started", now)], **({":snap": snap} if snap else {})})
         except ClientError as e:
             if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
@@ -335,7 +365,7 @@ class Attempts:
             if again["state"] == STARTED:
                 return self.view(again)  # started by a racing report
             raise Expired("the reservation expired; don't submit")
-        a["state"], a["started_at"] = STARTED, now.isoformat()
+        a["state"], a["started_at"], a["expires_at"] = STARTED, now.isoformat(), (now + HOLD).isoformat()
         if snap:
             a["ai_answers"] = snap
         return self.view(a)
@@ -357,6 +387,8 @@ class Attempts:
         effect = SETTLE.get((a["state"], outcome))
         if effect is None:
             raise Conflict(f"an attempt that is {a['state']} can't become {outcome}")
+        if effect == "refund" and a.get("reason") != "expired":
+            raise Conflict("an unconfirmed submission the extension reported can only be disputed")
         key = {"user_id": user_id, "alert_id": ATTEMPT + attempt_id}
         upd = {"TableName": self.name, "Key": self._key(**key),
                "UpdateExpression": "SET #s = :to, reason = :r, settled_at = :t, questions = :q, audit = list_append(audit, :ev)",
@@ -369,6 +401,11 @@ class Attempts:
         if effect == "release":
             items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, 0),
                       self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, 0),
+                      {"Delete": {"TableName": self.name, "Key": lock, "ConditionExpression": "attempt_id = :a",
+                                  "ExpressionAttributeValues": ({":a": attempt_id})}}]
+        elif effect == "refund":
+            items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, -1),
+                      self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, -1),
                       {"Delete": {"TableName": self.name, "Key": lock, "ConditionExpression": "attempt_id = :a",
                                   "ExpressionAttributeValues": ({":a": attempt_id})}}]
         elif effect == "charge":
@@ -490,6 +527,10 @@ class Attempts:
                "canon": apply.canonical_job(job.get("url")) or "id:" + job_id, "title": apply._text(job.get("title"), 300),
                "company": apply._text(job.get("company"), 200), "url": apply._text(job.get("url"), 1000),
                "state": FILLED, "reserved_at": now.isoformat(), "settled_at": now.isoformat(), "audit": [self._audit("filled", now)]}
+        # Why Full automatic didn't submit it ("no_submit_button"). Optional:
+        # older extensions send none, and anything but a short code is dropped.
+        if HOLD_CODE.fullmatch(str(job.get("hold") or "")):
+            row["hold"] = job["hold"]
         try:
             self.table.put_item(Item=row, ConditionExpression="attribute_not_exists(alert_id)")
         except ClientError as e:
@@ -565,7 +606,8 @@ class Attempts:
     def history(self, user_id: str, now: datetime | None = None) -> list[dict]:
         """Every attempt as a History row, in the shape apply.history uses."""
         now = _utc(now)
-        shown = {RESERVED: "in_progress", STARTED: "in_progress", SENT: SUBMITTED}
+        # SENT stays "sent": the user pressed the site's own button and nothing confirmed it.
+        shown = {RESERVED: "in_progress", STARTED: "in_progress"}
         rows = []
         for a in self._attempts(user_id):
             state = a["state"]
@@ -630,5 +672,5 @@ class Attempts:
     @staticmethod
     def view(a: dict) -> dict:
         return {k: (int(v) if isinstance(v, Decimal) else v) for k, v in a.items()
-                if k in ("attempt_id", "job_id", "state", "reserved_at", "expires_at", "started_at", "settled_at", "month", "day", "reason",
+                if k in ("attempt_id", "job_id", "state", "reserved_at", "expires_at", "started_at", "settled_at", "month", "day", "reason", "hold",
                          "ai_answers")}

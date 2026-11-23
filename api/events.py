@@ -42,6 +42,9 @@ METRIC = "Events"
 PAGE_EVENTS = frozenset({"visit", "new_visitor", "search", "job_view", "apply", "signin", "mcp_view", "mcp_apply"})
 # Counted by the server itself, never accepted from a page.
 SERVER_EVENTS = frozenset({"alert_created"})
+# What reaches CloudWatch. Each event is its own billed metric, so the
+# rest are counted and dropped (2026-11-01, kept to the free ten).
+SENT_EVENTS = frozenset({"visit", "search", "job_view", "apply"})
 # Per event, per worker, per minute. Real traffic is a small fraction of
 # this; it bounds how far one client looping on the endpoint can bend a
 # day's numbers.
@@ -135,7 +138,7 @@ def send_terms(terms: dict[str, int], logs=None) -> None:
 def flush(cw=None) -> dict[str, int]:
     """Send what has been counted. Nothing counted, nothing sent."""
     global _cw
-    counts = take()
+    counts = {k: v for k, v in take().items() if k in SENT_EVENTS}
     if not counts:
         return counts
     data = [{"MetricName": METRIC, "Dimensions": [{"Name": "event", "Value": name}],

@@ -138,11 +138,20 @@ try:
 except ValueError:
     check("a sixth token is refused", True)
 
-for _ in range(3):
-    last = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW, scope="extension")
-mine = tokens.list_tokens(table, "u-reconnect")
-check("connecting the extension again replaces its token instead of adding one",
-      len(mine) == 1 and mine[0]["id"] == last["id"] and tokens.verify(table, last["token"], NOW)["scope"] == "extension", repr(mine))
+# A second browser or computer gets its own token: connecting it must not
+# sign the first one out. Reconnecting drops the least recently used.
+H = timedelta(hours=1)
+home = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW, scope="extension")
+work = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW + H / 2, scope="extension")
+check("connecting the extension in a second browser keeps the first one connected",
+      bool(tokens.verify(table, home["token"], NOW + H)) and bool(tokens.verify(table, work["token"], NOW + H)))
+for i in range(2, 8):
+    last = tokens.create(table, "u-reconnect", "Chrome extension", None, NOW + i * H, scope="extension")
+    tokens.verify(table, home["token"], NOW + i * H + H / 2)  # the first browser keeps running every hour
+mine = [t for t in tokens.list_tokens(table, "u-reconnect") if t["scope"] == "extension"]
+check("reconnecting again and again keeps a few extension tokens, not one per connect",
+      len(mine) == tokens.MAX_EXTENSIONS and any(t["id"] == last["id"] for t in mine), repr(mine))
+check("and the browser still in use keeps its token", bool(tokens.verify(table, home["token"], NOW + 9 * H)))
 # Editing: the name and permissions change; the token keeps working.
 got = tokens.update(table, USER, made["id"], "  renamed ", {"saved": "read", "queue": "none", "alerts": "write", "preferences": "none"})
 check("a token can be renamed and its permissions changed",
@@ -273,6 +282,24 @@ status, _ = call("/api/me/apply/queue/aaaaaaaaaaaaaaaa", "PUT", live)
 check("and an unknown job is 404", status.startswith("404"), status)
 status, _ = call("/api/me/apply/queue/0123456789abcdef", "DELETE", live)
 check("and can take it off again", status.startswith("204") and ("u-serve", "#queue#0123456789abcdef") not in table.items, status)
+check("a job an MCP token queued is from MCP", handler.apply.origins(table, "u-serve")["0123456789abcdef"]["source"] == "mcp")
+# History and outcomes come under the queue permission.
+table.items[("u-serve", "#applied#0123456789abcdef")] = {"user_id": "u-serve", "alert_id": "#applied#0123456789abcdef", "job_id": "0123456789abcdef",
+                                                        "status": "submitted", "reason": "", "at": "2026-10-20T12:00:00+00:00"}
+status, body = call("/api/me/apply/history", auth=live)
+row = json.loads(body)["applied"][0] if status.startswith("200") else {}
+check("an MCP token reads the history with source and outcome", row.get("source") == "mcp" and row.get("outcome") is None, status + repr(row))
+status, body = call("/api/me/apply/history/0123456789abcdef", "PATCH", live, {"outcome": "interview"})
+check("and marks an outcome", status.startswith("200") and json.loads(body)["outcome"] == "interview", status + body.decode()[:200])
+queue_reader = tokens.create(table, "u-serve", "queue reader", 30, permissions={"queue": "read"})["token"]
+status, _ = call("/api/me/apply/history", auth=queue_reader)
+status2, body = call("/api/me/apply/history/0123456789abcdef", "PATCH", queue_reader, {"outcome": "none"})
+check("queue read sees the history but can't mark an outcome", status.startswith("200") and status2.startswith("403")
+      and b"auto apply history" in body, status + status2)
+status, _ = call("/api/me/apply/history", auth=reader["token"])
+check("no queue permission, no history", status.startswith("403"), status)
+status, _ = call("/api/me/apply/historyx", auth=live)
+check("and nothing beside it", status.startswith("403"), status)
 ext = tokens.create(table, "u-ext", "Chrome extension", None, scope="extension")["token"]
 status, body = call("/api/me/apply/usage", auth=ext)
 check("an extension token reaches the auto-apply routes", status.startswith("200") and b'"plan": "free"' in body, status + body.decode()[:120])
@@ -282,6 +309,15 @@ for path in ("/api/me/profile", "/api/me/tokens", "/api/me/alerts"):
     status, _ = call(path, auth=ext)
     check(f"but not {path}", status.startswith("403"), status)
 check("an extension token carries no MCP permissions", "permissions" not in tokens.verify(table, ext))
+# The token table failing for a moment is not a signed-out token: the
+# extension forgets its connection on a 401, so this must be retryable.
+_get = table.get_item
+table.get_item = lambda **kw: (_ for _ in ()).throw(RuntimeError("throttled"))
+status, _ = call("/api/me/apply/summary", auth=ext)
+table.get_item = _get
+check("a token check that fails on the table answers 503, not 401", status.startswith("503"), status)
+status, _ = call("/api/me/apply/summary", auth="ooj_" + "x" * 20)
+check("a token that isn't one is still 401", status.startswith("401"), status)
 
 # The extension's whole round trip through serve.py and handler.route_apply.
 status, body = call("/api/me/apply/profile", "PUT", ext, {"profile": {"contact": {"first_name": "Ada"}, "settings": {"mode": "auto"}}})
@@ -294,12 +330,11 @@ got = json.loads(body)
 check("and reads it back with the search preferences", got["profile"]["contact"]["first_name"] == "Ada" and "preferences" in got, repr(got)[:200])
 status, _ = call("/api/me/apply/answers", "POST", ext, {"question": "Why us?", "answer": "Because"})
 check("saves an answer", status.startswith("204"), status)
-status, body = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef", "company": "Acme"})
-check("claims a credit", status.startswith("200") and json.loads(body)["remaining"] == handler.apply.LIMITS["free"][1] - 1, status + body.decode())
-status, _ = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef"})
-check("a second claim on the same job is 409", status.startswith("409"), status)
-status, _ = call("/api/me/apply/result", "POST", ext, {"job_id": "0123456789abcdef", "status": "submitted"})
-check("reports the result", status.startswith("204"), status)
+status, _ = call("/api/me/apply/claim", "POST", ext, {"job_id": "0123456789abcdef", "company": "Acme"})
+check("the retired claim route is 404", status.startswith("404"), status)
+# A submission made through the retired route, as its row still sits in the table.
+table.put_item(Item={"user_id": "u-ext", "alert_id": handler.apply.APPLIED + "0123456789abcdef", "job_id": "0123456789abcdef",
+                     "status": "submitted", "reason": "", "at": datetime.now(timezone.utc).isoformat()})
 status, body = call("/api/me/apply/history", auth=ext)
 check("the history shows it submitted", json.loads(body)["applied"][0]["status"] == "submitted", body.decode()[:200])
 # Regression, bug 1: a submitted job can't be queued again by any caller,

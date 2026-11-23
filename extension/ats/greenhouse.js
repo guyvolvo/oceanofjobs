@@ -11,7 +11,7 @@
 // The service worker loads it with importScripts for matches(); the rest
 // runs in the job tab, injected next to lib/match.js.
 (function (root) {
-  const HOSTS = ['boards.greenhouse.io', 'job-boards.greenhouse.io'];
+  const HOSTS = ['boards.greenhouse.io', 'job-boards.greenhouse.io', 'boards.eu.greenhouse.io', 'job-boards.eu.greenhouse.io'];
 
   function onSite(url) {
     try { return HOSTS.includes(new URL(url).hostname); } catch { return false; }
@@ -79,6 +79,18 @@
         options: (f.values || []).map((v) => String(v.label)),
       });
     }
+    // The newer demographic survey, often required (Discord, Reddit, Robinhood, Twilio). Its
+    // dropdowns carry the question's id; every question there is demographic, whatever it says.
+    for (const q of (post.demographic_questions && post.demographic_questions.questions) || []) {
+      fields.push({
+        name: String(q.id),
+        label: String(q.name || '').trim(),
+        required: !!q.required,
+        type: q.answer_type && q.answer_type.key === 'MULTI_SELECT' ? 'multiselect' : 'select',
+        options: (q.answer_options || []).map((o) => String(o.name)),
+        eeo: true,
+      });
+    }
     return { fields, redirectTo: post.redirect_to || null };
   }
 
@@ -108,8 +120,10 @@
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // Every 50 ms: React draws a menu or a choice within a frame or two, and
+  // a select waited two 150 ms steps for that.
   async function waitFor(fn, ms) {
-    for (const until = Date.now() + ms; Date.now() < until; await sleep(150)) {
+    for (const until = Date.now() + ms; Date.now() < until; await sleep(50)) {
       const v = fn();
       if (v) return v;
     }

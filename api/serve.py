@@ -18,12 +18,15 @@ Two things API Gateway did that a plain WSGI server does not:
   every /api/me route is 401: safe, not broken.
   A personal access token (ooj_..., api/tokens.py) is the other way in.
   It stands for its user only on the routes its scope lists in
-  TOKEN_PATHS; anywhere else under /api/me it answers 403.
+  TOKEN_PATHS; anywhere else under /api/me it answers 403. When the
+  token table can't be read the answer is 503, not 401: the extension
+  takes a 401 to mean its token was revoked.
 - The 29 second timeout. Not reproduced. That ceiling is what turned
   a slow download into an outage.
 """
 
 import base64
+import gzip
 import json
 import os
 from http import HTTPStatus
@@ -39,14 +42,19 @@ MAX_BODY = 64 * 1024
 MAX_CV_BODY = 7 * 1024 * 1024 + 4096
 # What a personal access token may reach, by scope (path prefixes).
 TOKEN_PATHS = {
-    "mcp": ("/api/me/saved", "/api/me/apply/queue", "/api/me/alerts", "/api/me/profile"),
+    "mcp": ("/api/me/saved", "/api/me/apply/queue", "/api/me/apply/history", "/api/me/alerts", "/api/me/profile"),
     "extension": ("/api/me/saved", "/api/me/apply/", "/api/me/storage", "/api/me/cv"),
 }
 # Which of an mcp token's permissions each of its paths needs.
 TOKEN_AREAS = {"/api/me/saved": ("saved", "saved jobs"), "/api/me/apply/queue": ("queue", "auto apply queue"),
+               "/api/me/apply/history": ("queue", "auto apply history"),
                "/api/me/alerts": ("alerts", "alerts"), "/api/me/profile": ("preferences", "search preferences")}
 
 _jwks = None
+
+
+class TokenCheckFailed(Exception):
+    """The token table couldn't be read, so the token is neither good nor bad."""
 
 
 def _claims(environ: dict) -> dict | None:
@@ -59,9 +67,9 @@ def _claims(environ: dict) -> dict | None:
     if token.startswith(tokens.PREFIX):
         try:
             found = tokens.verify(handler._alerts_table, token)
-        except Exception as e:  # noqa: BLE001 -- a table error is "not signed in", not a 500
+        except Exception as e:  # noqa: BLE001 -- any table error means "try again"
             print(f"token check failed: {e.__class__.__name__}")
-            return None
+            raise TokenCheckFailed from e
         if not found:
             return None
         # The address the account had, verified, when the token was made:
@@ -136,6 +144,18 @@ def _permission_refusal(path: str, method: str, claims: dict) -> str | None:
     return None
 
 
+TEXT_TYPES = ("application/json", "text/", "application/xml", "application/javascript", "image/svg+xml")
+
+
+def _compressible(environ, headers, payload) -> bool:
+    if len(payload) < 1024 or "gzip" not in environ.get("HTTP_ACCEPT_ENCODING", "").lower():
+        return False
+    names = {k.lower(): v for k, v in headers}
+    if "content-encoding" in names:
+        return False
+    return names.get("content-type", "application/json").lower().startswith(TEXT_TYPES)
+
+
 def app(environ, start_response):
     # Every real body is a small JSON form; _event reads the whole thing
     # into memory, and nothing upstream caps it below Cloudflare's 100MB.
@@ -147,7 +167,11 @@ def app(environ, start_response):
     if too_big:
         start_response("413 Content Too Large", [("Content-Type", "application/json")])
         return [b'{"error": "request body too large"}']
-    event = _event(environ)
+    try:
+        event = _event(environ)
+    except TokenCheckFailed:
+        start_response("503 Service Unavailable", [("Content-Type", "application/json"), ("Retry-After", "30")])
+        return [b'{"error": "Couldn\'t check your token. Try again in a minute."}']
     path = event["rawPath"]
     if path.startswith("/api/me/") and "authorizer" not in event["requestContext"]:
         start_response("401 Unauthorized", [("Content-Type", "application/json")])
@@ -174,6 +198,12 @@ def app(environ, start_response):
     else:
         payload = body.encode("utf-8") if isinstance(body, str) else body
     headers = [(k, str(v)) for k, v in (result.get("headers") or {}).items()]
+    if _compressible(environ, headers, payload):
+        # Egress from the box is billed per GB and Cloudflare always asks for
+        # gzip, so uncompressed JSON was most of the AWS bill (2026-11-01).
+        payload = gzip.compress(payload, 5)
+        headers.append(("Content-Encoding", "gzip"))
+        headers.append(("Vary", "Accept-Encoding"))
     headers.append(("Content-Length", str(len(payload))))
     start_response(f"{status} {reason}", headers)
     return [payload]
