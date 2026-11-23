@@ -94,14 +94,17 @@ export function useAlertForm(profile: Profile | null, reload: () => Promise<unkn
 export type AlertForm = ReturnType<typeof useAlertForm>;
 
 // The pickers' lists, fetched once per visit, when a form first shows.
-let options: Promise<{ department: Option[]; location: Option[]; company: Option[] }> | null = null;
+type Lists = { department: Option[]; location: Option[]; company: Option[] };
+let options: Promise<Lists> | null = null;
+// Once in, a form shown again starts with them.
+let lists: Lists | null = null;
 const placeLabels: Record<string, string> = {};
 function loadOptions() {
   options ??= Promise.all([
     departmentOptions().catch(() => []),
     locationOptions(placeLabels).catch(() => []),
     companyOptions().catch(() => []),
-  ]).then(([department, location, company]) => ({ department, location, company }));
+  ]).then(([department, location, company]) => (lists = { department, location, company }));
   return options;
 }
 
@@ -125,13 +128,13 @@ export function PlacePicker({ options, country, city, onChange }: {
 }
 
 export function useLocationOptions() {
-  const [opts, setOpts] = useState<Option[]>([]);
+  const [opts, setOpts] = useState<Option[]>(lists?.location || []);
   useEffect(() => { loadOptions().then((o) => setOpts(o.location)); }, []);
   return { options: opts, labels: placeLabels };
 }
 
 export function AlertFormView({ form, onDone, autoFocus }: { form: AlertForm; onDone?: () => void; autoFocus?: boolean }) {
-  const [opts, setOpts] = useState<{ department: Option[]; location: Option[]; company: Option[] } | null>(null);
+  const [opts, setOpts] = useState<Lists | null>(lists);
   useEffect(() => { loadOptions().then(setOpts); }, []);
   const { draft, setDraft, editing } = form;
   const set = <K extends keyof AlertDraft>(k: K, v: AlertDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));

@@ -1,6 +1,6 @@
-// Forms with edits not yet saved, each with its own save. Every link
-// between workspace pages is a full page load, so leaving or closing the
-// page gets the browser's own warning. An in-page action that would drop
+// Forms with edits not yet saved, each with its own save. Leaving or
+// closing the document gets the browser's own warning. A move to another
+// workspace page (workspace/main.tsx) or an in-page action that would drop
 // the edits asks first through useLeaveGuard, which can run the saves.
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ const unsaved = new Map<string, () => Promise<boolean>>();
 addEventListener("beforeunload", (e) => {
   if (unsaved.size) { e.preventDefault(); e.returnValue = ""; }
 });
+
+export const hasUnsaved = () => unsaved.size > 0;
 
 // save resolves true once the edits are stored, false when they weren't.
 export function useUnsaved(key: string, dirty: boolean, save: () => Promise<boolean>) {
@@ -39,7 +41,8 @@ export function useLeaveGuard() {
   const back = useReturnFocus(!!next);
   const dialog = (
     <Dialog open={!!next} onOpenChange={(o) => { if (!o) setNext(null); }}>
-      <DialogContent onCloseAutoFocus={back}>
+      {/* Focus another page took (a move to it) stays there. */}
+      <DialogContent onCloseAutoFocus={(e) => { back(e); if (document.activeElement && document.activeElement !== document.body) e.preventDefault(); }}>
         <DialogTitle>Save your changes?</DialogTitle>
         <DialogDescription>You changed some settings on this tab and haven't saved them yet.</DialogDescription>
         <DialogFooter>

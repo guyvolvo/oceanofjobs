@@ -60,7 +60,7 @@ export { LINK, PANEL };
 export const Loading = () => <div className="flex items-center gap-2 text-muted-foreground"><Spinner /> Loading</div>;
 
 // The Settings area is four pages here and one under /apply; this row at
-// the top of each links them. Full navigations, so links, not in-page tabs.
+// the top of each links them. Separate pages, so links, not in-page tabs.
 const SETTINGS = [
   ["/account/settings", "Account settings"], ["/apply/settings", "Auto apply"], ["/account/preferences", "Preferences"],
   ["/account/skills", "Resume skills"], ["/account/billing", "Billing"],

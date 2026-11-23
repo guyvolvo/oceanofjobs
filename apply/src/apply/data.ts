@@ -1,10 +1,12 @@
 // What every auto apply page shares: the summary, the queue, the
 // questions waiting and the history, loaded together (the old dashboard's
 // load) and again when the tab comes back into view, since the extension
-// opens jobs in tabs of its own. A 401 means signed out.
+// opens jobs in tabs of its own. A 401 means signed out. The last answer
+// is kept between pages, so the next page paints with it while it loads.
 import { useCallback, useEffect, useState } from "react";
 import { apply, ApiError, type HistoryRow, type Need, type QueueItem, type Summary } from "../api";
 import { useAuth } from "../site/auth";
+import { recall, remember } from "../shell/state";
 import { plural } from "../shared";
 
 export type ApplyData = {
@@ -21,7 +23,7 @@ export const badges = (s?: Summary) => (s ? { queue: s.queued, needs: s.needs_in
 
 export function useApplyData(): ApplyData {
   const who = useAuth();
-  const [data, setData] = useState<Loaded>({});
+  const [data, setData] = useState<Loaded>(() => (who && recall<Loaded>("apply")) || {});
   const [failed, setFailed] = useState(false);
   const [signedOut, setSignedOut] = useState(!who);
 
@@ -36,7 +38,8 @@ export function useApplyData(): ApplyData {
     if (got.some((g) => g.status === "rejected" && g.reason instanceof ApiError && g.reason.status === 401)) return setSignedOut(true);
     const v = <T,>(g: PromiseSettledResult<T>) => (g.status === "fulfilled" ? g.value : undefined);
     const [s, q, n, h] = got;
-    setData((d) => ({
+    const d = recall<Loaded>("apply") || {};
+    setData(remember<Loaded>("apply", {
       summary: v(s) ?? d.summary,
       queue: v(q)?.queue ?? d.queue,
       needs: v(n)?.needs ?? d.needs,
