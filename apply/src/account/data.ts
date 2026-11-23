@@ -3,6 +3,7 @@
 // summary, the starred set, the picker option lists).
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, pub, send } from "../api";
+import { recall, remember } from "../shell/state";
 
 export type Cadence = "instant" | "daily" | "weekly";
 export type Profile = {
@@ -245,19 +246,27 @@ export const PROFILE_FAILED = "Couldn't load your profile. Reload the page to tr
 const STUCK = "This is taking longer than it should. Reload the page to try again.";
 const FAILED = "Couldn't load this. Reload the page to try again.";
 
+// Each load below starts from what the last page got (shell/state.ts
+// remember), so a page shown again paints at once and refreshes behind it.
+// Only a good answer is kept.
+
+type Kept = { profile: Profile; spec: unknown };
 export function useProfile() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [spec, setSpec] = useState<unknown>(null);
+  const [profile, setProfile] = useState<Profile | null>(() => recall<Kept>("profile")?.profile || null);
+  const [spec, setSpec] = useState<unknown>(() => recall<Kept>("profile")?.spec || null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     api<{ profile: Profile; skill_spec: unknown }>("/me/profile").then((d) => {
-      setProfile({ ...EMPTY_PROFILE, ...(d.profile || {}) });
-      setSpec(d.skill_spec || null);
+      const got = remember<Kept>("profile", { profile: { ...EMPTY_PROFILE, ...(d.profile || {}) }, spec: d.skill_spec || null });
+      setProfile(got.profile);
+      setSpec(got.spec);
     }).catch((err) => {
       authGuard(err);
       // A profile that won't load isn't worth blocking the page for; the
       // pickers just have nothing to offer until the next load. The page
       // says so, rather than ask for skills the reader may already have.
+      // The kept copy goes too: what the account holds now is unknown.
+      remember("profile", undefined);
       setFailed(true);
       setProfile({ ...EMPTY_PROFILE });
     });
@@ -269,9 +278,10 @@ export function useProfile() {
     if (failed) throw new Error(PROFILE_FAILED);
     const res = await api<{ profile: Profile }>("/me/profile", send("PUT", { ...(profile || EMPTY_PROFILE), ...patch }));
     const p = { ...EMPTY_PROFILE, ...(res.profile || res) };
+    remember<Kept>("profile", { profile: p, spec });
     setProfile(p);
     return p;
-  }, [profile, failed]);
+  }, [profile, spec, failed]);
   return { profile, spec, put, failed };
 }
 
@@ -281,22 +291,25 @@ export function useProfile() {
 // seconds for a couple of minutes. A failed request gets two slower tries.
 const DASH_KEY = "iljobs_dash_v1";
 export function useDashboard(profile: Profile | null) {
-  const [dash, setDash] = useState<Dashboard | null>(null);
-  const [loaded, setLoaded] = useState(false);
   const skills = profile?.skills || [];
   const country = profile && profile.country.length === 1 ? profile.country[0] : "";
   const key = `${skills.join(",")}|${country}|${Math.min(3, skills.length)}`;
+  const kept = (): Dashboard | null => {
+    try {
+      const c = JSON.parse(localStorage.getItem(DASH_KEY) || "null");
+      if (c && c.key === key && Date.now() - c.at < 30 * 60 * 1000) return { history: c.history, matches: c.matches, counts: c.counts, computed_at: c.computedAt };
+    } catch { /* a per-browser nicety only */ }
+    return null;
+  };
+  // Read on the first render too, so the page doesn't draw the bones first.
+  const [dash, setDash] = useState<Dashboard | null>(() => (skills.length ? kept() : null));
+  const [loaded, setLoaded] = useState(dash !== null);
   useEffect(() => {
     if (!profile) return;
     if (!skills.length) { setDash(null); setLoaded(true); return; }
     let live = true, polls = 0, retries = 0, timer = 0;
-    try {
-      const c = JSON.parse(localStorage.getItem(DASH_KEY) || "null");
-      if (c && c.key === key && Date.now() - c.at < 30 * 60 * 1000) {
-        setDash({ history: c.history, matches: c.matches, counts: c.counts, computed_at: c.computedAt });
-        setLoaded(true);
-      }
-    } catch { /* a per-browser nicety only */ }
+    const c = kept();
+    if (c) { setDash(c); setLoaded(true); }
     const run = async () => {
       let d: Dashboard | null = null;
       try { d = await api<Dashboard>("/me/dashboard"); } catch (err) { authGuard(err); d = null; }
@@ -323,17 +336,18 @@ export function useDashboard(profile: Profile | null) {
 // The lists, each with a watchdog: a request that never settles still
 // ends in a sentence, not a spinner.
 export function useAlerts() {
-  const [alerts, setAlerts] = useState<Alert[] | null>(null);
+  const [alerts, setAlerts] = useState<Alert[] | null>(() => recall<Alert[]>("alerts") || null);
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
-    const list = (await api<{ alerts: Alert[] }>("/me/alerts")).alerts || [];
+    const list = remember("alerts", (await api<{ alerts: Alert[] }>("/me/alerts")).alerts || []);
     setAlerts(list);
     setError("");
     return list;
   }, []);
   useEffect(() => {
-    const stuck = window.setTimeout(() => setError((e) => e || STUCK), 15000);
-    reload().catch((err) => { authGuard(err); setError(FAILED); }).finally(() => clearTimeout(stuck));
+    // A kept list stays up while a slow refresh runs.
+    const stuck = recall("alerts") ? 0 : window.setTimeout(() => setError((e) => e || STUCK), 15000);
+    reload().catch((err) => { authGuard(err); remember("alerts", undefined); setError(FAILED); }).finally(() => clearTimeout(stuck));
     return () => clearTimeout(stuck);
   }, [reload]);
   return { alerts, error, reload };
@@ -343,8 +357,9 @@ export function useAlerts() {
 // listings come from /api/jobs, so what shows is the live record, closed
 // ones included.
 export function useSaved() {
-  const [jobs, setJobs] = useState<Job[] | null>(null);
-  const [count, setCount] = useState(0);
+  type Kept = { jobs: Job[]; count: number };
+  const [jobs, setJobs] = useState<Job[] | null>(() => recall<Kept>("saved")?.jobs || null);
+  const [count, setCount] = useState(() => recall<Kept>("saved")?.count || 0);
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     let ids: string[];
@@ -352,25 +367,28 @@ export function useSaved() {
       ids = ((await api<{ saved: SavedRow[] }>("/me/saved")).saved || []).map((r) => r.job_id).filter(Boolean);
     } catch (err) {
       authGuard(err);
+      remember("saved", undefined);
       setError("Couldn't load your saved jobs.");
       return;
     }
     setCount(ids.length);
-    if (!ids.length) { setJobs([]); setError(""); return; }
+    if (!ids.length) { remember<Kept>("saved", { jobs: [], count: 0 }); setJobs([]); setError(""); return; }
     try {
       const q = new URLSearchParams({ ids: ids.slice(0, 200).join(","), include_closed: "1", include_outdated: "1", limit: "200" });
       const list = (await pub<{ jobs: Job[] }>(`/jobs?${q}`)).jobs || [];
       // The account knows the order they were starred in; restore it.
       const rank = new Map(ids.map((id, i) => [id, i]));
       list.sort((a, b) => (rank.get(a.id) ?? 999) - (rank.get(b.id) ?? 999));
+      remember<Kept>("saved", { jobs: list, count: ids.length });
       setJobs(list);
       setError("");
     } catch {
+      remember("saved", undefined);
       setError("Couldn't load your saved jobs.");
     }
   }, []);
   useEffect(() => {
-    const stuck = window.setTimeout(() => setError((e) => e || STUCK), 15000);
+    const stuck = recall("saved") ? 0 : window.setTimeout(() => setError((e) => e || STUCK), 15000);
     load().finally(() => clearTimeout(stuck));
     return () => clearTimeout(stuck);
   }, [load]);
@@ -389,6 +407,7 @@ export function useSaved() {
     try { await api(`/me/saved/${encodeURIComponent(id)}`, { method: "DELETE" }); } catch { return false; }
     setStar(id, false);
     const rest = (jobs || []).filter((j) => j.id !== id);
+    remember<Kept>("saved", { jobs: rest, count: Math.max(0, count - 1) });
     setJobs(rest);
     setCount((n) => Math.max(0, n - 1));
     if (!rest.length) load();

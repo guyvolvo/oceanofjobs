@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "../api";
+import { recall, remember } from "../shell/state";
 import { Workspace } from "../site/Workspace";
 import { Card, gate, LABEL, Loading, NOTE, SettingsNav, STACK, TEXT } from "./ui";
 
@@ -31,9 +32,9 @@ function paidLine(p: NonNullable<State["paid"]>): string {
 }
 
 function Billing() {
-  const [s, setS] = useState<State | null>(null);
+  const [s, setS] = useState<State | null>(() => recall<State>("billing") || null);
   const [failed, setFailed] = useState(false);
-  useEffect(() => { api<State>("/me/billing").then(setS, () => setFailed(true)); }, []);
+  useEffect(() => { api<State>("/me/billing").then((b) => setS(remember("billing", b)), () => { remember("billing", undefined); setFailed(true); }); }, []);
 
   if (failed) return <Card title="Plan" note="Couldn't load your plan. Reload the page to try again." />;
   if (!s) return <Card title="Plan"><Loading /></Card>;

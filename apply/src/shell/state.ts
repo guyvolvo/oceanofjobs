@@ -38,3 +38,16 @@ function subscribeTheme(fn: () => void) {
   return () => watch.disconnect();
 }
 export const useDark = () => useSyncExternalStore(subscribeTheme, () => document.documentElement.getAttribute("data-mode") === "dark", () => false);
+
+// The last good answer of each workspace load, kept while moving between
+// pages so a page shown again paints at once and asks again behind it.
+// Only for the reader who loaded it: another account or a sign-out empties it.
+const memo = new Map<string, unknown>();
+let memoFor: string | null = null;
+function mine() {
+  const t = idToken();
+  const me = t ? decodeJwtEmail(t) || t : null;
+  if (me !== memoFor) { memo.clear(); memoFor = me; }
+}
+export function recall<T>(key: string): T | undefined { mine(); return memo.get(key) as T | undefined; }
+export function remember<T>(key: string, value: T): T { mine(); memo.set(key, value); return value; }

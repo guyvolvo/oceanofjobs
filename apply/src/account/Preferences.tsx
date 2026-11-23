@@ -134,8 +134,8 @@ function line(p: Profile) {
 function PreferencesPage() {
   const { profile, put, failed } = useProfile();
   const [open, setOpen] = useState(false);
-  // A row open to edit is not lost to a stray click on a link: the
-  // browser asks before leaving. Nothing here mounts the save dialog.
+  // A row open to edit is not lost to a stray click on a link: leaving
+  // asks first. Its save here is false, so only Discard leaves.
   useUnsaved("prefs", open, async () => false);
   return (
     <Workspace current="settings" title="Preferences" note={profile ? line(profile) : ""}>
