@@ -3,11 +3,11 @@
 // country with some of its cities picked shows as mixed. What is typed in
 // the box narrows the tree here and asks the server for more places
 // (/api/places/search, store.placeSearch). Loaded on first use.
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Tree, TreeItem, TreeItemContent, type Key, type Selection } from "react-aria-components";
 import { CaretRight, Check, Minus } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { F, U, placeCountries, placeSearch, railToggle } from "./store";
+import { F, U, placeCountries, placeSearch, railToggle, useBoard, usePlaces } from "./store";
 import { cityCountry, cityKey, countryLabel, fmtInt, type City, type Country } from "./util";
 
 type Node = { country: Country; cities: City[]; byName?: boolean };
@@ -32,7 +32,10 @@ function nodes(raw: string): Node[] {
     const cities = at >= 0 ? c.cities : c.cities.filter((t) => (t.label || t.value).toLowerCase().includes(q));
     if (at < 0 && !cities.length) continue;
     const cityAt = Math.min(...cities.map((t) => (t.label || t.value).toLowerCase().indexOf(q)).filter((i) => i >= 0), 99);
-    hits.push({ country: c, cities, byName: at >= 0, at: at >= 0 ? at : cityAt, n: c.n || 0 });
+    // Ranked by what matched: "tel av" puts Israel (Tel Aviv, 2,230 jobs) above
+    // the United States (a "Tel Aviv" with 1), not the other way round.
+    const n = at >= 0 ? c.n || 0 : Math.max(...cities.map((t) => t.n || 0));
+    hits.push({ country: c, cities, byName: at >= 0, at: at >= 0 ? at : cityAt, n });
   }
   return hits.sort((a, b) => Number(a.at > 0) - Number(b.at > 0) || b.n - a.n).slice(0, 40);
 }
@@ -48,10 +51,19 @@ function Box({ checked, mixed }: { checked: boolean; mixed: boolean }) {
 const row = "group flex min-h-8 cursor-pointer items-center gap-2 rounded-sm pr-2 font-ui text-[15px] text-foreground outline-none data-[focus-visible]:outline-2 data-[focus-visible]:-outline-offset-2 data-[focus-visible]:outline-ring data-[hovered]:bg-muted";
 const count = "ml-auto shrink-0 pl-3 text-xs tabular-nums text-muted-foreground";
 
-export default function LocationPanel({ open, query: typed, onClose }: { open: boolean; query: string; onClose: (refocus: boolean) => void }) {
-  // The box shows each letter at once; the tree catches up behind it.
-  const query = useDeferredValue(typed);
-  useEffect(() => { if (open) placeSearch(query); }, [open, query]);
+// The box shows each letter at once: a keystroke re-renders only this
+// wrapper, and the tree (memo, keyed on the deferred text) draws after the
+// letter is on screen.
+export default function LocationPanel({ open, query, onClose }: { open: boolean; query: string; onClose: (refocus: boolean) => void }) {
+  const deferred = useDeferredValue(query);
+  return open ? <Places query={deferred} onClose={onClose} /> : null;
+}
+
+// onClose is a new function on every render of the box and does the same thing each time, so only the text counts.
+const Places = memo(function Places({ query, onClose }: { query: string; onClose: (refocus: boolean) => void }) {
+  useBoard(); // picks and facets
+  usePlaces(); // places the server found for the text
+  useEffect(() => { placeSearch(query); }, [query]);
   const list = useMemo(() => nodes(query), [query, U.facets, U.placeFound, F.country, F.city]); // eslint-disable-line react-hooks/exhaustive-deps
   const [opened, setOpened] = useState<Set<Key>>(() => new Set(F.city.map((t) => cityCountry(t) || "")));
   // Typed: a country opens when one of its cities matched, not when its own
@@ -69,7 +81,6 @@ export default function LocationPanel({ open, query: typed, onClose }: { open: b
     for (const k of next) if (!selected.has(k)) return railToggle(cityCountry(String(k)) ? "city" : "country", String(k), true);
     for (const k of selected) if (!next.has(k)) return railToggle(cityCountry(String(k)) ? "city" : "country", String(k), false);
   };
-  if (!open) return null;
   return (
     <div className="absolute top-[calc(100%+8px)] left-0 z-40 w-[min(420px,calc(100vw-32px))] rounded-lg border bg-card p-1.5"
       onKeyDownCapture={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(true); } }}>
@@ -119,4 +130,4 @@ export default function LocationPanel({ open, query: typed, onClose }: { open: b
       </Tree>
     </div>
   );
-}
+}, (a, b) => a.query === b.query);

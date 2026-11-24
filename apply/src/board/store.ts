@@ -82,6 +82,14 @@ export function emit() { version++; subs.forEach((f) => f()); }
 const subscribe = (f: () => void) => { subs.add(f); return () => { subs.delete(f); }; };
 // The server render (and hydration) sees version 0 and the default state.
 export const useBoard = () => useSyncExternalStore(subscribe, () => version, () => 0);
+// The places search (placeSearch) feeds only the Location tree, so it has
+// its own signal: through emit() each answer re-rendered the whole board
+// while someone was typing.
+let placeVersion = 0;
+const placeSubs = new Set<() => void>();
+function placeEmit() { placeVersion++; placeSubs.forEach((f) => f()); }
+const placeSubscribe = (f: () => void) => { placeSubs.add(f); return () => { placeSubs.delete(f); }; };
+export const usePlaces = () => useSyncExternalStore(placeSubscribe, () => placeVersion, () => 0);
 
 // storage
 
@@ -1022,8 +1030,8 @@ let placeSeq = 0;
 export function placeSearch(q: string) {
   clearTimeout(placeTimer);
   const name = q.trim();
-  U.placeAsking = name.length >= 2;
-  emit();
+  // Only a change is news: an emit re-renders the whole board, and this runs per letter typed.
+  if (U.placeAsking !== name.length >= 2) { U.placeAsking = name.length >= 2; placeEmit(); }
   if (!U.placeAsking) return;
   placeTimer = window.setTimeout(async () => {
     const seq = ++placeSeq;
@@ -1041,7 +1049,7 @@ export function placeSearch(q: string) {
     } catch { /* the list keeps what the facet sent */ }
     if (seq !== placeSeq) return;
     U.placeAsking = false;
-    emit();
+    placeEmit();
   }, 250);
 }
 export function clearPlaces() {
