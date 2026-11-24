@@ -3,13 +3,11 @@
 // (src/shell/SignIn.tsx). On a phone the picture goes and the form stands
 // alone. Signed in, or once signed in, the page sends the visitor on: to
 // ?next= when it is a path on this site, else to the account.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SignInSteps } from "../shell/SignIn";
 import { useWho } from "../shell/state";
 import { nextPath } from "./next";
 
-const Heading = ({ className, children }: { className?: string; children?: ReactNode }) => <h1 className={className}>{children}</h1>;
-const Line = ({ className, children }: { className?: string; children?: ReactNode }) => <p className={className}>{children}</p>;
 
 // Squares the size of a few dither dots, lit or darkened in batches on a
 // fixed beat, each fading in and out over a couple of seconds.
@@ -66,12 +64,20 @@ function Dither({ className = "" }: { className?: string }) {
 export function Login() {
   const [error, setError] = useState("");
   const who = useWho();
-  useEffect(() => { if (who) location.replace(nextPath(location.search)); }, [who]);
+  useEffect(() => { if (who) location.replace(nextPath(location.search, document.referrer, location.origin)); }, [who]);
+  // A failed Google or GitHub sign-in shows its reason here: straight from
+  // auth.js on this page, or carried over from the page the provider sent
+  // the reader back to (frontend/auth.js, auth_error).
+  useEffect(() => {
+    if (typeof setAuthErrorSink === "function") setAuthErrorSink(setError);
+    const carried = sessionStorage.getItem("ooj_auth_error");
+    if (carried) { sessionStorage.removeItem("ooj_auth_error"); setError(carried); }
+  }, []);
   return (
     <main className="grid min-h-dvh bg-background lg:grid-cols-[minmax(440px,1fr)_1.2fr]">
       <section className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-[380px]">
-          <SignInSteps error={error} setError={setError} Title={Heading} Description={Line} />
+          <SignInSteps error={error} setError={setError} />
         </div>
       </section>
       <div className="hidden p-4 lg:block lg:pl-0"><Dither className="h-full" /></div>

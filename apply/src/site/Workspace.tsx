@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuBadge,
   SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Brand, SignInHost, toggleTheme } from "../shell/Header";
+import { Brand, toggleTheme } from "../shell/Header";
 import { useDark } from "../shell/state";
 import { requestSignIn, syncConsentOnce, useAuth, type Who } from "./auth";
 import { GROUPS, type WorkKey } from "./nav";
@@ -135,7 +135,6 @@ export function Workspace({ current, title, note, actions, status, badges = {}, 
           {children}
         </main>
       </div>
-      <SignInHost />
     </SidebarProvider>
   );
 }

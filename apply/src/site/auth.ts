@@ -6,10 +6,12 @@ export { useWho as useAuth } from "../shell/state";
 
 export type Who = { email: string; name: string; picture: string; idToken: string } | null;
 
-// Opens the sign-in window wherever one is mounted (the header and the
-// workspace each mount one). The old pages called window.openSignIn().
-export const SIGNIN_EVENT = "ooj-signin";
-export const requestSignIn = () => dispatchEvent(new Event(SIGNIN_EVENT));
+// Every "Log in" goes to the sign-in page, which comes back here once
+// signed in (src/login). frontend/signin_dialog.js does the same for
+// window.openSignIn().
+export const requestSignIn = () => {
+  if (location.pathname !== "/login") location.assign("/login?next=" + encodeURIComponent(location.pathname + location.search + location.hash));
+};
 
 // The sign-in window's choices (terms, product updates) go to the account
 // on the first page that loads signed in. Once per page load.
