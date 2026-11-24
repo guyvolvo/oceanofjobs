@@ -58,7 +58,7 @@ export function SignInSteps({ error, setError, Title = DialogTitle, Description 
   const errorLine = error ? <p className="m-0 text-sm text-destructive" role="alert">{error}</p> : null;
   return (
     <div className="flex flex-col gap-4">
-      <img className="self-center" src="/favicon.svg?v=3" width="44" height="44" alt="" />
+      <img className="self-center" src="/img/mark-black.png" width="44" height="44" alt="" />
       <div className="flex flex-col gap-1 text-center">
         <Title className="m-0 font-heading text-[22px] font-medium leading-tight">{step === "email" ? "Log in to Ocean of Jobs" : "Check your email"}</Title>
         {step === "email"

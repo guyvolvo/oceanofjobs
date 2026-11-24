@@ -22,6 +22,7 @@ const PAGES: Record<string, string> = {
   "/terms": "terms.html",
   "/refunds": "refunds.html",
   "/contact": "contact.html",
+  "/login": "login.html",
 };
 const FRONTEND = resolve(__dirname, "../frontend");
 const MIME: Record<string, string> = { ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".svg": "image/svg+xml", ".png": "image/png",
@@ -97,7 +98,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    rollupOptions: { input: Object.fromEntries(["index", "account", "home", "board", "companies", "stats", "pricing", "checkout", "privacy", "terms", "refunds", "contact", "404"].map((n) => [n, `${n}.html`])) },
+    rollupOptions: { input: Object.fromEntries(["index", "account", "home", "board", "companies", "stats", "pricing", "checkout", "privacy", "terms", "refunds", "contact", "login", "404"].map((n) => [n, `${n}.html`])) },
   },
   server: {
     proxy: Object.fromEntries(["/api", "/job/", "/company/", "/jobs", "/companies/", "/docs", "/mcp", "/logo/", "/descriptions/", "/media/", "/explore",
