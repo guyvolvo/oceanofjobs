@@ -36,32 +36,39 @@ const AGENTS: Record<string, { name: string; cmd: (tok: string) => string; where
 const mask = (tok: string) => tok.slice(0, 12) + "…";
 
 // What a token may do, per area (api/tokens.py AREAS).
-const AREAS: [string, string][] = [["saved", "Saved jobs"], ["queue", "Auto apply queue"], ["alerts", "Alerts"], ["preferences", "Search preferences"]];
+const AREAS: [string, string][] = [
+  ["saved", "Saved jobs"], ["alerts", "Alerts"], ["preferences", "Search preferences"], ["matches", "Best matches"],
+  ["queue", "Auto apply queue"], ["history", "Application history"], ["needs", "Needs attention"],
+  ["autoapply", "Auto apply settings"], ["agent", "AI agent"], ["usage", "Plan and usage"],
+];
+// Nothing to change there, so no Write box (api/tokens.py READ_ONLY).
+const READ_ONLY = new Set(["matches", "usage"]);
 const ACCESS: Record<Access, string> = { none: "No access", read: "Read", write: "Read and write" };
 const every = (a: Access) => Object.fromEntries(AREAS.map(([k]) => [k, a])) as Record<string, Access>;
 type Perms = Record<string, Access>;
 // Writing needs reading: Write ticks Read too, and clearing Read clears Write.
 const withRead = (p: Perms, k: string, on: boolean): Perms => ({ ...p, [k]: on ? (p[k] === "write" ? "write" : "read") : "none" });
-const withWrite = (p: Perms, k: string, on: boolean): Perms => ({ ...p, [k]: on ? "write" : p[k] === "none" ? "none" : "read" });
+const withWrite = (p: Perms, k: string, on: boolean): Perms =>
+  READ_ONLY.has(k) ? p : { ...p, [k]: on ? "write" : p[k] === "none" ? "none" : "read" };
 
 // The new token's permissions: a row per area, a column each for read and
-// write, and a box at the top of each column for all of them.
+// write, and Read all / Write all in the title row above them.
 const NARROW = "w-[1%] whitespace-nowrap";
 const some = (n: number) => (n === AREAS.length ? true : n > 0 ? "indeterminate" : false);
 function PermissionGrid({ perms, setPerms }: { perms: Perms; setPerms: (p: Perms) => void }) {
   const reads = AREAS.filter(([k]) => perms[k] !== "none").length;
   const writes = AREAS.filter(([k]) => perms[k] === "write").length;
+  const writable = AREAS.length - READ_ONLY.size;
   const all = (fn: typeof withRead, on: boolean) => setPerms(AREAS.reduce((p, [k]) => fn(p, k, on), perms));
   const head = "inline-flex cursor-pointer items-center gap-2 font-normal";
   return (
     <div className={TABLE}>
-      <p className={`${LABEL} mb-1.5`}>Permissions</p>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Permission</TableHead>
+            <TableHead className={LABEL}>Permissions</TableHead>
             <TableHead className={NARROW}><label className={head}><Checkbox checked={some(reads)} onCheckedChange={(c) => all(withRead, c === true)} />Read all</label></TableHead>
-            <TableHead className={NARROW}><label className={head}><Checkbox checked={some(writes)} onCheckedChange={(c) => all(withWrite, c === true)} />Write all</label></TableHead>
+            <TableHead className={NARROW}><label className={head}><Checkbox checked={writes === writable ? true : writes ? "indeterminate" : false} onCheckedChange={(c) => all(withWrite, c === true)} />Write all</label></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -69,11 +76,13 @@ function PermissionGrid({ perms, setPerms }: { perms: Perms; setPerms: (p: Perms
             <TableRow key={k}>
               <TableCell className="text-foreground">{label}</TableCell>
               <TableCell className={NARROW}><Checkbox aria-label={`Read ${label.toLowerCase()}`} checked={perms[k] !== "none"} onCheckedChange={(c) => setPerms(withRead(perms, k, c === true))} /></TableCell>
-              <TableCell className={NARROW}><Checkbox aria-label={`Write ${label.toLowerCase()}`} checked={perms[k] === "write"} onCheckedChange={(c) => setPerms(withWrite(perms, k, c === true))} /></TableCell>
+              <TableCell className={NARROW}>{READ_ONLY.has(k) ? null
+                : <Checkbox aria-label={`Write ${label.toLowerCase()}`} checked={perms[k] === "write"} onCheckedChange={(c) => setPerms(withWrite(perms, k, c === true))} />}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      <p className={`${NOTE} mt-2 text-sm`}>Full automatic, Auto-apply mode and letting an assistant queue jobs can only be turned on here, not with a token.</p>
     </div>
   );
 }

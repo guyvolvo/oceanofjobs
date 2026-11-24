@@ -104,8 +104,8 @@ check("the list shows name, last four and expiry, and no secret",
       len(listed) == 1 and listed[0]["name"] == "Claude Code laptop" and listed[0]["hint"] == tok[-4:]
       and "token" not in listed[0] and "hash" not in listed[0] and listed[0]["expires_at"].startswith("2027-01-18"), repr(listed))
 
-ALL = {a: "write" for a in tokens.AREAS}
-check("a good token is its user, scoped to MCP by default, writing every area unless told otherwise",
+ALL = {a: "write" if a in tokens.FIRST else "none" for a in tokens.AREAS}
+check("a good token is its user, scoped to MCP by default, writing the first areas and none added since unless told otherwise",
       tokens.verify(table, tok, NOW) == {"user_id": USER, "scope": "mcp", "permissions": ALL}, repr(tokens.verify(table, tok, NOW)))
 check("the first use stamps last_used, a second within the hour does not",
       table.updates == 1 and tokens.verify(table, tok, NOW + timedelta(minutes=5))["user_id"] == USER and table.updates == 1, str(table.updates))
@@ -235,7 +235,7 @@ for row in ("#profile", "#apply_profile", "#token#abcd1234", "#saved#0123456789a
 reader = tokens.create(table, "u-serve", "reader", 30, email="dana@example.com", permissions={"alerts": "read", "preferences": "write"})
 check("the list shows each token's permissions, with none for an area left out",
       next(t for t in tokens.list_tokens(table, "u-serve") if t["id"] == reader["id"])["permissions"]
-      == {"saved": "none", "queue": "none", "alerts": "read", "preferences": "write"})
+      == {**{a: "none" for a in tokens.AREAS}, "alerts": "read", "preferences": "write"})
 status, _ = call("/api/me/alerts", auth=reader["token"])
 check("a read permission lets a token list alerts", status.startswith("200"), status)
 status, body = call("/api/me/alerts", "POST", reader["token"], {"filter": {"search": "devops"}})
@@ -250,7 +250,7 @@ check("or the queue", status.startswith("403"), status)
 status, _ = call("/api/me/profile", "PUT", reader["token"], {"skills": ["Go"]})
 check("a write permission lets it change preferences", status.startswith("200"), status)
 table.items[("u-serve", "#token#" + "0" * 8)] = {"user_id": "u-serve", "alert_id": "#token#" + "0" * 8, "scope": "mcp"}
-check("a token made before permissions keeps writing every area",
+check("a token made before permissions keeps writing what it could, and gets nothing added since",
       any(t["id"] == "0" * 8 and t["permissions"] == ALL for t in tokens.list_tokens(table, "u-serve")))
 del table.items[("u-serve", "#token#" + "0" * 8)]
 for bad, why in (({"alerts": "admin"}, "a level that isn't one"), ({"tokens": "write"}, "an area that isn't one"),
@@ -291,13 +291,41 @@ row = json.loads(body)["applied"][0] if status.startswith("200") else {}
 check("an MCP token reads the history with source and outcome", row.get("source") == "mcp" and row.get("outcome") is None, status + repr(row))
 status, body = call("/api/me/apply/history/0123456789abcdef", "PATCH", live, {"outcome": "interview"})
 check("and marks an outcome", status.startswith("200") and json.loads(body)["outcome"] == "interview", status + body.decode()[:200])
-queue_reader = tokens.create(table, "u-serve", "queue reader", 30, permissions={"queue": "read"})["token"]
+queue_reader = tokens.create(table, "u-serve", "queue reader", 30, permissions={"queue": "read", "history": "read"})["token"]
 status, _ = call("/api/me/apply/history", auth=queue_reader)
 status2, body = call("/api/me/apply/history/0123456789abcdef", "PATCH", queue_reader, {"outcome": "none"})
-check("queue read sees the history but can't mark an outcome", status.startswith("200") and status2.startswith("403")
-      and b"auto apply history" in body, status + status2)
+check("history read sees the history but can't mark an outcome", status.startswith("200") and status2.startswith("403")
+      and b"application history" in body, status + status2)
+check("a token saved before history had its own permission takes the queue's",
+      tokens.permissions_of({"permissions": {"queue": "read", "saved": "write"}})["history"] == "read")
 status, _ = call("/api/me/apply/history", auth=reader["token"])
 check("no queue permission, no history", status.startswith("403"), status)
+
+# The permissions added 2026-11-24.
+check("a read-only area can't be given write", tokens.clean_permissions({"matches": "write", "usage": "write"})["matches"] == "read")
+for path, area in (("/api/me/dashboard", "matches"), ("/api/me/apply/summary", "usage"), ("/api/me/apply/needs", "needs"),
+                   ("/api/me/apply/profile", "autoapply"), ("/api/me/apply/agent", "agent")):
+    status, body = call(path, auth=reader["token"])
+    check(f"without it, {path} is refused and says which permission", status.startswith("403") and b"Make a token" in body, status)
+asst = tokens.create(table, "u-new", "assistant", 30, permissions={a: "write" for a in tokens.AREAS})["token"]
+for path in ("/api/me/apply/summary", "/api/me/apply/needs", "/api/me/apply/profile", "/api/me/apply/agent"):
+    status, _ = call(path, auth=asst)
+    check(f"with it, {path} answers", status.startswith("200"), status)
+handler.apply.put_profile(table, "u-new", {"contact": {"first_name": "Dana"}, "settings": {"mode": "queue", "fill": "half", "sources": ["board"]},
+                                             "answers": [{"question": "Why us?", "answer": "Kept", "job_id": ""}]})
+status, body = call("/api/me/apply/profile", "PUT", asst, {"profile": {"work": {"notice_period": "30 days"},
+                                                                       "settings": {"mode": "auto", "fill": "full", "sources": ["mcp"], "unknowns": "skip"}}})
+saved = handler.apply.get_profile(table, "u-new")
+check("an assistant changes auto apply settings, but not Full automatic, Auto-apply mode or MCP queuing",
+      status.startswith("200") and saved["work"]["notice_period"] == "30 days" and saved["settings"]["unknowns"] == "skip"
+      and (saved["settings"]["mode"], saved["settings"]["fill"], saved["settings"]["sources"]) == ("queue", "half", ["board"]), status + repr(saved["settings"]))
+check("and what it leaves out stays as it was", saved["contact"]["first_name"] == "Dana" and [a["answer"] for a in saved["answers"]] == ["Kept"],
+      repr(saved["contact"]) + repr(saved["answers"]))
+ext = tokens.create(table, "u-new", "ext", 30, scope="extension")["token"]
+status, _ = call("/api/me/apply/agent", "PUT", ext, {"version": 0})
+check("the extension's token still can't change the AI agent", status.startswith("403"), status)
+status, _ = call("/api/me/apply/agent", "PUT", asst, {"version": 0})
+check("an assistant with the AI agent permission gets past the token check", not status.startswith("403"), status)
 status, _ = call("/api/me/apply/historyx", auth=live)
 check("and nothing beside it", status.startswith("403"), status)
 ext = tokens.create(table, "u-ext", "Chrome extension", None, scope="extension")["token"]

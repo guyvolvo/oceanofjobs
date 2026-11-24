@@ -115,7 +115,9 @@ test("tools/list has the three public read-only tools, then the account's saved-
     ["search_jobs", "get_job", "get_company", "save_job", "list_saved_jobs", "remove_saved_job",
       "queue_for_auto_apply", "list_auto_apply_queue", "remove_from_auto_apply_queue",
       "list_auto_apply_history", "set_application_outcome",
-      "list_alerts", "create_alert", "update_alert", "delete_alert", "get_preferences", "update_preferences"]);
+      "list_alerts", "create_alert", "update_alert", "delete_alert", "get_preferences", "update_preferences",
+      "get_best_matches", "get_plan_usage", "list_needs_attention", "answer_question",
+      "get_auto_apply_settings", "update_auto_apply_settings", "get_ai_agent", "update_ai_agent"]);
   const hints = Object.fromEntries(body.result.tools.map((t) => [t.name, t.annotations]));
   for (const n of ["search_jobs", "get_job", "get_company", "list_saved_jobs", "list_auto_apply_queue", "list_auto_apply_history"]) assert.equal(hints[n].readOnlyHint, true, n);
   assert.equal(hints.set_application_outcome.readOnlyHint, false);
@@ -126,6 +128,8 @@ test("tools/list has the three public read-only tools, then the account's saved-
   assert.equal(hints.remove_saved_job.destructiveHint, true);
   for (const n of ["list_alerts", "get_preferences"]) assert.equal(hints[n].readOnlyHint, true, n);
   for (const n of ["create_alert", "update_alert", "update_preferences"]) assert.equal(hints[n].readOnlyHint, false, n);
+  for (const n of ["get_best_matches", "get_plan_usage", "list_needs_attention", "get_auto_apply_settings", "get_ai_agent"]) assert.equal(hints[n].readOnlyHint, true, n);
+  for (const n of ["answer_question", "update_auto_apply_settings", "update_ai_agent"]) assert.equal(hints[n].readOnlyHint, false, n);
   assert.equal(hints.delete_alert.destructiveHint, true);
   for (const t of body.result.tools) {
     assert.equal(t.inputSchema.type, "object");
@@ -140,7 +144,9 @@ test("saved-job tools need a token and say how to get one", async () => {
   for (const [name, args] of [["save_job", { id: "67ff4ef965d91ef7" }], ["list_saved_jobs", {}], ["remove_saved_job", { id: "67ff4ef965d91ef7" }],
     ["queue_for_auto_apply", { id: "67ff4ef965d91ef7" }], ["list_auto_apply_queue", {}], ["remove_from_auto_apply_queue", { id: "67ff4ef965d91ef7" }],
     ["list_auto_apply_history", {}], ["set_application_outcome", { id: "67ff4ef965d91ef7", outcome: "interview" }],
-    ["list_alerts", {}], ["create_alert", { filter: { search: "devops" } }], ["get_preferences", {}], ["update_preferences", { cadence: "daily" }]]) {
+    ["list_alerts", {}], ["create_alert", { filter: { search: "devops" } }], ["get_preferences", {}], ["update_preferences", { cadence: "daily" }],
+    ["get_best_matches", {}], ["get_plan_usage", {}], ["list_needs_attention", {}], ["answer_question", { question: "q", answer: "a" }],
+    ["get_auto_apply_settings", {}], ["update_auto_apply_settings", { work: {} }], ["get_ai_agent", {}], ["update_ai_agent", { facts: [] }]]) {
     const { result } = await call(name, args);
     assert.equal(result.isError, true, name);
     assert.match(result.content[0].text, /personal access token/);
@@ -532,3 +538,37 @@ test("analytics rows hold the method, tool and outcome, never the arguments", as
 });
 
 test.after(() => { Date.now = realNow; });
+
+
+test("the account tools added with the new permissions call the right routes, and the agent keeps what isn't given", async () => {
+  const J = { "content-type": "application/json" };
+  route("/api/me/dashboard", 200, { computed_at: "2026-11-24T06:00:00Z", matches: [{ id: "67ff4ef965d91ef7", title: "SRE", company_name: "Wix", skills: "Go,AWS", match_score: 2 }] }, J);
+  route("/api/me/apply/summary", 200, { plan: "pro", used: 3, remaining: 47 }, J);
+  route("/api/me/apply/needs", 200, { needs: [{ job_id: "67ff4ef965d91ef7", title: "SRE", company: "Wix", link: "x", questions: ["Why Wix?"], drafts: {} }] }, J);
+  route("/api/me/apply/answers", 204, null, J);
+  route("/api/me/apply/profile", 200, { profile: { work: { notice_period: "30 days" } } }, J);
+  route("/api/me/apply/agent", 200, { agent: { version: 4, style: { tone: "plain" }, topics: {}, facts: [{ text: "Led five engineers." }], never_claim: ["clearance"] } }, J);
+  const auth = { authorization: "Bearer " + TOKEN };
+  const sent = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { sent.push({ url: String(url).replace(BOX_URL, ""), method: init.method, body: init.body && JSON.parse(init.body) }); return realFetch(url, init); };
+  try {
+    const tool = async (name, args) => (await (await post({ jsonrpc: "2.0", id: nextId++, method: "tools/call", params: { name, arguments: args } }, auth)).json()).result;
+    const m = await tool("get_best_matches", { limit: 5 });
+    assert.deepEqual(m.structuredContent.matches[0].job_skills, ["Go", "AWS"]);
+    assert.equal(m.structuredContent.matches[0].skills_shared, 2);
+    assert.equal((await tool("get_plan_usage", {})).structuredContent.remaining, 47);
+    assert.deepEqual((await tool("list_needs_attention", {})).structuredContent.needs[0].questions, ["Why Wix?"]);
+    await tool("answer_question", { question: "Why Wix?", answer: "I use it daily.", job_id: "67ff4ef965d91ef7" });
+    assert.deepEqual([sent.at(-1).method, sent.at(-1).url, sent.at(-1).body], ["POST", "/api/me/apply/answers", { question: "Why Wix?", answer: "I use it daily.", job_id: "67ff4ef965d91ef7" }]);
+    await tool("update_auto_apply_settings", { work: { notice_period: "14 days" } });
+    assert.deepEqual([sent.at(-1).method, sent.at(-1).url, sent.at(-1).body], ["PUT", "/api/me/apply/profile", { profile: { work: { notice_period: "14 days" } } }]);
+    await tool("update_ai_agent", { never_claim: ["clearance", "a PhD"] });
+    assert.deepEqual([sent.at(-1).method, sent.at(-1).url, sent.at(-1).body], ["PUT", "/api/me/apply/agent",
+      { version: 4, style: { tone: "plain" }, topics: {}, facts: [{ text: "Led five engineers." }], never_claim: ["clearance", "a PhD"] }]);
+    const bad = await tool("get_best_matches", { limit: 99 });
+    assert.equal(bad.isError, true);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

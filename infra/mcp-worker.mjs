@@ -47,7 +47,7 @@ const SITE = "https://oceanofjobs.com";
 // change in what we store retire every old entry at once.
 const CACHE_PREFIX = SITE + "/__mcp_cache/v1";
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
-const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.1.0", websiteUrl: SITE };
+const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.2.0", websiteUrl: SITE };
 const MAX_LIMIT = 25;
 const MAX_OFFSET = 200;
 const MAX_TTL = 300;
@@ -81,9 +81,10 @@ const INSTRUCTIONS =
   "Ocean of Jobs page) and apply_url (the employer's page) on their own lines, never inside a " +
   "table cell. Results are capped at 25 per call and offset 200; for " +
   "bulk data use the public REST API documented at " + SITE + "/api/help. " +
-  "The saved job, auto apply queue and history, alert and preference tools work on the user's own Ocean of " +
-  "Jobs account and need a personal access token sent as Authorization: Bearer ooj_...; save or " +
-  "queue a job, or create, change or delete an alert or a preference, only when the user asks for it.";
+  "The account tools (saved jobs, the auto apply queue and history, alerts, preferences, best matches, plan and " +
+  "usage, needs attention, auto apply settings and the AI agent) work on the user's own Ocean of Jobs account and " +
+  "need a personal access token sent as Authorization: Bearer ooj_..., with the permission each one names. Change " +
+  "anything only when the user asks for it, and never save an answer or a fact the user didn't give you.";
 
 const JOB_PROPS = {
   id: { type: "string" },
@@ -572,6 +573,115 @@ const TOOLS = [
     outputSchema: PREFERENCES,
     annotations: { title: "Change search preferences", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
+  {
+    name: "get_best_matches",
+    title: "Get best matches",
+    description:
+      "The open jobs that fit the user's skills best, from their account overview: each with the job's own skills " +
+      "and how many of them the user shares. Updated once a day. Needs a personal access token with Best matches.",
+    inputSchema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 25, description: "How many, 10 by default." } }, additionalProperties: false },
+    outputSchema: { type: "object", properties: { updated_at: { type: ["string", "null"] }, matches: { type: "array", items: { type: "object" } } }, required: ["matches"] },
+    annotations: { title: "Get best matches", ...READ_ONLY },
+  },
+  {
+    name: "get_plan_usage",
+    title: "Get plan and usage",
+    description: "The user's plan, how many applications it allows this period, how many are used, left and queued. " +
+      "Needs a personal access token with Plan and usage.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    outputSchema: { type: "object" },
+    annotations: { title: "Get plan and usage", ...READ_ONLY },
+  },
+  {
+    name: "list_needs_attention",
+    title: "List jobs that need the user",
+    description:
+      "Applications the extension stopped on because a form asked something it had no answer for: the job and the " +
+      "questions, with any AI draft waiting for approval. Needs a personal access token with Needs attention.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    outputSchema: { type: "object", properties: { needs: { type: "array", items: { type: "object" } } }, required: ["needs"] },
+    annotations: { title: "List jobs that need the user", ...READ_ONLY },
+  },
+  {
+    name: "answer_question",
+    title: "Save the user's answer to a question",
+    description:
+      "Save the user's answer to an application question, so the extension uses it next time. Send only words the " +
+      "user gave you, never an answer you made up. job_id is needed when the question is about one company, such as " +
+      "why they want to work there. Needs a personal access token with Needs attention (write).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "The question as the form asks it." },
+        answer: { type: "string", description: "The user's own answer." },
+        job_id: { type: "string", description: "The job it is for, from list_needs_attention." },
+      },
+      required: ["question", "answer"], additionalProperties: false,
+    },
+    outputSchema: { type: "object", properties: { saved: { type: "boolean" } }, required: ["saved"] },
+    annotations: { title: "Save the user's answer to a question", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_auto_apply_settings",
+    title: "Get auto apply settings",
+    description:
+      "What the extension fills in on applications: contact details, links, work authorization, notice period, salary, " +
+      "optional demographic answers, saved answers, and its settings and limits. Needs a personal access token with " +
+      "Auto apply settings.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    outputSchema: { type: "object" },
+    annotations: { title: "Get auto apply settings", ...READ_ONLY },
+  },
+  {
+    name: "update_auto_apply_settings",
+    title: "Change auto apply settings",
+    description:
+      "Change some auto apply settings. Give only the sections to change, in the shape get_auto_apply_settings " +
+      "returns; a section given replaces that section, so read first and send it back whole with your change. " +
+      "Full automatic, Auto-apply mode and which sources it applies from can't be changed here: the user turns those " +
+      "on at " + SITE + "/apply/settings. Change only what the user asks. Needs a personal access token with Auto " +
+      "apply settings (write).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        contact: { type: "object" }, links: { type: "object" }, work: { type: "object" }, eeo: { type: "object" },
+        answers: { type: "array", items: { type: "object" } }, settings: { type: "object" },
+      },
+      additionalProperties: false,
+    },
+    outputSchema: { type: "object" },
+    annotations: { title: "Change auto apply settings", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_ai_agent",
+    title: "Get the AI agent",
+    description:
+      "How the user's AI agent answers application questions: the facts it may use, its fixed answers to common " +
+      "questions, what it must never claim, and its tone. Needs a personal access token with AI agent.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    outputSchema: { type: "object" },
+    annotations: { title: "Get the AI agent", ...READ_ONLY },
+  },
+  {
+    name: "update_ai_agent",
+    title: "Change the AI agent",
+    description:
+      "Change the user's AI agent. Only the fields given change; a list given replaces the old list, so read " +
+      "get_ai_agent first to add to one. facts must be true things the user told you about themselves. The resume " +
+      "is added only on the website. Needs a personal access token with AI agent (write) and a Basic or Pro plan.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        facts: { type: "array", items: { type: "string" }, description: "Facts about the user, one per item." },
+        never_claim: { type: "array", items: { type: "string" }, description: "Things the AI must never claim." },
+        style: { type: "object", description: "tone (plain, warm, formal), length (short, medium), language, notes." },
+        topics: { type: "object", description: "Per common question: action (ai, answer, ask) and value." },
+      },
+      additionalProperties: false,
+    },
+    outputSchema: { type: "object" },
+    annotations: { title: "Change the AI agent", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
 ];
 
 // Thrown inside a tool for anything the model should read and act on:
@@ -1049,6 +1159,70 @@ async function updatePreferences(args, env, ctx, trace, now, token) {
   return shapePreferences(saved);
 }
 
+async function getBestMatches(args, env, ctx, trace, now, token) {
+  const limit = args.limit === undefined ? 10 : Number(args.limit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 25) throw new ToolError("limit must be a whole number from 1 to 25.");
+  const d = (await me("GET", "/api/me/dashboard", token, env)) || {};
+  return {
+    updated_at: d.computed_at || null,
+    matches: (d.matches || []).slice(0, limit).map((j) => ({
+      id: j.id, title: j.title, company: j.company_name || j.company_domain || "", location: j.location || "",
+      job_skills: (j.skills || "").split(",").filter(Boolean), skills_shared: j.match_score ?? null,
+      salary: j.salary_text || null, url: link(`/job/${encodeURIComponent(j.id)}`),
+    })),
+  };
+}
+
+async function getPlanUsage(args, env, ctx, trace, now, token) {
+  return (await me("GET", "/api/me/apply/summary", token, env)) || {};
+}
+
+async function listNeedsAttention(args, env, ctx, trace, now, token) {
+  const needs = ((await me("GET", "/api/me/apply/needs", token, env)) || {}).needs || [];
+  return { needs: needs.map((n) => ({ job_id: n.job_id, title: n.title, company: n.company, link: n.link, questions: n.questions || [], drafts: n.drafts || {} })) };
+}
+
+async function answerQuestion(args, env, ctx, trace, now, token) {
+  const question = str(args, "question", 500), answer = str(args, "answer", 4000);
+  if (!question || !answer) throw new ToolError("question and answer are both needed.");
+  const job_id = args.job_id === undefined ? undefined : jobId({ id: args.job_id });
+  await me("POST", "/api/me/apply/answers", token, env, { question, answer, ...(job_id ? { job_id } : {}) });
+  return { saved: true };
+}
+
+async function getAutoApplySettings(args, env, ctx, trace, now, token) {
+  return ((await me("GET", "/api/me/apply/profile", token, env)) || {}).profile || {};
+}
+
+// The box keeps what isn't sent, and keeps Full automatic, Auto-apply mode
+// and the sources as they were whatever a token sends (api/handler.py).
+async function updateAutoApplySettings(args, env, ctx, trace, now, token) {
+  if (!Object.keys(args).length) throw new ToolError("Give at least one section to change.");
+  return ((await me("PUT", "/api/me/apply/profile", token, env, { profile: args })) || {}).profile || {};
+}
+
+async function getAiAgent(args, env, ctx, trace, now, token) {
+  return ((await me("GET", "/api/me/apply/agent", token, env)) || {}).agent || {};
+}
+
+// The box replaces the agent whole and checks its version, so the current
+// one is read first and the fields not given go back as they were.
+async function updateAiAgent(args, env, ctx, trace, now, token) {
+  if (!Object.keys(args).length) throw new ToolError("Give at least one field to change.");
+  for (const k of ["facts", "never_claim"]) {
+    if (args[k] !== undefined && (!Array.isArray(args[k]) || args[k].some((x) => typeof x !== "string"))) throw new ToolError(`${k} must be a list of strings.`);
+  }
+  const cur = ((await me("GET", "/api/me/apply/agent", token, env)) || {}).agent || {};
+  const body = {
+    version: cur.version,
+    style: { ...(cur.style || {}), ...(args.style || {}) },
+    topics: { ...(cur.topics || {}), ...(args.topics || {}) },
+    facts: (args.facts ?? (cur.facts || []).map((f) => f.text)).map((text) => ({ text })),
+    never_claim: args.never_claim ?? cur.never_claim ?? [],
+  };
+  return ((await me("PUT", "/api/me/apply/agent", token, env, body)) || {}).agent || {};
+}
+
 const HANDLERS = {
   search_jobs: searchJobs, get_job: getJob, get_company: getCompany,
   save_job: saveJob, list_saved_jobs: listSavedJobs, remove_saved_job: removeSavedJob,
@@ -1057,6 +1231,9 @@ const HANDLERS = {
   set_application_outcome: setApplicationOutcome,
   list_alerts: listAlerts, create_alert: createAlert, update_alert: updateAlert, delete_alert: deleteAlert,
   get_preferences: getPreferences, update_preferences: updatePreferences,
+  get_best_matches: getBestMatches, get_plan_usage: getPlanUsage, list_needs_attention: listNeedsAttention, answer_question: answerQuestion,
+  get_auto_apply_settings: getAutoApplySettings, update_auto_apply_settings: updateAutoApplySettings,
+  get_ai_agent: getAiAgent, update_ai_agent: updateAiAgent,
 };
 
 // The personal access token, if the client sent one. Anything else in

@@ -1012,6 +1012,18 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
                             "preferences": {k: prefs.get(k) for k in ("skills", "seniority", "workplace", "country", "city")}})
         if method == "PUT":
             new = body.get("profile") or {}
+            claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+            if claims.get("token_use") == "ooj" and claims.get("scope") == "mcp":
+                # An assistant changes details, limits and saved answers. Full
+                # automatic, Auto-apply mode and letting it queue jobs stay on the
+                # website. What it leaves out stays as it was, and the answers it
+                # was never shown (GET above) are kept.
+                full = apply.get_profile(_alerts_table, user_id)
+                hidden = [a for a in full["answers"] if a not in apply.reusable_answers(full["answers"])]
+                new = {**full, **new,
+                       "settings": {**full["settings"], **(new.get("settings") or {}),
+                                    **{k: full["settings"][k] for k in ("mode", "fill", "sources")}},
+                       "answers": list(new["answers"]) + hidden if isinstance(new.get("answers"), list) else full["answers"]}
             want, had = new.get("settings") or {}, apply.get_profile(_alerts_table, user_id)["settings"]
             turning_on = (want.get("mode") == "auto" and had["mode"] != "auto") or (want.get("fill") == "full" and had["fill"] != "full")
             if turning_on and not agent.get_resume(_alerts_table, user_id):
@@ -1044,8 +1056,10 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         if method == "GET":
             return ok(200, {"agent": agent.get(_alerts_table, user_id)})
         if method == "PUT":
-            # Changed only from /apply with a signed-in session, never by a token.
-            if token_use == "ooj":
+            # From /apply, or an assistant's token with the AI agent permission
+            # (serve.py checks it). Never the extension's token.
+            scope = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {}).get("scope")
+            if token_use == "ooj" and scope != "mcp":
                 return ok(403, {"error": "The agent is changed on your Auto apply page", "code": "forbidden"})
             try:
                 return ok(200, {"agent": agent.put(_alerts_table, user_id, body)})

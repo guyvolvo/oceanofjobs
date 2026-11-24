@@ -42,13 +42,21 @@ MAX_BODY = 64 * 1024
 MAX_CV_BODY = 7 * 1024 * 1024 + 4096
 # What a personal access token may reach, by scope (path prefixes).
 TOKEN_PATHS = {
-    "mcp": ("/api/me/saved", "/api/me/apply/queue", "/api/me/apply/history", "/api/me/alerts", "/api/me/profile"),
+    "mcp": ("/api/me/saved", "/api/me/apply/queue", "/api/me/apply/history", "/api/me/alerts", "/api/me/profile",
+            "/api/me/dashboard", "/api/me/apply/summary", "/api/me/apply/usage", "/api/me/apply/needs", "/api/me/apply/answers",
+            "/api/me/apply/profile", "/api/me/apply/agent"),
     "extension": ("/api/me/saved", "/api/me/apply/", "/api/me/storage", "/api/me/cv"),
 }
 # Which of an mcp token's permissions each of its paths needs.
 TOKEN_AREAS = {"/api/me/saved": ("saved", "saved jobs"), "/api/me/apply/queue": ("queue", "auto apply queue"),
-               "/api/me/apply/history": ("queue", "auto apply history"),
-               "/api/me/alerts": ("alerts", "alerts"), "/api/me/profile": ("preferences", "search preferences")}
+               "/api/me/apply/history": ("history", "application history"),
+               "/api/me/alerts": ("alerts", "alerts"), "/api/me/profile": ("preferences", "search preferences"),
+               "/api/me/dashboard": ("matches", "best matches"),
+               "/api/me/apply/summary": ("usage", "plan and usage"), "/api/me/apply/usage": ("usage", "plan and usage"),
+               "/api/me/apply/needs": ("needs", "questions waiting for you"),
+               "/api/me/apply/answers": ("needs", "questions waiting for you"),
+               "/api/me/apply/profile": ("autoapply", "auto apply settings"),
+               "/api/me/apply/agent": ("agent", "AI agent")}
 
 _jwks = None
 

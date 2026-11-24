@@ -136,7 +136,7 @@ If your client only supports locally running MCP servers, you can connect throug
 
 ## Available tools
 
-The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs), five for your [auto apply queue and history](#auto-apply-queue), four for your [alerts](#alerts) and two for your [search preferences](#search-preferences) need a personal access token.
+The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs), five for your [auto apply queue and history](#auto-apply-queue), four for your [alerts](#alerts), two for your [search preferences](#search-preferences) and eight for the [rest of your account](#more-of-your-account) need a personal access token.
 
 ### `search_jobs`
 
@@ -228,15 +228,30 @@ Your preferences are your skills, the seniority, workplace and places you want, 
 | `get_preferences` | Reads your preferences. |
 | `update_preferences` | Changes only the fields it's given. A list replaces the old one, so an assistant reads your preferences first to add a skill. Skills Ocean of Jobs doesn't know are dropped, and the answer shows what was kept. |
 
+## More of your account
+
+Each of these needs its own permission on the token.
+
+| Tool | Permission | What it does |
+|---|---|---|
+| `get_best_matches` | Best matches | Lists the open jobs that fit your skills best, each with the job's own skills and how many you share. Updated once a day. |
+| `get_plan_usage` | Plan and usage | Shows your plan and how many applications are used, left and queued this period. |
+| `list_needs_attention` | Needs attention | Lists the applications waiting on you and the questions they asked. |
+| `answer_question` | Needs attention (write) | Saves your answer to a question so the extension uses it next time. An assistant sends only your own words. |
+| `get_auto_apply_settings` | Auto apply settings | Reads what the extension fills in: contact details, links, work details, saved answers and limits. |
+| `update_auto_apply_settings` | Auto apply settings (write) | Changes the sections it's given. Full automatic, Auto-apply mode and where jobs come from can only be turned on at oceanofjobs.com. |
+| `get_ai_agent` | AI agent | Reads your AI agent's facts, fixed answers, never-claim list and tone. |
+| `update_ai_agent` | AI agent (write) | Changes the fields it's given. Needs Basic or Pro. Your resume is added only on the website. |
+
 ### Create a token
 
 1. Sign in at [oceanofjobs.com/account](https://oceanofjobs.com/account) and open **Settings**.
 2. Under **Personal access tokens**, choose **New token** and give it a name and an expiry.
-3. Under **Permissions**, tick **Read**, **Write** or neither for each of your saved jobs, auto apply queue, alerts and search preferences. Write includes read. **Read all** and **Write all** at the top of each column tick the whole column.
+3. Under **Permissions**, tick **Read**, **Write** or neither for each area: saved jobs, alerts, search preferences, best matches, auto apply queue, application history, needs attention, auto apply settings, AI agent, and plan and usage. Write includes read. Best matches and plan and usage are read only. **Read all** and **Write all** tick every area.
 4. Select **Create**.
 5. Copy the token. It starts with `ooj_` and is shown only once.
 
-A token can only do what its permissions allow. A tool that needs more answers with an error that names the missing permission. No token can see or change your auto apply profile, AI agent or resume, or create other tokens. A token made before 22 October 2026 can read and write all four. You can have up to five, and revoking one on the same page stops it working straight away.
+A token can only do what its permissions allow. A tool that needs more answers with an error that names the missing permission. No token can turn on Full automatic or Auto-apply mode, let an assistant queue jobs, add your resume, or create other tokens. A token made before 22 October 2026 can read and write saved jobs, the queue and history, alerts and search preferences, and nothing added since. You can have up to five, and revoking one on the same page stops it working straight away.
 
 ### Add the token to your client
 
