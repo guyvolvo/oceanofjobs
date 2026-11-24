@@ -3,19 +3,16 @@
 // people it goes to. The Worker sends in small batches; this page loops.
 // An account notice (terms and privacy updates only) goes to every member.
 import { useEffect, useState } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Input, InputArea } from "@cloudflare/kumo/components/input";
-import { Select } from "@cloudflare/kumo/components/select";
-import { LayerCard } from "@cloudflare/kumo/components/layer-card";
-import { Loader } from "@cloudflare/kumo/components/loader";
-import { Badge } from "@cloudflare/kumo/components/badge";
-import { Dialog } from "@cloudflare/kumo/components/dialog";
-import { Table } from "@cloudflare/kumo/components/table";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { markdown, page } from "../../../crm/lib/mail.mjs";
 import { crm, day, plural, type Campaign, type Segment } from "./api";
 import { ImagePicker } from "./ImagePicker";
 import { Failed, useLoad } from "./App";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { AreaField, Btn, Loading, Panel, SelectField, TextField } from "./ui";
 
 // The email as members get it: the same template the Worker sends (the
 // card, the painting, the footer), with Markdown escaped by mail.mjs.
@@ -52,28 +49,27 @@ function SendDialog({ c, onClose, onDone }: { c: Campaign; onClose: () => void; 
     } finally { setBusy(false); }
   };
   return (
-    <Dialog.Root open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
-      <Dialog className="crm-dialog">
-        <Dialog.Title className="crm-card-title">Send "{c.subject}"</Dialog.Title>
-        {count === null && !error ? <p className="crm-note"><Loader /> Counting who gets it</p> : count !== null ? (
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <DialogContent showCloseButton={false} aria-describedby={undefined} className="max-h-[calc(100vh-48px)] overflow-y-auto sm:max-w-[640px]">
+        <DialogTitle className="crm-card-title">Send "{c.subject}"</DialogTitle>
+        {count === null && !error ? <Loading>Counting who gets it</Loading> : count !== null ? (
           <div className="crm-stack">
             <p>This goes to {plural(count, "person", "people")} {c.kind === "notice" ? "with an account" : "subscribed to product updates"}{sample.length ? `, including ${sample.slice(0, 3).join(", ")}` : ""}.</p>
-            <Input label={`Type ${count} to send it`} value={typed} onChange={(e) => setTyped(e.target.value)} inputMode="numeric" />
+            <TextField label={`Type ${count} to send it`} value={typed} onChange={(e) => setTyped(e.target.value)} inputMode="numeric" />
             {progress ? <p className="crm-note" role="status">{progress}</p> : null}
           </div>
         ) : null}
         {error ? <p className="crm-error" role="alert">{error}</p> : null}
-        <div className="crm-row" style={{ marginTop: 16 }}>
-          <Button variant="primary" loading={busy} disabled={count === null || count === 0 || Number(typed) !== count} onClick={send}>Send</Button>
-          <Button onClick={onClose} disabled={busy}>Cancel</Button>
+        <div className="crm-row" >
+          <Btn loading={busy} disabled={count === null || count === 0 || Number(typed) !== count} onClick={send}>Send</Btn>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
         </div>
-      </Dialog>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaign>; segments: Segment[]; sending: boolean; onSaved: (c: Campaign) => void; onClose: () => void }) {
-  const toasts = useKumoToastManager();
   const [subject, setSubject] = useState(c.subject || "");
   const [body, setBody] = useState(c.body || "");
   const [segment, setSegment] = useState(c.segment || "");
@@ -89,23 +85,23 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
   };
   const run = (what: string, fn: () => Promise<void>) => async () => {
     setBusy(what);
-    try { await fn(); } catch (e) { toasts.add({ variant: "error", title: (e as Error).message }); } finally { setBusy(""); }
+    try { await fn(); } catch (e) { toast.error((e as Error).message); } finally { setBusy(""); }
   };
   return (
-    <LayerCard><div className="crm-card crm-stack">
+    <Panel><div className="crm-card crm-stack">
       <div className="crm-row between"><h2>{draft ? (c.sk ? "Edit email" : "New email") : c.subject}</h2><Button variant="ghost" onClick={onClose}>Back</Button></div>
       <div className="crm-split">
         <div className="crm-stack">
-          <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!draft} maxLength={150} />
+          <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={!draft} maxLength={150} />
           <div>
-            <Select label="Kind" value={kind} onValueChange={(v) => setKind(v === "notice" ? "notice" : "update")} disabled={!draft}
+            <SelectField label="Kind" value={kind} onValueChange={(v) => setKind(v === "notice" ? "notice" : "update")} disabled={!draft}
               items={{ update: "Product update", notice: "Account notice" }} />
             <p className="crm-note">Use Account notice only for terms of service and privacy policy updates. It goes to every member, product updates on or off.</p>
           </div>
           {kind === "notice" ? null : c.to?.length ? <p className="crm-note">Goes to the {plural(c.to.length, "user")} you picked in Users, if they're subscribed to product updates.</p> : (
-          <Select label="Send to" value={segment} onValueChange={(v) => setSegment(String(v ?? ""))} disabled={!draft}
+          <SelectField label="Send to" value={segment} onValueChange={(v) => setSegment(String(v ?? ""))} disabled={!draft}
             items={{ "": "Everyone subscribed to product updates", ...Object.fromEntries(segments.map((s) => [s.sk, s.name])) }} />)}
-          <InputArea label="Message" description="Markdown: # headings, **bold**, [links](https://…) and - lists" className="crm-md"
+          <AreaField label="Message" description="Markdown: # headings, **bold**, [links](https://…) and - lists" className="crm-md"
             value={body} onChange={(e) => setBody(e.target.value)} disabled={!draft} />
           <ImagePicker value={image} onChange={setImage} disabled={!draft} />
         </div>
@@ -116,18 +112,18 @@ function Editor({ c, segments, sending, onSaved, onClose }: { c: Partial<Campaig
       </div>
       {draft ? (
         <div className="crm-row">
-          <Button variant="secondary" loading={busy === "save"} onClick={run("save", async () => { await save(); toasts.add({ variant: "success", title: "Draft saved" }); })}>Save draft</Button>
-          <Button variant="secondary" loading={busy === "test"} disabled={!subject || !body} onClick={run("test", async () => {
+          <Btn variant="outline" loading={busy === "save"} onClick={run("save", async () => { await save(); toast.success("Draft saved"); })}>Save draft</Btn>
+          <Btn variant="outline" loading={busy === "test"} disabled={!subject || !body} onClick={run("test", async () => {
             const saved = await save();
             const r = await crm<{ sent_to: string }>(`/campaigns/${saved.sk}/test`, "POST");
-            toasts.add({ variant: "success", title: `Test sent to ${r.sent_to}` });
-          })}>Send a test to me</Button>
-          <Button variant="primary" disabled={!sending || !subject || !body} title={sending ? undefined : "Sending to users is off"}
+            toast.success(`Test sent to ${r.sent_to}`);
+          })}>Send a test to me</Btn>
+          <Button disabled={!sending || !subject || !body} title={sending ? undefined : "Sending to users is off"}
             onClick={run("send", async () => { setSendOpen(await save()); })}>Send…</Button>
         </div>
       ) : <p className="crm-note">Sent to {plural(c.sent || 0, "person", "people")} {c.sent_at ? `on ${day(c.sent_at)}` : ""}.</p>}
       {sendOpen ? <SendDialog c={sendOpen} onClose={() => setSendOpen(null)} onDone={() => { setSendOpen(null); onClose(); }} /> : null}
-    </div></LayerCard>
+    </div></Panel>
   );
 }
 
@@ -139,22 +135,22 @@ export function Emails({ sending, initial, onOpened }: { sending: boolean; initi
   if (error) return <Failed error={error} retry={load} />;
   if (editing) return <Editor c={editing} segments={segs?.segments || []} sending={sending} onSaved={(c) => setEditing(c)} onClose={() => { setEditing(null); load(); }} />;
   return (
-    <LayerCard><div className="crm-card crm-stack">
+    <Panel><div className="crm-card crm-stack">
       <div className="crm-row between">
         <div><h2>Emails</h2><p className="crm-note">Product updates for users who subscribed, and account notices for everyone. {sending ? "" : "Sending to users is off; tests to you work."}</p></div>
-        <Button variant="primary" onClick={() => setEditing({})}>New email</Button>
+        <Button onClick={() => setEditing({})}>New email</Button>
       </div>
-      {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.campaigns.length ? <p className="crm-note">No emails yet.</p> : (
-        <div className="crm-table"><Table className="crm-list"><Table.Body>
+      {!data ? <Loading /> : !data.campaigns.length ? <p className="crm-note">No emails yet.</p> : (
+        <div className="crm-table"><Table className="crm-list"><TableBody>
           {data.campaigns.map((c) => (
-            <Table.Row key={c.sk} className="crm-click" onClick={() => setEditing(c)}>
-              <Table.Cell><b>{c.subject || "No subject"}</b><span className="crm-sub">{c.kind === "notice" ? "Account notice" : "Product update"} · Updated {day(c.updated)}</span></Table.Cell>
-              <Table.Cell><Badge variant={c.status === "sent" ? "secondary" : "outline"}>{c.status === "draft" ? "Draft" : c.status === "sending" ? "Sending" : "Sent"}</Badge></Table.Cell>
-              <Table.Cell>{c.status === "draft" ? "" : plural(c.sent || 0, "recipient")}</Table.Cell>
-            </Table.Row>
+            <TableRow key={c.sk} className="crm-click" onClick={() => setEditing(c)}>
+              <TableCell><b>{c.subject || "No subject"}</b><span className="crm-sub">{c.kind === "notice" ? "Account notice" : "Product update"} · Updated {day(c.updated)}</span></TableCell>
+              <TableCell><Badge variant={c.status === "sent" ? "secondary" : "outline"}>{c.status === "draft" ? "Draft" : c.status === "sending" ? "Sending" : "Sent"}</Badge></TableCell>
+              <TableCell>{c.status === "draft" ? "" : plural(c.sent || 0, "recipient")}</TableCell>
+            </TableRow>
           ))}
-        </Table.Body></Table></div>
+        </TableBody></Table></div>
       )}
-    </div></LayerCard>
+    </div></Panel>
   );
 }

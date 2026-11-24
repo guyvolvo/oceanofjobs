@@ -1,8 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Toasty } from "@cloudflare/kumo/components/toast";
-import "@cloudflare/kumo/styles/standalone";
-import "../app.css";
+import { Toaster } from "@/components/ui/sonner";
+import "../styles/app.css";
 import "./crm.css";
 import { App } from "./App";
 
@@ -14,8 +13,7 @@ try {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Toasty>
-      <App />
-    </Toasty>
+    <App />
+    <Toaster position="bottom-right" />
   </StrictMode>,
 );

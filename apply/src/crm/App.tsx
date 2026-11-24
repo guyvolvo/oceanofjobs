@@ -1,15 +1,14 @@
-// The CRM's shell: the bar, the tabs and the small pages (overview,
-// segments, activity). Contacts, emails and the changelog have their own files.
+// The CRM's shell: the sidebar and the small pages (overview, segments,
+// activity). Contacts, emails and the changelog have their own files.
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Input } from "@cloudflare/kumo/components/input";
-import { Select } from "@cloudflare/kumo/components/select";
-import { LayerCard } from "@cloudflare/kumo/components/layer-card";
-import { Loader } from "@cloudflare/kumo/components/loader";
-import { Banner } from "@cloudflare/kumo/components/banner";
-import { Tabs } from "@cloudflare/kumo/components/tabs";
-import { Table } from "@cloudflare/kumo/components/table";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
+import { toast } from "sonner";
+import { Article, ClockCounterClockwise, EnvelopeSimple, FlowArrow, FunnelSimple, Hourglass, Moon, SquaresFour, Sun, Tray, Users, type Icon } from "@/components/icons";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem,
+  SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { crm, day, describe, plural, type Campaign, type Filter, type Segment } from "./api";
 import { Contacts } from "./Contacts";
 import { Emails } from "./Emails";
@@ -17,10 +16,12 @@ import { Changelog } from "./Changelog";
 import { Inbox } from "./Inbox";
 import { Waitlist } from "./Waitlist";
 import { Flows } from "./Flows";
+import { Btn, Loading, Panel, SelectField, TextField } from "./ui";
 
-const TABS = [
-  { value: "overview", label: "Overview" }, { value: "inbox", label: "Inbox" }, { value: "contacts", label: "Users" }, { value: "waitlist", label: "Waitlist" }, { value: "segments", label: "Groups" },
-  { value: "emails", label: "Emails" }, { value: "flows", label: "Flows" }, { value: "changelog", label: "Changelog" }, { value: "activity", label: "Activity" },
+const TABS: { value: string; label: string; icon: Icon }[] = [
+  { value: "overview", label: "Overview", icon: SquaresFour }, { value: "inbox", label: "Inbox", icon: Tray }, { value: "contacts", label: "Users", icon: Users },
+  { value: "waitlist", label: "Waitlist", icon: Hourglass }, { value: "segments", label: "Groups", icon: FunnelSimple }, { value: "emails", label: "Emails", icon: EnvelopeSimple },
+  { value: "flows", label: "Flows", icon: FlowArrow }, { value: "changelog", label: "Changelog", icon: Article }, { value: "activity", label: "Activity", icon: ClockCounterClockwise },
 ];
 
 export function useLoad<T>(path: string) {
@@ -35,7 +36,16 @@ export function useLoad<T>(path: string) {
 }
 
 export function Failed({ error, retry }: { error: string; retry: () => void }) {
-  return <Banner variant="error" title={error} action={<Button onClick={retry}>Try again</Button>} />;
+  return (
+    <Alert variant="destructive" className="flex flex-wrap items-center justify-between gap-3">
+      <AlertTitle className="line-clamp-none">{error}</AlertTitle>
+      <Button variant="outline" size="sm" onClick={retry}>Try again</Button>
+    </Alert>
+  );
+}
+
+function Notice({ title, description }: { title: string; description: string }) {
+  return <Alert role="status"><AlertTitle>{title}</AlertTitle><AlertDescription>{description}</AlertDescription></Alert>;
 }
 
 type Range = "24h" | "7d" | "30d" | "90d";
@@ -47,7 +57,7 @@ type Split = [string, number, number, number, number];
 type Apps = { confirmed: number; unconfirmed: number; sent: number; failed: number; disputed: number; older: number; by_time: Split[]; by_system: Split[];
   weeks: number; active_user_weeks: number; per_user_week: number | null; unconfirmed_per_user_week: number | null;
   sent_per_user_week: number | null };
-// Imported on first use, so ECharts loads with the overview, not the CRM.
+// Imported on first use, so Recharts loads with the overview, not the CRM.
 const Charts = () => import("./Charts");
 const SignupsChart = lazy(() => Charts().then((m) => ({ default: m.SignupsChart })));
 const GrowthChart = lazy(() => Charts().then((m) => ({ default: m.GrowthChart })));
@@ -61,10 +71,10 @@ const RANGES: Record<Range, string> = { "24h": "24h", "7d": "7d", "30d": "30d", 
 
 function ChartCard({ title, children, wide }: { title: string; children: ReactNode; wide?: boolean }) {
   return (
-    <LayerCard className={wide ? "crm-wide" : undefined}><div className="crm-card">
+    <Panel className={wide ? "crm-wide" : undefined}><div className="crm-card">
       <h2>{title}</h2>
-      <Suspense fallback={<p className="crm-note"><Loader /> Loading</p>}>{children}</Suspense>
-    </div></LayerCard>
+      <Suspense fallback={<Loading />}>{children}</Suspense>
+    </div></Panel>
   );
 }
 
@@ -72,7 +82,7 @@ function Overview({ sending }: { sending: boolean }) {
   const [range, setRange] = useState<Range>("30d");
   const { data, error, load } = useLoad<Dash>(`/dashboard?range=${range}`);
   if (error) return <Failed error={error} retry={load} />;
-  if (!data) return <p className="crm-note"><Loader /> Loading</p>;
+  if (!data) return <Loading />;
   const stats: [number, string, string?][] = [
     [data.members, "Users"], [data.new, `New in ${RANGES[range]}`], [data.newsletter, "Product updates"],
     [data.waitlist.basic, "Basic waitlist"], [data.waitlist.pro, "Pro waitlist"], [data.mcp, "AI agent"],
@@ -83,14 +93,16 @@ function Overview({ sending }: { sending: boolean }) {
   const parts = (m: Record<string, number>, names: Record<string, string>): [string, number][] => Object.entries(m).map(([k, n]) => [names[k] || k, n]);
   return (
     <div className="crm-stack">
-      {!sending ? <Banner variant="default" title="Sending to users is off"
-        description="Test emails to you work. To send to users, set SENDING to on in the Worker's settings." /> : null}
-      {!data.complete ? <Banner variant="default" title="Some users aren't counted" description="The user list is longer than one read covers." /> : null}
-      <div><Tabs variant="segmented" value={range} onValueChange={(v) => setRange(v as Range)}
-        tabs={(Object.keys(RANGES) as Range[]).map((r) => ({ value: r, label: RANGES[r] }))} /></div>
+      {!sending ? <Notice title="Sending to users is off" description="Test emails to you work. To send to users, set SENDING to on in the Worker's settings." /> : null}
+      {!data.complete ? <Notice title="Some users aren't counted" description="The user list is longer than one read covers." /> : null}
+      <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
+        <TabsList aria-label="Range">
+          {(Object.keys(RANGES) as Range[]).map((r) => <TabsTrigger key={r} value={r} className="px-3">{RANGES[r]}</TabsTrigger>)}
+        </TabsList>
+      </Tabs>
       <div className="crm-stats">
-        {stats.map(([n, label, sub]) => <LayerCard key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span>
-          {sub ? <span className="crm-sub">{sub}</span> : null}</div></LayerCard>)}
+        {stats.map(([n, label, sub]) => <Panel key={label}><div className="crm-stat"><b>{n.toLocaleString()}</b><span>{label}</span>
+          {sub ? <span className="crm-sub">{sub}</span> : null}</div></Panel>)}
       </div>
       <p className="crm-note">An active user had at least one application started or finished that week, counted once. Weeks run in UTC, counted over the last {apps.weeks === 1 ? "week" : `${apps.weeks} weeks`}.</p>
       <div className="crm-charts">
@@ -116,20 +128,19 @@ export function FilterFields({ filter, set }: { filter: Filter; set: (f: Filter)
   const up = (k: keyof Filter, v: unknown) => set({ ...filter, [k]: v === "" ? undefined : v });
   return (
     <div className="crm-row">
-      <div className="crm-grow"><Input label="Search" placeholder="Email or tag" value={filter.search || ""} onChange={(e) => up("search", e.target.value)} /></div>
-      <Select label="Product updates" value={filter.newsletter === undefined ? "" : filter.newsletter ? "yes" : "no"}
+      <div className="crm-grow"><TextField label="Search" placeholder="Email or tag" value={filter.search || ""} onChange={(e) => up("search", e.target.value)} /></div>
+      <SelectField label="Product updates" value={filter.newsletter === undefined ? "" : filter.newsletter ? "yes" : "no"}
         onValueChange={(v) => up("newsletter", v === "" ? undefined : v === "yes")} items={{ "": "Anyone", yes: "Subscribed", no: "Not subscribed" }} />
-      <Select label="Waitlist" value={filter.waitlist || ""} onValueChange={(v) => up("waitlist", v)}
+      <SelectField label="Waitlist" value={filter.waitlist || ""} onValueChange={(v) => up("waitlist", v)}
         items={{ "": "Anyone", any: "Any waitlist", basic: "Basic", pro: "Pro" }} />
-      <Select label="Plan" value={filter.plan || ""} onValueChange={(v) => up("plan", v)} items={{ "": "Any plan", free: "Free", basic: "Basic", pro: "Pro" }} />
-      <Input label="Tag" value={filter.tag || ""} onChange={(e) => up("tag", e.target.value.trim().toLowerCase())} />
-      <Input label="Joined after" type="date" value={filter.signed_up_after || ""} onChange={(e) => up("signed_up_after", e.target.value)} />
+      <SelectField label="Plan" value={filter.plan || ""} onValueChange={(v) => up("plan", v)} items={{ "": "Any plan", free: "Free", basic: "Basic", pro: "Pro" }} />
+      <TextField label="Tag" value={filter.tag || ""} onChange={(e) => up("tag", e.target.value.trim().toLowerCase())} />
+      <TextField label="Joined after" type="date" value={filter.signed_up_after || ""} onChange={(e) => up("signed_up_after", e.target.value)} />
     </div>
   );
 }
 
 function Segments() {
-  const toasts = useKumoToastManager();
   const { data, error, load } = useLoad<{ segments: Segment[] }>("/segments");
   const [name, setName] = useState("");
   const [filter, setFilter] = useState<Filter>({});
@@ -139,37 +150,37 @@ function Segments() {
     try {
       await crm("/segments", "POST", { name, filter });
       setName(""); setFilter({});
-      toasts.add({ variant: "success", title: "Group saved" });
+      toast.success("Group saved");
       load();
     } catch (e) {
-      toasts.add({ variant: "error", title: (e as Error).message });
+      toast.error((e as Error).message);
     } finally { setBusy(false); }
   };
   const remove = async (s: Segment) => {
-    await crm(`/segments/${s.sk}`, "DELETE").then(load, (e) => toasts.add({ variant: "error", title: e.message }));
+    await crm(`/segments/${s.sk}`, "DELETE").then(load, (e) => toast.error(e.message));
   };
   if (error) return <Failed error={error} retry={load} />;
   return (
     <div className="crm-stack">
-      <LayerCard><div className="crm-card crm-stack">
+      <Panel><div className="crm-card crm-stack">
         <div><h2>New group</h2><p className="crm-note">A saved filter for emails. Only users subscribed to product updates are ever emailed, whatever the group says.</p></div>
-        <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Pro waitlist" />
+        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Pro waitlist" />
         <FilterFields filter={filter} set={setFilter} />
-        <div><Button variant="primary" loading={busy} disabled={!name.trim()} onClick={save}>Save group</Button></div>
-      </div></LayerCard>
-      <LayerCard><div className="crm-card">
+        <div><Btn loading={busy} disabled={!name.trim()} onClick={save}>Save group</Btn></div>
+      </div></Panel>
+      <Panel><div className="crm-card">
         <h2>Groups</h2>
-        {!data ? <p className="crm-note"><Loader /> Loading</p> : !data.segments.length ? <p className="crm-note">No groups yet.</p> : (
-          <div className="crm-table"><Table className="crm-list"><Table.Body>
+        {!data ? <Loading /> : !data.segments.length ? <p className="crm-note">No groups yet.</p> : (
+          <Table className="crm-list"><TableBody>
             {data.segments.map((s) => (
-              <Table.Row key={s.sk}>
-                <Table.Cell><b>{s.name}</b><span className="crm-sub">{describe(s.filter)}</span></Table.Cell>
-                <Table.Cell><Button variant="ghost" onClick={() => remove(s)}>Delete</Button></Table.Cell>
-              </Table.Row>
+              <TableRow key={s.sk}>
+                <TableCell><b>{s.name}</b><span className="crm-sub">{describe(s.filter)}</span></TableCell>
+                <TableCell><Button variant="ghost" onClick={() => remove(s)}>Delete</Button></TableCell>
+              </TableRow>
             ))}
-          </Table.Body></Table></div>
+          </TableBody></Table>
         )}
-      </div></LayerCard>
+      </div></Panel>
     </div>
   );
 }
@@ -179,23 +190,41 @@ function Activity() {
   const { data, error, load } = useLoad<{ entries: Audit[] }>("/audit");
   if (error) return <Failed error={error} retry={load} />;
   return (
-    <LayerCard><div className="crm-card">
+    <Panel><div className="crm-card">
       <h2>Activity</h2>
       <p className="crm-note">Everything done in the CRM: views of a user, exports, edits and every email sent.</p>
-      {!data ? <p className="crm-note"><Loader /> Loading</p> : (
-        <div className="crm-table"><Table className="crm-log"><Table.Body>
+      {!data ? <Loading /> : (
+        <Table className="crm-log"><TableBody>
           {data.entries.map((a) => (
-            <Table.Row key={a.sk}>
-              <Table.Cell><span className="crm-sub">{new Date(a.sk.split("#")[0]).toLocaleString()}</span></Table.Cell>
-              <Table.Cell>{a.action}</Table.Cell>
-              <Table.Cell><span className="crm-sub">{Object.entries(a.detail || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ")}</span></Table.Cell>
-            </Table.Row>
+            <TableRow key={a.sk}>
+              <TableCell><span className="crm-sub">{new Date(a.sk.split("#")[0]).toLocaleString()}</span></TableCell>
+              <TableCell>{a.action}</TableCell>
+              <TableCell><span className="crm-sub">{Object.entries(a.detail || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ")}</span></TableCell>
+            </TableRow>
           ))}
-        </Table.Body></Table></div>
+        </TableBody></Table>
       )}
-    </div></LayerCard>
+    </div></Panel>
   );
 }
+
+function Nav({ tab, go, unread }: { tab: string; go: (v: string) => void; unread: number }) {
+  const { setOpenMobile } = useSidebar();
+  return (
+    <SidebarMenu aria-label="CRM">
+      {TABS.map((t) => (
+        <SidebarMenuItem key={t.value}>
+          <SidebarMenuButton isActive={tab === t.value} aria-current={tab === t.value ? "page" : undefined} onClick={() => { go(t.value); setOpenMobile(false); }}>
+            <t.icon weight={tab === t.value ? "fill" : "regular"} /><span>{t.label}</span>
+          </SidebarMenuButton>
+          {t.value === "inbox" && unread ? <SidebarMenuBadge aria-label={`${unread} unread`}>{unread}</SidebarMenuBadge> : null}
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  );
+}
+
+const Brand = () => <span className="crm-brand">Ocean of Jobs <small>CRM</small></span>;
 
 export function App() {
   const [tab, setTab] = useState(() => (location.hash.slice(1) && TABS.some((t) => t.value === location.hash.slice(1)) ? location.hash.slice(1) : "overview"));
@@ -212,32 +241,32 @@ export function App() {
     try { localStorage.setItem("crm_theme", next ? "light" : "dark"); } catch { /* storage blocked */ }
   };
   return (
-    <div className="crm">
-      <aside className="crm-side">
-        <span className="crm-brand">Ocean of Jobs <small>CRM</small></span>
-        <nav className="crm-nav" aria-label="CRM">
-          {TABS.map((t) => (
-            <button key={t.value} type="button" className="crm-nav-item" aria-current={tab === t.value ? "page" : undefined} onClick={() => go(t.value)}>
-              {t.label}{t.value === "inbox" && unread ? <span className="crm-count" aria-label={`${unread} unread`}>{unread}</span> : null}
-            </button>
-          ))}
-        </nav>
-        <div className="crm-side-foot">
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader className="px-4 pt-5"><Brand /></SidebarHeader>
+        <SidebarContent><SidebarGroup><Nav tab={tab} go={go} unread={unread} /></SidebarGroup></SidebarContent>
+        <SidebarFooter className="items-start gap-2 px-4 pb-5">
           <span className="crm-who">{me ? me.email : ""}</span>
-          <Button variant="secondary" size="sm" onClick={theme}>{light ? "Dark theme" : "Light theme"}</Button>
+          <Button variant="outline" size="sm" onClick={theme}>{light ? <Moon /> : <Sun />}{light ? "Dark theme" : "Light theme"}</Button>
+        </SidebarFooter>
+      </Sidebar>
+      <div className="flex w-full min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-2 border-b px-2 py-2 md:hidden">
+          <SidebarTrigger aria-label="Menu" className="size-9" />
+          <Brand />
         </div>
-      </aside>
-      <main className="crm-main">
-      {tab === "overview" ? <Overview sending={!!me?.sending} /> : null}
-      {tab === "inbox" ? <Inbox sending={!!me?.sending} onUnread={setUnread} /> : null}
-      {tab === "contacts" ? <Contacts sending={!!me?.sending} onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
-      {tab === "waitlist" ? <Waitlist onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
-      {tab === "segments" ? <Segments /> : null}
-      {tab === "emails" ? <Emails sending={!!me?.sending} initial={draft} onOpened={() => setDraft(null)} /> : null}
-      {tab === "flows" ? <Flows /> : null}
-      {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}
-      {tab === "activity" ? <Activity /> : null}
-      </main>
-    </div>
+        <main className="crm-main">
+          {tab === "overview" ? <Overview sending={!!me?.sending} /> : null}
+          {tab === "inbox" ? <Inbox sending={!!me?.sending} onUnread={setUnread} /> : null}
+          {tab === "contacts" ? <Contacts sending={!!me?.sending} onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
+          {tab === "waitlist" ? <Waitlist onEmail={(c) => { setDraft(c); go("emails"); }} /> : null}
+          {tab === "segments" ? <Segments /> : null}
+          {tab === "emails" ? <Emails sending={!!me?.sending} initial={draft} onOpened={() => setDraft(null)} /> : null}
+          {tab === "flows" ? <Flows /> : null}
+          {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}
+          {tab === "activity" ? <Activity /> : null}
+        </main>
+      </div>
+    </SidebarProvider>
   );
 }

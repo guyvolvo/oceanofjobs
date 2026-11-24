@@ -12,7 +12,6 @@
     "check:html": "python scripts/nojs_check.py"
   },
   "dependencies": {
-    "@cloudflare/kumo": "2.15.0",
     "@tanstack/react-virtual": "3.14.26",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -23,6 +22,7 @@
     "react": "19.3.1",
     "react-aria-components": "1.22.1",
     "react-dom": "19.3.1",
+    "recharts": "3.10.1",
     "sonner": "2.0.8",
     "tailwind-merge": "3.3.1"
   },

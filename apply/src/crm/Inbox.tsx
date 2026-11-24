@@ -2,14 +2,11 @@
 // info@ in the same thread. A copy of every message also goes to the
 // owner's own inbox (the Worker forwards it before saving).
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@cloudflare/kumo/components/button";
-import { InputArea } from "@cloudflare/kumo/components/input";
-import { LayerCard } from "@cloudflare/kumo/components/layer-card";
-import { Loader } from "@cloudflare/kumo/components/loader";
-import { Tabs } from "@cloudflare/kumo/components/tabs";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { crm, plural } from "./api";
 import { Failed, useLoad } from "./App";
+import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AreaField, Btn, Loading, Panel } from "./ui";
 
 export type Mail = { sk: string; dir: "in" | "out"; email: string; name: string; subject: string; text: string; read: boolean;
   contact: string; attachments?: number; by?: string };
@@ -23,11 +20,11 @@ function SentMail() {
   const { data, error, load } = useLoad<{ sent: Sent[] }>("/inbox/sent");
   const [open, setOpen] = useState<number | null>(null);
   if (error) return <Failed error={error} retry={load} />;
-  if (!data) return <p className="crm-note"><Loader /> Loading</p>;
+  if (!data) return <Loading />;
   const m = open === null ? null : data.sent[open];
   return (
     <div className="crm-inbox">
-      <LayerCard><div className="crm-card crm-threads">
+      <Panel><div className="crm-card crm-threads">
         <h2>Sent</h2>
         {!data.sent.length ? <p className="crm-note">Nothing sent yet.</p> : data.sent.map((x, i) => (
           <button key={i} type="button" className={`crm-thread${i === open ? " on" : ""}`} onClick={() => setOpen(i)}>
@@ -36,8 +33,8 @@ function SentMail() {
             <span className="crm-snippet">{x.source}</span>
           </button>
         ))}
-      </div></LayerCard>
-      <LayerCard><div className="crm-card crm-stack">
+      </div></Panel>
+      <Panel><div className="crm-card crm-stack">
         {!m ? <p className="crm-note">Pick an email.</p> : <>
           <div>
             <h2>{m.subject || "No subject"}</h2>
@@ -45,7 +42,7 @@ function SentMail() {
           </div>
           <div className="crm-msg out"><div className="crm-msg-text">{m.body || "(no text)"}</div></div>
         </>}
-      </div></LayerCard>
+      </div></Panel>
     </div>
   );
 }
@@ -54,14 +51,13 @@ export function Inbox({ sending, onUnread }: { sending: boolean; onUnread: (n: n
   const [view, setView] = useState("in");
   return (
     <div className="crm-stack">
-      <div><Tabs variant="segmented" value={view} onValueChange={setView} tabs={[{ value: "in", label: "Received" }, { value: "sent", label: "Sent" }]} /></div>
+      <Tabs value={view} onValueChange={setView}><TabsList><TabsTrigger value="in" className="px-3">Received</TabsTrigger><TabsTrigger value="sent" className="px-3">Sent</TabsTrigger></TabsList></Tabs>
       {view === "sent" ? <SentMail /> : <Received sending={sending} onUnread={onUnread} />}
     </div>
   );
 }
 
 function Received({ sending, onUnread }: { sending: boolean; onUnread: (n: number) => void }) {
-  const toasts = useKumoToastManager();
   const { data, error, load, setData } = useLoad<{ messages: Mail[] }>("/inbox");
   const [open, setOpen] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -87,15 +83,15 @@ function Received({ sending, onUnread }: { sending: boolean; onUnread: (n: numbe
     try {
       await crm("/inbox/reply", "POST", { sk: lastIn.sk, body: text });
       setText("");
-      toasts.add({ variant: "success", title: `Reply sent to ${lastIn.email}` });
+      toast.success(`Reply sent to ${lastIn.email}`);
       load();
-    } catch (e) { toasts.add({ variant: "error", title: (e as Error).message }); } finally { setBusy(false); }
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
   if (error) return <Failed error={error} retry={load} />;
-  if (!data) return <p className="crm-note"><Loader /> Loading</p>;
+  if (!data) return <Loading />;
   return (
     <div className="crm-inbox">
-      <LayerCard><div className="crm-card crm-threads">
+      <Panel><div className="crm-card crm-threads">
         <h2>Inbox</h2>
         <p className="crm-note">Email sent to info@oceanofjobs.com. A copy also goes to your Gmail.</p>
         {!threads.length ? <p className="crm-note">No messages yet.</p> : threads.map((t) => (
@@ -105,8 +101,8 @@ function Received({ sending, onUnread }: { sending: boolean; onUnread: (n: numbe
             <span className="crm-snippet">{t.last.dir === "out" ? "You: " : ""}{t.last.text.slice(0, 90)}</span>
           </button>
         ))}
-      </div></LayerCard>
-      <LayerCard><div className="crm-card crm-stack">
+      </div></Panel>
+      <Panel><div className="crm-card crm-stack">
         {!thread ? <p className="crm-note">Pick a conversation.</p> : <>
           <div>
             <h2>{thread.list[0].name || thread.email}</h2>
@@ -120,15 +116,15 @@ function Received({ sending, onUnread }: { sending: boolean; onUnread: (n: numbe
             </div>
           ))}
           {lastIn ? <>
-            <InputArea label={`Reply to ${lastIn.email}`} description="Markdown. Sent from info@oceanofjobs.com in the same thread." className="crm-md crm-md-short"
+            <AreaField label={`Reply to ${lastIn.email}`} description="Markdown. Sent from info@oceanofjobs.com in the same thread." className="crm-md crm-md-short"
               value={text} onChange={(e) => setText(e.target.value)} />
             <div className="crm-row">
-              <Button variant="primary" loading={busy} disabled={!sending || !text.trim()} onClick={send}>Send reply</Button>
+              <Btn loading={busy} disabled={!sending || !text.trim()} onClick={send}>Send reply</Btn>
               {!sending ? <span className="crm-note">Sending is off.</span> : null}
             </div>
           </> : null}
         </>}
-      </div></LayerCard>
+      </div></Panel>
     </div>
   );
 }
