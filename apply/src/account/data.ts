@@ -14,7 +14,8 @@ export type Alert = { alert_id: string; active: boolean; filter: Record<string, 
 export type SavedRow = { job_id: string; saved_at?: string };
 export type Job = {
   id: string; title: string; company_name?: string; company_domain?: string; logo_url?: string | null; location?: string;
-  url?: string; closed_at?: string | null; skills?: string; salary_text?: string;
+  url?: string; closed_at?: string | null; skills?: string; salary_text?: string; salary_is_estimate?: boolean;
+  first_seen?: string; workplace_type?: string;
 };
 export type Day = { day: string; new: number; open: number };
 export type Dashboard = {

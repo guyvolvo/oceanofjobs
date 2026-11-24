@@ -5,7 +5,8 @@ import { Slot } from "radix-ui"
 
 // DESIGN.md "Buttons": 4px corners, a 2px border, 38px tall, Source Sans 3
 // at 13px bold. Primary is ink and turns green-text on hover; outline (the
-// old .btn.ghost) inverts to ink. Focus is the 2px signal-green outline.
+// old .btn.ghost) has a hairline border and a soft fill on hover, so it reads
+// as second to primary. Focus is the 2px signal-green outline.
 const buttonVariants = cva(
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md font-ui text-[13px] font-bold whitespace-nowrap transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
@@ -15,7 +16,7 @@ const buttonVariants = cva(
         destructive:
           "border-2 border-destructive bg-destructive text-primary-foreground hover:bg-destructive/90",
         outline:
-          "border-2 border-input bg-background text-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground",
+          "border border-border bg-background text-foreground hover:bg-accent",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-accent",
         ghost:

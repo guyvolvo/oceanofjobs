@@ -111,9 +111,9 @@ export function Workspace({ current, title, note, actions, status, badges = {}, 
             </SidebarGroup>
           ))}
         </SidebarContent>
-        <SidebarFooter>
-          <Account who={who} />
-          <div className="flex justify-end group-data-[collapsible=icon]:justify-center"><SidebarTrigger aria-label="Fold the sidebar" /></div>
+        <SidebarFooter className="flex-row items-center group-data-[collapsible=icon]:flex-col">
+          <div className="min-w-0 flex-1"><Account who={who} /></div>
+          <SidebarTrigger aria-label="Fold the sidebar" className="flex-none" />
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
