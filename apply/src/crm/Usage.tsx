@@ -1,6 +1,6 @@
 // Usage: who uses Ocean of Jobs through its MCP server, its public API and
 // the extension (crm/lib/usage.mjs). Directory and uptime checks are shown
-// apart from real sessions, and the site's own API calls are left out.
+// (bot pings) apart from real connections, and the site's own API calls are left out.
 import { lazy, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,7 +34,7 @@ function Ranked({ title, head, rows }: { title: string; head: string; rows: [str
     <ChartCard title={title}>
       {rows.length ? (
         <Table>
-          <TableHeader><TableRow><TableHead>{head}</TableHead><TableHead className="text-right">Calls</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>{head}</TableHead><TableHead className="text-right">Requests</TableHead></TableRow></TableHeader>
           <TableBody>{rows.map(([name, v]) => (
             <TableRow key={name}><TableCell className="max-w-[340px] truncate" title={name}>{name}</TableCell><TableCell className="text-right tabular-nums">{n(v)}</TableCell></TableRow>
           ))}</TableBody>
@@ -61,15 +61,15 @@ export function Usage() {
       <h2 className="crm-section">MCP server</h2>
       {failed(mcp) ? <Failed error={mcp.error} retry={load} /> : (
         <>
-          <Stats items={[[mcp.sessions, "Sessions", "AI apps connecting"], [mcp.calls, "Tool calls", "Searches, job pages, account tools"],
-            [mcp.checks, "Directory checks", "Directories and monitors checking it's up"],
-            [c.mcp.connected, "Account tokens", `${n(c.mcp.active)} used in the last 7 days`]]} />
+          <Stats items={[[mcp.sessions, "Connections", "From AI clients, bots excluded"], [mcp.calls, "Tool calls", "Requests that ran a tool"],
+            [mcp.checks, "Bot pings", "Uptime monitors and MCP listing sites"],
+            [c.mcp.connected, "MCP tokens", `${n(c.mcp.active)} used in the last 7 days`]]} />
           <div className="crm-charts">
             <ChartCard title="Per day" wide>
-              <DailyChart rows={mcp.daily} series={{ sessions: ["Sessions", "var(--chart-brand)"], calls: ["Tool calls", "var(--chart-info)"] }} />
+              <DailyChart rows={mcp.daily} series={{ sessions: ["Connections", "var(--chart-brand)"], calls: ["Tool calls", "var(--chart-info)"] }} />
             </ChartCard>
             <Ranked title="Tool calls by tool" head="Tool" rows={mcp.tools} />
-            <Ranked title="Sessions by app" head="App" rows={mcp.clients} />
+            <Ranked title="Connections by client" head="Client" rows={mcp.clients} />
           </div>
         </>
       )}
@@ -77,20 +77,20 @@ export function Usage() {
       <h2 className="crm-section">Public API</h2>
       {failed(api) ? <Failed error={api.error} retry={load} /> : (
         <>
-          <Stats items={[[api.calls, "Calls from apps", "The site's own calls left out"], [api.app_count, "Apps calling it"],
-            [api.blocked, "Blocked", "Scrapers the firewall stopped"]]} />
+          <Stats items={[[api.calls, "API requests", "From scripts and apps, not the website"], [api.app_count, "Clients", "Distinct user agents"],
+            [api.blocked, "Blocked (403)", "Stopped by the firewall rule"]]} />
           <div className="crm-charts">
             <ChartCard title="Per day" wide>
-              <DailyChart rows={api.daily} series={{ calls: ["Calls from apps", "var(--chart-brand)"], blocked: ["Blocked", "var(--chart-danger)"] }} />
+              <DailyChart rows={api.daily} series={{ calls: ["API requests", "var(--chart-brand)"], blocked: ["Blocked (403)", "var(--chart-danger)"] }} />
             </ChartCard>
-            <Ranked title="Apps" head="App" rows={api.apps} />
+            <Ranked title="Clients by user agent" head="User agent" rows={api.apps} />
           </div>
-          <p className="crm-note">Cloudflare samples longer ranges, so 28-day numbers are close but rounded.</p>
+          <p className="crm-note">28-day numbers are sampled by Cloudflare and rounded.</p>
         </>
       )}
 
       <h2 className="crm-section">Extension</h2>
-      <Stats items={[[c.extension.connected, "Connected", "Installs linked to an account"], [c.extension.active, "Active", "Used in the last 7 days"]]} />
+      <Stats items={[[c.extension.connected, "Linked installs", "Extensions signed in to an account"], [c.extension.active, "Active (7 days)", "Made a request in the last 7 days"]]} />
     </div>
   );
 }
