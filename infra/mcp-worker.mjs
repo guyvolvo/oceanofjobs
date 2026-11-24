@@ -47,7 +47,7 @@ const SITE = "https://oceanofjobs.com";
 // change in what we store retire every old entry at once.
 const CACHE_PREFIX = SITE + "/__mcp_cache/v1";
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
-const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.2.0", websiteUrl: SITE };
+const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.2.1", websiteUrl: SITE };
 const MAX_LIMIT = 25;
 const MAX_OFFSET = 200;
 const MAX_TTL = 300;
@@ -83,7 +83,8 @@ const INSTRUCTIONS =
   "bulk data use the public REST API documented at " + SITE + "/api/help. " +
   "The account tools (saved jobs, the auto apply queue and history, alerts, preferences, best matches, plan and " +
   "usage, needs attention, auto apply settings and the AI agent) work on the user's own Ocean of Jobs account and " +
-  "need a personal access token sent as Authorization: Bearer ooj_..., with the permission each one names. Change " +
+  "need a personal access token sent as Authorization: Bearer ooj_..., with the permission each one names. The " +
+  "Claude and ChatGPT apps can't send one yet, so there only the search tools work. Change " +
   "anything only when the user asks for it, and never save an answer or a fact the user didn't give you.";
 
 const JOB_PROPS = {
@@ -778,9 +779,15 @@ async function api(path, params, env, ctx, trace) {
   return { status: 200, body };
 }
 
+// Claude's and ChatGPT's connector settings only offer OAuth, with no
+// place for a header, so telling everyone to "add the header" sent people
+// to make a token they had nowhere to put (2026-11-24). Say where it works.
 const NEEDS_TOKEN =
-  "This needs an Ocean of Jobs personal access token. The user can create one at " + SITE +
-  "/account#settings and add it to this MCP server as the header Authorization: Bearer ooj_...";
+  "This needs an Ocean of Jobs personal access token, and this connection has none. Tell the user: the account " +
+  "tools work in apps that let you add a header to an MCP server, such as Claude Code, Cursor, VS Code and Codex. " +
+  "Create a token at " + SITE + "/account#settings and add it as the header Authorization: Bearer ooj_... " +
+  "The Claude and ChatGPT apps have no place for a token, so these tools aren't available there yet. " +
+  "Searching jobs works everywhere without one.";
 
 // One call on the user's own account, with their personal access token.
 // Never cached, never counted as a cache miss: the answer is one
