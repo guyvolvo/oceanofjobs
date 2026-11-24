@@ -3,11 +3,11 @@
 // country with some of its cities picked shows as mixed. What is typed in
 // the box narrows the tree here and asks the server for more places
 // (/api/places/search, store.placeSearch). Loaded on first use.
-import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { memo, startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Tree, TreeItem, TreeItemContent, type Key, type Selection } from "react-aria-components";
 import { CaretRight, Check, Minus } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { F, U, placeCountries, placeSearch, railToggle, useBoard, usePlaces } from "./store";
+import { F, U, placeCountries, placeSearch, railToggle, onPlaces, useBoard } from "./store";
 import { cityCountry, cityKey, countryLabel, fmtInt, type City, type Country } from "./util";
 
 type Node = { country: Country; cities: City[]; byName?: boolean };
@@ -15,7 +15,7 @@ type Node = { country: Country; cities: City[]; byName?: boolean };
 // Rows drawn under one open country. A typed name finds the rest. While
 // typing, a country opened by its matching cities shows the first few.
 const CITY_ROWS = 100;
-const MATCHED_CITY_ROWS = 8;
+const MATCHED_CITY_ROWS = 5;
 
 // Nothing typed: every country with jobs, the picked ones first. Typed:
 // countries whose name has it (all their cities) and the cities that have
@@ -40,7 +40,7 @@ function nodes(raw: string): Node[] {
     const n = at >= 0 ? c.n || 0 : Math.max(...cities.map((t) => t.n || 0));
     hits.push({ country: c, cities, byName: at >= 0, at: at >= 0 ? at : cityAt, n });
   }
-  return hits.sort((a, b) => Number(a.at > 0) - Number(b.at > 0) || b.n - a.n).slice(0, 40);
+  return hits.sort((a, b) => Number(a.at > 0) - Number(b.at > 0) || b.n - a.n).slice(0, 20);
 }
 
 function Box({ checked, mixed }: { checked: boolean; mixed: boolean }) {
@@ -65,7 +65,10 @@ export default function LocationPanel({ open, query, onClose }: { open: boolean;
 // onClose is a new function on every render of the box and does the same thing each time, so only the text counts.
 const Places = memo(function Places({ query, onClose }: { query: string; onClose: (refocus: boolean) => void }) {
   useBoard(); // picks and facets
-  usePlaces(); // places the server found for the text
+  // Places the server found for the text: a transition, so an answer that
+  // lands mid-word never holds up the next letter.
+  const [, setFound] = useState(0);
+  useEffect(() => onPlaces(() => startTransition(() => setFound((v) => v + 1))), []);
   useEffect(() => { placeSearch(query); }, [query]);
   const list = useMemo(() => nodes(query), [query, U.facets, U.placeFound, F.country, F.city]); // eslint-disable-line react-hooks/exhaustive-deps
   const [opened, setOpened] = useState<Set<Key>>(() => new Set(F.city.map((t) => cityCountry(t) || "")));
