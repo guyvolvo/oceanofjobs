@@ -143,7 +143,7 @@ const Row = memo(function Row({ j, index, size, selected, starred, applied, re, 
             onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return; e.preventDefault(); open(); }}>
             <Highlight text={j.title} re={re} />
           </a>
-          {j.seniority ? <span className={cn(tag, "ml-1.5 border-[1.5px] border-foreground align-[2px] font-semibold text-foreground")}>{SENIORITY_LABELS[j.seniority] || j.seniority}</span> : null}
+          {j.seniority ? <span className={cn(tag, "ml-1.5 border-[1.5px] border-foreground/30 align-[2px] font-semibold text-foreground")}>{SENIORITY_LABELS[j.seniority] || j.seniority}</span> : null}
           {j.confidence === "best_effort" ? <span title="Read from the company's careers page, so it may be out of date." className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Unverified</span> : null}
           {j.closed_at ? <span title="This job is no longer open" className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Closed</span> : null}
         </div>
@@ -253,7 +253,7 @@ export function MatchPanel() {
     <div id="match-panel" className="border-b px-5 py-2.5 font-ui">
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <button type="button" aria-expanded={open} aria-controls="match-skills" onClick={() => setMatchSkillsOpen(!open)}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-foreground px-3 py-0.5 font-semibold text-foreground hover:bg-muted">
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-foreground/30 px-3 py-0.5 font-semibold text-foreground hover:bg-muted">
           My skills <span className="tabular-nums text-muted-foreground">{F.skills.length}</span><CaretDown size={12} className={cn("transition-transform", open && "rotate-180")} aria-hidden="true" />
         </button>
         <span className="text-muted-foreground" title="Jobs that share at least one of your resume skills, ordered by how many. Newer jobs count higher, and every two weeks since posting counts as one skill fewer.">Ranked by resume skills</span>

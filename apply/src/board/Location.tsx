@@ -34,7 +34,7 @@ function nodes(raw: string): Node[] {
 
 function Box({ checked, mixed }: { checked: boolean; mixed: boolean }) {
   return (
-    <span className={cn("grid size-4 flex-none place-items-center rounded-sm border border-input text-primary-foreground", (checked || mixed) && "border-primary bg-primary")}>
+    <span className={cn("grid size-4 flex-none place-items-center rounded-sm border border-input/50 text-primary-foreground", (checked || mixed) && "border-primary bg-primary")}>
       {checked ? <Check size={12} weight="bold" /> : mixed ? <Minus size={12} weight="bold" /> : null}
     </span>
   );

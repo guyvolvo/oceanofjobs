@@ -280,7 +280,7 @@ button, input, select {
 }
 
 .section {
-  border-bottom: var(--rule) solid var(--black);
+  border-bottom: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   padding: 12px 0 40px;
 }
 
@@ -341,7 +341,7 @@ button, input, select {
   gap: 8px;
   height: 36px;
   padding: 0 6px 0 14px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 999px;
   background: var(--white);
 }
@@ -636,7 +636,7 @@ button, input, select {
 
 .alert-toggle {
   background: none;
-  border: 1px solid var(--black);
+  border: 1px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   padding: 3px 8px;
   font-family: var(--font-ui);
@@ -692,7 +692,7 @@ button, input, select {
   margin-bottom: 10px;
 }
 .alert-create-fields input[type="text"] {
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   padding: 9px 10px;
@@ -707,7 +707,7 @@ button, input, select {
   gap: 8px;
   height: 38px;
   padding: 0 10px;
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -721,7 +721,7 @@ button, input, select {
   flex: 0 0 auto;
   background: none;
   color: var(--black);
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
 }
 .alert-create .btn-quiet:hover { background: var(--black); color: var(--white); }
 
@@ -735,7 +735,7 @@ button, input, select {
   max-height: calc(100dvh - 80px);
   overflow-y: auto;
   background: var(--white);
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   z-index: 40;
   padding: 14px;
@@ -754,7 +754,7 @@ button, input, select {
   height: 38px;
   padding: 0 12px;
   margin-bottom: 8px;
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--black);
@@ -781,7 +781,7 @@ button, input, select {
   min-width: 0;
   height: 38px;
   padding: 9px 10px;
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--black);
@@ -940,7 +940,7 @@ button, input, select {
     height: 28px;
     min-width: 28px;
     padding: 0 8px;
-    border: 1.5px solid var(--black);
+    border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
     border-radius: 4px;
     background: var(--white);
     color: var(--black);
@@ -1268,7 +1268,7 @@ table.jobs tbody tr[data-id] { cursor: pointer; }
   width: 100%;
   height: 38px;
   padding: 9px 10px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--black);
@@ -1294,7 +1294,7 @@ table.jobs tbody tr[data-id] { cursor: pointer; }
   max-height: 320px;
   overflow-y: auto;
   background: var(--white);
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   z-index: 40;
   padding: 8px;
@@ -1409,7 +1409,7 @@ table.jobs tbody tr[data-id] { cursor: pointer; }
 
 .btn {
   font-family: var(--font-ui);
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--black);
   color: var(--white);
@@ -1562,7 +1562,7 @@ table.jobs {
 /* The rule under the header, on the row rather than on each cell. The
    header is a grid of two headings over four columns, so a border per
    cell left a 14px break in the line where the gap between them falls. */
-table.jobs thead tr { border-bottom: var(--rule) solid var(--black); }
+table.jobs thead tr { border-bottom: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent); }
 table.jobs thead th {
   text-align: left;
   font-size: 12px;
@@ -1895,7 +1895,7 @@ table.jobs .title-cell a:not(.apply-link):hover { color: var(--green-text); }
   font-family: var(--font-ui);
   display: inline-block;
   font-size: 12px;
-  border: 1px solid var(--black);
+  border: 1px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   padding: 2px 6px;
   font-weight: 700;
@@ -1954,7 +1954,7 @@ table.jobs thead th[data-sort="age"] { text-align: center; }
 }
 .pagination .pages { display: flex; gap: 6px; }
 .pagination .pages button {
-  border: 1px solid var(--black);
+  border: 1px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   width: 32px;
@@ -2237,7 +2237,7 @@ footer {
   min-width: 0;
   height: 38px;
   padding: 0 12px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--black);
@@ -2263,7 +2263,7 @@ footer {
     position: static;
     max-height: none;
     padding: 24px 0;
-    border-top: var(--rule) solid var(--black);
+    border-top: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
     overflow-y: visible;
   }
 
@@ -2608,7 +2608,7 @@ footer {
 /* Segmented switch: the system's ghost buttons joined into one control,
    the active half filled ink. Used for Builder/SQL and for Auto/Table/
    Bars/Line. */
-.seg { display: inline-flex; border: 1.5px solid var(--black); border-radius: 4px; overflow: hidden; }
+.seg { display: inline-flex; border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent); border-radius: 4px; overflow: hidden; }
 .seg-btn {
   font-family: var(--font-ui);
   font-size: 13px;
@@ -2616,7 +2616,7 @@ footer {
   height: 28px;
   padding: 0 10px;
   border: 0;
-  border-right: 1.5px solid var(--black);
+  border-right: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   background: var(--white);
   color: var(--black);
   cursor: pointer;
@@ -2655,7 +2655,7 @@ body.explore-busy .explore-metric { color: var(--green-text); }
   font-family: var(--font-ui);
   font-size: 12.5px;
   color: var(--black);
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   padding: 5px 8px;
@@ -2781,7 +2781,7 @@ body.explore-busy .explore-metric { color: var(--green-text); }
 .xbar-track {
   height: 14px;
   position: relative;
-  border-left: 1.5px solid var(--black);
+  border-left: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-right: 1px solid var(--grey-line);
   background-image: linear-gradient(to right, var(--grey-line) 1px, transparent 1px);
   background-size: 25% 100%;
@@ -3661,7 +3661,7 @@ body.signin-open .workspace > .section { border-bottom: 0; }
    rather than a verdict. */
 .cv-chip {
   appearance: none;
-  border: var(--rule) solid var(--black);
+  border: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--black);
@@ -3902,7 +3902,7 @@ body.signin-open .workspace > .section { border-bottom: 0; }
 .hero-nav-list {
   padding: 6px 0 14px;
   background: var(--white);
-  border-bottom: var(--rule) solid var(--black);
+  border-bottom: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
   /* Parked directly above the window, so it arrives from under the bar
      rather than fading in where it lands. */
   transform: translateY(-100%);
@@ -5210,7 +5210,7 @@ html:has(.home-hero) { scroll-behavior: smooth; }
 .contact-direct h2 {
   margin: 0;
   padding: 0 8px 10px;
-  border-bottom: 1px solid var(--black);
+  border-bottom: 1px solid color-mix(in srgb, var(--black) 30%, transparent);
   font: 500 14px var(--font-display);
 }
 .contact-way {
@@ -5577,7 +5577,7 @@ html:has(.home-hero) { scroll-behavior: smooth; }
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--white);
@@ -6117,7 +6117,7 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
   gap: 6px;
   height: 38px;
   padding: 0 14px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--black);
@@ -6375,7 +6375,7 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
     width: min(440px, 100%);
     max-height: none;
     z-index: 20; /* above .topbar's 10 */
-    border-left: var(--rule) solid var(--black);
+    border-left: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
     padding-right: max(32px, env(safe-area-inset-right));
     padding-bottom: max(28px, env(safe-area-inset-bottom));
     transform: translateX(100%);
@@ -6420,7 +6420,7 @@ a.job-company:hover { color: var(--green-text); text-decoration: underline; }
     top: 0;
     left: 0;
     border-left: 0;
-    border-top: var(--rule) solid var(--black);
+    border-top: var(--rule) solid color-mix(in srgb, var(--black) 30%, transparent);
     padding: 22px 20px;
     transform: translateY(100%);
   }
@@ -6878,7 +6878,7 @@ textarea.aa-input { resize: vertical; }
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 4px;
   background: var(--white);
   color: var(--black);
@@ -6975,7 +6975,7 @@ textarea.aa-input { resize: vertical; }
      padding and 16px of inset clears the curve. */
   appearance: none;
   padding: 0 34px 0 16px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 999px;
   background-color: var(--white);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2340513b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -7396,7 +7396,7 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
   padding: 0 12px 0 14px;
   /* The same 1.5px ink line as the search box above them, so the row
      of filters reads as controls and not as chips. */
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 999px;
   background: var(--white);
 }
@@ -7451,7 +7451,7 @@ body.side-folded .side-brand-row { flex-direction: column; gap: 10px; }
   align-items: center;
   height: 32px;
   padding-left: 12px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 999px;
   color: var(--grey);
   font: 400 13px var(--font-ui);
@@ -7538,7 +7538,7 @@ table.jobs tbody tr.skeleton-row {
     place-items: center;
     width: 40px;
     height: 40px;
-    border: 1.5px solid var(--black);
+    border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
     border-radius: 999px;
     background: var(--white);
     color: var(--black);
@@ -7642,7 +7642,7 @@ table.jobs tbody tr.skeleton-row {
   height: 36px;
   white-space: nowrap;
   padding: 0 12px 0 14px;
-  border: 1.5px solid var(--black);
+  border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 999px;
   background: var(--white);
   color: var(--black);
@@ -7735,7 +7735,7 @@ table.jobs tbody tr.skeleton-row {
 .dir-follow {
   height: 28px;
   padding: 0 12px;
-  border: 1px solid var(--black);
+  border: 1px solid color-mix(in srgb, var(--black) 30%, transparent);
   border-radius: 999px;
   background: none;
   color: var(--black);
@@ -8205,7 +8205,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .board-head { display: flex; align-items: center; gap: 10px; }
   .board-head .topbar-search { flex: 1 1 auto; width: auto; height: 44px; }
   .m-bar { display: flex; align-items: center; gap: 8px; }
-  .m-filters { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1.5px solid var(--black); border-radius: 999px; background: none; color: var(--black); font: 700 13px var(--font-ui); }
+  .m-filters { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent); border-radius: 999px; background: none; color: var(--black); font: 700 13px var(--font-ui); }
   .m-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--black); color: var(--white); font-size: 11px; font-variant-numeric: tabular-nums; }
   .m-badge[hidden] { display: none; }
   .m-sort { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1.5px solid color-mix(in srgb, var(--black) 40%, transparent); border-radius: 999px; color: var(--black); font: 700 13px var(--font-ui); }
@@ -8257,7 +8257,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .star-btn { width: 28px; height: 28px; }
 
   /* The alert button floats above the tab bar. */
-  .m-alert { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 35; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1.5px solid var(--black); border-radius: 999px; background: var(--white); color: var(--black); font: 700 13px var(--font-ui); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); transform: translateX(-50%); }
+  .m-alert { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 35; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent); border-radius: 999px; background: var(--white); color: var(--black); font: 700 13px var(--font-ui); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); transform: translateX(-50%); }
   body.m-sheet-open .m-alert, body:has(.job-detail.open) .m-alert { display: none; }
   .m-alert { transition: transform 0.25s ease, opacity 0.25s ease; }
   body.m-alert-gone .m-alert { opacity: 0; transform: translate(-50%, 24px); pointer-events: none; }
@@ -8348,7 +8348,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
   .job-detail-facts .fact-value { font-size: 14px; }
   .job-detail .pane-sticky, .job-detail .pane-sticky[hidden] { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; display: flex; gap: 10px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--grey-line); background: var(--white); }
   .pane-sticky [data-copy-permalink] { display: none; }
-  .pane-sticky .pane-act { width: 48px; height: 48px; border: 1.5px solid var(--black); border-radius: 4px; }
+  .pane-sticky .pane-act { width: 48px; height: 48px; border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent); border-radius: 4px; }
   .pane-sticky .pane-apply { height: 48px; font-size: 15px; }
 
   /* The account page. */
@@ -8478,7 +8478,7 @@ button.dir-name:focus-visible { outline: 2px solid var(--green); outline-offset:
 .pg-apply-inline { display: inline-flex; flex: none; height: 42px; padding: 0 18px; }
 .pg-apply-off { background: var(--black); color: var(--white); }
 .pg-side-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-.pg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border: 1.5px solid var(--black); border-radius: 8px; background: none; color: var(--black); font: 700 13px var(--font-ui); text-decoration: none; cursor: pointer; }
+.pg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border: 1.5px solid color-mix(in srgb, var(--black) 30%, transparent); border-radius: 8px; background: none; color: var(--black); font: 700 13px var(--font-ui); text-decoration: none; cursor: pointer; }
 .pg-btn:hover { background: var(--hover-bg); }
 .pg-btn.on { color: var(--green-text); border-color: var(--green-text); }
 .pg-btn-fill { background: var(--black); color: var(--white); }

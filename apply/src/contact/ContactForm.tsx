@@ -120,7 +120,7 @@ export function ContactForm() {
         <Field id={`${id}-name`} label="Name">
           <Input id={`${id}-name`} autoComplete="name" maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field id={`${id}-email`} label="Email" hint={who?.email ? "Filled from your account. For the reply." : "For the reply"} error={errors.email}>
+        <Field id={`${id}-email`} label="Email" hint={who?.email ? "Filled automatically" : "For the reply"} error={errors.email}>
           <Input id={`${id}-email`} type="email" autoComplete="email" spellCheck={false} maxLength={254} required value={email}
             aria-invalid={!!errors.email || undefined} aria-describedby={`${id}-email-note`}
             onChange={(e) => { setEmail(e.target.value); setErrors((x) => ({ ...x, email: undefined })); }} />

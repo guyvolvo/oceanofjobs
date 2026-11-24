@@ -22,7 +22,7 @@ export function Contact() {
             <p className="m-0 max-w-[460px] text-lg leading-[1.45]">Questions, feedback, requests, or bug reports.</p>
           </div>
           <div>
-            <h2 className="m-0 border-b border-foreground px-2 pb-2.5 font-display text-sm font-medium">Or reach me directly</h2>
+            <h2 className="m-0 border-b border-foreground/30 px-2 pb-2.5 font-display text-sm font-medium">Or reach me directly</h2>
             {WAYS.map((w) => (
               <a key={w.name} className="group grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-3.5 border-b px-2 py-3.5 text-foreground hover:bg-muted" href={w.href}
                 target={w.href.startsWith("http") ? "_blank" : undefined} rel="noopener">

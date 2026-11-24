@@ -89,7 +89,7 @@ const RANGES = [["min_match", "Minimum skills match", 0, 100], ["daily", "Maximu
   ["per_company", "Days between applications to the same company", 1, 365]] as const;
 
 const GRID = "grid gap-x-4 gap-y-3 sm:grid-cols-2";
-const SECTIONS = [["details", "Your details"], ["applying", "How it applies"], ["limits", "Limits"], ["answers", "Saved answers"]] as const;
+const SECTIONS = [["details", "Your details"], ["applying", "AI behavior"], ["limits", "Limits"], ["answers", "Saved answers"]] as const;
 const SOURCES = [["board", "Jobs I add to my queue on Ocean of Jobs"], ["matches", "Jobs matching my preferences"],
   ["ats_pages", "Jobs I open on supported hiring sites"], ["mcp", "Jobs queued by my AI assistant through MCP"]] as const;
 

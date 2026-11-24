@@ -128,7 +128,7 @@ export function Onboarding({ plan, ext, onDone }: { plan?: Plan; ext: Ext; onDon
             {CHOICES.map(([value, icon, label]) => {
               const on = choice === value;
               return (
-                <label key={value} className={cn("flex cursor-pointer items-center gap-3.5 rounded-lg border px-4 py-3.5 leading-snug transition-colors hover:bg-accent has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring", on ? "border-ring bg-accent" : "border-input")}>
+                <label key={value} className={cn("flex cursor-pointer items-center gap-3.5 rounded-lg border px-4 py-3.5 leading-snug transition-colors hover:bg-accent has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ring", on ? "border-ring bg-accent" : "border-input/30")}>
                   <input className="sr-only" type="radio" name="setup-choice" value={value} checked={on} onChange={() => setChoice(value)} />
                   <Icon name={icon} className={on ? "text-[var(--ooj-green-text)]" : "text-muted-foreground"} />
                   <span>{label}</span>

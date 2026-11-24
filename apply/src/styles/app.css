@@ -64,7 +64,7 @@
 #cookie-banner p { margin: 0; }
 #cookie-banner a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 #cookie-banner .cookie-actions { display: flex; justify-content: flex-end; gap: 8px; }
-#cookie-banner button { height: 32px; padding: 0 12px; border: 1px solid var(--color-input); border-radius: var(--radius-md); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+#cookie-banner button { height: 32px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--color-input) 30%, transparent); border-radius: var(--radius-md); background: transparent; color: inherit; font: inherit; cursor: pointer; }
 #cookie-banner .cookie-yes { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-primary-foreground); }
 
 /* The outage badge, drawn by frontend/upstream.js outside React (vite.config.ts HEAD loads it on every page). */

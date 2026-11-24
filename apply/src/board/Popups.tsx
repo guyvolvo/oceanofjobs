@@ -24,7 +24,7 @@ function Option({ label, n, checked, onChange, mark }: { label: string; n: numbe
   const text = i < 0 ? label : <>{label.slice(0, i)}<b className="font-semibold">{label.slice(i, i + mark!.length)}</b>{label.slice(i + mark!.length)}</>;
   return (
     <label className="flex min-h-8 cursor-pointer items-center gap-2.5 rounded-sm px-1.5 font-ui text-[15px] text-foreground hover:bg-muted">
-      <Checkbox checked={checked} onCheckedChange={(c) => onChange(c === true)} />
+      <Checkbox className="rounded-sm dark:bg-transparent dark:data-[state=checked]:bg-primary" checked={checked} onCheckedChange={(c) => onChange(c === true)} />
       <span className="min-w-0 flex-1 truncate">{text}</span>
       {n == null ? null : <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{fmtInt(n)}</span>}
     </label>

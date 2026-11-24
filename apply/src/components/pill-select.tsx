@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 // Radix Select doesn't take "" as an item's value; "" is "Any date" here.
 const EMPTY = "__empty";
 
-const trigger = cn("h-8 cursor-pointer gap-1.5 rounded-full border-[1.5px] border-foreground bg-transparent px-3.5 font-ui text-[13px] text-foreground shadow-none",
+const trigger = cn("h-8 cursor-pointer gap-1.5 rounded-full border-[1.5px] border-foreground/30 bg-transparent px-3.5 font-ui text-[13px] text-foreground shadow-none",
   "hover:bg-muted dark:bg-transparent dark:hover:bg-muted focus-visible:border-foreground focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-ring [&_svg]:text-foreground [&_svg]:opacity-100");
 // The shadcn SelectTrigger's own layout, for the plain button.
 const plain = "flex w-fit items-center justify-between whitespace-nowrap outline-none data-[size=default]:h-9 [&_svg]:pointer-events-none [&_svg]:shrink-0";
