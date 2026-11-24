@@ -9,14 +9,13 @@ import { CaretDown, List } from "@/components/icons";
 // clsx, not cn: no class here overrides another, and tailwind-merge
 // (about 7 KB gzip) would otherwise be in every text page's first load.
 import { clsx as cn } from "clsx";
-import { requestSignIn, SIGNIN_EVENT, type Who } from "../site/auth";
+import { requestSignIn, type Who } from "../site/auth";
 import { SECTIONS, type Section } from "../site/sections";
 import { applyTheme } from "../site/theme";
 import { useWho } from "./state";
 
 const AccountMenu = lazy(() => import("./Menus").then((m) => ({ default: m.AccountMenu })));
 const MobileSheet = lazy(() => import("./Menus").then((m) => ({ default: m.MobileSheet })));
-const SignInWindow = lazy(() => import("./SignIn"));
 
 export const toggleTheme = () => applyTheme(document.documentElement.getAttribute("data-mode") !== "dark");
 export const barText = "inline-flex h-8 items-center gap-[5px] text-sm text-muted-foreground hover:text-foreground";
@@ -82,22 +81,6 @@ function MobileMenu({ who, current }: { who: Who; current?: string }) {
   );
 }
 
-// Owns the sign-in window's state, so a "Log in" (or auth.js after a failed
-// redirect, through window.openSignIn and its error sink) is never lost
-// while the window's code is still loading.
-export function SignInHost() {
-  const [open, setOpen] = useState(false);
-  const [used, setUsed] = useState(false);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    const on = () => { setUsed(true); setOpen(true); };
-    addEventListener(SIGNIN_EVENT, on);
-    if (typeof setAuthErrorSink === "function") setAuthErrorSink(setError);
-    return () => removeEventListener(SIGNIN_EVENT, on);
-  }, []);
-  return used ? <Suspense fallback={null}><SignInWindow open={open} onOpenChange={setOpen} error={error} setError={setError} /></Suspense> : null;
-}
-
 export function Header({ current, className }: { current?: string; className?: string }) {
   const who = useWho();
   return (
@@ -116,14 +99,13 @@ export function Header({ current, className }: { current?: string; className?: s
               <>
                 <button type="button" onClick={toggleTheme} className="h-8 cursor-pointer rounded-full bg-muted px-3.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"><ThemeWords /></button>
                 {/* A link without script (the account page signs in too); the window with it. */}
-                <a href="/account" data-signed-out="" className={cn(barText, "px-2.5")} onClick={(e) => { e.preventDefault(); requestSignIn(); }}>Log in</a>
+                <a href="/login" data-signed-out="" className={cn(barText, "px-2.5")} onClick={(e) => { e.preventDefault(); requestSignIn(); }}>Log in</a>
               </>
             )}
           </div>
           <MobileMenu who={who} current={current} />
         </div>
       </header>
-      <SignInHost />
     </div>
   );
 }

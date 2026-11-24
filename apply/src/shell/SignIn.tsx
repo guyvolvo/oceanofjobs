@@ -1,13 +1,9 @@
-// The sign-in window, opened by any "Log in" through requestSignIn() and
-// by auth.js after a failed Google or GitHub sign-in (window.openSignIn,
-// set in hydrate.tsx). auth.js does all the work; this is the window.
-// Same steps and copy as src/site/SignIn.tsx and frontend/signin_dialog.js.
-// Loaded on demand (Header.tsx), so its Radix dialog is not in the first load.
+// The sign-in steps: the /login page (src/login) and the signed-out
+// /account and /apply card (src/site/SignIn.tsx). auth.js does the work.
 import { useId, useState, type ComponentType, type ReactNode } from "react";
 import { ArrowLeft, GithubLogo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -17,9 +13,9 @@ export const GOOGLE = (
 );
 
 type Text = ComponentType<{ className?: string; children?: ReactNode }>;
-// Title and Description are the dialog's own; a page that is the sign-in
-// alone (src/site/SignIn.tsx) passes a heading and a paragraph instead.
-export function SignInSteps({ error, setError, Title = DialogTitle, Description = DialogDescription }: {
+const Heading: Text = ({ className, children }) => <h1 className={className}>{children}</h1>;
+const Line: Text = ({ className, children }) => <p className={className}>{children}</p>;
+export function SignInSteps({ error, setError, Title = Heading, Description = Line }: {
   error: string; setError: (e: string) => void; Title?: Text; Description?: Text;
 }) {
   const id = useId();
@@ -112,17 +108,5 @@ export function SignInSteps({ error, setError, Title = DialogTitle, Description 
         </>
       )}
     </div>
-  );
-}
-
-// The window itself, loaded on the first "Log in" (Header.tsx SignInHost
-// owns the open state and auth.js's error line, so neither waits for it).
-export default function SignInWindow({ open, onOpenChange, error, setError }: { open: boolean; onOpenChange: (o: boolean) => void; error: string; setError: (e: string) => void }) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[420px] max-w-[calc(100vw-32px)] px-7 pb-6 pt-8">
-        <SignInSteps error={error} setError={setError} />
-      </DialogContent>
-    </Dialog>
   );
 }

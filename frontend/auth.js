@@ -401,11 +401,13 @@ async function handleAuthRedirect() {
     // like it ignored them, which is how GitHub sign-in stayed broken
     // without anyone noticing. Reported live 2026-09-24.
     //
-    // The dialog is reopened because the redirect closed it, and it is
-    // where the error line and the other two ways in already are.
+    // Shown on /login, where the other two ways in are: carried over in
+    // this tab when the provider sent the reader back somewhere else.
     setTimeout(() => {
+      const msg = AUTH_ERRORS[code] || "Couldn't log you in. Try again.";
+      if (location.pathname === "/login") return authErrorSink(msg);
+      sessionStorage.setItem("ooj_auth_error", msg);
       if (window.openSignIn) window.openSignIn();
-      authErrorSink(AUTH_ERRORS[code] || "Couldn't log you in. Try again.");
     }, 0);
     return;
   }
