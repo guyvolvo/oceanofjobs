@@ -3,14 +3,19 @@
 // country with some of its cities picked shows as mixed. What is typed in
 // the box narrows the tree here and asks the server for more places
 // (/api/places/search, store.placeSearch). Loaded on first use.
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Tree, TreeItem, TreeItemContent, type Key, type Selection } from "react-aria-components";
 import { CaretRight, Check, Minus } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { F, U, placeCountries, placeSearch, railToggle } from "./store";
 import { cityCountry, cityKey, countryLabel, fmtInt, type City, type Country } from "./util";
 
-type Node = { country: Country; cities: City[] };
+type Node = { country: Country; cities: City[]; byName?: boolean };
+
+// Rows drawn under one open country. A typed name finds the rest. While
+// typing, a country opened by its matching cities shows the first few.
+const CITY_ROWS = 100;
+const MATCHED_CITY_ROWS = 8;
 
 // Nothing typed: every country with jobs, the picked ones first. Typed:
 // countries whose name has it (all their cities) and the cities that have
@@ -27,7 +32,7 @@ function nodes(raw: string): Node[] {
     const cities = at >= 0 ? c.cities : c.cities.filter((t) => (t.label || t.value).toLowerCase().includes(q));
     if (at < 0 && !cities.length) continue;
     const cityAt = Math.min(...cities.map((t) => (t.label || t.value).toLowerCase().indexOf(q)).filter((i) => i >= 0), 99);
-    hits.push({ country: c, cities, at: at >= 0 ? at : cityAt, n: c.n || 0 });
+    hits.push({ country: c, cities, byName: at >= 0, at: at >= 0 ? at : cityAt, n: c.n || 0 });
   }
   return hits.sort((a, b) => Number(a.at > 0) - Number(b.at > 0) || b.n - a.n).slice(0, 40);
 }
@@ -43,12 +48,17 @@ function Box({ checked, mixed }: { checked: boolean; mixed: boolean }) {
 const row = "group flex min-h-8 cursor-pointer items-center gap-2 rounded-sm pr-2 font-ui text-[15px] text-foreground outline-none data-[focus-visible]:outline-2 data-[focus-visible]:-outline-offset-2 data-[focus-visible]:outline-ring data-[hovered]:bg-muted";
 const count = "ml-auto shrink-0 pl-3 text-xs tabular-nums text-muted-foreground";
 
-export default function LocationPanel({ open, query, onClose }: { open: boolean; query: string; onClose: (refocus: boolean) => void }) {
+export default function LocationPanel({ open, query: typed, onClose }: { open: boolean; query: string; onClose: (refocus: boolean) => void }) {
+  // The box shows each letter at once; the tree catches up behind it.
+  const query = useDeferredValue(typed);
   useEffect(() => { if (open) placeSearch(query); }, [open, query]);
   const list = useMemo(() => nodes(query), [query, U.facets, U.placeFound, F.country, F.city]); // eslint-disable-line react-hooks/exhaustive-deps
   const [opened, setOpened] = useState<Set<Key>>(() => new Set(F.city.map((t) => cityCountry(t) || "")));
-  // Typed: every country with a matching city is open.
-  const expanded = useMemo(() => (query.trim() ? new Set<Key>([...opened, ...list.filter((n) => n.cities.length).map((n) => n.country.value)]) : opened), [query, list, opened]);
+  // Typed: a country opens when one of its cities matched, not when its own
+  // name did. Opening every "u" country drew thousands of city rows per
+  // letter and the box lagged two seconds behind the keyboard (2026-11-24).
+  const expanded = useMemo(() => (query.trim()
+    ? new Set<Key>([...opened, ...list.filter((n) => !n.byName && n.cities.length).map((n) => n.country.value)]) : opened), [query, list, opened]);
   // A country is ticked when it is picked whole; with some of its cities
   // picked it is mixed, and the cities are ticked.
   const narrowed = new Set(F.city.map(cityCountry));
@@ -67,10 +77,10 @@ export default function LocationPanel({ open, query, onClose }: { open: boolean;
         expandedKeys={expanded} onExpandedChange={(k) => setOpened(new Set(k))}
         className="max-h-[min(360px,60vh)] overflow-y-auto overscroll-contain outline-none"
         renderEmptyState={() => <p className="m-0 px-2 py-1.5 font-ui text-sm text-muted-foreground">{U.placeAsking ? "Looking for places" : "No results"}</p>}>
-        {list.map(({ country: c, cities }) => {
+        {list.map(({ country: c, cities, byName }) => {
           const label = c.label || countryLabel(c.value);
           return (
-            <TreeItem key={c.value} id={c.value} textValue={label} className={cn(row, "pl-1")}>
+            <TreeItem key={c.value} id={c.value} textValue={label} className={cn(row, "pl-1")} hasChildItems={cities.length > 0}>
               <TreeItemContent>
                 {({ isSelected, isExpanded }) => (
                   <>
@@ -86,7 +96,8 @@ export default function LocationPanel({ open, query, onClose }: { open: boolean;
                   </>
                 )}
               </TreeItemContent>
-              {cities.map((t) => {
+              {/* Closed countries draw no city rows at all. */}
+              {(expanded.has(c.value) ? cities.slice(0, query.trim() && !byName ? MATCHED_CITY_ROWS : CITY_ROWS) : []).map((t) => {
                 const key = cityKey(c.value, t.value);
                 return (
                   <TreeItem key={key} id={key} textValue={t.label || t.value} className={cn(row, "pl-8")}>

@@ -45,7 +45,9 @@ export function salarySource(j: Job) {
   return { source, estimate: source !== "disclosed", note: SALARY_SOURCE_NOTE[source] || SALARY_SOURCE_NOTE.estimated };
 }
 
-export const fmtInt = (n: number | null | undefined) => (n ?? 0).toLocaleString();
+// One formatter: toLocaleString builds a new one per call, and the places tree calls this per row.
+const INT = new Intl.NumberFormat();
+export const fmtInt = (n: number | null | undefined) => INT.format(n ?? 0);
 
 export function fmtAge(days: number | null | undefined) {
   if (days == null) return "-";
