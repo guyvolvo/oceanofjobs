@@ -3,6 +3,7 @@
 // queries, asks the live API and scrambles both blocks over to the new
 // request and its answer (anime.js, loaded on the first click only). The
 // sample is a real answer to the real query, taken 2026-10-15.
+import { ArrowRight, Play } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import { Island } from "../shell/island";
 import { copyText } from "./copy";
@@ -110,7 +111,7 @@ export function ApiCode() {
           <div className="home-code">
             <div className="home-code-pane">
               <div className="home-code-label">Example request</div>
-              <button type="button" className="home-code-copy home-code-run" disabled={busy} onClick={run}><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" /></svg>Run</button>
+              <button type="button" className="home-code-copy home-code-run" disabled={busy} onClick={run}><Play size={14} />Run</button>
               <button type="button" className="home-code-copy" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
               <span className="sr-only" ref={live} role="status" aria-live="polite" />
               <pre className="home-code-req" ref={req}><span className="api-prompt">$</span> <span className="api-cmd" ref={cmd}>{curl(QUERIES[0])}</span></pre>
@@ -134,7 +135,7 @@ export function ApiSample() {
           <p className="home-api-p">Use the API to search jobs, look up companies, retrieve statistics, or build your own tools.</p>
           <p className="home-api-p">Check the API documentation to see how you can retrieve data with filters such as location, skills, seniority, workplace type, salary and more.</p>
           <div className="mt-[26px] flex flex-wrap items-center gap-3">
-            <a className="home-pill" href="/docs/api">Read the API docs<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></a>
+            <a className="home-pill" href="/docs/api">Read the API docs<ArrowRight size={14} /></a>
             <a className="home-soft home-soft-sm" href="https://github.com/guyvolvo/oceanofjobs">View on GitHub</a>
           </div>
         </div>

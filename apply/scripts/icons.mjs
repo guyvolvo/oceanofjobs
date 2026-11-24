@@ -21,7 +21,7 @@ const MAP = {
   Lightning: "bolt", Link: "link", List: "menu", ListChecks: "checklist", MagnifyingGlass: "search",
   MapPin: "location_on", Minus: "remove", Money: "attach_money", Moon: "dark_mode", PaperPlaneTilt: "send",
   Pause: "pause", PencilSimple: "edit", Play: "play_arrow", Plug: "power", Plus: "add", PuzzlePiece: "extension",
-  Robot: "smart_toy", ShareNetwork: "share", SidebarSimple: "left_panel_close", SignalBars: "signal_cellular_alt",
+  Robot: "smart_toy", ShareNetwork: "share", Shuffle: "shuffle", SidebarSimple: "left_panel_close", SignalBars: "signal_cellular_alt",
   SignOut: "logout", SlidersHorizontal: "tune", SquaresFour: "grid_view", Star: "star", Sun: "light_mode",
   Table: "table", Trash: "delete", Tray: "inbox", UploadSimple: "upload", User: "person", UserCircle: "account_circle",
   Warning: "warning", WarningCircle: "error", X: "close", XCircle: "cancel",

@@ -3,6 +3,7 @@
 // islands come alive (main.tsx): the bar, the search box, the previews,
 // the logo band, the recent jobs, the API sample and the footer's poll.
 // Everything else stays plain HTML.
+import { ArrowRight } from "@/components/icons";
 import { Island } from "../shell/island";
 import { Page } from "../shell/Page";
 import { ApiSample } from "./ApiSample";
@@ -72,7 +73,7 @@ export function Home() {
           <div className="home-start mx-auto max-w-[1180px]">
             <h2 id="start-title">Start your search.</h2>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <a className="home-pill home-pill-md" href="/board">Search jobs<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></a>
+              <a className="home-pill home-pill-md" href="/board">Search jobs<ArrowRight size={16} /></a>
               <a className="home-soft home-soft-md" href="/companies">Browse companies</a>
             </div>
           </div>
