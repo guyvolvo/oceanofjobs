@@ -154,7 +154,7 @@ export function Picker({ label, placeholder, options, value, onChange, limit }: 
       <Label id={`${id}-l`} className="leading-snug">{label}</Label>
       <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery(""); }}>
         <PopoverAnchor asChild>
-          <div className="flex min-h-[38px] w-full min-w-0 flex-wrap items-center gap-1 rounded-md border-[1.5px] border-input bg-background py-1 pr-1 pl-1.5 text-sm has-[button:focus-visible]:outline-2 has-[button:focus-visible]:-outline-offset-2 has-[button:focus-visible]:outline-ring">
+          <div className="flex min-h-[38px] w-full min-w-0 flex-wrap items-center gap-1 rounded-md border-[1.5px] border-input/30 bg-background py-1 pr-1 pl-1.5 text-sm has-[button:focus-visible]:outline-2 has-[button:focus-visible]:-outline-offset-2 has-[button:focus-visible]:outline-ring">
             {chosen.map((o) => (
               <Badge key={o.value} variant="secondary" className="max-w-full gap-1 rounded-sm pr-0.5">
                 <span className="truncate">{o.label}</span>
