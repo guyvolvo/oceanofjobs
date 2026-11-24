@@ -16,7 +16,14 @@ A listing is not asked again once it has a blob or its source answered
 for good (gone, or no text). The ids live in DONE, one per line, next to
 jobs.db. Timeouts, 429s and 5xx are retried on a later run.
 
+Two timers run it. Every hour, listings posted in the last 3 days, so a
+new listing gets its text within the hour. Run once a night only, every
+listing first seen after 01:30 UTC stayed title-only until the next
+night, and the board shows the newest first (reported 2026-11-24). Once
+a night, everything, for the older listings and the retries.
+
     python box/describe_backfill.py --limit 20000
+    python box/describe_backfill.py --days 3 --minutes 45
 """
 
 import argparse
@@ -99,13 +106,16 @@ def fetch(sess, row) -> tuple[str, str | None]:
     return job_id, text
 
 
-def todo(limit: int, done: set[str]) -> list[tuple]:
+def todo(limit: int, done: set[str], since: str = "") -> list[tuple]:
+    """Open listings still without text, newest first. since (an ISO date)
+    keeps those posted from then on: idx_jobs_open_posted answers that in
+    0.35s, against 12.7s to 8 minutes for the whole board (2026-11-24)."""
     conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=30)
     try:
         rows = conn.execute(
             f"SELECT id, ats, url, external_id FROM jobs WHERE closed_at IS NULL AND ats IN ({','.join('?' * len(ATS))}) "
-            "AND COALESCE(description_chars, 0) < ? ORDER BY first_seen DESC",
-            (*ATS, MIN_CHARS),
+            f"AND COALESCE(description_chars, 0) < ? {'AND posted_at >= ?' if since else ''} ORDER BY first_seen DESC",
+            (*ATS, MIN_CHARS, *([since] if since else [])),
         ).fetchall()
     finally:
         conn.close()
@@ -116,10 +126,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=20000)
     ap.add_argument("--minutes", type=float, default=150, help="stop starting new work after this long")
+    ap.add_argument("--days", type=float, help="only listings posted in the last N days")
     args = ap.parse_args()
     bucket = os.environ["DATA_BUCKET"]
     done = set(DONE.read_text().split()) if DONE.exists() else set()
-    rows = todo(args.limit, done)
+    since = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.time() - args.days * 86400)) if args.days else ""
+    rows = todo(args.limit, done, since)
     print(f"{len(rows)} listings to describe ({len(done)} done before)")
     deadline = time.monotonic() + args.minutes * 60
     sess = probe.session()
