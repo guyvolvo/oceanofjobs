@@ -14,6 +14,7 @@ import { address, decodeWords, readMessage } from "./lib/mime.mjs";
 import { waitlistChange } from "./lib/admin.mjs";
 import * as A from "./lib/auto.mjs";
 import * as S from "./lib/store.mjs";
+import * as U from "./lib/usage.mjs";
 
 const SECURITY = {
   "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://oceanofjobs.com; font-src 'self' data:; "
@@ -131,6 +132,15 @@ async function api(request, env, who, path) {
   const [, area, sub, more, last] = parts;
 
   if (area === "me" && method === "GET") return json(200, { email: who, sending: env.SENDING === "on" });
+
+  // The Usage page. Each source answers on its own, so one failing leaves the others.
+  if (area === "usage" && method === "GET") {
+    const days = Math.min(U.MAX_DAYS, Math.max(1, Number(q.days) || 7));
+    if (!env.CF_ANALYTICS_TOKEN) return fail(503, "Add CLOUDFLARE_ANALYTICS_TOKEN to .env and deploy the CRM again.");
+    const settle = (p) => p.then((v) => v, (e) => ({ error: e.message || "Couldn't load this." }));
+    const [mcp, apiUse, { contacts }] = await Promise.all([settle(U.mcp(env, days)), settle(U.api(env, days)), S.contacts(env)]);
+    return json(200, { days, mcp, api: apiUse, connections: U.connections(contacts) });
+  }
 
   if (area === "dashboard" && method === "GET") {
     const { contacts, attempts, older, complete } = await S.contacts(env, { fresh: q.fresh === "1" });

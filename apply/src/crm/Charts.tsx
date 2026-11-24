@@ -160,3 +160,21 @@ export function SystemsChart({ systems }: { systems: Split[] }) {
     </>
   );
 }
+
+// One bar group per day for the Usage page: each series side by side, in
+// the colours its config names.
+export function DailyChart({ rows, series }: { rows: Record<string, number | string>[]; series: Record<string, [string, string]> }) {
+  const config = Object.fromEntries(Object.entries(series).map(([k, [label, color]]) => [k, { label, color }])) satisfies ChartConfig;
+  const data = rows.map((r) => ({ ...r, at: at(String(r.date)) }));
+  return (
+    <ChartContainer config={config} className={`${BOX} h-[220px]`} role="img" aria-label={Object.values(series).map(([l]) => l).join(", ") + " per day."}>
+      <BarChart data={data} margin={{ left: -16, right: 4, top: 8 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey="at" {...axis} minTickGap={16} />
+        <YAxis {...axis} allowDecimals={false} tickCount={4} />
+        {tip}
+        {Object.keys(series).map((k) => <Bar key={k} dataKey={k} fill={`var(--color-${k})`} radius={[3, 3, 0, 0]} maxBarSize={14} isAnimationActive />)}
+      </BarChart>
+    </ChartContainer>
+  );
+}

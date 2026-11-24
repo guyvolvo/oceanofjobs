@@ -78,7 +78,7 @@ export async function contacts(env, { fresh = false } = {}) {
     ExpressionAttributeValues: { ...Object.fromEntries(MEMBER_ROWS.map((r, i) => [`:r${i}`, { S: r }])),
       ":tok": { S: "#token#" }, ":led": { S: "#ledger#month#" }, ":res": { S: "#agent_resume#" }, ":att": { S: "#attempt#" }, ":app": { S: "#applied#" } },
     ...projection(["user_id", "alert_id", "newsletter", "newsletter_at", "newsletter_source", "unsubscribed_at", "version", "agreed_at", "plan",
-      "status", "joined_at", "until", "note", "at", "scope", "created_at", "charged", "subscription_id", "event_at",
+      "status", "joined_at", "until", "note", "at", "scope", "created_at", "last_used_at", "charged", "subscription_id", "event_at",
       "state", "url", "canon", "reserved_at", "settled_at"]),
   }, 20);
   const crm = await all(env, "Query", { TableName: env.CRM_TABLE, KeyConditionExpression: "pk = :p",
@@ -96,7 +96,7 @@ export async function contacts(env, { fresh = false } = {}) {
     }
     if (k.startsWith("#applied#")) { if (r.status === "submitted") older.push(r.at || ""); continue; }
     const x = (extra[r.user_id] ||= { tokens: [], ledgers: {}, resume: false });
-    if (k.startsWith("#token#")) x.tokens.push({ scope: r.scope || "", created_at: r.created_at || "" });
+    if (k.startsWith("#token#")) x.tokens.push({ scope: r.scope || "", created_at: r.created_at || "", last_used_at: r.last_used_at || "" });
     else if (k.startsWith("#ledger#month#")) x.ledgers[k.slice(14)] = Number(r.charged || 0);
     else if (k.startsWith("#agent_resume#")) x.resume = true;
     else (byUser[r.user_id] ||= {})[k] = r;
