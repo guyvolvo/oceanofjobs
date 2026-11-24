@@ -24,7 +24,7 @@ export function loadPopups() {
 export const Popups = () => popups;
 
 // The 1.5px ink line every control on the board shares (DESIGN.md "Inputs").
-export const pill = "inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-foreground bg-card px-3.5 font-ui text-[15px] font-medium text-foreground whitespace-nowrap hover:bg-muted";
+export const pill = "inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-foreground/30 bg-card px-3.5 font-ui text-[15px] font-medium text-foreground whitespace-nowrap hover:bg-muted";
 const clearBtn = "grid size-6 flex-none cursor-pointer place-items-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground";
 const field = "flex min-w-0 flex-1 items-center gap-2 px-4";
 const fieldInput = "h-full min-w-0 flex-1 border-0 bg-transparent font-ui text-[15px] text-foreground outline-none placeholder:text-muted-foreground max-[800px]:text-base";
@@ -105,7 +105,7 @@ function LocationField() {
 
 export function SearchRow() {
   return (
-    <div id="topbar-search" role="search" className="relative flex h-10 min-w-0 flex-[1_1_360px] items-stretch rounded-full border-[1.5px] border-foreground bg-card focus-within:outline-2 focus-within:outline-ring max-[800px]:h-11 min-[1101px]:max-w-[600px]">
+    <div id="topbar-search" role="search" className="relative flex h-10 min-w-0 flex-[1_1_360px] items-stretch rounded-full border-[1.5px] border-foreground/30 bg-card focus-within:outline-2 focus-within:outline-ring max-[800px]:h-11 min-[1101px]:max-w-[600px]">
       <SearchField />
       <LocationField />
     </div>
@@ -194,7 +194,7 @@ export function MobileBar() {
           <SlidersHorizontal size={15} aria-hidden="true" />Filters
           {all.length ? <span id="m-badge" className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-foreground px-1.5 text-[11px] tabular-nums text-background">{all.length}</span> : null}
         </button>
-        <PillSelect id="m-sort" label="Sort by" prefix="Sort" className="h-9 border-foreground/40 px-3" valueClassName="font-bold"
+        <PillSelect id="m-sort" label="Sort by" prefix="Sort" className="h-9 border-foreground/30 px-3" valueClassName="font-bold"
           value={sortValue()} options={sortOptions()} onChange={pickSort} />
         <span id="m-count" className="ml-auto font-ui text-xs whitespace-nowrap tabular-nums text-muted-foreground" aria-live="polite">{count}</span>
       </div>
@@ -227,7 +227,7 @@ export function AlertButton() {
   if (U.paneOpen || U.sheetOpen) return null;
   return (
     <button type="button" id="m-alert" onClick={alertForSearch} tabIndex={gone ? -1 : undefined} aria-hidden={gone || undefined}
-      className={cn("fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-1/2 z-[35] inline-flex h-10 -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-foreground bg-card px-4 font-ui text-[13px] font-bold text-foreground transition-[translate,opacity] duration-250 min-[801px]:hidden",
+      className={cn("fixed bottom-[calc(76px+env(safe-area-inset-bottom))] left-1/2 z-[35] inline-flex h-10 -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-foreground/30 bg-card px-4 font-ui text-[13px] font-bold text-foreground transition-[translate,opacity] duration-250 min-[801px]:hidden",
         gone && "pointer-events-none translate-y-6 opacity-0")}>
       <Bell size={15} aria-hidden="true" />Alert me for this search
     </button>

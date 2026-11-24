@@ -126,7 +126,7 @@ export function Board() {
           <h1 className="sr-only">Job board</h1>
           <div className="flex flex-none flex-wrap items-center gap-2.5">
             <button ref={menu} type="button" id="side-open" aria-label="Menu" aria-expanded={side} aria-controls="site-side" onClick={() => setSide(!side)}
-              className="hidden size-10 flex-none cursor-pointer place-items-center rounded-full border-[1.5px] border-foreground bg-card text-foreground hover:bg-muted min-[801px]:max-[1100px]:grid">
+              className="hidden size-10 flex-none cursor-pointer place-items-center rounded-full border-[1.5px] border-foreground/30 bg-card text-foreground hover:bg-muted min-[801px]:max-[1100px]:grid">
               <ListIcon size={20} />
             </button>
             <SearchRow />

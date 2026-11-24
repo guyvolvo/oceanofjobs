@@ -23,7 +23,7 @@ function Skills({ skills, setSkills, onPick, onFile, fileName, cvStatus, save, s
   return (
     <div className={STACK}>
       <Card>
-        <div className={cn("flex flex-col items-start gap-2 rounded-lg border border-dashed p-6", dragging ? "border-ring bg-[var(--ooj-green-tint)]" : "border-input bg-muted")}
+        <div className={cn("flex flex-col items-start gap-2 rounded-lg border border-dashed p-6", dragging ? "border-ring bg-[var(--ooj-green-tint)]" : "border-input/30 bg-muted")}
           onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
