@@ -35,6 +35,9 @@ from job_page import FOOT, SENIORITY_LABELS, SITE, _head, _parse
 from page_chrome import ago_short, ats_is_site, ats_name, fmt_int, long_date, monogram, plural, short_date, topbar
 from same_company import SAME_COMPANY
 from titles import split_title
+from icons import icon
+
+I_ALERT = icon("notifications", 14)  # Google's Material Symbols (api/icons.py)
 
 TOPBAR = topbar("companies")
 
@@ -329,7 +332,7 @@ def render(company, jobs, facts, now=None) -> str:
         <p class="company-summary visually-hidden">{summary}</p>
       </div>
       <div class="pg-co-acts">
-        <button type="button" class="pg-btn" data-alert-company><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me</button>
+        <button type="button" class="pg-btn" data-alert-company>{I_ALERT}Alert me</button>
         {f'<a class="pg-btn pg-btn-fill" href="/board?company={esc(domain)}">See all {fmt_int(n)} on the board</a>' if n else ""}
       </div>
     </header>

@@ -11,7 +11,9 @@ server-rendered pages (jobs, companies, roles) from page_chrome.topbar.
 
 from html import escape
 
-CHEV = '<svg class="site-menu-chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>'
+# Material Symbols keyboard_arrow_down, written in: this file is copied by name into the scrape
+# Lambda (deploy-scrape-lambda.yml), so it imports nothing new.
+CHEV = '<svg class="site-menu-chev" viewBox="0 -960 960 960" width="12" height="12" fill="currentColor" aria-hidden="true" focusable="false"><path d="M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z"/></svg>'
 
 # Material Symbols paths, the set the sidebar already draws with.
 ICON = {
