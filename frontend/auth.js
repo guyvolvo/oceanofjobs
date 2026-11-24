@@ -62,13 +62,19 @@ const PKCE_VERIFIER_KEY = "iljobs_pkce_verifier"; // sessionStorage: only needs 
 // The page a Google or GitHub sign-in started on, so it lands back there
 // rather than on /board: /apply?connect=1 connects the extension after it.
 const RETURN_KEY = "ooj_signin_return";
+// On /login, where the reader is headed (its ?next=, which the page fills
+// in on load), not /login itself: landing back there only to be sent on
+// again showed the page, then the sign-in, then the page (2026-11-24).
 function rememberPage() {
-  sessionStorage.setItem(RETURN_KEY, location.pathname + location.search + location.hash);
+  const here = location.pathname === "/login"
+    ? new URLSearchParams(location.search).get("next") || "/account"
+    : location.pathname + location.search + location.hash;
+  sessionStorage.setItem(RETURN_KEY, here);
 }
 function returnToPage() {
   const to = sessionStorage.getItem(RETURN_KEY);
   sessionStorage.removeItem(RETURN_KEY);
-  if (to && to.startsWith("/") && !to.startsWith("//") && to !== location.pathname + location.search + location.hash) location.replace(to);
+  if (to && to.startsWith("/") && !to.startsWith("//") && !to.startsWith("/\\") && to !== location.pathname + location.search + location.hash) location.replace(to);
   else document.documentElement.style.visibility = "";
 }
 
