@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, Trash, Tray } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, Trash, Tray } from "@/components/icons";
 import { apply, send, type QueueItem } from "../api";
 import { useExtension } from "../ext";
 import { ATS, ExtensionAction, JobCell, SOURCE, SourceLabel, fmtDate, plural } from "../shared";

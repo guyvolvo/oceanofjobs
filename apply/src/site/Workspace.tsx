@@ -4,7 +4,7 @@
 // Folds to an icon rail on a desktop; a drawer behind the menu button
 // on a phone (shadcn's Sidebar does both).
 import { useEffect, useState, type ReactNode } from "react";
-import { ChatCircleDots, Moon, SignOut, Sun, UserCircle } from "@phosphor-icons/react";
+import { ChatCircleDots, Moon, SignOut, Sun, UserCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuBadge,

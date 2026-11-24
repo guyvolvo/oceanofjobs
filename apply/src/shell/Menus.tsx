@@ -2,7 +2,7 @@
 // signed-in account menu and the phone's sheet. Loaded on demand by
 // Header.tsx, so a signed-out desktop visit never downloads them.
 import { useEffect, type RefObject } from "react";
-import { Bell, BookmarkSimple, ChatCircleDots, Moon, PaperPlaneTilt, SignOut, Sun, UserCircle } from "@phosphor-icons/react";
+import { Bell, BookmarkSimple, ChatCircleDots, Moon, PaperPlaneTilt, SignOut, Sun, UserCircle } from "@/components/icons";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";

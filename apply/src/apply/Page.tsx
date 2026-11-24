@@ -4,7 +4,7 @@
 // pieces the pages share: a card, a stat tile, a loading row, a banner,
 // an empty state.
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { WarningCircle } from "@phosphor-icons/react";
+import { WarningCircle } from "@/components/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";

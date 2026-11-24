@@ -1,6 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Check as CheckIcon, CaretRight as ChevronRightIcon, Circle as CircleIcon } from "@phosphor-icons/react"
+import { Check as CheckIcon, CaretRight as ChevronRightIcon, Circle as CircleIcon } from "@/components/icons"
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 
 function DropdownMenu({

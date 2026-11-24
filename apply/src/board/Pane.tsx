@@ -3,7 +3,7 @@
 // filters add up to. The Apply links keep the old class names, which
 // count.js counts as apply clicks.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowUpRight, CaretLeft, CaretRight, Copy, ShareNetwork, Star, X } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowUpRight, CaretLeft, CaretRight, Copy, ShareNetwork, Star, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CheckField, LoadingButton } from "../fields";
-import { DownloadSimple, FileArrowUp } from "@phosphor-icons/react";
+import { DownloadSimple, FileArrowUp } from "@/components/icons";
 import { ApiError, api, send } from "../api";
 import { ExtensionSettingsButton } from "../shared";
 import type { Ext } from "../ext";

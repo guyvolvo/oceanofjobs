@@ -5,7 +5,7 @@
 // The parts built on Radix (account menu, phone sheet, sign-in window)
 // load on first use, which keeps them out of every page's first load.
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
-import { CaretDown, List } from "@phosphor-icons/react";
+import { CaretDown, List } from "@/components/icons";
 // clsx, not cn: no class here overrides another, and tailwind-merge
 // (about 7 KB gzip) would otherwise be in every text page's first load.
 import { clsx as cn } from "clsx";

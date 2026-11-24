@@ -10,7 +10,7 @@ import { FieldLegend, FieldSet } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoadingButton, SelectField, TextField } from "../fields";
-import { CaretRight } from "@phosphor-icons/react";
+import { CaretRight } from "@/components/icons";
 import { useUnsaved } from "../unsaved";
 import { plural } from "../shared";
 import { Workspace } from "../site/Workspace";

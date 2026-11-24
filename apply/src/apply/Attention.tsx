@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AreaField, LoadingButton } from "../fields";
-import { CheckCircle, Info } from "@phosphor-icons/react";
+import { CheckCircle, Info } from "@/components/icons";
 import { apply, send, ApiError, type HistoryRow, type Need } from "../api";
 import { JobCell, fmtDate, plural } from "../shared";
 import { useApplyData } from "./data";

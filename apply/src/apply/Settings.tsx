@@ -4,7 +4,7 @@
 // guide (Onboarding.tsx) over it.
 import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Plus, X } from "@phosphor-icons/react";
+import { Plus, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { FieldDescription, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";

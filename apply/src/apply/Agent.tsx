@@ -5,7 +5,7 @@
 // only name the field.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileArrowUp, Info, Plus, X } from "@phosphor-icons/react";
+import { FileArrowUp, Info, Plus, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

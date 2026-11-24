@@ -2,7 +2,7 @@
 // tokens for MCP clients (api/tokens.py), and deleting the account.
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus } from "@phosphor-icons/react";
+import { Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";

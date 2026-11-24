@@ -1,4 +1,4 @@
-import { CheckCircle, CircleNotch, Info, Warning, XCircle } from "@phosphor-icons/react"
+import { CheckCircle, CircleNotch, Info, Warning, XCircle } from "@/components/icons"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { useDark } from "@/shell/state"
 

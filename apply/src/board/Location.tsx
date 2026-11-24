@@ -5,7 +5,7 @@
 // (/api/places/search, store.placeSearch). Loaded on first use.
 import { memo, startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Tree, TreeItem, TreeItemContent, type Key, type Selection } from "react-aria-components";
-import { CaretRight, Check, Minus } from "@phosphor-icons/react";
+import { CaretRight, Check, Minus } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { F, U, placeCountries, placeSearch, railToggle, onPlaces, useBoard } from "./store";
 import { cityCountry, cityKey, countryLabel, fmtInt, type City, type Country } from "./util";

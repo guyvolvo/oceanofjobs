@@ -3,7 +3,7 @@
 // module (re-exported by nav.tsx) so a page that needs only this list does
 // not also load the workspace sidebar's icons.
 import type { ComponentType } from "react";
-import { ClockCounterClockwise, Code, Plug, PuzzlePiece } from "@phosphor-icons/react";
+import { ClockCounterClockwise, Code, Plug, PuzzlePiece } from "@/components/icons";
 
 export type Icon = ComponentType<{ className?: string; size?: number | string; weight?: "regular" | "bold" | "fill" }>;
 export type Link = { label: string; href: string; icon?: Icon };

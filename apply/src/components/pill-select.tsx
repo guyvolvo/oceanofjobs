@@ -7,7 +7,7 @@
 // plain button that looks the same, and a click on it opens the list once
 // Radix is in.
 import { useEffect, useState, type ReactNode } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 // Radix Select doesn't take "" as an item's value; "" is "Any date" here.

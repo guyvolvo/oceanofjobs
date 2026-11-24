@@ -1,7 +1,7 @@
 // The phone's bottom tab bar on the app pages (frontend/tabbar.js): Jobs,
 // Companies, Saved, Alerts, Account. Shown up to 800px wide; the spacer
 // keeps the end of the page clear of it.
-import { Bell, Briefcase, Buildings, Star, User } from "@phosphor-icons/react";
+import { Bell, Briefcase, Buildings, Star, User } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const TABS = [
