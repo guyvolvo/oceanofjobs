@@ -2,7 +2,7 @@
 // newest fits, the skills against demand, and the alerts. Every number is
 // the reader's own, from /api/me/dashboard (computed on the box once a
 // day, api/dashboard.py) and the alert and saved lists.
-import { lazy, Suspense, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Alert as Notice, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,10 +11,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { LoadingButton } from "../fields";
 import { Meter } from "../shared";
+import { apply } from "../api";
+import type { Resume } from "../apply/Agent";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, WarningCircle, X } from "@phosphor-icons/react";
 import { GOOGLE } from "../shell/SignIn";
 import { Workspace } from "../site/Workspace";
-import { describeAlertFilter, EMPTY_PROFILE, fmt, MAX_SKILLS, placeSummary, provider, starred, useAlerts, useDashboard, useProfile, useSaved,
+import { describeAlertFilter, EMPTY_PROFILE, fmt, MAX_SKILLS, placeSummary, provider, starred, useAlerts, useDashboard, useProfile, useSaved, WORKPLACE_LABELS,
   type Alert, type Dashboard, type Day, type Job } from "./data";
 import { AlertFormView, useAlertActions, useAlertForm, useLocationOptions, type AlertForm } from "./Alerts";
 import { ACTIONS_CELL, BODY, Card, ConfirmButton, gate, JOB, LINK, NOTE, PANEL, ROW, STACK, SUB, TABLE, TIGHT, TITLE, type User } from "./ui";
@@ -92,6 +94,16 @@ function pay(matches: Job[]) {
   return { med: q(0.5), lo: q(0.25), hi: q(0.75), n: pays.length, bins };
 }
 
+// A match's fit, read from the job's side: how much of the skill list the
+// job asks for the reader has, which skills they share and which they lack.
+// "13 of your 40 skills" said nothing about the job itself (2026-11-24).
+function fit(j: Job, want: Set<string>) {
+  const asks = (j.skills || "").split(",").filter(Boolean);
+  const have = asks.filter((sk) => want.has(sk));
+  return { asks, have, missing: asks.filter((sk) => !want.has(sk)), share: asks.length ? have.length / asks.length : 0 };
+}
+const some = (xs: string[], n: number) => xs.slice(0, n).join(", ") + (xs.length > n ? ` +${xs.length - n}` : "");
+
 const bone = (w: number) => <Skeleton className="h-4 max-w-full" style={{ width: w }} />;
 const block = (h: number) => <Skeleton className="w-full" style={{ height: h }} />;
 
@@ -140,8 +152,11 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, ale
   const savedN = savedJobs?.length || 0;
   const ready = dashLoaded;
 
-  const best = ready ? matches.slice(0, 3) : null;
   const want = new Set(skills);
+  // The dashboard's rule (api/dashboard.py MIN_MATCH): a match shares at least three skills.
+  const least = Math.min(3, skills.length);
+  const best = ready ? matches.map((j) => ({ j, f: fit(j, want) }))
+    .sort((a, b) => b.f.share - a.f.share || b.f.have.length - a.f.have.length).slice(0, 3) : null;
   const stars = starred();
 
   // Gaps: skills the reader doesn't list that at least a fifth of their
@@ -180,8 +195,8 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, ale
           aside={!ready ? bone(60) : monthAgo == null ? "" : `Prev: ${fmt(monthAgo)} / mo`} />
         <Stat label="Median salary / mo" value={!ready ? bone(64) : p ? k(p.med) : "–"}
           extra={p ? <span className="block w-24 flex-none" aria-hidden="true"><Suspense fallback={null}><PayChart bins={p.bins} lo={p.lo} hi={p.hi} /></Suspense></span> : null}
-          aside={!ready ? bone(60) : p ? `Mid: ${k(p.lo)}–${k(p.hi).slice(1)}` : noSkills ? "" : "Too few estimates yet"}
-          title={p ? `Estimated from ${p.n} of your matches. The middle half pays ${k(p.lo)} to ${k(p.hi)} a month.` : undefined} />
+          aside={!ready ? bone(60) : p ? `${p.n} of ${matches.length} matches show pay` : noSkills ? "" : "Too few matches show pay yet"}
+          title={p ? `Only matches that list a salary or have our estimate count. The middle half pays ${k(p.lo)} to ${k(p.hi)} a month.` : undefined} />
         <Stat label="Saved jobs" value={savedJobs ? fmt(savedN) : savedError ? "–" : bone(40)}
           extra={savedN ? <a className={LINK} href="/account/saved">View</a> : null}
           aside={!savedJobs ? (savedError ? "Couldn't load" : bone(60)) : savedN ? `${stillOpen} still open` : <a className={LINK} href="/board">Save one from the board</a>} />
@@ -209,6 +224,7 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, ale
                   <div className={`${ROW} ${TIGHT}`}><span className={FIGURE}>{fmt(trendValues[trendValues.length - 1])}</span>
                     <Pill pct={isM ? change(trendValues[trendValues.length - 1], trendValues[trendValues.length - 2]) : change(open, monthAgo)} /></div>
                 ) : null}
+                {skills.length ? <p className={`${NOTE} mt-1`}>A match is an open job that asks for at least {least} of your skills. New means first seen that week. Updated once a day.</p> : null}
               </div>
               <Tabs value={series} onValueChange={(v) => setSeries(v as "matches" | "roles")}>
                 <TabsList aria-label="Series"><TabsTrigger value="matches">New matches</TabsTrigger><TabsTrigger value="roles">Open jobs</TabsTrigger></TabsList>
@@ -233,22 +249,27 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, ale
           </section>
         </div>
 
-        <Card title="New best matches" action={<Button variant="ghost" asChild><a href="/board?view=matches">{week ? `View all ${fmt(week)}` : "View all"}</a></Button>}>
+        <Card title="Best matches" action={<Button variant="ghost" size="sm" asChild><a href="/board?view=matches">View all</a></Button>}
+          note={ready && best?.length ? `Ranked by how much of each job's skill list you have.${dash?.computed_at ? ` Updated ${ago(dash.computed_at)}.` : ""}` : undefined}>
           {ready && !skills.length ? <p className={NOTE}>Add skills to see matches.</p>
             : !best ? <div className={STACK}>{bone(220)}{bone(180)}{bone(200)}</div>
             : !best.length ? <p className={NOTE}>Nothing matches those skills yet.</p>
             : (
               <ul className="m-0 flex list-none flex-col p-0">
-                {best.map((j) => {
-                  const hit = (j.skills || "").split(",").filter((sk) => want.has(sk)).length;
+                {best.map(({ j, f }) => {
                   const on = stars.has(j.id);
+                  const facts = [j.salary_text ? `${j.salary_text}${j.salary_is_estimate ? " (estimate)" : ""}` : "",
+                    WORKPLACE_LABELS[j.workplace_type || ""] || "", j.first_seen ? `Found ${ago(j.first_seen)}` : ""].filter(Boolean);
                   return (
                     <li key={j.id} className="flex items-start gap-3 border-t py-3 first:border-t-0 first:pt-0">
                       <Logo job={j} />
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <a className={JOB} href={`/job/${encodeURIComponent(j.id)}`}>{j.title}</a>
                         <span className={SUB}>{j.company_name || j.company_domain || ""}{j.location ? ` · ${j.location}` : ""}</span>
-                        <Meter label="Shared skills" value={hit} max={Math.max(1, want.size)} customValue={`${hit} of ${want.size}`} />
+                        <Meter label="Its skills you have" value={f.have.length} max={Math.max(1, f.asks.length)} customValue={`${f.have.length} of ${f.asks.length}`} />
+                        <span className="text-sm text-foreground [overflow-wrap:anywhere]">{some(f.have, 4)}</span>
+                        {f.missing.length ? <span className="text-sm text-muted-foreground [overflow-wrap:anywhere]">Missing {some(f.missing, 3)}</span> : null}
+                        {facts.length ? <span className={SUB}>{facts.join(" · ")}</span> : null}
                       </div>
                       <Button size="icon-sm" variant={on ? "secondary" : "ghost"} aria-pressed={on} aria-label={`${on ? "Saved" : "Save"}: ${j.title}`}
                         onClick={async () => { await toggleSave(j, !on); repaint((x) => x + 1); }}>
@@ -291,7 +312,7 @@ function Overview({ skills, places, dash, dashLoaded, savedJobs, savedError, ale
         </Card>
 
         <Card title={<>Alerts {sent ? <span className={NOTE}>· sent {ago(sent)}</span> : null}</>}
-          action={<Button variant="outline" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
+          action={<Button variant="outline" size="sm" aria-expanded={formOpen} onClick={() => { if (formOpen) form.reset(); setFormOpen(!formOpen); }}>{formOpen ? "Cancel" : "New alert"}</Button>}>
           {formOpen ? <AlertFormView form={form} autoFocus onDone={() => setFormOpen(false)} />
             : alertsError && !alerts ? <p className={NOTE}>{alertsError}</p>
             : !alerts ? <div className={STACK}>{bone(220)}{bone(180)}</div>
@@ -346,14 +367,22 @@ function OverviewPage({ who }: { who: User }) {
   const country = p.country.length === 1 ? p.country[0] : "";
   const openHref = p.skills.length ? `/board?view=matches&skills=${encodeURIComponent(p.skills.join(","))}${country ? `&country=${country}` : ""}` : "/board?view=matches";
   const signedInWith = provider(who.idToken);
+  // The resume automatic applying reads (api/agent.py put_resume): when it
+  // was added and whether text came out of it. undefined while loading.
+  const [resume, setResume] = useState<Resume | undefined>(undefined);
+  useEffect(() => { apply<{ agent: { resume: Resume } }>("agent").then((r) => setResume(r.agent.resume), () => {}); }, []);
   const newAlert = () => {
     setFormOpen(true);
     requestAnimationFrame(() => document.getElementById("alert-create")?.scrollIntoView({ block: "nearest" }));
   };
   return (
     <Workspace current="overview" title="Account"
-      note={<span className="[overflow-wrap:anywhere]">{greeting(who.name)}. {who.email}
-        {signedInWith ? <span className="inline-flex items-center gap-1 whitespace-nowrap"> · {GOOGLE} Signed in with {signedInWith}</span> : null}</span>}
+      note={<span className="[overflow-wrap:anywhere]">{greeting(who.name)}.
+        {signedInWith ? <> · <span className="inline-flex items-center gap-1 whitespace-nowrap">{GOOGLE} Signed in with {signedInWith}</span></> : null}
+        {resume === undefined ? null : resume ? (
+          <span className="block">Resume {resume.name}, added {ago(resume.uploaded_at)}. {resume.truncated ? `Only the first ${fmt(resume.chars)} characters were read.`
+            : `${fmt(resume.chars)} characters read.`} <a className={LINK} href="/apply/agent">Replace</a></span>
+        ) : <span className="block">No resume yet. <a className={LINK} href="/apply/agent">Add one</a> so skills and answers come from it.</span>}</span>}
       actions={<>
         <Button variant="outline" asChild><a href="/account/skills"><UploadSimple />Add skills from a resume</a></Button>
         <Button variant="outline" onClick={newAlert}><Bell />New alert</Button>

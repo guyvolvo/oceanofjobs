@@ -20,7 +20,7 @@ import { useExtension, type Ext } from "../ext";
 import { BOX } from "./Agent";
 import { useApplyData } from "./data";
 import { Onboarding } from "./Onboarding";
-import { ApplyPage, Banner, Card, LINK, Waiting } from "./Page";
+import { ApplyPage, Banner, Card, LINK, Section, Sections, useSection, Waiting } from "./Page";
 import { ResumeStorage } from "./Storage";
 
 const EEO = [["gender", "Gender"], ["race", "Race or ethnicity"], ["veteran", "Veteran status"], ["disability", "Disability"]] as const;
@@ -89,6 +89,7 @@ const RANGES = [["min_match", "Minimum skills match", 0, 100], ["daily", "Maximu
   ["per_company", "Days between applications to the same company", 1, 365]] as const;
 
 const GRID = "grid gap-x-4 gap-y-3 sm:grid-cols-2";
+const SECTIONS = [["details", "Your details"], ["applying", "How it applies"], ["limits", "Limits"], ["answers", "Saved answers"]] as const;
 const SOURCES = [["board", "Jobs I add to my queue on Ocean of Jobs"], ["matches", "Jobs matching my preferences"],
   ["ats_pages", "Jobs I open on supported hiring sites"], ["mcp", "Jobs queued by my AI assistant through MCP"]] as const;
 
@@ -127,6 +128,7 @@ function Settings({ ext }: { ext: Ext }) {
   const [loadFailed, setLoadFailed] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [busy, setBusy] = useState(false);
+  const [open, show] = useSection(SECTIONS.map(([id]) => id));
   const [asking, setAsking] = useState(false);
   const [askingFill, setAskingFill] = useState(false);
   // Auto-apply mode and Full automatic need a resume first (null while it's
@@ -173,6 +175,8 @@ function Settings({ ext }: { ext: Ext }) {
     }
     setErrors(bad);
     if (Object.keys(bad).length) {
+      // The limits are the only fields checked here; show them.
+      show("limits");
       toast.error("Couldn't save", { description: Object.values(bad)[0] });
       return false;
     }
@@ -192,6 +196,8 @@ function Settings({ ext }: { ext: Ext }) {
 
   return (
     <form className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); save(); }}>
+      <Sections open={open} show={show} items={SECTIONS}>
+      <Section id="details">
       <ResumeStorage ext={ext} />
       <Card title="Personal details" note="Used to fill in application forms. Your details are saved to your account so you can use them on any computer.">
         <div className={GRID}>
@@ -231,7 +237,9 @@ function Settings({ ext }: { ext: Ext }) {
         </div>
       </Card>
 
-      <section id="aa-settings">
+      </Section>
+
+      <Section id="applying">
         <Card title="Application settings">
           <Choices legend="Fill application" value={form.fill}
             onValueChange={(v) => (v === "full" ? setAskingFill(true) : set("fill", v as Form["fill"]))} options={[
@@ -250,7 +258,7 @@ function Settings({ ext }: { ext: Ext }) {
             onValueChange={(v) => (v === "auto" ? setAsking(true) : set("mode", v as Form["mode"]))} options={[
               { value: "queue", label: "Only jobs I queue", description: "The extension applies only to jobs you add to your queue." },
               { value: "auto", label: "Auto-apply mode", danger: true, disabled: hasResume === false && form.mode !== "auto",
-                description: "The extension applies to jobs that match your preferences, within your plan's limit and any limits you set below." },
+                description: "The extension applies to jobs that match your preferences, within your plan's limit and any limits you set under Limits." },
             ]} />
           {hasResume === false && form.mode !== "auto" ? <NeedsResume /> : null}
           <ConfirmDanger open={asking} title="Turn on Auto-apply mode?" confirm="Turn on Auto-apply mode"
@@ -270,8 +278,9 @@ function Settings({ ext }: { ext: Ext }) {
             { value: "skip", label: "Skip the job", description: "Leave it for me to review." },
           ]} />
         </Card>
-      </section>
+      </Section>
 
+      <Section id="limits">
       <Card title="Application limits" note="Optional. These apply on top of your plan's limit. Leave a field empty for no extra limit.">
         <div className={GRID}>
           {limit("min_match", "Minimum skills match (%)", "e.g. 60")}
@@ -283,7 +292,9 @@ function Settings({ ext }: { ext: Ext }) {
           </div>
         </div>
       </Card>
+      </Section>
 
+      <Section id="answers">
       <Card title="Saved answers" note="Save answers to common application questions. The extension reuses them when a question matches and lets you add new answers as you go.">
         {form.answers.map((a) => (
           <div key={a.id} className={`${BOX} grid-cols-[minmax(0,1fr)_auto] items-start`}>
@@ -301,6 +312,8 @@ function Settings({ ext }: { ext: Ext }) {
             onClick={() => set("answers", [...form.answers, { id: nextId++, question: "", answer: "" }])}><Plus />Add an answer</Button>
         </div>
       </Card>
+      </Section>
+      </Sections>
 
       <div className="flex items-center gap-3 pt-1">
         <LoadingButton type="submit" loading={busy}>Save</LoadingButton>

@@ -3,12 +3,13 @@
 // page shows (a request failed; no applications left). Plus the few
 // pieces the pages share: a card, a stat tile, a loading row, a banner,
 // an empty state.
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { WarningCircle } from "@phosphor-icons/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { WARN } from "../shared";
 import type { WorkKey } from "../site/nav";
@@ -111,3 +112,35 @@ export function Tile({ label, value, children }: { label: string; value: string 
 
 // The inline link, in the site's ink, green on hover.
 export const LINK = "text-foreground underline underline-offset-[3px] decoration-1 hover:text-link-hover hover:decoration-2";
+
+// A long settings form in sections, one shown at a time. The hidden ones
+// stay mounted, so one Save keeps the edits in all of them. The hash names
+// the open section, so a link can open one (/apply/settings#limits).
+export function useSection(ids: readonly string[]) {
+  const read = () => { const h = location.hash.slice(1); return ids.includes(h) ? h : ids[0]; };
+  const [open, setOpen] = useState(read);
+  useEffect(() => {
+    const on = () => setOpen(read());
+    addEventListener("hashchange", on);
+    return () => removeEventListener("hashchange", on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const show = (id: string) => { setOpen(id); history.replaceState(history.state, "", `#${id}`); };
+  return [open, show] as const;
+}
+export function Sections({ open, show, items, children }: {
+  open: string; show: (id: string) => void; items: readonly (readonly [string, string])[]; children: ReactNode;
+}) {
+  return (
+    <Tabs value={open} onValueChange={show} className="gap-4">
+      <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
+        <TabsList variant="line" aria-label="Sections" className="h-10! w-full justify-start border-b">
+          {items.map(([id, label]) => <TabsTrigger key={id} value={id} className="flex-none px-3">{label}</TabsTrigger>)}
+        </TabsList>
+      </div>
+      {children}
+    </Tabs>
+  );
+}
+export function Section({ id, children }: { id: string; children: ReactNode }) {
+  return <TabsContent value={id} forceMount className="flex flex-col gap-4 data-[state=inactive]:hidden">{children}</TabsContent>;
+}

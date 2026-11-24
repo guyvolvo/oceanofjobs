@@ -15,7 +15,7 @@ import { apply, send, ApiError } from "../api";
 import { RESUME_FOCUS } from "../shared";
 import { useUnsaved } from "../unsaved";
 import { useApplyData } from "./data";
-import { ApplyPage, Banner, Card, LINK, Waiting } from "./Page";
+import { ApplyPage, Banner, Card, LINK, Section, Sections, useSection, Waiting } from "./Page";
 
 type Topic = "referral_source" | "start_date" | "relocation" | "onsite_days" | "why_company" | "why_role";
 type Action = "answer" | "ai" | "ask";
@@ -31,6 +31,8 @@ type AgentData = {
 export type Resume = { name: string; chars: number; truncated: boolean; uploaded_at: string } | null;
 type Row = { key: number; text: string };
 type Form = Omit<AgentData, "facts" | "never_claim" | "editable" | "resume"> & { facts: Row[]; never: Row[] };
+
+const SECTIONS = [["about", "About you"], ["questions", "Questions"], ["style", "Style"], ["test", "Test an answer"]] as const;
 
 // Questions the agent recognises, in the words forms use. "Why" questions
 // are about one company or role, so they can't have one fixed answer.
@@ -252,6 +254,7 @@ function Agent() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [open, show] = useSection(SECTIONS.map(([id]) => id));
 
   const load = useCallback(() => {
     setLoadFailed(false);
@@ -275,6 +278,7 @@ function Agent() {
   const save = async () => {
     const missing = TOPICS.find(([t]) => form.topics[t].action === "answer" && !form.topics[t].value.trim());
     if (missing) {
+      show("questions");
       toast.error("Couldn't save", { description: `Add your answer to "${missing[1]}", or choose another option.` });
       return false;
     }
@@ -308,6 +312,8 @@ function Agent() {
         <Banner tone="warning" title="Your agent was changed in another tab"
           description="Reload to see the latest version, then make your changes again." action={<Button type="button" variant="outline" size="sm" onClick={load}>Reload</Button>} />
       ) : null}
+      <Sections open={open} show={show} items={SECTIONS}>
+      <Section id="about">
       <Card title="AI answers" note={<>New AI answers wait for your approval unless Fill application is set to Full automatic in <a className={LINK} href="/apply/settings">Auto apply settings</a>.</>} />
 
       <Card title="About you" note={["Add facts the AI can use when answering questions. Only include things that are true. For example: \"I led a team of five engineers at Acme from 2021 to 2024.\"",
@@ -319,7 +325,9 @@ function Agent() {
             placeholder="A fact about your experience" />
         </fieldset>
       </Card>
+      </Section>
 
+      <Section id="questions">
       <fieldset className="m-0 min-w-0 border-0 p-0" disabled={!editable}>
         <div className="flex flex-col gap-4">
           <Card title="Common questions" note="Set answers to questions you're often asked. The AI uses your saved answers and facts, and leaves a question unanswered when it doesn't have enough information.">
@@ -347,7 +355,13 @@ function Agent() {
           <Card title="Never claim" note={`List things the AI must never claim about you, such as having a degree or a security clearance. You can add up to ${LIMITS.never} phrases.`}>
             <List items={form.never} onChange={(r) => set("never", r)} max={LIMITS.never} limit={LIMITS.phrase} label="Phrase" placeholder="e.g. security clearance" />
           </Card>
+        </div>
+      </fieldset>
+      </Section>
 
+      <Section id="style">
+      <fieldset className="m-0 min-w-0 border-0 p-0" disabled={!editable}>
+        <div className="flex flex-col gap-4">
           <Card title="AI personalization" note="Set the tone and wording you prefer. These instructions affect how answers are written, not what the AI knows about you.">
             <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
               <SelectField label="Tone" value={form.style.tone} items={{ plain: "Plain", warm: "Warm", formal: "Formal" }}
@@ -364,12 +378,16 @@ function Agent() {
           </Card>
         </div>
       </fieldset>
+      </Section>
+
+      <Section id="test">
+        <TryIt editable={editable} />
+      </Section>
+      </Sections>
 
       <div className="flex items-center gap-3 pt-1">
         <LoadingButton type="submit" loading={busy} disabled={!editable}>Save</LoadingButton>
       </div>
-
-      <TryIt editable={editable} />
     </form>
   );
 }

@@ -838,9 +838,9 @@ actually follow the curve.
 - **Shape:** 4px radius, 2px solid border, fixed 38px height
 - **Primary** (`.btn`): ink background, paper text; hover flips to signal
   green (background + border)
-- **Ghost** (`.btn.ghost`): paper background, ink text/border; hover
-  inverts fully to ink background, paper text, the mirror of primary's
-  hover, not a separate treatment
+- **Ghost** (`.btn.ghost`): paper background, ink text, a 1px hairline
+  border; hover takes the soft fill. A heavy ink border made it compete
+  with primary (2026-11-24)
 
 ### Chips
 - **Style** (`.chip`): signal-green background, paper text, uppercase,
