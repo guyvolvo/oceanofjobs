@@ -69,7 +69,7 @@ t = alerts._digest_text(len(matches), matches, ALERT, NOW)
 
 # The shell: dark by declaration, tables only, one font stack, no web font
 check("the site name in the header is a link in the mail's own colour, so Gmail does not autolink it blue",
-      f'<a href="{alerts.SITE_ORIGIN}/" style="color:#f4f1ee; text-decoration:none;">oceanofjobs.com</a>' in h)
+      f'<a href="{alerts.SITE_ORIGIN}/" style="color:#f2f0ef; text-decoration:none;">Ocean of Jobs</a>' in h)
 check("the head declares the dark scheme so clients do not invert it",
       '<meta name="color-scheme" content="dark" />' in h and '<meta name="supported-color-schemes" content="dark" />' in h)
 check("the preheader is hidden and says how many, what for, since when",
@@ -82,33 +82,37 @@ check("the font stack starts with Geist and no web font is loaded",
 check("600px at most, centred, 40px of page around it and 16px on a phone",
       "max-width:600px" in h and 'align="center"' in h and 'class="otj-page" style="padding:40px 16px;"' in h
       and ".otj-page { padding: 16px !important; }" in h)
-check("page, card and header colours", "background:#0a0a0b" in h
-      and "background:#111214; border:1px solid #222328; border-radius:20px" in h
-      and "background:#000000; border-bottom:1px solid #222328" in h)
+check("the site's dark theme: page, card, hairline, 16px corners", "background:#0e0f11" in h
+      and "background:#17181c; border:1px solid #2d2e32; border-radius:16px" in h)
 
-# The header
-check("the lighthouse and the site name", f'<img src="{alerts.LOGO_PNG}" width="28" height="28"' in h and ">oceanofjobs.com</a></td>" in h)
-check("the count is green inside a 40px headline, 30px on a phone",
-      '<span style="color:#2fb36a;">4</span> new jobs for &quot;Israel&quot;' in h
-      and "font-size:40px; line-height:1.05; font-weight:500; letter-spacing:-0.03em" in h
+# The header: logo bar, the dithered sea, the count
+check("the lighthouse and the name", f'<img src="{alerts.LOGO_PNG}" width="28" height="28"' in h and ">Ocean of Jobs</a></td>" in h)
+check("the dithered sea under the logo bar, full width, before the count",
+      f'<img src="{alerts.WAVES_JPG}" width="566"' in h
+      and h.index(">Ocean of Jobs</a>") < h.index(alerts.WAVES_JPG) < h.index('class="otj-head"'))
+check("the count is green inside a 36px headline, for you, 30px on a phone",
+      '<span style="color:#2fae60;">4</span> new jobs for you' in h and "&quot;Israel&quot;" not in h
+      and "font-size:36px; line-height:1.05; font-weight:500; letter-spacing:-0.03em" in h
       and ".otj-head { font-size: 30px !important;" in h)
 check("the since line carries the date", ">New since Sep 19</div>" in h)
 
 # Rows
-check("four rows, 4px apart, no rules between them",
-      h.count("padding:0 0 4px 0;") == 4 and "border-top" not in h)
+check("four rows, a hairline under each, like the board's list",
+      h.count("padding:0; border-bottom:1px solid #2d2e32;") == 4 and "border-top" not in h)
+check("the level as an outline badge beside the title", ">Senior</span></div>" in h and "border-radius:999px" in h)
 check("a company's own logo is loaded through this site, never from its server",
       "wix.com/favicon.png" not in h and f'<img src="{alerts.SITE_ORIGIN}/logo/wix.com.png" width="48" height="48"' in h)
 check("a logo this site serves is shown in the tile",
       f'<img src="{alerts.SITE_ORIGIN}/img/logos/wix.png" width="48" height="48"' in h)
 check("no logo at all: the tile shows the company's letter, from the domain when there is no name",
-      'border-radius:12px; font-family:\'Geist\',-apple-system,\'Segoe UI\',Helvetica,Arial,sans-serif; font-size:20px; line-height:1; font-weight:600; color:#c9cacf;">W</td>' in h
-      and h.count('color:#c9cacf;">W</td>') == 1)
-check("the title links to the job's page here, 17px, no underline",
-      f'<a href="{alerts.SITE_ORIGIN}/job/abc" dir="auto" style="display:block; font-family:\'Geist\',-apple-system,\'Segoe UI\',Helvetica,Arial,sans-serif; font-size:17px; line-height:1.3; font-weight:500; color:#f4f1ee; text-decoration:none;">Senior Product Manager</a>' in h)
+      'border-radius:12px; font-family:\'Geist\',-apple-system,\'Segoe UI\',Helvetica,Arial,sans-serif; font-size:20px; line-height:1; font-weight:600; color:#b9b4ad;">W</td>' in h
+      and h.count('color:#b9b4ad;">W</td>') == 1)
+check("the title links to the job's page here, 16px, no underline",
+      f'<a href="{alerts.SITE_ORIGIN}/job/abc" style="color:#f2f0ef; text-decoration:none;">Senior Product Manager</a>' in h
+      and "font-size:16px; line-height:1.35; font-weight:500;" in h)
 check("company, city with the country spelled out, and the age",
-      'Wix &middot; Tel Aviv, Israel &middot; <span style="color:#2fb36a;">Just posted</span>' in h)
-check("older than a day: days ago, muted", '<span style="color:#8a8c93;">3d ago</span>' in h)
+      'Wix &middot; Tel Aviv, Israel &middot; <span style="color:#2fae60;">Just posted</span>' in h)
+check("older than a day: days ago, muted", '<span style="color:#9a9ca3;">3d ago</span>' in h)
 check("no city column: the location text stands in", 'IAI &middot; נתב&quot;ג, Israel' in h)
 check("the trailing company comes off the title and the separator is tidied",
       ">Data Engineer, Streaming &amp; Batch</a>" in h and "(Wix)" not in h)
@@ -116,7 +120,9 @@ check("no salary in the mail", "₪30K" not in h and "$150K" not in h and "Est."
 check("angle brackets in a title are escaped", "Backend &lt;Lead&gt;" in h and "<Lead>" not in h)
 check("Apply goes straight to the employer, with the arrow as text",
       h.count('href="https://boards.greenhouse.io/wix/jobs/1"') >= 2 and "Apply&nbsp;&#8599;" in h and "<svg" not in h)
-check("the buttons have an Outlook fallback", h.count("<v:roundrect") == 5 and 'fillcolor="#2fb36a"' in h)
+check("the green button has an Outlook fallback, a pill; Apply is an outline pill",
+      h.count("<v:roundrect") == 1 and 'fillcolor="#2fae60"' in h and 'arcsize="100%"' in h
+      and h.count("border-radius:999px; font-family:") >= 4)
 check("on a phone the right-hand button hides and the one under the words shows",
       ".otj-apply-desk { display: none !important; }" in h and ".otj-apply-mob { display: block !important;" in h
       and h.count('class="otj-apply-mob"') == 4)
@@ -129,7 +135,7 @@ check("the board link carries the alert's own filters, empty ones dropped",
 check("See all matching jobs, then Edit this alert",
       ">See all matching jobs</a>" in h and h.count(f'href="{_html.escape(board)}"') == 2 and ">Edit this alert</a>" in h)
 check("why you got this, and the links; no Unsubscribe without a one-click link to give",
-      "because you created an alert for &quot;Israel&quot; on oceanofjobs.com" in h
+      "because you created an alert on oceanofjobs.com.<br />" in h
       and ">Manage alerts</a>" in h and ">Unsubscribe</a>" not in h and h.count(f'href="{alerts.SITE_ORIGIN}/account"') == 2
       and f'href="{alerts.SITE_ORIGIN}/"' in h)
 alerts._unsub.SECRET = "s3cret"
@@ -143,17 +149,17 @@ check("with a signed link, Unsubscribe goes to it, not to the account page",
       f'<a href="{_html.escape(link)}" style="' in signed_h and ">Unsubscribe</a>" in signed_h
       and f"Unsubscribe from this alert: {link}" in signed_t, signed_h[-900:])
 check("the card comes before the footer text",
-      h.index("border-radius:20px") < h.index('class="otj-head"') < h.index(">See all matching jobs</a>") < h.index(">Manage alerts</a>"))
+      h.index("border-radius:16px") < h.index('class="otj-head"') < h.index(">See all matching jobs</a>") < h.index(">Manage alerts</a>"))
 
 # Five rows at most, and the button carries the rest
 many = [job(id=f"j{i}", title=f"Role {i}") for i in range(9)]
 big = alerts._digest_html(9, many, ALERT, NOW)
-check("at most five rows are shown", big.count("padding:0 0 4px 0;") == 5 and "Role 4" in big and "Role 5" not in big)
+check("at most five rows are shown", big.count("padding:0; border-bottom:1px solid #2d2e32;") == 5 and "Role 4" in big and "Role 5" not in big)
 check("the button opens every match", ">See all matching jobs</a>" in big)
 capped = [job(id=f"c{i}", title=f"Role {i}") for i in range(alerts.MAX_MATCHES)]
 ch = alerts._digest_html(len(capped), capped, ALERT, NOW)
 check("at the fetch cap the count says 50+, since there may be more",
-      '<span style="color:#2fb36a;">50+</span> new jobs' in ch and '50+ new jobs matching' in ch
+      '<span style="color:#2fae60;">50+</span> new jobs' in ch and '50+ new jobs matching' in ch
       and alerts._digest_text(len(capped), capped, ALERT, NOW).startswith('50+ new jobs')
       and alerts.digest_subject(ALERT, capped).endswith("and 49+ more new jobs"), alerts.digest_subject(ALERT, capped))
 undated = alerts._digest_html(1, [job(posted_at=None, first_seen=None)], ALERT, NOW)
@@ -162,7 +168,8 @@ check("a listing with no date shows no age", "Just posted" not in undated and "W
 
 # Plain text says the same things
 check("text part: headline, since, rows with apply and page links, then the board",
-      t.startswith('4 new jobs for "Israel"\nNew since Sep 19')
+      t.startswith('4 new jobs for you\nNew since Sep 19')
+      and "You're getting this because you created an alert on oceanofjobs.com." in t
       and "Apply: https://boards.greenhouse.io/wix/jobs/1" in t and f"{alerts.SITE_ORIGIN}/job/abc" in t
       and f"See all matching jobs: {board}" in t and f"Edit this alert: {alerts.SITE_ORIGIN}/account" in t
       and f"Manage alerts: {alerts.SITE_ORIGIN}/account" in t and "Unsubscribe" not in t, t[:200])
@@ -170,7 +177,7 @@ check("text part: cleaned titles, no salary", "Data Engineer, Streaming & Batch"
 
 # Singular, and an alert with no filter at all
 one = alerts._digest_html(1, matches[:1], {"filter": {}}, NOW)
-check("singular reads right", '1</span> new job for &quot;your alert&quot;' in one and '1 new job matching "your alert"' in one
+check("singular reads right", '1</span> new job for you' in one and '1 new job matching "your alert"' in one
       and ">See all matching jobs</a>" in one)
 check("no filter means a bare board link", 'href="https://oceanofjobs.com/board"' in one)
 check("israel_only still reads as Israel", alerts._filter_summary({"filter": {"israel_only": True}}) == ["Israel"]
