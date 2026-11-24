@@ -26,6 +26,9 @@ function nodes(raw: string): Node[] {
   const name = (c: Country) => (c.label || countryLabel(c.value)).toLowerCase();
   const on = (c: Country) => F.country.includes(c.value) || F.city.some((t) => cityCountry(t) === c.value);
   if (!q) return [...countries.filter(on), ...countries.filter((c) => !on(c) && c.n != null)].map((c) => ({ country: c, cities: c.cities }));
+  // One letter: the countries that start with it, closed. Every city with a
+  // "u" in it is noise, and drawing them held up the first letter.
+  if (q.length === 1) return countries.filter((c) => name(c).startsWith(q)).map((c) => ({ country: c, cities: c.cities, byName: true }));
   const hits: (Node & { at: number; n: number })[] = [];
   for (const c of countries) {
     const at = name(c).indexOf(q);
