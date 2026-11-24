@@ -55,7 +55,8 @@ export function SelectField({ label, description, value, onValueChange, items, c
       <Select value={value} onValueChange={onValueChange}>
         <SelectTrigger id={id} aria-label={ariaLabel}
           className="h-[38px]! w-full border-[1.5px] bg-background focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring dark:bg-background dark:hover:bg-accent"><SelectValue /></SelectTrigger>
-        <SelectContent>
+        {/* Under the field at its width. The default (item-aligned) laid the list over the field, off to one side. */}
+        <SelectContent position="popper" align="start">
           {Object.entries(items).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
         </SelectContent>
       </Select>
