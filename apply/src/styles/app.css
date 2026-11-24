@@ -33,6 +33,7 @@
   --color-sidebar-border: var(--border); --color-sidebar-ring: var(--ring);
 }
 @source "../board";
+@source "../crm";
 
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 

@@ -2,17 +2,17 @@
 // or one the owner picks and crops to the header's shape (552x140, saved
 // at twice that for sharp screens) and the CRM stores on the site.
 import { useEffect, useRef, useState } from "react";
-import { Loader } from "@cloudflare/kumo/components/loader";
-import { Button } from "@cloudflare/kumo/components/button";
-import { Dialog } from "@cloudflare/kumo/components/dialog";
-import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { crm } from "./api";
+import { toast } from "sonner";
+import { X } from "@/components/icons";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Btn, Loading } from "./ui";
 
 const W = 1104, H = 280; // twice the email's 552x140
 const DEFAULT = "https://oceanofjobs.com/img/email-header.jpg";
 
 function Cropper({ src, onCancel, onDone }: { src: string; onCancel: () => void; onDone: (url: string) => void }) {
-  const toasts = useKumoToastManager();
   const img = useRef<HTMLImageElement | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -47,13 +47,13 @@ function Cropper({ src, onCancel, onDone }: { src: string; onCancel: () => void;
       const data = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
       onDone((await crm<{ url: string }>("/images", "POST", { data })).url);
     } catch (e) {
-      toasts.add({ variant: "error", title: (e as Error).message || "Couldn't save the image. Try again." });
+      toast.error((e as Error).message || "Couldn't save the image. Try again.");
     } finally { setBusy(false); }
   };
   return (
-    <Dialog.Root open onOpenChange={(o) => { if (!o) onCancel(); }}>
-      <Dialog className="crm-dialog">
-        <Dialog.Title className="crm-card-title">Crop the image</Dialog.Title>
+    <Dialog open onOpenChange={(o) => { if (!o) onCancel(); }}>
+      <DialogContent showCloseButton={false} aria-describedby={undefined} className="max-h-[calc(100vh-48px)] overflow-y-auto sm:max-w-[640px]">
+        <DialogTitle className="crm-card-title">Crop the image</DialogTitle>
         <p className="crm-note">Drag to move it. The frame is the email's header size.</p>
         <div ref={box} className="crm-crop" onPointerDown={down} onPointerMove={move} onPointerUp={() => { drag.current = null; }}>
           <img ref={img} src={src} alt="" draggable={false} onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
@@ -62,27 +62,26 @@ function Cropper({ src, onCancel, onDone }: { src: string; onCancel: () => void;
         <label className="crm-zoom">Zoom
           <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
         </label>
-        <div className="crm-row" style={{ marginTop: 16 }}>
-          <Button variant="primary" loading={busy} disabled={!size} onClick={use}>Use this crop</Button>
-          <Button onClick={onCancel}>Cancel</Button>
+        <div className="crm-row" >
+          <Btn loading={busy} disabled={!size} onClick={use}>Use this crop</Btn>
+          <Button variant="outline" onClick={onCancel}>Cancel</Button>
         </div>
-      </Dialog>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 type Saved = { sk: string; url: string };
 
 export function ImagePicker({ value, onChange, disabled }: { value?: string; onChange: (v: string) => void; disabled?: boolean }) {
-  const toasts = useKumoToastManager();
   const input = useRef<HTMLInputElement>(null);
   const [src, setSrc] = useState("");
   const [saved, setSaved] = useState<Saved[] | null>(null);
   useEffect(() => { crm<{ images: Saved[] }>("/images").then((r) => setSaved(r.images), () => setSaved([])); }, []);
   const pick = (file?: File) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return toasts.add({ variant: "error", title: "Choose an image file." });
-    if (file.size > 20 * 1024 * 1024) return toasts.add({ variant: "error", title: "Choose an image under 20 MB." });
+    if (!file.type.startsWith("image/")) return toast.error("Choose an image file.");
+    if (file.size > 20 * 1024 * 1024) return toast.error("Choose an image under 20 MB.");
     const r = new FileReader();
     r.onload = () => setSrc(String(r.result));
     r.readAsDataURL(file);
@@ -90,7 +89,7 @@ export function ImagePicker({ value, onChange, disabled }: { value?: string; onC
   };
   const forget = async (img: Saved) => {
     await crm(`/images/${encodeURIComponent(img.sk)}`, "DELETE").then(() => setSaved((s) => (s || []).filter((x) => x.sk !== img.sk)),
-      (e) => toasts.add({ variant: "error", title: e.message }));
+      (e) => toast.error(e.message));
     if (value === img.url) onChange("");
   };
   const current = value === "none" ? "none" : value || "";
@@ -106,11 +105,11 @@ export function ImagePicker({ value, onChange, disabled }: { value?: string; onC
       <div className="crm-picks">
         {tile("default", current === "", "The sea painting", <img src={DEFAULT} alt="" />, () => onChange(""))}
         {(saved || []).map((img) => tile(img.sk, current === img.url, "A saved image", <img src={img.url} alt="" />, () => onChange(img.url),
-          <button type="button" className="crm-pick-x" disabled={disabled} aria-label="Remove from the list" onClick={() => forget(img)}>×</button>))}
+          <button type="button" className="crm-pick-x" disabled={disabled} aria-label="Remove from the list" onClick={() => forget(img)}><X /></button>))}
         {tile("none", current === "none", "No image", <span>No image</span>, () => onChange("none"))}
         {tile("upload", false, "Upload and crop an image", <span>+ Upload</span>, () => input.current?.click())}
       </div>
-      {saved === null ? <span className="crm-note"><Loader /> Loading your images</span> : null}
+      {saved === null ? <Loading>Loading your images</Loading> : null}
       <input ref={input} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
       {src ? <Cropper src={src} onCancel={() => setSrc("")} onDone={(url) => {
         setSrc(""); onChange(url); setSaved((s) => [{ sk: new Date().toISOString(), url }, ...(s || [])]);

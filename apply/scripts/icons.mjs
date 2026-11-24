@@ -25,6 +25,8 @@ const MAP = {
   SignOut: "logout", SlidersHorizontal: "tune", SquaresFour: "grid_view", Star: "star", Sun: "light_mode",
   Table: "table", Trash: "delete", Tray: "inbox", UploadSimple: "upload", User: "person", UserCircle: "account_circle",
   Warning: "warning", WarningCircle: "error", X: "close", XCircle: "cancel",
+  // The CRM's sidebar (src/crm/App.tsx).
+  Article: "article", FlowArrow: "account_tree", FunnelSimple: "filter_alt", Hourglass: "hourglass_empty", Users: "group",
 };
 const SERVER = ["location_on", "home", "schedule", "calendar_today", "language", "notifications", "star", "link", "keyboard_arrow_down"];
 const BRANDS = { GithubLogo: "github", LinkedinLogo: "linkedin" };
