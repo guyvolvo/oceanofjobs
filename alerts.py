@@ -444,24 +444,29 @@ def _place(job: dict, alert: dict | None = None) -> str:
 # The mail's palette as literal values, because an email client has no
 # CSS variables. Dark, on purpose and throughout: the meta tags in the
 # head say so, so a client that inverts light mail leaves this alone.
-_PAGE = "#0a0a0b"
-_CARD = "#111214"
-_CARD_LINE = "#222328"
-_HEAD = "#000000"
-_TEXT = "#f4f1ee"
+# The site's dark theme (apply/src/styles/tokens.css): page, card, hairline at
+# 10% of the text colour, the green the buttons use. Buttons and chips are
+# pills like the site's shadcn ones.
+_PAGE = "#0e0f11"
+_CARD = "#17181c"
+_CARD_LINE = "#2d2e32"
+_HEAD = "#17181c"
+_TEXT = "#f2f0ef"
 _TEXT_2 = "#9a9ca3"
-_MUTED = "#8a8c93"
-_LINK = "#c9cacf"
-_ACCENT = "#2fb36a"
-_ON_ACCENT = "#0b1a10"
-_TILE = "#1c1d22"
-_TILE_LINE = "#2a2b31"
+_MUTED = "#9a9ca3"
+_LINK = "#b9b4ad"
+_ACCENT = "#2fae60"
+_ON_ACCENT = "#f4f1ee"
+_TILE = "#1e1f24"
+_TILE_LINE = "#2b2c31"
 # Geist where it is installed, the system face where it is not. No web
 # font: Gmail strips the link and Outlook ignores it.
 _FONT = "'Geist',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif"
 # Outlook's own renderer takes only its own font list.
 _MSO_FONT = "Arial,sans-serif"
 LOGO_PNG = f"{SITE_ORIGIN}/img/email-lighthouse.png"
+# Under the logo bar, full width: the dithered sea, 1104x280, shown at 600x152.
+WAVES_JPG = f"{SITE_ORIGIN}/img/email-waves.jpg"
 
 ROWS_SHOWN = 5
 # The most matches one digest fetches. At the cap the mail says "50+",
@@ -675,7 +680,7 @@ def _digest_text(n: int, matches: list[dict], alert: dict | None = None, now: da
     now = now or datetime.now(timezone.utc)
     alert = alert or {}
     shown = matches[:ROWS_SHOWN]
-    lines = [f'{count_text(n)} new job{"s" if n != 1 else ""} for "{alert_name(alert)}"',
+    lines = [f'{count_text(n)} new job{"s" if n != 1 else ""} for you',
              f"New since {since_label(alert, now)}", ""]
     for j in shown:
         lines.append(clean_title(j["title"], _company(j)))
@@ -686,7 +691,7 @@ def _digest_text(n: int, matches: list[dict], alert: dict | None = None, now: da
     lines.append(f"See all matching jobs: {board_url(alert)}")
     lines.append(f"Edit this alert: {SITE_ORIGIN}/account")
     lines.append("")
-    lines.append(f'You\'re getting this because you created an alert for "{alert_name(alert)}" on oceanofjobs.com.')
+    lines.append("You're getting this because you created an alert on oceanofjobs.com.")
     lines.append(f"Manage alerts: {SITE_ORIGIN}/account")
     unsubscribe = unsubscribe_url(alert)
     if unsubscribe:
@@ -698,7 +703,7 @@ def _button(href: str, label: str, *, pad: str, radius: int, width: int, height:
     """A solid accent button that survives Outlook: VML for Word's
     renderer, a padded link for everything else."""
     esc = html.escape
-    arc = int(round(radius / height * 200))  # arcsize is a percentage of the half-height
+    arc = min(100, int(round(radius / height * 200)))  # arcsize is a percentage of the half-height; 100 is a pill
     return (f'<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" '
             f'xmlns:w="urn:schemas-microsoft-com:office:word" href="{esc(href)}" '
             f'style="height:{height}px;v-text-anchor:middle;width:{width}px;" arcsize="{arc}%" '
@@ -707,7 +712,7 @@ def _button(href: str, label: str, *, pad: str, radius: int, width: int, height:
             f'</v:roundrect><![endif]-->'
             f'<!--[if !mso]><!--><a href="{esc(href)}" style="display:inline-block; padding:{pad}; '
             f'border-radius:{radius}px; background:{_ACCENT}; color:{_ON_ACCENT}; font-family:{_FONT}; '
-            f'font-size:{font_px}px; line-height:1; font-weight:600; text-decoration:none; mso-hide:all;">{label}</a>'
+            f'font-size:{font_px}px; line-height:1; font-weight:600; text-decoration:none; white-space:nowrap; mso-hide:all;">{label}</a>'
             f'<!--<![endif]-->')
 
 
@@ -738,7 +743,15 @@ def _row_html(j: dict, now: datetime, alert: dict | None = None) -> str:
     age, new = age_label(j, now)
     age_html = f'<span style="color:{_ACCENT if new else _MUTED};">{esc(age)}</span>' if age else ""
     meta = " &middot; ".join(x for x in (esc(company), esc(row_place(j, alert)), age_html) if x)
-    apply = _button(j["url"], "Apply&nbsp;&#8599;", pad="11px 18px", radius=8, width=92, height=38, font_px=15)
+    # The board's row: an outline badge for the level beside the title and
+    # an outline pill to apply. No pay: the mail has kept salaries out since
+    # its 2026-09-30 redesign.
+    pill = (f"display:inline-block; padding:3px 9px; border:1px solid {_CARD_LINE}; border-radius:999px; "
+            f"font-family:{_FONT}; font-size:12px; line-height:1.3; font-weight:500; color:{_MUTED}; white-space:nowrap;")
+    level = _SENIORITY.get(j.get("seniority") or "")
+    badge = f'&nbsp;<span style="{pill} vertical-align:2px;">{esc(level)}</span>' if level else ""
+    apply = (f'<a href="{esc(j["url"])}" style="display:inline-block; padding:9px 16px; border:1px solid {_CARD_LINE}; border-radius:999px; '
+             f'font-family:{_FONT}; font-size:14px; line-height:1; font-weight:500; color:{_TEXT}; text-decoration:none; white-space:nowrap;">Apply&nbsp;&#8599;</a>')
     # The phone gets its own copy of the button, under the words and
     # hidden everywhere else: a table cell cannot move below its row,
     # and the right-hand cell above is hidden by the same media query.
@@ -746,18 +759,18 @@ def _row_html(j: dict, now: datetime, alert: dict | None = None) -> str:
     # the phone layout.
     esc_url = esc(j["url"])
     apply_mobile = (f'<div class="otj-apply-mob" style="display:none; max-height:0; overflow:hidden; mso-hide:all;">'
-                    f'<a href="{esc_url}" style="display:inline-block; padding:11px 18px; border-radius:8px; background:{_ACCENT}; '
-                    f'color:{_ON_ACCENT}; font-family:{_FONT}; font-size:15px; line-height:1; font-weight:600; text-decoration:none;">Apply&nbsp;&#8599;</a></div>')
+                    f'<a href="{esc_url}" style="display:inline-block; padding:9px 16px; border:1px solid {_CARD_LINE}; border-radius:999px; '
+                    f'color:{_TEXT}; font-family:{_FONT}; font-size:14px; line-height:1; font-weight:500; text-decoration:none;">Apply&nbsp;&#8599;</a></div>')
     return f"""
               <tr>
-                <td style="padding:0 0 4px 0;">
+                <td style="padding:0; border-bottom:1px solid {_CARD_LINE};">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                     <tr>
                       <td width="64" valign="middle" style="padding:16px 0 16px 16px; width:64px;">
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>{_logo_cell(j)}</tr></table>
                       </td>
                       <td valign="middle" style="padding:16px;">
-                        <a href="{esc(job_page_url(j))}" dir="auto" style="display:block; font-family:{_FONT}; font-size:17px; line-height:1.3; font-weight:500; color:{_TEXT}; text-decoration:none;">{esc(title)}</a>
+                        <div dir="auto" style="font-family:{_FONT}; font-size:16px; line-height:1.35; font-weight:500;"><a href="{esc(job_page_url(j))}" style="color:{_TEXT}; text-decoration:none;">{esc(title)}</a>{badge}</div>
                         <div dir="auto" style="padding-top:4px; font-family:{_FONT}; font-size:14px; line-height:1.4; color:{_TEXT_2};">{meta}</div>
                         {apply_mobile}
                       </td>
@@ -771,8 +784,8 @@ def _row_html(j: dict, now: datetime, alert: dict | None = None) -> str:
 
 
 def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: datetime | None = None) -> str:
-    """The digest: a black header with the count, the rows, the button,
-    then the footer under the card.
+    """The digest: the logo bar, the dithered sea, the count ("4 new jobs
+    for you"), the rows, the button, then the footer under the card.
 
     Nested presentation tables and inline styles throughout, no flex,
     no positioning, no background images, no SVG, no web font: that is
@@ -790,11 +803,11 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
     since = since_label(alert, now)
     plural = "s" if n != 1 else ""
     count = count_text(n)
-    title = f'{count} new job{plural} for "{name}"'
-    headline = (f'<span style="color:{_ACCENT};">{count}</span> new job{plural} for &quot;{esc(name)}&quot;')
+    title = f"{count} new job{plural} for you"
+    headline = f'<span style="color:{_ACCENT};">{count}</span> new job{plural} for you'
     # The inbox list shows this after the subject; nothing else does.
     preheader = f'{count} new job{plural} matching "{esc(name)}" since {since}'
-    see_all = _button(board_url(alert), "See all matching jobs", pad="14px 24px", radius=12, width=220, height=46, font_px=15)
+    see_all = _button(board_url(alert), "See all matching jobs", pad="13px 22px", radius=999, width=220, height=44, font_px=15)
     account = f"{SITE_ORIGIN}/account"
     unsubscribe = unsubscribe_url(alert)
     link = f"font-family:{_FONT}; color:{_LINK}; text-decoration:underline;"
@@ -817,6 +830,7 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
       .otj-page {{ padding: 16px !important; }}
       .otj-head {{ font-size: 30px !important; line-height: 1.1 !important; }}
       .otj-apply-desk {{ display: none !important; }}
+      .otj-stack {{ display: block !important; width: 100% !important; padding-left: 0 !important; padding-bottom: 12px !important; }}
       .otj-apply-mob {{ display: block !important; max-height: none !important; overflow: visible !important; padding-top: 12px; }}
     }}
   </style>
@@ -830,46 +844,44 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px;">
 
           <tr>
-            <td style="background:{_CARD}; border:1px solid {_CARD_LINE}; border-radius:20px;">
+            <td style="background:{_CARD}; border:1px solid {_CARD_LINE}; border-radius:16px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
                 <tr>
-                  <td style="background:{_HEAD}; border-bottom:1px solid {_CARD_LINE}; border-radius:20px 20px 0 0; padding:32px 40px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="height:136px;">
+                  <td style="border-radius:16px 16px 0 0; padding:22px 32px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td valign="top" style="height:28px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                            <tr>
-                              <td width="28" valign="middle" style="width:28px; padding-right:10px;"><img src="{LOGO_PNG}" width="28" height="28" alt="" style="display:block; width:28px; height:28px; border:0;" /></td>
-                              <td valign="middle" style="font-family:{_FONT}; font-size:16px; line-height:1; font-weight:600; letter-spacing:-0.01em;"><a href="{SITE_ORIGIN}/" style="color:{_TEXT}; text-decoration:none;">oceanofjobs.com</a></td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr><td style="height:35px; font-size:0; line-height:0;">&nbsp;</td></tr>
-                      <tr>
-                        <td valign="bottom">
-                          <div class="otj-head" dir="auto" style="font-family:{_FONT}; font-size:40px; line-height:1.05; font-weight:500; letter-spacing:-0.03em; color:{_TEXT};">{headline}</div>
-                          <div style="padding-top:10px; font-family:{_FONT}; font-size:15px; line-height:1.4; color:{_LINK};">New since {since}</div>
-                        </td>
+                        <td width="28" valign="middle" style="width:28px; padding-right:10px;"><img src="{LOGO_PNG}" width="28" height="28" alt="" style="display:block; width:28px; height:28px; border:0;" /></td>
+                        <td valign="middle" style="font-family:{_FONT}; font-size:16px; line-height:1; font-weight:600; letter-spacing:-0.01em;"><a href="{SITE_ORIGIN}/" style="color:{_TEXT}; text-decoration:none;">Ocean of Jobs</a></td>
                       </tr>
                     </table>
                   </td>
                 </tr>
 
                 <tr>
-                  <td style="padding:16px 24px 0 24px;">
+                  <td style="padding:0 16px; font-size:0; line-height:0;"><img src="{WAVES_JPG}" width="566" alt="" style="display:block; width:100%; max-width:566px; height:auto; border:0; border-radius:12px;" /></td>
+                </tr>
+
+                <tr>
+                  <td style="border-bottom:1px solid {_CARD_LINE}; padding:28px 32px 28px 32px;">
+                    <div class="otj-head" dir="auto" style="font-family:{_FONT}; font-size:36px; line-height:1.05; font-weight:500; letter-spacing:-0.03em; color:{_TEXT};">{headline}</div>
+                    <div style="padding-top:10px; font-family:{_FONT}; font-size:15px; line-height:1.4; color:{_MUTED};">New since {since}</div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:8px 16px 0 16px;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">{rows}
                     </table>
                   </td>
                 </tr>
 
                 <tr>
-                  <td style="padding:28px 40px 36px 40px;">
+                  <td style="padding:24px 32px 32px 32px;">
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td valign="middle">{see_all}</td>
-                        <td valign="middle" style="padding-left:20px; font-family:{_FONT}; font-size:14px; line-height:1;"><a href="{account}" style="{link}">Edit this alert</a></td>
+                        <td class="otj-stack" valign="middle">{see_all}</td>
+                        <td class="otj-stack" valign="middle" style="padding-left:12px;"><a href="{account}" style="display:inline-block; white-space:nowrap; padding:12px 20px; border:1px solid {_CARD_LINE}; border-radius:999px; font-family:{_FONT}; font-size:15px; line-height:1; font-weight:500; color:{_TEXT}; text-decoration:none;">Edit this alert</a></td>
                       </tr>
                     </table>
                   </td>
@@ -880,8 +892,8 @@ def _digest_html(n: int, matches: list[dict], alert: dict | None = None, now: da
           </tr>
 
           <tr>
-            <td style="padding:24px 40px 0 40px; font-family:{_FONT}; font-size:13px; line-height:1.6; color:{_MUTED};">
-              You&#39;re getting this because you created an alert for &quot;{esc(name)}&quot; on oceanofjobs.com.<br />
+            <td style="padding:24px 32px 0 32px; font-family:{_FONT}; font-size:13px; line-height:1.6; color:{_MUTED};">
+              You&#39;re getting this because you created an alert on oceanofjobs.com.<br />
               <span style="display:inline-block; padding-top:6px;"><a href="{account}" style="{link}">Manage alerts</a> &middot; {f'<a href="{esc(unsubscribe)}" style="{link}">Unsubscribe</a> &middot; ' if unsubscribe else ""}<a href="{SITE_ORIGIN}/" style="{link}">oceanofjobs.com</a></span>
             </td>
           </tr>
