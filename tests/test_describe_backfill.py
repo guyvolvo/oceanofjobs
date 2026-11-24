@@ -85,6 +85,27 @@ check("a title-length text is not asked again", outcome(Resp(200, page({"@type":
 check("429 is retried", outcome(Resp(429)) == "retry")
 check("500 is retried", outcome(Resp(500)) == "retry")
 
+import sqlite3  # noqa: E402
+import tempfile  # noqa: E402
+
+with tempfile.TemporaryDirectory() as tmp:
+    d.DB = Path(tmp) / "jobs.db"
+    c = sqlite3.connect(d.DB)
+    c.execute("CREATE TABLE jobs (id, ats, url, external_id, closed_at, description_chars, posted_at, first_seen)")
+    c.executemany("INSERT INTO jobs VALUES (?, ?, 'u', 'e', ?, ?, ?, ?)", [
+        ("new", "smartrecruiters", None, None, "2026-11-24T10:07:18.940000+00:00", "2026-11-24T10:09"),
+        ("old", "smartrecruiters", None, None, "2026-09-03T03:15:42+00:00", "2026-09-03T04:00"),
+        ("described", "smartrecruiters", None, 900, "2026-11-24T09:00:00+00:00", "2026-11-24T09:05"),
+        ("closed", "smartrecruiters", "2026-11-24", None, "2026-11-24T08:00:00+00:00", "2026-11-24T08:05"),
+        ("greenhouse", "greenhouse", None, None, "2026-11-24T08:00:00+00:00", "2026-11-24T08:05"),
+    ])
+    c.commit()
+    c.close()
+    ids = lambda rows: [r[0] for r in rows]  # noqa: E731
+    check("a full run takes every open listing without text", ids(d.todo(10, set())) == ["new", "old"], repr(ids(d.todo(10, set()))))
+    check("--days keeps the recent ones", ids(d.todo(10, set(), "2026-11-21T00:00:00")) == ["new"])
+    check("done ids are skipped", ids(d.todo(10, {"new"})) == ["old"])
+
 print()
 if failures:
     print("%d failed" % len(failures))

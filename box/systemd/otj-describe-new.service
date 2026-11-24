@@ -1,0 +1,12 @@
+[Unit]
+Description=Ocean of Jobs: descriptions for listings posted in the last 3 days (box/describe_backfill.py)
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/srv/otj/app
+EnvironmentFile=/etc/otj-api.env
+ExecStart=/srv/otj/venv/bin/python box/describe_backfill.py --days 3 --limit 5000 --minutes 45
+Nice=15
+CPUQuota=40%
+IOReadIOPSMax=/dev/nvme0n1 300
+TimeoutStartSec=55min
