@@ -45,7 +45,9 @@ VARS = {"OWNER_EMAIL": OWNER, "USER_POOL_ID": "il-central-1_0vIcqqXyg", "ALERTS_
 SECRETS = {"AWS_ACCESS_KEY_ID": "CRM_AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY": "CRM_AWS_SECRET_ACCESS_KEY",
            "UNSUBSCRIBE_SECRET": "ALERTS_UNSUBSCRIBE_SECRET", "GITHUB_TOKEN": "CRM_GITHUB_TOKEN",
            # The key that lets a request reach box.oceanofjobs.com directly (waitlist changes).
-           "ORIGIN_KEY": "OTJ_ORIGIN_SECRET"}
+           "ORIGIN_KEY": "OTJ_ORIGIN_SECRET",
+           # Read-only Cloudflare analytics for the Usage page (crm/lib/usage.mjs).
+           "CF_ANALYTICS_TOKEN": "CLOUDFLARE_ANALYTICS_TOKEN"}
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".svg": "image/svg+xml"}
 
 

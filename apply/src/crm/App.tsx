@@ -2,7 +2,7 @@
 // activity). Contacts, emails and the changelog have their own files.
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Article, ClockCounterClockwise, EnvelopeSimple, FlowArrow, FunnelSimple, Hourglass, Moon, SquaresFour, Sun, Tray, Users, type Icon } from "@/components/icons";
+import { Article, ChartBar, ClockCounterClockwise, EnvelopeSimple, FlowArrow, FunnelSimple, Hourglass, Moon, SquaresFour, Sun, Tray, Users, type Icon } from "@/components/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem,
@@ -16,10 +16,11 @@ import { Changelog } from "./Changelog";
 import { Inbox } from "./Inbox";
 import { Waitlist } from "./Waitlist";
 import { Flows } from "./Flows";
+import { Usage } from "./Usage";
 import { Btn, Loading, Panel, SelectField, TextField } from "./ui";
 
 const TABS: { value: string; label: string; icon: Icon }[] = [
-  { value: "overview", label: "Overview", icon: SquaresFour }, { value: "inbox", label: "Inbox", icon: Tray }, { value: "contacts", label: "Users", icon: Users },
+  { value: "overview", label: "Overview", icon: SquaresFour }, { value: "inbox", label: "Inbox", icon: Tray }, { value: "contacts", label: "Users", icon: Users }, { value: "usage", label: "Usage", icon: ChartBar },
   { value: "waitlist", label: "Waitlist", icon: Hourglass }, { value: "segments", label: "Groups", icon: FunnelSimple }, { value: "emails", label: "Emails", icon: EnvelopeSimple },
   { value: "flows", label: "Flows", icon: FlowArrow }, { value: "changelog", label: "Changelog", icon: Article }, { value: "activity", label: "Activity", icon: ClockCounterClockwise },
 ];
@@ -69,7 +70,7 @@ const PROVIDER: Record<string, string> = { google: "Google", github: "GitHub", e
 const PLAN: Record<string, string> = { free: "Free", basic: "Basic", pro: "Pro" };
 const RANGES: Record<Range, string> = { "24h": "24h", "7d": "7d", "30d": "30d", "90d": "90d" };
 
-function ChartCard({ title, children, wide }: { title: string; children: ReactNode; wide?: boolean }) {
+export function ChartCard({ title, children, wide }: { title: string; children: ReactNode; wide?: boolean }) {
   return (
     <Panel className={wide ? "crm-wide" : undefined}><div className="crm-card">
       <h2>{title}</h2>
@@ -265,6 +266,7 @@ export function App() {
           {tab === "flows" ? <Flows /> : null}
           {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}
           {tab === "activity" ? <Activity /> : null}
+          {tab === "usage" ? <Usage /> : null}
         </main>
       </div>
     </SidebarProvider>
