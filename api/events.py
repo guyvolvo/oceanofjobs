@@ -24,6 +24,7 @@ reads these. The box role's PutMetricData is limited to the OceanOfJobs
 namespace, so that is where they go.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -97,6 +98,42 @@ def record(name: str, from_page: bool = True, term=None) -> bool:
                 _terms[kept] += 1
     _ensure_flusher()
     return True
+
+
+# Signed-in accounts, for the active-account numbers box/growth.py logs.
+# Each UTC day has a row in the alerts table holding the set of accounts
+# that made a signed-in request that day, as short hashes of their id.
+# Adding to a DynamoDB set twice keeps one, so ten requests or four
+# workers are still one account. A worker writes an account at most once
+# a day. Website sign-ins only (api/serve.py): the extension's token calls
+# in every few minutes on its own and would make every install look active.
+ACTIVE_ROW = "#active"
+_active_seen: set = set()
+
+
+def account_hash(user_id: str) -> str:
+    return hashlib.sha256(user_id.encode()).hexdigest()[:16]
+
+
+def seen_account(table, user_id: str, now: float | None = None) -> None:
+    """Note that this account was active today. Never raises."""
+    if not enabled():
+        return
+    day = time.strftime("%Y-%m-%d", time.gmtime(time.time() if now is None else now))
+    key = (day, user_id)
+    with _lock:
+        if key in _active_seen:
+            return
+        if len(_active_seen) > 100_000:
+            _active_seen.clear()
+        _active_seen.add(key)
+    try:
+        table.update_item(Key={"user_id": ACTIVE_ROW, "alert_id": day}, UpdateExpression="ADD ids :i",
+                          ExpressionAttributeValues={":i": {account_hash(user_id)}})
+    except Exception as e:  # noqa: BLE001 - a missed count is not worth a failed request; the next one retries
+        with _lock:
+            _active_seen.discard(key)
+        print(f"events: active account failed: {e!r}", file=sys.stderr)
 
 
 def take() -> dict[str, int]:

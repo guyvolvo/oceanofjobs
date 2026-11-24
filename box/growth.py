@@ -6,10 +6,12 @@ itself (api/events.py). These are the numbers that only exist as state:
   Accounts, NewAccounts24h, NewAccounts7d  the Cognito user pool
   ActiveAlerts, UsersWithAlerts           the alerts table in DynamoDB
   OpenListings, CompaniesHiring           precomputed/stats.json in S3
+  active_today, _yesterday, _7d, _30d     accounts signed in on the website,
+                                          from api/events.py's day rows
 
 All of it is read over the network, none from jobs.db, so it never
 waits on the disk. The publisher calls maybe_publish on every tick
-(box/publish.py), and it sends at most once an hour.
+(box/publish.py), and it logs at most once an hour (log_line below).
 
 Cognito is listed with no attributes at all, so no email address
 leaves the pool for this: only each account's creation date.
@@ -88,9 +90,14 @@ def collect(cognito=None, table=None, s3=None, now: datetime | None = None) -> d
     table_name = os.environ.get("ALERTS_TABLE", "")
     if table_name or table is not None:
         try:
-            out.update(alert_counts(table if table is not None else boto3.resource("dynamodb").Table(table_name)))
+            table = table if table is not None else boto3.resource("dynamodb").Table(table_name)
+            out.update(alert_counts(table))
         except Exception as e:  # noqa: BLE001
             print(f"growth: alerts failed: {e!r}", file=sys.stderr)
+        try:
+            out.update(active_counts(table, now))
+        except Exception as e:  # noqa: BLE001
+            print(f"growth: active accounts failed: {e!r}", file=sys.stderr)
     bucket = os.environ.get("DATA_BUCKET", "")
     if bucket:
         try:
@@ -100,17 +107,8 @@ def collect(cognito=None, table=None, s3=None, now: datetime | None = None) -> d
     return out
 
 
-def publish(values: dict[str, int], cw=None) -> None:
-    if not values:
-        return
-    import boto3
-
-    data = [{"MetricName": name, "Value": v, "Unit": "Count"} for name, v in sorted(values.items())]
-    (cw or boto3.client("cloudwatch")).put_metric_data(Namespace=NAMESPACE, MetricData=data)
-
-
 def maybe_publish(stamp: Path) -> dict[str, int] | None:
-    """Collect and send if the last send was an hour ago or more."""
+    """Collect and log if the last time was an hour ago or more."""
     try:
         if time.time() - stamp.stat().st_mtime < EVERY_S:
             return None
@@ -118,8 +116,46 @@ def maybe_publish(stamp: Path) -> dict[str, int] | None:
         pass
     stamp.touch()
     values = collect()
-    publish(values)
+    log_line(values)
     return values
+
+
+# Active accounts. api/events.py keeps, per UTC day, the set of accounts
+# that made a signed-in request on the website (rows user_id = "#active",
+# alert_id = the day). The union over a window counts each person once,
+# however many days they came.
+#
+# Every number here goes out as one JSON log line an hour, to the search
+# terms' log group, and the dashboard reads it with Logs Insights. They
+# were metrics until 2026-11-01, when custom metrics were cut to the free
+# ten and these stopped being sent at all; a log line costs nothing.
+ACTIVE_ROW = "#active"
+LOG_GROUP = os.environ.get("SEARCH_LOG_GROUP", "/iljobs/searches")
+
+
+def active_counts(table, now: datetime) -> dict[str, int]:
+    """Accounts active today so far, yesterday, in the last 7 days and
+    the last 30, today included."""
+    days = [(now - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(30)]
+    ids = [set((table.get_item(Key={"user_id": ACTIVE_ROW, "alert_id": d}, ProjectionExpression="ids")
+                .get("Item") or {}).get("ids") or ()) for d in days]
+    return {"active_today": len(ids[0]), "active_yesterday": len(ids[1]),
+            "active_7d": len(set().union(*ids[:7])), "active_30d": len(set().union(*ids))}
+
+
+def log_line(values: dict[str, int], logs=None) -> None:
+    if not values:
+        return
+    import boto3
+
+    logs = logs or boto3.client("logs")
+    stream = f"growth-{time.strftime('%Y-%m-%d', time.gmtime())}"
+    try:
+        logs.create_log_stream(logGroupName=LOG_GROUP, logStreamName=stream)
+    except logs.exceptions.ResourceAlreadyExistsException:
+        pass
+    logs.put_log_events(logGroupName=LOG_GROUP, logStreamName=stream,
+                        logEvents=[{"timestamp": int(time.time() * 1000), "message": json.dumps(values)}])
 
 
 def count_event(name: str, n: int, cw=None) -> None:

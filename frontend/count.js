@@ -6,7 +6,12 @@
 // has been here before.
 //
 // Crawlers and automated browsers count nothing, which also keeps the
-// end-to-end tests out of the numbers.
+// end-to-end tests out of the numbers. A visit, and a listing page's job
+// view, count only once the reader clicks, taps, types or scrolls with a
+// wheel or a finger. From 2026-11-01 a scraper running scripts under old
+// browser names loaded about 19,000 job pages a day, against about 60 real
+// visits, and counted every one; it never touches the page. A reader who
+// leaves without touching it is not counted either.
 (function () {
   var ua = navigator.userAgent || "";
   var robot = navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse|preview|pingdom|uptime/i.test(ua);
@@ -24,20 +29,26 @@
   }
   window.ojCount = send;
 
-  try {
-    if (!sessionStorage.getItem("oj-counted")) {
-      sessionStorage.setItem("oj-counted", "1");
-      send("visit");
-      if (!localStorage.getItem("oj-seen")) {
-        localStorage.setItem("oj-seen", "1");
-        send("new_visitor");
+  function touched(ev) {
+    if (!ev.isTrusted) return;
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (t) { removeEventListener(t, touched, true); });
+    try {
+      if (!sessionStorage.getItem("oj-counted")) {
+        sessionStorage.setItem("oj-counted", "1");
+        send("visit");
+        if (!localStorage.getItem("oj-seen")) {
+          localStorage.setItem("oj-seen", "1");
+          send("new_visitor");
+        }
       }
-    }
-  } catch (e) { /* storage blocked: count nothing rather than every page */ }
-
-  // A listing's own page is a job view. On the board, opening a listing
-  // reports its own (app.js openJobDetail).
-  if (location.pathname.indexOf("/job/") === 0) send("job_view");
+    } catch (e) { /* storage blocked: count nothing rather than every page */ }
+    // A listing's own page is a job view. On the board, opening a listing
+    // is a click and reports its own (board/store.ts).
+    if (location.pathname.indexOf("/job/") === 0) send("job_view");
+  }
+  ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (t) {
+    addEventListener(t, touched, { capture: true, passive: true });
+  });
 
   // Links the MCP server hands to AI assistants carry ?ref=mcp. The page
   // they land on counts one mcp_view per browser, so a refresh or a second

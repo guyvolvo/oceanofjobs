@@ -31,6 +31,7 @@ import json
 import os
 from http import HTTPStatus
 
+import events
 import tokens
 import handler
 from handler import lambda_handler
@@ -100,6 +101,7 @@ def _claims(environ: dict) -> dict | None:
         # there, so it fails here too.
         if claims.get("token_use") != "id":
             return None
+        events.seen_account(handler._alerts_table, claims["sub"])
         return claims
     except Exception as e:  # noqa: BLE001 -- any failure is "not signed in"
         print(f"jwt rejected: {e.__class__.__name__}: {e}")

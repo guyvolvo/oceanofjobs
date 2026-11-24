@@ -193,16 +193,74 @@ vals = growth.collect(cognito=Broken(), table=FakeTable(), s3=FakeS3(), now=NOW)
 check("one source failing leaves the others",
       "Accounts" not in vals and vals.get("ActiveAlerts") == 3 and vals.get("OpenListings") == 282722, repr(vals))
 cw = FakeCW()
-growth.publish(vals, cw)
-check("gauges go out in one call, by name",
-      {d["MetricName"] for d in cw.calls[0]["MetricData"]} == set(vals) and cw.calls[0]["Namespace"] == "OceanOfJobs")
-cw = FakeCW()
 growth.count_event("digest_sent", 0, cw)
 d = cw.calls[0]["MetricData"][0]
 check("a digest count of zero still goes out, as an Events datum",
       d["MetricName"] == "Events" and d["Value"] == 0 and d["Dimensions"] == [{"Name": "event", "Value": "digest_sent"}])
 
 sys.path.insert(0, str(ROOT / "infra" / "grafana"))
+# Active accounts: a day's row holds each account once, the hourly line
+# counts people, not visits.
+class FakeTable:
+    def __init__(self):
+        self.rows, self.writes = {}, 0
+
+    def update_item(self, Key, UpdateExpression, ExpressionAttributeValues):
+        self.writes += 1
+        row = self.rows.setdefault((Key["user_id"], Key["alert_id"]), {"ids": set()})
+        row["ids"] |= ExpressionAttributeValues[":i"]
+
+    def get_item(self, Key, ProjectionExpression):
+        row = self.rows.get((Key["user_id"], Key["alert_id"]))
+        return {"Item": row} if row else {}
+
+
+t = FakeTable()
+day1 = datetime(2026, 11, 23, 12, tzinfo=timezone.utc).timestamp()
+day2 = day1 + 86400
+events._active_seen.clear()
+for when, who in [(day1, "u1"), (day1, "u1"), (day1, "u2"), (day2, "u1"), (day2, "u3")]:
+    events.seen_account(t, who, now=when)
+check("an account is written once a day per worker", t.writes == 4, repr(t.writes))
+check("the row keeps a hash, not the account id",
+      t.rows[("#active", "2026-11-23")]["ids"] == {events.account_hash("u1"), events.account_hash("u2")})
+events._active_seen.clear()
+events.seen_account(t, "u1", now=day1)
+check("another worker adding the same account keeps one entry", len(t.rows[("#active", "2026-11-23")]["ids"]) == 2)
+got = growth.active_counts(t, datetime(2026, 11, 24, 9, tzinfo=timezone.utc))
+check("today, yesterday, 7 and 30 days count people once",
+      got == {"active_today": 2, "active_yesterday": 2, "active_7d": 3, "active_30d": 3}, repr(got))
+
+
+class FailTable:
+    def update_item(self, **kw):
+        raise RuntimeError("throttled")
+
+
+events._active_seen.clear()
+events.seen_account(FailTable(), "u9", now=day1)
+check("a failed write is tried again on the next request", ("2026-11-23", "u9") not in events._active_seen)
+
+
+class FakeLogs:
+    class exceptions:
+        class ResourceAlreadyExistsException(Exception):
+            pass
+
+    def __init__(self):
+        self.lines = []
+
+    def create_log_stream(self, **kw):
+        pass
+
+    def put_log_events(self, logGroupName, logStreamName, logEvents):
+        self.lines += [json.loads(e["message"]) for e in logEvents]
+
+
+lg = FakeLogs()
+growth.log_line(got, lg)
+check("the hourly line carries the four counts", lg.lines == [got], repr(lg.lines))
+
 import growth_dashboard  # noqa: E402
 
 dash = growth_dashboard.build()
@@ -210,9 +268,12 @@ import re  # noqa: E402
 queries = [t for p in dash["panels"] for t in p.get("targets", [])]
 names = {t.get("dimensions", {}).get("event") for t in queries} - {None}
 names |= set(re.findall(r'event="([a-z_]+)"', " ".join(t.get("expression", "") for t in queries)))
-check("the dashboard shows the page events", {"visit", "new_visitor", "search", "job_view", "apply", "signin"} <= names, repr(names))
-check("every event the dashboard shows is one that gets counted",
-      names <= (events.PAGE_EVENTS | events.SERVER_EVENTS | {"digest_sent"}), repr(names))
+check("the dashboard shows exactly the events that reach CloudWatch", names == events.SENT_EVENTS, repr(names))
+logged = {re.search(r"ispresent\((\w+)\)", t["expression"]).group(1) for p in dash["panels"]
+          for t in p.get("targets", []) if t.get("queryMode") == "Logs" and "term" not in t["expression"]}
+check("every logged number the dashboard reads is one box/growth.py logs",
+      logged <= {"Accounts", "NewAccounts7d", "UsersWithAlerts", "OpenListings", "CompaniesHiring",
+                 "active_today", "active_7d", "active_30d"}, repr(logged))
 gauges = {t["metricName"] for p in dash["panels"] for t in p.get("targets", []) if t.get("namespace") == "OceanOfJobs"} - {"Events"}
 check("every gauge the dashboard shows is one that gets sent",
       gauges <= {"Accounts", "NewAccounts7d", "ActiveAlerts", "UsersWithAlerts", "OpenListings", "CompaniesHiring",

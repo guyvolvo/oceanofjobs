@@ -111,6 +111,11 @@ def logs(ref, query):
             "logGroups": [{"arn": arn, "name": SEARCH_LOG_GROUP}], "logGroupNames": [SEARCH_LOG_GROUP]}
 
 
+def logged(field, bin="1h"):
+    """One of box/growth.py's hourly numbers, read back from its log line."""
+    return logs("A", f"filter ispresent({field}) | stats max({field}) as {field} by bin({bin})")
+
+
 def table(title, target, desc, columns, bar=None, sort=None):
     """A Cloudflare-style list: plain rows, the count drawn as a bar."""
     keep = {name: True for name in columns}
@@ -253,21 +258,19 @@ def chart(title, targets, desc, unit="short", decimals=None, bars=False, stacked
 
 def build() -> dict:
     L = Layout()
-    page = " Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out."
+    touched = (" Counted by the page itself (frontend/count.js) once the reader clicks, taps, types or"
+               " scrolls, so crawlers and scrapers that only load pages are left out. Before 2026-11-25 it"
+               " counted every page load, and from 2026-11-01 a scraper made up about 99% of it.")
 
     L.row("Visitors")
     for title, name, desc in [
-        ("Visits", "visit", "Browser sessions that loaded any page, this week, against the week before." + page),
-        ("New visitors", "new_visitor", "Visits from a browser never seen before." + page),
+        ("Visits", "visit", "Browser sessions in which someone used a page, this week, against the week before." + touched),
         ("Searches", "search", "Searches someone typed or picked on the board."),
-        ("Job views", "job_view", "Listings opened on the board, or their own page loaded."),
+        ("Job views", "job_view", "Listings opened on the board, or their own page used." + touched),
         ("Apply clicks", "apply", "Clicks out to the employer's posting. The value the site delivers."),
-        ("Sign-ins", "signin", "Completed sign-ins, any method."),
     ]:
-        L.add(rolling_card(title, event("A", name), desc), 4, 5)
-    L.add(chart("Visits over time", filled("A", event("A", "visit"), "Visits")
-                + filled("B", event("B", "new_visitor"), "New visitors"),
-                "Visits per hour, and how many came from a browser seen for the first time."), 12, 8)
+        L.add(rolling_card(title, event("A", name), desc), 6, 5)
+    L.add(chart("Visits over time", filled("A", event("A", "visit"), "Visits"), "Visits per hour." + touched), 12, 8)
     L.add(chart("Job views and apply clicks", filled("A", event("A", "job_view"), "Job views")
                 + filled("B", event("B", "apply"), "Apply clicks"),
                 "Listings opened, and clicks out to the employer, per hour."), 12, 8)
@@ -282,25 +285,28 @@ def build() -> dict:
 
     L.row("What people search")
     L.add(table("Top searches",
-                logs("A", "fields term, n | stats sum(n) as searches by term | sort searches desc | limit 50"),
+                logs("A", "filter ispresent(term) | stats sum(n) as searches by term | sort searches desc | limit 50"),
                 "Searches typed or picked on the board in the selected range, most frequent first. "
                 "From the board itself, so crawlers and API scripts aren't in it. Terms that look like an "
                 "email address or a phone number are never kept.",
                 {"term": "Search", "searches": "Times"}, bar="searches", sort="searches"), 12, 12)
     L.add(table("Recent searches",
-                logs("A", "fields @timestamp, term, n | sort @timestamp desc | limit 100"),
+                logs("A", "filter ispresent(term) | fields @timestamp, term, n | sort @timestamp desc | limit 100"),
                 "The latest searches, to the minute. Times is how often that term was searched in that minute.",
                 {"@timestamp": "@timestamp", "term": "Search", "n": "Times"}), 12, 12)
 
-    L.row("Accounts and alerts")
-    hourly = {"stat": "Maximum", "period": HOUR}
-    L.add(gauge_card("Accounts", metric("A", "Accounts", **hourly), "Every account in the user pool, read hourly."), 4, 5)
-    L.add(gauge_card("New accounts this week", metric("A", "NewAccounts7d", **hourly), "Accounts created in the last seven days."), 4, 5)
-    L.add(gauge_card("Active alerts", metric("A", "ActiveAlerts", **hourly), "Alerts switched on."), 4, 5)
-    L.add(gauge_card("People with alerts", metric("A", "UsersWithAlerts", **hourly), "Accounts with at least one alert on."), 4, 5)
-    L.add(rolling_card("Alerts created", event("A", "alert_created"), "New alerts saved this week."), 4, 5)
-    L.add(rolling_card("Digests sent", event("A", "digest_sent"),
-                       "Alert emails sent this week. SES is still in its sandbox, so only verified addresses get them."), 4, 5)
+    L.row("Accounts")
+    active = (" Accounts that made a signed-in request on the website (api/events.py), each counted once"
+              " however often it came. The extension's own calls don't count: it checks in every few minutes"
+              " by itself. Read hourly (box/growth.py), from 2026-11-25.")
+    L.add(gauge_card("Active today", logged("active_today"), "Accounts active so far today, UTC." + active), 4, 5)
+    L.add(gauge_card("Active, 7 days", logged("active_7d"), "Accounts active in the last seven days." + active), 4, 5)
+    L.add(gauge_card("Active, 30 days", logged("active_30d"), "Accounts active in the last thirty days." + active), 4, 5)
+    L.add(gauge_card("Accounts", logged("Accounts"), "Every account in the user pool, read hourly."), 4, 5)
+    L.add(gauge_card("New accounts this week", logged("NewAccounts7d"), "Accounts created in the last seven days."), 4, 5)
+    L.add(gauge_card("People with alerts", logged("UsersWithAlerts"), "Accounts with at least one alert on."), 4, 5)
+    L.add(chart("Active accounts per day", [dict(logs("A", "filter ispresent(active_today) | stats max(active_today) as Active by bin(1d)"), label="Active")],
+                "Accounts active each day, UTC." + active, bars=True, legend_calc="mean"), 24, 7)
 
     L.row("Traffic at the edge, crawlers included")
     L.add(rolling_card("Total requests", edge("A", "Requests"), "Every request CloudFront answered this week.",
@@ -333,9 +339,9 @@ def build() -> dict:
                 colors=[PINK, PURPLE], legend_calc="mean"), 12, 8)
 
     L.row("The board")
-    L.add(gauge_card("Open listings", metric("A", "OpenListings", **hourly),
+    L.add(gauge_card("Open listings", logged("OpenListings"),
                      "Listings on the board, from the hourly precomputed stats."), 12, 5)
-    L.add(gauge_card("Companies hiring", metric("A", "CompaniesHiring", **hourly),
+    L.add(gauge_card("Companies hiring", logged("CompaniesHiring"),
                      "Companies with at least one open listing."), 12, 5)
 
     L.row("Pipeline health")
