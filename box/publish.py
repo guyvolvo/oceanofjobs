@@ -39,6 +39,7 @@ for _p in (ROOT, ROOT / "api", ROOT / "loader", Path(__file__).resolve().parent)
     sys.path.insert(0, str(_p))
 
 import build_explore  # noqa: E402
+import growth  # noqa: E402
 import metrics  # noqa: E402
 import precompute  # noqa: E402
 import sitemap  # noqa: E402
@@ -93,8 +94,13 @@ def main() -> int:
         metrics.publish(DB, BUCKET)
     except Exception as e:  # noqa: BLE001
         print(f"metrics failed: {e!r}", file=sys.stderr)
-    # The growth dashboard's hourly gauges (box/growth.py) are no longer
-    # sent (2026-11-01): seven metrics billed monthly for a dashboard.
+    # The growth dashboard's hourly numbers (box/growth.py), as a log line:
+    # as metrics they were cut on 2026-11-01, billed monthly for a dashboard.
+    # Network reads only, so outside the lock with the freshness metrics.
+    try:
+        growth.maybe_publish(DB.with_name("growth-sent-at"))
+    except Exception as e:  # noqa: BLE001
+        print(f"growth failed: {e!r}", file=sys.stderr)
     # Up to fourteen minutes, within a fifteen-minute cadence: the
     # applier holds the disk often, and leaving at once meant never
     # publishing. While this waits, the applier sits out (lock.someone_waiting).

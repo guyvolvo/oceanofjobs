@@ -50,7 +50,7 @@
     {
       "type": "stat",
       "title": "Visits",
-      "description": "Browser sessions that loaded any page, this week, against the week before. Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out.",
+      "description": "Browser sessions in which someone used a page, this week, against the week before. Counted by the page itself (frontend/count.js) once the reader clicks, taps, types or scrolls, so crawlers and scrapers that only load pages are left out. Before 2026-11-25 it counted every page load, and from 2026-11-01 a scraper made up about 99% of it.",
       "targets": [
         {
           "datasource": {
@@ -175,145 +175,8 @@
       "id": 2,
       "gridPos": {
         "h": 5,
-        "w": 4,
+        "w": 6,
         "x": 0,
-        "y": 1
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "New visitors",
-      "description": "Visits from a browser never seen before. Counted by the page itself (frontend/count.js), so crawlers and blocked scripts are left out.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "il-central-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 1,
-          "id": "a",
-          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"new_visitor\"', 'Sum', 3600)), 0)",
-          "label": "New visitors",
-          "period": "3600",
-          "namespace": "",
-          "metricName": "",
-          "dimensions": {},
-          "statistic": "Sum",
-          "hide": false
-        }
-      ],
-      "timeFrom": "14d",
-      "hideTimeOverride": true,
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "windowFunctions",
-            "alias": "7-day",
-            "replaceFields": false,
-            "window": {
-              "field": "New visitors",
-              "reducer": "mean",
-              "windowAlignment": "trailing",
-              "windowSizeMode": "fixed",
-              "windowSize": 168
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "binary",
-            "alias": "New visitors total",
-            "replaceFields": true,
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "7-day"
-                }
-              },
-              "operator": "*",
-              "right": {
-                "fixed": "168"
-              }
-            }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": true
-              }
-            ]
-          }
-        },
-        {
-          "id": "limit",
-          "options": {
-            "limitField": 169
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": false
-              }
-            ]
-          }
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "graphMode": "area",
-        "colorMode": "none",
-        "textMode": "value",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "wideLayout": false,
-        "showPercentChange": true,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 26
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "0",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#3d8bf2"
-          }
-        },
-        "overrides": []
-      },
-      "id": 3,
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 4,
         "y": 1
       },
       "datasource": {
@@ -446,11 +309,11 @@
         },
         "overrides": []
       },
-      "id": 4,
+      "id": 3,
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 8,
+        "w": 6,
+        "x": 6,
         "y": 1
       },
       "datasource": {
@@ -461,7 +324,7 @@
     {
       "type": "stat",
       "title": "Job views",
-      "description": "Listings opened on the board, or their own page loaded.",
+      "description": "Listings opened on the board, or their own page used. Counted by the page itself (frontend/count.js) once the reader clicks, taps, types or scrolls, so crawlers and scrapers that only load pages are left out. Before 2026-11-25 it counted every page load, and from 2026-11-01 a scraper made up about 99% of it.",
       "targets": [
         {
           "datasource": {
@@ -583,10 +446,10 @@
         },
         "overrides": []
       },
-      "id": 5,
+      "id": 4,
       "gridPos": {
         "h": 5,
-        "w": 4,
+        "w": 6,
         "x": 12,
         "y": 1
       },
@@ -720,148 +583,11 @@
         },
         "overrides": []
       },
-      "id": 6,
+      "id": 5,
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 16,
-        "y": 1
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Sign-ins",
-      "description": "Completed sign-ins, any method.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "il-central-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 1,
-          "id": "a",
-          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"signin\"', 'Sum', 3600)), 0)",
-          "label": "Sign-ins",
-          "period": "3600",
-          "namespace": "",
-          "metricName": "",
-          "dimensions": {},
-          "statistic": "Sum",
-          "hide": false
-        }
-      ],
-      "timeFrom": "14d",
-      "hideTimeOverride": true,
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "windowFunctions",
-            "alias": "7-day",
-            "replaceFields": false,
-            "window": {
-              "field": "Sign-ins",
-              "reducer": "mean",
-              "windowAlignment": "trailing",
-              "windowSizeMode": "fixed",
-              "windowSize": 168
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "binary",
-            "alias": "Sign-ins total",
-            "replaceFields": true,
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "7-day"
-                }
-              },
-              "operator": "*",
-              "right": {
-                "fixed": "168"
-              }
-            }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": true
-              }
-            ]
-          }
-        },
-        {
-          "id": "limit",
-          "options": {
-            "limitField": 169
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": false
-              }
-            ]
-          }
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "graphMode": "area",
-        "colorMode": "none",
-        "textMode": "value",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "wideLayout": false,
-        "showPercentChange": true,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 26
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "0",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#3d8bf2"
-          }
-        },
-        "overrides": []
-      },
-      "id": 7,
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 20,
+        "w": 6,
+        "x": 18,
         "y": 1
       },
       "datasource": {
@@ -872,7 +598,7 @@
     {
       "type": "timeseries",
       "title": "Visits over time",
-      "description": "Visits per hour, and how many came from a browser seen for the first time.",
+      "description": "Visits per hour. Counted by the page itself (frontend/count.js) once the reader clicks, taps, types or scrolls, so crawlers and scrapers that only load pages are left out. Before 2026-11-25 it counted every page load, and from 2026-11-01 a scraper made up about 99% of it.",
       "targets": [
         {
           "datasource": {
@@ -887,26 +613,6 @@
           "id": "a",
           "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"visit\"', 'Sum', 3600)), 0)",
           "label": "Visits",
-          "period": "3600",
-          "namespace": "",
-          "metricName": "",
-          "dimensions": {},
-          "statistic": "Sum",
-          "hide": false
-        },
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "B",
-          "region": "il-central-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 1,
-          "id": "b",
-          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"new_visitor\"', 'Sum', 3600)), 0)",
-          "label": "New visitors",
           "period": "3600",
           "namespace": "",
           "metricName": "",
@@ -976,25 +682,10 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "New visitors"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#f5b726"
-                }
-              }
-            ]
           }
         ]
       },
-      "id": 8,
+      "id": 6,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1131,7 +822,7 @@
           }
         ]
       },
-      "id": 9,
+      "id": 7,
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1233,7 +924,7 @@
           }
         ]
       },
-      "id": 10,
+      "id": 8,
       "gridPos": {
         "h": 7,
         "w": 12,
@@ -1336,7 +1027,7 @@
           }
         ]
       },
-      "id": 11,
+      "id": 9,
       "gridPos": {
         "h": 7,
         "w": 12,
@@ -1352,7 +1043,7 @@
       "type": "row",
       "title": "What people search",
       "collapsed": false,
-      "id": 12,
+      "id": 10,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1376,7 +1067,7 @@
           "queryMode": "Logs",
           "id": "",
           "queryLanguage": "CWLI",
-          "expression": "fields term, n | stats sum(n) as searches by term | sort searches desc | limit 50",
+          "expression": "filter ispresent(term) | stats sum(n) as searches by term | sort searches desc | limit 50",
           "logGroups": [
             {
               "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
@@ -1461,7 +1152,7 @@
           }
         ]
       },
-      "id": 13,
+      "id": 11,
       "gridPos": {
         "h": 12,
         "w": 12,
@@ -1488,7 +1179,7 @@
           "queryMode": "Logs",
           "id": "",
           "queryLanguage": "CWLI",
-          "expression": "fields @timestamp, term, n | sort @timestamp desc | limit 100",
+          "expression": "filter ispresent(term) | fields @timestamp, term, n | sort @timestamp desc | limit 100",
           "logGroups": [
             {
               "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
@@ -1543,7 +1234,7 @@
         },
         "overrides": []
       },
-      "id": 14,
+      "id": 12,
       "gridPos": {
         "h": 12,
         "w": 12,
@@ -1557,9 +1248,9 @@
     },
     {
       "type": "row",
-      "title": "Accounts and alerts",
+      "title": "Accounts",
       "collapsed": false,
-      "id": 15,
+      "id": 13,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1570,8 +1261,8 @@
     },
     {
       "type": "stat",
-      "title": "Accounts",
-      "description": "Every account in the user pool, read hourly.",
+      "title": "Active today",
+      "description": "Accounts active so far today, UTC. Accounts that made a signed-in request on the website (api/events.py), each counted once however often it came. The extension's own calls don't count: it checks in every few minutes by itself. Read hourly (box/growth.py), from 2026-11-25.",
       "targets": [
         {
           "datasource": {
@@ -1580,19 +1271,170 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "Accounts",
-          "dimensions": {},
-          "statistic": "Maximum",
-          "period": "3600",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Accounts",
-          "hide": false
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(active_today) | stats max(active_today) as active_today by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "Active today"
+        }
+      ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          }
+        },
+        "overrides": []
+      },
+      "id": 14,
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Active, 7 days",
+      "description": "Accounts active in the last seven days. Accounts that made a signed-in request on the website (api/events.py), each counted once however often it came. The extension's own calls don't count: it checks in every few minutes by itself. Read hourly (box/growth.py), from 2026-11-25.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(active_7d) | stats max(active_7d) as active_7d by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "Active, 7 days"
+        }
+      ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          }
+        },
+        "overrides": []
+      },
+      "id": 15,
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 35
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Active, 30 days",
+      "description": "Accounts active in the last thirty days. Accounts that made a signed-in request on the website (api/events.py), each counted once however often it came. The extension's own calls don't count: it checks in every few minutes by itself. Read hourly (box/growth.py), from 2026-11-25.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(active_30d) | stats max(active_30d) as active_30d by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "Active, 30 days"
         }
       ],
       "timeFrom": "7d",
@@ -1634,7 +1476,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 0,
+        "x": 8,
         "y": 35
       },
       "datasource": {
@@ -1644,8 +1486,8 @@
     },
     {
       "type": "stat",
-      "title": "New accounts this week",
-      "description": "Accounts created in the last seven days.",
+      "title": "Accounts",
+      "description": "Every account in the user pool, read hourly.",
       "targets": [
         {
           "datasource": {
@@ -1654,19 +1496,20 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "NewAccounts7d",
-          "dimensions": {},
-          "statistic": "Maximum",
-          "period": "3600",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "New accounts this week",
-          "hide": false
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(Accounts) | stats max(Accounts) as Accounts by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "Accounts"
         }
       ],
       "timeFrom": "7d",
@@ -1708,7 +1551,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 4,
+        "x": 12,
         "y": 35
       },
       "datasource": {
@@ -1718,8 +1561,8 @@
     },
     {
       "type": "stat",
-      "title": "Active alerts",
-      "description": "Alerts switched on.",
+      "title": "New accounts this week",
+      "description": "Accounts created in the last seven days.",
       "targets": [
         {
           "datasource": {
@@ -1728,19 +1571,20 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "ActiveAlerts",
-          "dimensions": {},
-          "statistic": "Maximum",
-          "period": "3600",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Active alerts",
-          "hide": false
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(NewAccounts7d) | stats max(NewAccounts7d) as NewAccounts7d by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "New accounts this week"
         }
       ],
       "timeFrom": "7d",
@@ -1782,7 +1626,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 8,
+        "x": 16,
         "y": 35
       },
       "datasource": {
@@ -1802,19 +1646,20 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "UsersWithAlerts",
-          "dimensions": {},
-          "statistic": "Maximum",
-          "period": "3600",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "People with alerts",
-          "hide": false
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(UsersWithAlerts) | stats max(UsersWithAlerts) as UsersWithAlerts by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "People with alerts"
         }
       ],
       "timeFrom": "7d",
@@ -1856,7 +1701,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 12,
+        "x": 20,
         "y": 35
       },
       "datasource": {
@@ -1865,9 +1710,9 @@
       }
     },
     {
-      "type": "stat",
-      "title": "Alerts created",
-      "description": "New alerts saved this week.",
+      "type": "timeseries",
+      "title": "Active accounts per day",
+      "description": "Accounts active each day, UTC. Accounts that made a signed-in request on the website (api/events.py), each counted once however often it came. The extension's own calls don't count: it checks in every few minutes by itself. Read hourly (box/growth.py), from 2026-11-25.",
       "targets": [
         {
           "datasource": {
@@ -1876,262 +1721,92 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 1,
-          "id": "a",
-          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"alert_created\"', 'Sum', 3600)), 0)",
-          "label": "Alerts created",
-          "period": "3600",
-          "namespace": "",
-          "metricName": "",
-          "dimensions": {},
-          "statistic": "Sum",
-          "hide": false
-        }
-      ],
-      "timeFrom": "14d",
-      "hideTimeOverride": true,
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "windowFunctions",
-            "alias": "7-day",
-            "replaceFields": false,
-            "window": {
-              "field": "Alerts created",
-              "reducer": "mean",
-              "windowAlignment": "trailing",
-              "windowSizeMode": "fixed",
-              "windowSize": 168
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(active_today) | stats max(active_today) as Active by bin(1d)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
             }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "binary",
-            "alias": "Alerts created total",
-            "replaceFields": true,
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "7-day"
-                }
-              },
-              "operator": "*",
-              "right": {
-                "fixed": "168"
-              }
-            }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": true
-              }
-            ]
-          }
-        },
-        {
-          "id": "limit",
-          "options": {
-            "limitField": 169
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": false
-              }
-            ]
-          }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "Active"
         }
       ],
       "options": {
-        "reduceOptions": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
           "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+            "mean"
+          ]
         },
-        "graphMode": "area",
-        "colorMode": "none",
-        "textMode": "value",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "wideLayout": false,
-        "showPercentChange": true,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 26
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 0,
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "showPoints": "never",
+            "spanNulls": true,
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "barWidthFactor": 0.7,
+            "axisBorderShow": false,
+            "axisSoftMin": 0,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
           "color": {
             "mode": "fixed",
             "fixedColor": "#3d8bf2"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Active"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3d8bf2"
+                }
+              }
+            ]
+          }
+        ]
       },
       "id": 20,
       "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 16,
-        "y": 35
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Digests sent",
-      "description": "Alert emails sent this week. SES is still in its sandbox, so only verified addresses get them.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "il-central-1",
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 1,
-          "id": "a",
-          "expression": "FILL(SUM(SEARCH('{OceanOfJobs,event} MetricName=\"Events\" event=\"digest_sent\"', 'Sum', 3600)), 0)",
-          "label": "Digests sent",
-          "period": "3600",
-          "namespace": "",
-          "metricName": "",
-          "dimensions": {},
-          "statistic": "Sum",
-          "hide": false
-        }
-      ],
-      "timeFrom": "14d",
-      "hideTimeOverride": true,
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "windowFunctions",
-            "alias": "7-day",
-            "replaceFields": false,
-            "window": {
-              "field": "Digests sent",
-              "reducer": "mean",
-              "windowAlignment": "trailing",
-              "windowSizeMode": "fixed",
-              "windowSize": 168
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "binary",
-            "alias": "Digests sent total",
-            "replaceFields": true,
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "7-day"
-                }
-              },
-              "operator": "*",
-              "right": {
-                "fixed": "168"
-              }
-            }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": true
-              }
-            ]
-          }
-        },
-        {
-          "id": "limit",
-          "options": {
-            "limitField": 169
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Time",
-                "desc": false
-              }
-            ]
-          }
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "graphMode": "area",
-        "colorMode": "none",
-        "textMode": "value",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "wideLayout": false,
-        "showPercentChange": true,
-        "percentChangeColorMode": "standard",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 26
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "0",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#3d8bf2"
-          }
-        },
-        "overrides": []
-      },
-      "id": 21,
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 20,
-        "y": 35
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 40
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2142,12 +1817,12 @@
       "type": "row",
       "title": "Traffic at the edge, crawlers included",
       "collapsed": false,
-      "id": 22,
+      "id": 21,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 47
       },
       "panels": []
     },
@@ -2276,12 +1951,12 @@
         },
         "overrides": []
       },
-      "id": 23,
+      "id": 22,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 41
+        "y": 48
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2414,12 +2089,12 @@
         },
         "overrides": []
       },
-      "id": 24,
+      "id": 23,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 41
+        "y": 48
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2540,12 +2215,12 @@
         },
         "overrides": []
       },
-      "id": 25,
+      "id": 24,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 41
+        "y": 48
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2666,12 +2341,12 @@
         },
         "overrides": []
       },
-      "id": 26,
+      "id": 25,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 41
+        "y": 48
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2772,12 +2447,12 @@
           }
         ]
       },
-      "id": 27,
+      "id": 26,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 53
       },
       "datasource": {
         "type": "cloudwatch",
@@ -2879,12 +2554,12 @@
           }
         ]
       },
-      "id": 28,
+      "id": 27,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 53
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3051,12 +2726,12 @@
           }
         ]
       },
-      "id": 29,
+      "id": 28,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 54
+        "y": 61
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3197,12 +2872,12 @@
           }
         ]
       },
-      "id": 30,
+      "id": 29,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 54
+        "y": 61
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3213,12 +2888,12 @@
       "type": "row",
       "title": "The board",
       "collapsed": false,
-      "id": 31,
+      "id": 30,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 69
       },
       "panels": []
     },
@@ -3234,19 +2909,95 @@
           },
           "refId": "A",
           "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "OpenListings",
-          "dimensions": {},
-          "statistic": "Maximum",
-          "period": "3600",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Open listings",
-          "hide": false
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(OpenListings) | stats max(OpenListings) as OpenListings by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "Open listings"
+        }
+      ],
+      "timeFrom": "7d",
+      "hideTimeOverride": true,
+      "transformations": [],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "area",
+        "colorMode": "none",
+        "textMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "wideLayout": false,
+        "showPercentChange": true,
+        "percentChangeColorMode": "same_as_value",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 26
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3d8bf2"
+          }
+        },
+        "overrides": []
+      },
+      "id": 31,
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 70
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "${ds}"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Companies hiring",
+      "description": "Companies with at least one open listing.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "${ds}"
+          },
+          "refId": "A",
+          "region": "il-central-1",
+          "queryMode": "Logs",
+          "id": "",
+          "queryLanguage": "CWLI",
+          "expression": "filter ispresent(CompaniesHiring) | stats max(CompaniesHiring) as CompaniesHiring by bin(1h)",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:il-central-1:876913698688:log-group:/iljobs/searches",
+              "name": "/iljobs/searches"
+            }
+          ],
+          "logGroupNames": [
+            "/iljobs/searches"
+          ],
+          "label": "Companies hiring"
         }
       ],
       "timeFrom": "7d",
@@ -3288,82 +3039,8 @@
       "gridPos": {
         "h": 5,
         "w": 12,
-        "x": 0,
-        "y": 63
-      },
-      "datasource": {
-        "type": "cloudwatch",
-        "uid": "${ds}"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Companies hiring",
-      "description": "Companies with at least one open listing.",
-      "targets": [
-        {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "${ds}"
-          },
-          "refId": "A",
-          "region": "il-central-1",
-          "namespace": "OceanOfJobs",
-          "metricName": "CompaniesHiring",
-          "dimensions": {},
-          "statistic": "Maximum",
-          "period": "3600",
-          "matchExact": true,
-          "queryMode": "Metrics",
-          "metricQueryType": 0,
-          "metricEditorMode": 0,
-          "id": "a",
-          "expression": "",
-          "label": "Companies hiring",
-          "hide": false
-        }
-      ],
-      "timeFrom": "7d",
-      "hideTimeOverride": true,
-      "transformations": [],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "graphMode": "area",
-        "colorMode": "none",
-        "textMode": "value",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "wideLayout": false,
-        "showPercentChange": true,
-        "percentChangeColorMode": "same_as_value",
-        "text": {
-          "titleSize": 13,
-          "valueSize": 26
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "0",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#3d8bf2"
-          }
-        },
-        "overrides": []
-      },
-      "id": 33,
-      "gridPos": {
-        "h": 5,
-        "w": 12,
         "x": 12,
-        "y": 63
+        "y": 70
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3374,12 +3051,12 @@
       "type": "row",
       "title": "Pipeline health",
       "collapsed": false,
-      "id": 34,
+      "id": 33,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 75
       },
       "panels": []
     },
@@ -3474,12 +3151,12 @@
           }
         ]
       },
-      "id": 35,
+      "id": 34,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 69
+        "y": 76
       },
       "datasource": {
         "type": "cloudwatch",
@@ -3562,12 +3239,12 @@
         },
         "overrides": []
       },
-      "id": 36,
+      "id": 35,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 69
+        "y": 76
       },
       "datasource": {
         "type": "cloudwatch",
