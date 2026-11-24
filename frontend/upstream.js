@@ -14,11 +14,13 @@
       box.className = "upstream";
       box.setAttribute("role", "status");
       items.forEach(function (i) {
-        var text = "Service outage: " + i.service + " - " + i.effect;
+        // "Outage" only when the vendor says so; most incidents are a slowdown.
+        var text = (i.level === "outage" ? "Outage: " : "Slow: ") + i.service + ". " + i.effect.charAt(0).toUpperCase() + i.effect.slice(1);
         var badge = document.createElement("button");
         badge.type = "button";
         badge.className = "upstream-badge";
         badge.setAttribute("aria-label", text + ". Dismiss");
+        if (i.detail) badge.title = i.service + " reports: " + i.detail;
         badge.textContent = text;
         var x = document.createElement("span");
         x.className = "upstream-x";

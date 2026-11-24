@@ -40,6 +40,22 @@ check("a partial outage reads as an outage", got[0]["level"] == "outage", got)
 check("all operational reports nothing",
       handler.statuspage_problems({"components": [{"name": "Actions", "status": "operational"}]}, vendor, effects) == [])
 
+url, vendor, effects = handler.STATUSPAGES[1]
+got = handler.statuspage_problems({"components": [{"name": "Workers", "status": "degraded_performance"}],
+    "incidents": [{"name": "Workers API delayed", "components": [{"name": "Workers"}]}]}, vendor, effects)
+check("the vendor's incident title comes along", got and got[0].get("detail") == "Workers API delayed", got)
+
+# A Workers incident is shown only while the MCP Worker itself fails.
+summary = {"components": [{"name": "Workers", "status": "degraded_performance"}]}
+real_fetch, real_mcp = handler._fetch_json, handler.mcp_answers
+handler._fetch_json = lambda u: summary if "cloudflare" in u else ({"components": []} if "github" in u else [])
+for answers, want in ((True, []), (False, ["Cloudflare Workers"])):
+    handler.mcp_answers = lambda: answers
+    handler._refresh_upstream()
+    got = [i["service"] for i in handler._upstream["items"]]
+    check(f"Workers degraded, MCP {'answers' if answers else 'fails'}: {want or 'nothing'}", got == want, got)
+handler._fetch_json, handler.mcp_answers = real_fetch, real_mcp
+
 got = handler.aws_problems([
     {"service": "ec2-il-central-1", "service_name": "Amazon EC2"},
     {"service": "multipleservices-me-central-1", "service_name": "Multiple services"},

@@ -1771,9 +1771,14 @@ STATUSPAGES = [
         "Network": "pages may load slowly or not at all",
         "Authoritative DNS": "the site may be unreachable",
         "Tunnel": "job search and the board may not load",
-        "Workers": "the MCP server may not respond",
+        "Workers": "the MCP server isn't responding",
     }),
 ]
+# A Workers incident on Cloudflare's page is often their API or dashboard
+# only: on 2026-11-23 "Workers API - Delayed or Inconsistent Responses"
+# kept the badge up for a day while /mcp answered in 0.2s. So the badge
+# shows a Workers problem only while the MCP Worker itself fails.
+MCP_URL = "https://oceanofjobs.com/mcp"
 AWS_HEALTH = "https://health.aws.amazon.com/public/currentevents"
 UPSTREAM_TTL_S = 300
 _upstream = {"at": 0.0, "items": [], "busy": False}
@@ -1784,10 +1789,24 @@ def statuspage_problems(summary: dict, vendor: str, effects: dict) -> list:
     for c in summary.get("components") or []:
         status = c.get("status")
         if c.get("name") in effects and status != "operational":
+            # The vendor's own incident title, shown on hover.
+            detail = next((i.get("name") for i in summary.get("incidents") or []
+                           if c["name"] in [x.get("name") for x in i.get("components") or []]), None)
             out.append({"service": f"{vendor} {c['name']}",
                          "level": "outage" if status in ("partial_outage", "major_outage") else "degraded",
-                         "effect": effects[c["name"]]})
+                         "effect": effects[c["name"]], **({"detail": detail} if detail else {})})
     return out
+
+
+def mcp_answers() -> bool:
+    import urllib.request
+    req = urllib.request.Request(MCP_URL, data=b'{"jsonrpc":"2.0","id":1,"method":"tools/list"}', headers={
+        "Content-Type": "application/json", "Accept": "application/json, text/event-stream", "User-Agent": "oceanofjobs-status"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status == 200
+    except Exception:
+        return False
 
 
 def aws_problems(events: list) -> list:
@@ -1826,6 +1845,8 @@ def _refresh_upstream():
         items += aws_problems(_fetch_json(AWS_HEALTH))
     except Exception:
         pass
+    if any(i["service"] == "Cloudflare Workers" for i in items) and mcp_answers():
+        items = [i for i in items if i["service"] != "Cloudflare Workers"]
     _upstream.update(items=items, at=time.time(), busy=False)
 
 
