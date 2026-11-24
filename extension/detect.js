@@ -103,8 +103,25 @@
     setTimeout(() => watch.disconnect(), 30000);
   }, 500);
   // A form that opens from an Apply button later on.
-  const onClick = () => setTimeout(() => { if (look()) document.removeEventListener('click', onClick, true); }, 1500);
-  document.addEventListener('click', onClick, true);
+  document.addEventListener('click', () => setTimeout(look, 1500), true);
+
+  // A site that changes page without loading one (a dashboard, a CRM, a
+  // web app) kept the card from a page with a form on every page after it
+  // (2026-11-24). On a new address a card nobody has used goes, and the new
+  // page is looked at afresh. A fill under way, or its result, stays.
+  let at = location.href.split('#')[0];
+  if (isTop) setInterval(() => {
+    const now = location.href.split('#')[0];
+    if (now === at) return;
+    at = now;
+    if (!built || !built.own) return;
+    const go = built.root.querySelector('.go');
+    if (!go || go.disabled || go.hidden || go.textContent !== 'Fill application') return;
+    built.drop();
+    built = null;
+    shown = building = false;
+    look();
+  }, 1000);
 
   // Just below the top right corner, moved down past the site's own
   // links and buttons there.

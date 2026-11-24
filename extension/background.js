@@ -1603,7 +1603,8 @@ async function syncAllSites() {
   await chrome.scripting.unregisterContentScripts({ ids: ['detect-all'] }).catch(() => {});
   if (!on) return;
   await chrome.scripting.registerContentScripts([{
-    id: 'detect-all', matches: [ALL_SITES], excludeMatches: ['https://oceanofjobs.com/*', ...chrome.runtime.getManifest().content_scripts[1].matches],
+    // Our own sites too: the CRM's user list showed the card (2026-11-24).
+    id: 'detect-all', matches: [ALL_SITES], excludeMatches: ['https://oceanofjobs.com/*', 'https://*.oceanofjobs.com/*', ...chrome.runtime.getManifest().content_scripts[1].matches],
     js: ['lib/match.js', 'ats/generic.js', 'detect.js'], allFrames: true, runAt: 'document_idle', persistAcrossSessions: true,
   }]).catch(() => {});
 }
