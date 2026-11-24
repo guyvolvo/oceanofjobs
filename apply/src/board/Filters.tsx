@@ -105,7 +105,7 @@ function LocationField() {
 
 export function SearchRow() {
   return (
-    <div id="topbar-search" role="search" className="relative flex h-10 min-w-0 flex-[1_1_360px] items-stretch rounded-full border-[1.5px] border-foreground/30 bg-card focus-within:outline-2 focus-within:outline-ring max-[800px]:h-11 min-[1101px]:max-w-[600px]">
+    <div id="topbar-search" role="search" className="relative flex h-10 min-w-0 flex-[1_1_360px] items-stretch rounded-full border-[1.5px] border-foreground/30 bg-card focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-ring max-[800px]:h-11 min-[1101px]:max-w-[600px]">
       <SearchField />
       <LocationField />
     </div>

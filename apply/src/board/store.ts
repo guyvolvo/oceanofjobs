@@ -85,11 +85,9 @@ export const useBoard = () => useSyncExternalStore(subscribe, () => version, () 
 // The places search (placeSearch) feeds only the Location tree, so it has
 // its own signal: through emit() each answer re-rendered the whole board
 // while someone was typing.
-let placeVersion = 0;
 const placeSubs = new Set<() => void>();
-function placeEmit() { placeVersion++; placeSubs.forEach((f) => f()); }
-const placeSubscribe = (f: () => void) => { placeSubs.add(f); return () => { placeSubs.delete(f); }; };
-export const usePlaces = () => useSyncExternalStore(placeSubscribe, () => placeVersion, () => 0);
+function placeEmit() { placeSubs.forEach((f) => f()); }
+export const onPlaces = (f: () => void) => { placeSubs.add(f); return () => { placeSubs.delete(f); }; };
 
 // storage
 
