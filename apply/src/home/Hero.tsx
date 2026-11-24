@@ -7,6 +7,7 @@
 // the effects below, which move the same DOM the old page's scripts did
 // (hidden, classes, text). React never re-renders those subtrees, so the
 // two never fight. They play under reduced motion too, on purpose.
+import { ArrowRight, ArrowUpRight, Check, CheckCircle, Copy } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import { Island } from "../shell/island";
 import { copyText } from "./copy";
@@ -41,7 +42,7 @@ const CLIENTS: Client[] = [
   { id: "kimi", name: "Kimi", dim: "kimi mcp add", cmd: ` --transport http oceanofjobs ${MCP_URL}`, copyLabel: "Copy the Kimi install command" },
 ];
 
-const Arrow = () => <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>;
+const Arrow = () => <ArrowUpRight size={14} />;
 
 // The install tabs: click or arrow keys pick a client and show its pane.
 // Each pane's button copies its line, then shows a tick for a moment.
@@ -84,8 +85,8 @@ function McpInstall() {
               : <span className="mcp-cmd">{c.dim ? <span className="mcp-dim">{c.dim}</span> : null}{c.cmd}</span>}
             <button type="button" className="mcp-copy" aria-label={c.copyLabel} onClick={() => copy(c)}>
               {copied === c.id
-                ? <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-                : <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>}
+                ? <Check size={14} />
+                : <Copy size={14} />}
             </button>
           </div>
         </div>
@@ -137,7 +138,7 @@ function ExtWindow() {
           </div>
         </div>
         <div className="ext-done" data-done>
-          <svg viewBox="0 0 20 20" width="40" height="40"><circle cx="10" cy="10" r="10" /><path d="M5.8 10.4l2.8 2.8 5.6-6" /></svg>
+          <CheckCircle size={44} weight="fill" />
           <div className="ext-done-t">Application submitted</div>
           <div className="ext-done-s">Thanks for applying to OpenAI. We'll be in touch.</div>
         </div>
@@ -399,7 +400,7 @@ export function HeroSearch() {
     <form className="home-search" action="/board" role="search" onSubmit={submit}>
       <svg className="home-search-icon" viewBox="0 -960 960 960" width="22" height="22" aria-hidden="true"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" /></svg>
       <input className="home-search-input" name="search" type="search" autoComplete="off" aria-label="Search jobs" placeholder="Find your perfect job" />
-      <button className="home-search-go" type="submit" aria-label="Search"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></button>
+      <button className="home-search-go" type="submit" aria-label="Search"><ArrowRight size={20} /></button>
     </form>
   );
 }
@@ -413,7 +414,7 @@ export function Hero() {
           <h1 id="home-title">Automate your<br />job search</h1>
           <Island name="hero-search" component={HeroSearch} props={{}} />
           <div className="mt-[18px] flex flex-wrap gap-2.5">
-            <a className="home-docs" href="/docs">Docs<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9" /></svg></a>
+            <a className="home-docs" href="/docs">Docs<ArrowUpRight size={14} /></a>
             <a className="home-docs" href="#pricing">See pricing<svg className="home-down" viewBox="0 -960 960 960" width="16" height="16" aria-hidden="true"><path d="M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224v-487h-80Z" /></svg></a>
           </div>
         </div>

@@ -2,6 +2,7 @@
 // which the precompute Lambda writes every three hours. Nothing until it
 // loads. An island of the home page. Shuffle swaps every card for one not yet shown, one at a time in
 // a random order and at random intervals, each easing out and back in.
+import { Shuffle } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 
 type Hot = { id: string; title: string; company: string; domain: string; logo?: boolean; location: string; posted: string; badges?: string[] };
@@ -89,7 +90,7 @@ export function HotJobs() {
         <div className="mb-12 flex items-center justify-between gap-4">
           <h2 className="home-h2" id="hot-title">Recent job posts</h2>
           <button type="button" className="home-soft home-soft-sm home-shuffle" disabled={busy} onClick={shuffle}>
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22" /><path d="m18 2 4 4-4 4" /><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2" /><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8" /><path d="m18 14 4 4-4 4" /></svg>Shuffle
+            <Shuffle size={16} />Shuffle
           </button>
         </div>
         <div className="home-hot-grid grid grid-cols-1 gap-4 min-[641px]:grid-cols-2 min-[1025px]:grid-cols-3" aria-live="polite">

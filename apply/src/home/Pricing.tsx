@@ -1,10 +1,11 @@
 // The plans compared: one table on the dither panel, and the same plans as
 // stacked cards for a phone (home.css swaps them under 700px). Shared by
 // the home page's pricing section and /pricing.
+import { CheckCircle } from "@/components/icons";
 import type { ReactNode } from "react";
 import { FEATURES, HOT_PLAN, PLANS, type Plan } from "./plans";
 
-const Check = () => <svg className="ptable-yes" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" /><path d="M5.8 10.4l2.8 2.8 5.6-6" /></svg>;
+const Check = () => <CheckCircle className="ptable-yes" weight="fill" />;
 const Yes = () => <><Check /><span className="sr-only">Included</span></>;
 
 function Cell({ v }: { v: boolean | string }) {
