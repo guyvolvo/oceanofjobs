@@ -63,8 +63,12 @@ function Dither({ className = "" }: { className?: string }) {
 
 export function Login() {
   const [error, setError] = useState("");
+  // Worked out once, and written into the address, so a Google or GitHub
+  // sign-in returns straight there (auth.js rememberPage reads ?next=).
+  const [to] = useState(() => nextPath(location.search, document.referrer, location.origin));
+  useEffect(() => { history.replaceState(history.state, "", "/login?next=" + encodeURIComponent(to)); }, [to]);
   const who = useWho();
-  useEffect(() => { if (who) location.replace(nextPath(location.search, document.referrer, location.origin)); }, [who]);
+  useEffect(() => { if (who) location.replace(to); }, [who, to]);
   // A failed Google or GitHub sign-in shows its reason here: straight from
   // auth.js on this page, or carried over from the page the provider sent
   // the reader back to (frontend/auth.js, auth_error).
