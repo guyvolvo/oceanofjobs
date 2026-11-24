@@ -36,6 +36,12 @@ from listing_text import deadline_from, description_html, language_of
 from page_chrome import (FOOT, SITE, ago, ago_short, ats_is_site, ats_name, fmt_int, head as _head_shared,
                          long_date, monogram, parse_ts, plural, short_date, topbar)
 from titles import split_title
+from icons import icon
+
+# Google's Material Symbols (api/icons.py) in place of hand-drawn strokes.
+I_PLACE, I_WORKPLACE, I_POSTED = icon("location_on", 15), icon("home", 15), icon("schedule", 15)
+I_CLOSES, I_LANGUAGE, I_ALERT_SM = icon("calendar_today", 13), icon("language", 13), icon("notifications", 13)
+I_SAVE, I_COPY = icon("star", 14), icon("link", 14)
 
 EXPIRED_KEEP_DAYS = 30
 CARD = f"{SITE}/og.jpg?v=4"  # bump v when og.jpg changes: link previews cache by URL
@@ -345,22 +351,22 @@ def render(job, now=None, extra=None) -> str:
     meta = []
     place = _where_line(job)
     if place:
-        meta.append(f'<span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>{esc(place)}</span>')
+        meta.append(f'<span>{I_PLACE}{esc(place)}</span>')
     if workplace:
-        meta.append(f'<span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>{esc(workplace)}</span>')
+        meta.append(f'<span>{I_WORKPLACE}{esc(workplace)}</span>')
     if posted:
-        meta.append(f'<span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Posted {esc(short_date(posted))}</span>')
+        meta.append(f'<span>{I_POSTED}Posted {esc(short_date(posted))}</span>')
     tags = []
     if closes:
         days = (closes[0] - now.date()).days
         left = "closes today" if days == 0 else f"{days} {plural(days, 'day')} left"
-        tags.append(f'<span class="pg-tag pg-tag-green"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Closes {esc(short_date(closes[0]))} · {esc(left)}</span>')
+        tags.append(f'<span class="pg-tag pg-tag-green">{I_CLOSES}Closes {esc(short_date(closes[0]))} · {esc(left)}</span>')
     if level:
         tags.append(f'<span class="pg-tag">{esc(level)}</span>')
     if hours:
         tags.append(f'<span class="pg-tag">{esc(hours)}</span>')
     if language != "English":
-        tags.append(f'<span class="pg-tag"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg>Listing in {esc(language)}</span>')
+        tags.append(f'<span class="pg-tag">{I_LANGUAGE}Listing in {esc(language)}</span>')
     if job.get("confidence") == "best_effort":
         tags.append('<span class="pg-tag" title="Taken from the company\'s careers page, not a hiring system">Company website</span>')
     if not open_:
@@ -445,7 +451,7 @@ def render(job, now=None, extra=None) -> str:
     if extra.get("similar"):
         rows = "".join(_role_row(j, now, with_company=True) for j in extra["similar"][:6])
         similar = (f'<section class="pg-card"><div class="pg-card-title">Similar jobs</div>{rows}'
-                   f'<button type="button" class="pg-btn pg-btn-wide" data-alert-like><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>Alert me about jobs like this</button></section>')
+                   f'<button type="button" class="pg-btn pg-btn-wide" data-alert-like>{I_ALERT_SM}Alert me about jobs like this</button></section>')
 
     # What the board knows about the company's hiring, which the
     # employer's own posting doesn't say: the page's own content beside
@@ -488,8 +494,8 @@ def render(job, now=None, extra=None) -> str:
         <section class="pg-card pg-card-main">
           {apply_main}
           <div class="pg-side-acts">
-            <button type="button" class="pg-btn" data-save="{esc(job["id"])}" aria-pressed="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span>Save</span></button>
-            <button type="button" class="pg-btn" data-copy="{canonical_url(job["id"])}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Copy link</span></button>
+            <button type="button" class="pg-btn" data-save="{esc(job["id"])}" aria-pressed="false">{I_SAVE}<span>Save</span></button>
+            <button type="button" class="pg-btn" data-copy="{canonical_url(job["id"])}">{I_COPY}<span>Copy link</span></button>
           </div>
           <div class="pg-facts">{facts_html}</div>
           {seen_line}

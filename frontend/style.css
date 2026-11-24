@@ -4318,7 +4318,7 @@ a.hero-account-btn { text-decoration: none; }
 .home .home-nav .site-menu-link:hover,
 .home .home-nav .site-menu-btn:hover,
 .home .home-nav .site-menu.open .site-menu-btn { color: var(--h-text); text-decoration: none; }
-.home .site-menu-chev { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
 /* Under its own menu rather than hung off the right edge: these menus
    sit in the middle of the bar. */
 /* -19px puts the item text (panel border 1 + padding 6 + item padding 12) under the menu label */
