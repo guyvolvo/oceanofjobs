@@ -284,7 +284,7 @@ test("a revoked token is a readable tool error, and other Authorization headers 
   assert.equal(body.result.isError, true);
   assert.match(body.result.content[0].text, /revoked or expired/);
   const other = await post({ jsonrpc: "2.0", id: 61, method: "tools/call", params: { name: "list_saved_jobs", arguments: {} } }, { authorization: "Bearer eyJhbGciOi.some.jwt" });
-  assert.match((await other.json()).result.content[0].text, /needs an Ocean of Jobs personal access token/);
+  assert.match((await other.json()).result.content[0].text, /needs an Ocean of Jobs personal access token[\s\S]*Claude and ChatGPT apps have no place for a token/);
   assert.ok(!JSON.stringify(points).includes(TOKEN), "the token is never in analytics");
 });
 
