@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LoadingButton, TextField } from "../fields";
-import { PencilSimple, X } from "@phosphor-icons/react";
+import { PencilSimple, X } from "@/components/icons";
 import { api, send, ApiError } from "../api";
 import { useUnsaved } from "../unsaved";
 import { plural } from "../shared";

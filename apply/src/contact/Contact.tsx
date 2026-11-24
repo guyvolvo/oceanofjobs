@@ -1,6 +1,6 @@
 // The contact page (/contact): what this is and the direct ways on the
 // left, plain prerendered HTML; the form on the right, the page's island.
-import { ArrowUpRight, Bug, EnvelopeSimple, GithubLogo, LinkedinLogo } from "@phosphor-icons/react";
+import { ArrowUpRight, Bug, EnvelopeSimple, GithubLogo, LinkedinLogo } from "@/components/icons";
 import { Island } from "../shell/island";
 import { Page } from "../shell/Page";
 import { ContactForm } from "./ContactForm";

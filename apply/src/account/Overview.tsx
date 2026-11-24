@@ -13,7 +13,7 @@ import { LoadingButton } from "../fields";
 import { Meter } from "../shared";
 import { apply } from "../api";
 import type { Resume } from "../apply/Agent";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, WarningCircle, X } from "@phosphor-icons/react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookmarkSimple, Check, Pause, PencilSimple, UploadSimple, WarningCircle, X } from "@/components/icons";
 import { GOOGLE } from "../shell/SignIn";
 import { Workspace } from "../site/Workspace";
 import { describeAlertFilter, EMPTY_PROFILE, fmt, MAX_SKILLS, placeSummary, provider, starred, useAlerts, useDashboard, useProfile, useSaved, WORKPLACE_LABELS,

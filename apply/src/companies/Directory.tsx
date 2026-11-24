@@ -6,7 +6,7 @@
 // prerendered HTML; the list itself is fetched in the browser, as before.
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PillSelect } from "@/components/pill-select";
-import { CalendarBlank, CaretDown, MagnifyingGlass, MapPin, SlidersHorizontal } from "@phosphor-icons/react";
+import { CalendarBlank, CaretDown, MagnifyingGlass, MapPin, SlidersHorizontal } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";

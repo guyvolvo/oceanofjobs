@@ -4,7 +4,7 @@
 // is in Popups.tsx and the places tree in Location.tsx; both load after
 // the first rows, so they stay out of the first load.
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Bell, Buildings, CaretDown, ChartBar, House, MagnifyingGlass, MapPin, Money, SlidersHorizontal, X } from "@phosphor-icons/react";
+import { Bell, Buildings, CaretDown, House, MagnifyingGlass, MapPin, Money, SignalBars, SlidersHorizontal, X } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { PillSelect } from "@/components/pill-select";
 import { F, U, activeChips, alertForSearch, anythingOn, applySearchNow, clearPlaces, emit, locationText, openSheet, removeChip, resetAll, setDatePosted, setRailOpen, setSort,
@@ -129,7 +129,7 @@ export const PILLS = [
     return bits;
   } },
   { key: "employer", title: "Company", icon: Buildings, summary: () => activeChips().filter((c) => c.kind === "company").map((c) => c.text) },
-  { key: "level", title: "Experience level", icon: ChartBar, summary: () => F.seniority.map((v) => SENIORITY_LABELS[v] || v) },
+  { key: "level", title: "Experience level", icon: SignalBars, summary: () => F.seniority.map((v) => SENIORITY_LABELS[v] || v) },
 ];
 
 export function PillFace({ p }: { p: (typeof PILLS)[number] }) {

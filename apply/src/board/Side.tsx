@@ -2,7 +2,7 @@
 // counts, and the searches kept in this browser. Above 1100px it is a
 // column; below, a drawer behind the menu button; on a phone the filters
 // sheet carries the same sections.
-import { GithubLogo, X } from "@phosphor-icons/react";
+import { GithubLogo, X } from "@/components/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { RAIL_GROUPS, RAIL_TOP_N, U, currentSearchQuery, currentView, forgetSavedSearch, openSavedSearch, railLabel, railRows, railSelected, railToggle,

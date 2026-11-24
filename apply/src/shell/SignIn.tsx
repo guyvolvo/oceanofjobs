@@ -4,7 +4,7 @@
 // Same steps and copy as src/site/SignIn.tsx and frontend/signin_dialog.js.
 // Loaded on demand (Header.tsx), so its Radix dialog is not in the first load.
 import { useId, useState, type ComponentType, type ReactNode } from "react";
-import { ArrowLeft, GithubLogo } from "@phosphor-icons/react";
+import { ArrowLeft, GithubLogo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";

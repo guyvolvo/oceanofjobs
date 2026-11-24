@@ -2,7 +2,7 @@
 // column's note shows under the list on click. Typing filters columns by
 // name or note across every table and opens the tables that match.
 import { useState } from "react";
-import { CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
+import { CaretRight, MagnifyingGlass } from "@/components/icons";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { SCHEMA } from "./data";

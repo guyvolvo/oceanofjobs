@@ -2,7 +2,7 @@
 // sub-navigation, the card, the two-click delete, the chip picker, and the
 // class strings the pages repeat (Tailwind on the tokens).
 import { useEffect, useId, useMemo, useRef, useState, type ComponentProps, type ComponentType, type ReactNode } from "react";
-import { CaretDown, Check, X } from "@phosphor-icons/react";
+import { CaretDown, Check, X } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";

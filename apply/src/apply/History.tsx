@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SelectField } from "../fields";
-import { ClockCounterClockwise } from "@phosphor-icons/react";
+import { ClockCounterClockwise } from "@/components/icons";
 import type { Source, Status } from "../api";
 import { JobCell, OutcomeSelect, SENT, SOURCE, STATUS, SourceLabel, StatusBadge, fmtDate, plural } from "../shared";
 import { useApplyData } from "./data";

@@ -3,7 +3,7 @@
 // Loaded once the rows are up (Filters.tsx loadPopups), so none of it is
 // in the first load; until then the pills are plain buttons that look the same.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";

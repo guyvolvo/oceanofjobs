@@ -2,7 +2,7 @@
 // header draws SECTIONS (sections.ts); the signed-in workspace's sidebar
 // draws GROUPS.
 import { Bell, BookmarkSimple, Buildings, ChartBar, ChatCircleDots, GearSix, ListChecks, MagnifyingGlass,
-  PaperPlaneTilt, Robot, SlidersHorizontal, SquaresFour } from "@phosphor-icons/react";
+  PaperPlaneTilt, Robot, SlidersHorizontal, SquaresFour } from "@/components/icons";
 import type { Icon } from "./sections";
 
 export { SECTIONS, type Icon, type Link, type Section } from "./sections";

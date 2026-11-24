@@ -8,7 +8,7 @@
 // the sidebar, the headings, skeleton rows and every crawlable link. The
 // state lives in store.ts and only starts in the browser (boot, below).
 import { useEffect, useRef, useState } from "react";
-import { Bell, Briefcase, Buildings, List as ListIcon, Star, UserCircle } from "@phosphor-icons/react";
+import { Bell, Briefcase, Buildings, List as ListIcon, Star, UserCircle } from "@/components/icons";
 import { Header } from "../shell/Header";
 import { useWho } from "../shell/state";
 import { signedIn } from "../api";

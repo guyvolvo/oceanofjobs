@@ -2,7 +2,7 @@
 // to /api/contact, which sends it on as one email. Same copy and behaviour
 // as the live page (origin/main apply/src/Contact.tsx), on shadcn/ui.
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { ArrowUpRight, CheckCircle } from "@phosphor-icons/react";
+import { ArrowUpRight, CheckCircle } from "@/components/icons";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

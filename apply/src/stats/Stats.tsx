@@ -11,7 +11,7 @@
 // (sql.js-httpvfs) loads when the first query runs, ECharts with the
 // first chart.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChartBar, ChartBarHorizontal, ChartLine, DownloadSimple, Link as LinkIcon, Play, Table as TableIcon, type Icon } from "@phosphor-icons/react";
+import { ChartBar, ChartBarHorizontal, ChartLine, DownloadSimple, Link as LinkIcon, Play, Table as TableIcon, type Icon } from "@/components/icons";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { Page } from "../shell/Page";

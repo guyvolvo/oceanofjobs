@@ -5,7 +5,7 @@
 // its data-id, never by its position.
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useVirtualizer, useWindowVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
-import { CaretDown, Check, Lightning, Star } from "@phosphor-icons/react";
+import { CaretDown, Check, Lightning, Star } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";

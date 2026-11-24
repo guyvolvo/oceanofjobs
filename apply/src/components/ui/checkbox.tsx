@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Check as CheckIcon } from "@phosphor-icons/react"
+import { Check as CheckIcon } from "@/components/icons"
 import { Checkbox as CheckboxPrimitive } from "radix-ui"
 
 function Checkbox({

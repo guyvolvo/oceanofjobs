@@ -5,7 +5,7 @@
 // go and runs when it closes. The menus load on first use (Menus.tsx);
 // until then each is a plain button that looks the same.
 import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { filterLabel, GROUP_WORDS, LIMITS, type Picks } from "./data";
 import type { Group, Opt } from "./Menus";

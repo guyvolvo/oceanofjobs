@@ -2,7 +2,7 @@
 // rows under it, and the table. Every header sorts, the main number gets
 // a light bar inside its cell, a change reads green when it went up.
 import { lazy, Suspense, useState } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { barsAreVertical, fmtInt, fmtTime, fmtValue, LABELS, prettyCol, ROWS_PREVIEW, statsOf, type Cell, type Manifest, type Question, type Shaped, type Viz } from "./data";
 

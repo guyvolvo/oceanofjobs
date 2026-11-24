@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LoadingButton } from "../fields";
-import { UploadSimple, X } from "@phosphor-icons/react";
+import { UploadSimple, X } from "@/components/icons";
 import { Workspace } from "../site/Workspace";
 import { plural } from "../shared";
 import { useUnsaved } from "../unsaved";

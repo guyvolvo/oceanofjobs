@@ -3,7 +3,7 @@
 // made. Loaded on first pick, so the directory's first paint doesn't
 // carry it.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { pub } from "../api";
