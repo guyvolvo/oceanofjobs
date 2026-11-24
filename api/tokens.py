@@ -8,9 +8,10 @@ token is stored: a copy of the table cannot be used to sign in, and the
 secret carries 192 random bits, so a fast hash is enough.
 
 A token is not a session, and each has a scope. An "mcp" token reaches
-the four AREAS below, each as its owner chose when making it: no access,
-read, or write (which includes read). A token made before permissions
-existed writes all four, as it always could. An "extension" token (made
+the AREAS below, each as its owner chose when making it: no access, read,
+or write (which includes read; READ_ONLY areas stop at read). A token made
+before permissions existed writes the FIRST areas, as it always could,
+and nothing added since. An "extension" token (made
 by the website for the browser extension, one per browser) reaches
 saved jobs and /api/me/apply/*. serve.py holds the map. Neither can
 mint or revoke tokens.
@@ -31,7 +32,12 @@ MAX_PER_USER = 5
 MAX_EXTENSIONS = 3
 EXPIRY_DAYS = (30, 90, None)  # None: never
 SCOPES = ("mcp", "extension")
-AREAS = ("saved", "queue", "alerts", "preferences")
+AREAS = ("saved", "queue", "alerts", "preferences", "history", "matches", "usage", "needs", "autoapply", "agent")
+# Nothing there to change.
+READ_ONLY = ("matches", "usage")
+# What a token could reach before the rest were added (2026-11-24): a
+# token made without permissions gets these, never the newer ones.
+FIRST = ("saved", "queue", "alerts", "preferences", "history")
 ACCESS = ("none", "read", "write")
 NAME_MAX = 60
 # last_used moves at most this often, so a busy client does not cost a
@@ -72,7 +78,12 @@ def permissions_of(item: dict) -> dict:
     """What the token may do in each area. A row without permissions
     predates them and keeps the full access it was made with."""
     got = item.get("permissions") or {}
-    return {a: got.get(a, "none") if got else "write" for a in AREAS}
+    if not got:
+        return {a: "write" if a in FIRST else "none" for a in AREAS}
+    out = {a: got.get(a, "none") for a in AREAS}
+    if "history" not in got:  # history came with the queue until it had its own
+        out["history"] = out["queue"]
+    return out
 
 
 def clean_permissions(body) -> dict:
@@ -81,6 +92,9 @@ def clean_permissions(body) -> dict:
     out = {a: body.get(a, "none") for a in AREAS}
     if any(v not in ACCESS for v in out.values()):
         raise ValueError("each permission is none, read or write")
+    for a in READ_ONLY:
+        if out[a] == "write":
+            out[a] = "read"
     if all(v == "none" for v in out.values()):
         raise ValueError("a token needs access to something")
     return out
@@ -113,7 +127,7 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
     if scope not in SCOPES:
         raise ValueError("scope must be mcp or extension")
     if scope == "mcp":
-        permissions = clean_permissions({a: "write" for a in AREAS} if permissions is None else permissions)
+        permissions = clean_permissions({a: "write" for a in FIRST} if permissions is None else permissions)
     existing = list_tokens(table, user_id)
     if scope == "extension":
         # Each browser keeps its own token, so connecting a second computer
