@@ -143,7 +143,7 @@ function ExtWindow() {
           <div className="ext-done-s">Thanks for applying to OpenAI. We'll be in touch.</div>
         </div>
         <div className="ext-card">
-          <div className="ext-card-head"><img src="/favicon.svg" width="14" height="14" alt="" />Ocean of Jobs</div>
+          <div className="ext-card-head"><img src="/favicon.svg?v=4" width="14" height="14" alt="" />Ocean of Jobs</div>
           <div className="ext-card-msg" data-msg>Reading the form</div>
           <div className="ext-card-bar"><i data-bar /></div>
         </div>

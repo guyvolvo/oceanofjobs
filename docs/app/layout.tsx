@@ -36,7 +36,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
         <script dangerouslySetInnerHTML={{ __html: theme }} />
         <link rel="stylesheet" href="/docs/site.css" />
       </head>
