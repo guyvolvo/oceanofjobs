@@ -504,19 +504,19 @@
     'no confirmation after submitting': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     'no confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     'Greenhouse asked for an email security code': 'Greenhouse sent you a security code by email. Enter it on the page to continue.',
-    'unsupported site': "This site doesn't support automatic applications. Open the job to fill in the form yourself.",
+    'unsupported site': "This site isn't supported. Apply yourself.",
     'blocked company': 'This company is on your Never apply to list.',
     'applied to this company recently': 'You applied to this company recently.',
     'already applied': "You've already applied to this job.",
     'tab closed': 'The tab closed before the site confirmed the application.',
     'not submitted': 'The tab closed before the application was submitted.',
-    'sign in first': 'You need to sign in on this site to apply. Open the job and apply yourself.',
-    'no Workday password': 'Add a Workday password in Settings so the extension can sign in to Workday sites.',
-    'Workday account to verify': 'Workday emailed you a link to confirm your new account. Click the link, then try again.',
+    'sign in first': 'This site needs you to sign in. Apply yourself.',
+    'no Workday password': 'Add a Workday password in Settings.',
+    'Workday account to verify': 'Click the link Workday emailed you to confirm your account, then try again.',
     'no email in the profile': 'Add your email under Auto apply settings.',
     'Workday sign-in form not found': "Couldn't find the Workday sign-in form.",
     'Workday account form not found': "Couldn't find the form to create a Workday account.",
-    'ready to submit': 'Ready to submit. This site requires you to submit the form yourself. Open it and click Submit.',
+    'ready to submit': 'Ready. Open the form and submit it yourself.',
     'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     // Why Full automatic stopped after filling (autoSubmit).
     'full automatic needs a paid plan': 'Full automatic needs the Basic or Pro plan.',
@@ -528,9 +528,9 @@
   const PREFIXES = [
     ['form errors: ', 'The form needs your attention: '],
     ['Ashby will not take this application: ', "Ashby couldn't submit this application: "],
-    ['needs answer: ', 'Please answer: '],
-    ['Workday sign-in: ', "Couldn't sign in to this company's Workday site: "],
-    ['Workday account: ', "Couldn't create an account on this company's Workday site: "],
+    ['needs answer: ', 'Answer: '],
+    ['Workday sign-in: ', "Couldn't sign in to Workday: "],
+    ['Workday account: ', "Couldn't create a Workday account: "],
   ];
 
   // One reason's own wording, or null when it has none.
@@ -559,7 +559,7 @@
     const s = [`Filled ${r.filled} ${plural(r.filled, 'field')}.`];
     if (r.suggested) s.push(`AI suggested ${r.suggested} ${plural(r.suggested, 'answer')}. Check ${plural(r.suggested, 'the one', 'the ones')} outlined in amber.`);
     // A wizard's pages already passed (Workday): their outlines went with them.
-    if (r.earlier) s.push(`AI answered ${r.earlier} ${plural(r.earlier, 'question on an earlier page', 'questions on earlier pages')}. Check ${plural(r.earlier, 'it', 'them')} on the review page before you submit.`);
+    if (r.earlier) s.push(`AI answered ${r.earlier} ${plural(r.earlier, 'question on an earlier page', 'questions on earlier pages')}. Check ${plural(r.earlier, 'it', 'them')} on the review page.`);
     const missing = (r.missing || []).length, errors = (r.errors || []).length;
     if (missing) s.push(`${missing} ${plural(missing, 'needs', 'need')} your attention.`);
     if (errors) s.push(`Couldn't fill ${errors} ${plural(errors, 'field')}.`);
@@ -568,8 +568,8 @@
 
   // What a Submit from the card or a Full automatic fill came to (background
   // submitHere, startSubmit), for the card and the popup.
-  const SUBMITTED = 'Application submitted. You can find it in your application history.';
-  const UNCONFIRMED = "We couldn't confirm that the site received your application, so it counts as one application for now. If it wasn't submitted, you can dispute it on your Auto apply page.";
+  const SUBMITTED = 'Application submitted.';
+  const UNCONFIRMED = "The site didn't confirm your application, so it counts as sent. If it wasn't, dispute it on your Auto apply page.";
   const quoted = (qs) => qs.map((q) => `"${q}"`).join(', ');
   const reviewText = (qs) => `Check the AI ${plural(qs.length, 'answer')} to ${quoted(qs)}, then submit the application.`;
   function sentText(s) {
@@ -577,9 +577,9 @@
     if (s && s.unknown) return UNCONFIRMED;
     if (s && s.review) return reviewText(s.review);
     if (s && s.failed && /^captcha: human check/.test(s.failed)) {
-      return "Not submitted. The site's human check stopped it. This attempt doesn't count toward your application limit. Use the site's Submit button.";
+      return "Not submitted. The site's human check stopped it. Use the site's Submit button.";
     }
-    if (s && s.failed) return `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This attempt doesn't count toward your application limit. Fix the issue on the form, then try again.`;
+    if (s && s.failed) return `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}.`;
     return reasonText((s && s.error) || 'Something went wrong. Reload the page and try again.');
   }
 

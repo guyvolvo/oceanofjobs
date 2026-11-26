@@ -307,7 +307,7 @@ test('plural picks the word for a count', () => {
 
 test('reasonText: internal reasons as the user reads them', () => {
   assert.equal(m.reasonText('captcha'), 'This site asked you to complete a CAPTCHA.');
-  assert.equal(m.reasonText('needs answer: Why us?; Salary?'), 'Please answer: Why us?; Salary?');
+  assert.equal(m.reasonText('needs answer: Why us?; Salary?'), 'Answer: Why us?; Salary?');
   assert.equal(m.reasonText('form errors: Email, Phone'), 'The form needs your attention: Email, Phone');
   assert.equal(m.reasonText('Ashby will not take this application: closed'), "Ashby couldn't submit this application: closed");
   assert.equal(m.reasonText('Country: no options to pick from'), 'Country: There are no options in this list.');
@@ -318,7 +318,7 @@ test('reasonText: internal reasons as the user reads them', () => {
   assert.equal(m.reasonText('could not fill Phone: no phone box on the page; CV: no file input'),
     "Couldn't fill in Phone: Couldn't find the phone number field.; CV: Couldn't find the file upload field.");
   assert.equal(m.reasonText('no confirmation after submitting'), "The form was sent, but the site didn't confirm it. Check for a confirmation email.");
-  assert.equal(m.reasonText('unsupported site'), "This site doesn't support automatic applications. Open the job to fill in the form yourself.");
+  assert.equal(m.reasonText('unsupported site'), "This site isn't supported. Apply yourself.");
   // Already user-facing, or with no wording of its own: unchanged.
   assert.equal(m.reasonText('below your minimum match'), 'below your minimum match');
   assert.equal(m.reasonText("Couldn't find the application form."), "Couldn't find the application form.");
@@ -333,9 +333,9 @@ test('filledText counts in the singular and plural and leaves out zeros', () => 
   assert.equal(m.filledText({ filled: 5, suggested: 2, missing: ['a', 'b'], errors: [] }),
     'Filled 5 fields. AI suggested 2 answers. Check the ones outlined in amber. 2 need your attention.');
   assert.equal(m.filledText({ filled: 7, suggested: 0, earlier: 1, missing: [], errors: [] }),
-    'Filled 7 fields. AI answered 1 question on an earlier page. Check it on the review page before you submit.');
+    'Filled 7 fields. AI answered 1 question on an earlier page. Check it on the review page.');
   assert.equal(m.filledText({ filled: 7, suggested: 1, earlier: 2, missing: [], errors: [] }),
-    'Filled 7 fields. AI suggested 1 answer. Check the one outlined in amber. AI answered 2 questions on earlier pages. Check them on the review page before you submit.');
+    'Filled 7 fields. AI suggested 1 answer. Check the one outlined in amber. AI answered 2 questions on earlier pages. Check them on the review page.');
 });
 
 test('mustAnswer: every required box is ticked, a required agreement is a yes', () => {
@@ -409,7 +409,7 @@ test('sentText: what a Submit came to, for the card and the popup', () => {
   assert.match(m.sentText({ failed: 'captcha: human check refused the click' }), /human check stopped it.*Use the site's Submit button/);
   assert.equal(m.sentText({ review: ['Why do you want to work here?'] }), 'Check the AI answer to "Why do you want to work here?", then submit the application.');
   assert.equal(m.sentText({ review: ['A?', 'B?'] }), 'Check the AI answers to "A?", "B?", then submit the application.');
-  assert.match(m.sentText({ failed: 'form errors: Phone' }), /^Not submitted: The form needs your attention: Phone\. This attempt doesn't count/);
+  assert.match(m.sentText({ failed: 'form errors: Phone' }), /^Not submitted: The form needs your attention: Phone\.$/);
   assert.equal(m.sentText({ error: 'blocked company' }), 'This company is on your Never apply to list.');
 });
 

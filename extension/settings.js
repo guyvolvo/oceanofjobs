@@ -59,7 +59,7 @@
       </section>
       <section class="p-sec" aria-labelledby="s-wd-h">
         <h3 id="s-wd-h">Workday password</h3>
-        <p class="note">Signs you in on Workday careers sites, and creates an account when you don't have one. If you don't set one, the extension makes one the first time it needs it and saves it here.</p>
+        <p class="note">Signs you in on Workday sites. Leave it empty to have one made for you.</p>
         <div class="pw"><input class="input" type="password" id="s-wd" autocomplete="new-password" spellcheck="false" aria-labelledby="s-wd-h"><button type="button" id="s-wd-show">Show</button></div>
         <div class="row"><button type="button" class="btn sm primary" id="s-wd-save">Save</button><button type="button" class="btn sm" id="s-wd-gen">Generate</button></div>
         <p class="note" id="s-wd-msg" role="status"></p>
@@ -69,7 +69,7 @@
           <summary class="disc"><span>Your own AI key</span><span id="s-ai-sum" class="muted"></span></summary>
           <label class="field" for="s-ai-provider">Provider<select class="input" id="s-ai-provider"><option value="">None</option></select></label>
           <label class="field" for="s-ai-key">API key<input class="input" type="password" id="s-ai-key" autocomplete="off" spellcheck="false"></label>
-          <label class="field" for="s-ai-model">Model<input class="input" type="text" id="s-ai-model" spellcheck="false" placeholder="Enter the model name used by your provider"></label>
+          <label class="field" for="s-ai-model">Model<input class="input" type="text" id="s-ai-model" spellcheck="false" placeholder="Model name"></label>
           <p class="note">Used after your plan's monthly AI answers run out.</p>
           <div class="row"><button type="button" class="btn sm primary" id="s-ai-save">Save</button></div>
           <p class="note" id="s-ai-msg" role="status"></p>
@@ -98,8 +98,8 @@
       }
       $('s-mode-note').textContent = !st.connected ? 'Connect your account to use cloud storage.'
         : !st.ready && !account ? "Cloud storage isn't available yet."
-          : account ? 'Your resume, Workday password and AI key are saved to your account, encrypted.'
-            : 'Your resume, Workday password and AI key are saved only on this computer.';
+          : account ? 'Saved to your account, encrypted.'
+            : 'Saved only on this computer.';
       const c = $('s-confirm');
       c.hidden = !confirming;
       if (confirming === 'account') {
@@ -109,7 +109,7 @@
         c.querySelector('#s-agree').addEventListener('change', (e) => { c.querySelector('#s-yes').disabled = !e.target.checked; });
       } else if (confirming === 'local') {
         c.innerHTML = `<b>Switch to local storage?</b>
-          <p class="note">Your resume, Workday password and AI key are deleted from your account, and other computers won't have them.</p>
+          <p class="note">Your resume, Workday password and AI key are deleted from your account.</p>
           <div class="row"><button type="button" class="btn sm primary" id="s-yes">Delete from my account</button><button type="button" class="btn sm" id="s-no">Cancel</button></div>`;
       }
       if (confirming) {
@@ -138,7 +138,7 @@
       }
 
       $('s-ai-sum').innerHTML = (st.ai ? esc((PROVIDERS[st.ai.provider] || {}).label || st.ai.provider) : 'Not added') + ICONS.chev;
-      $('s-acct').textContent = st.connected ? 'Connected to your Ocean of Jobs account.' : 'Not connected to an Ocean of Jobs account.';
+      $('s-acct').textContent = st.connected ? 'Connected.' : 'Not connected.';
       $('s-disconnect').disabled = !st.connected;
     }
 
@@ -237,7 +237,7 @@
       if (!globalThis.oojCvLink.direct(url)) return say('s-cv-msg', 'Paste a link that starts with https://.', true);
       // Asked here, on a click, because Chrome only grants host access from a user gesture.
       const granted = await chrome.permissions.request({ origins: globalThis.oojCvLink.origins(url) }).catch(() => false);
-      if (!granted) return say('s-cv-msg', "Chrome denied access to the link's site, so the link wasn't saved. Click Save and allow access.", true);
+      if (!granted) return say('s-cv-msg', 'Not saved. Click Save and allow access.', true);
       say('s-cv-msg', 'Downloading…');
       const r = await send({ type: 'storageCvLink', url });
       if (r && r.error) return say('s-cv-msg', r.error, true);
@@ -289,7 +289,7 @@
       if (!model) return say('s-ai-msg', 'Enter a model name.', true);
       // Asked here, on a click, because Chrome only grants host access from a user gesture.
       const granted = await chrome.permissions.request({ origins: [PROVIDERS[provider].origin] });
-      if (!granted) return say('s-ai-msg', "Chrome denied access to the provider, so your key wasn't saved. Click Save and allow access.", true);
+      if (!granted) return say('s-ai-msg', 'Not saved. Click Save and allow access.', true);
       const r = await send({ type: 'storageSecrets', change: { ai: { provider, key, model } } });
       if (r && r.error) return say('s-ai-msg', r.error, true);
       st = r;
@@ -304,7 +304,7 @@
       const ok = on ? await chrome.permissions.request(ALL_SITES) : await chrome.permissions.remove(ALL_SITES);
       $('s-all').checked = await chrome.permissions.contains(ALL_SITES);
       say('s-all-msg', !ok ? "Chrome couldn't change site access."
-        : on ? 'Enabled. Reload a careers page to show the button.' : 'Disabled. The button will appear only on supported hiring sites, such as Greenhouse, Lever, and Workday.');
+        : on ? 'On. Reload a careers page to see the button.' : 'Off. The button shows only on supported hiring sites.');
     });
     chrome.permissions.contains(ALL_SITES).then((on) => { $('s-all').checked = on; });
 
@@ -312,7 +312,7 @@
       await chrome.storage.local.remove(['token', 'authError', 'needs']);
       st.connected = false;
       paint();
-      $('s-acct').textContent = 'Disconnected. You can connect again from your account page.';
+      $('s-acct').textContent = 'Disconnected.';
     });
 
     // The saved values, for editing: the password and key stay hidden until
