@@ -887,9 +887,9 @@ def _history_view(rows: list[dict]) -> list[dict]:
     board = {}
     if ids:
         try:
-            q = ("SELECT id, title, COALESCE((SELECT company_name FROM companies WHERE domain = jobs.company_domain), company_domain) "
-                 f"FROM jobs WHERE id IN ({','.join('?' * len(ids))})")
-            board = {i: (title, company) for i, title, company in get_connection().execute(q, ids)}
+            q = ("SELECT id, title, COALESCE((SELECT company_name FROM companies WHERE domain = jobs.company_domain), company_domain), "
+                 f"company_domain FROM jobs WHERE id IN ({','.join('?' * len(ids))})")
+            board = {i: (title, company, domain) for i, title, company, domain in get_connection().execute(q, ids)}
         except Exception as e:  # noqa: BLE001 -- the history still shows, just unmatched
             print(f"history match failed: {e!r}")
     out = []
@@ -898,6 +898,9 @@ def _history_view(rows: list[dict]) -> list[dict]:
         hit = board.get(r.get("job_id"))
         if hit:
             r["title"], r["company"] = hit[0] or r.get("title"), hit[1] or r.get("company")
+            # The extension's one-per-company guardrail compares domains, not names.
+            if hit[2]:
+                r["company_domain"] = hit[2]
             r["link"] = f"/job/{r['job_id']}"
         else:
             r["link"] = r.get("url") or None
@@ -1110,7 +1113,9 @@ def route_apply(user_id: str, method: str, sub: str, event: dict, params: dict) 
         try:
             return ok(200, {"attempt": attempts.Attempts(_alerts_table).filled(user_id, str(body.get("attempt_id") or ""), body)})
         except (ValueError, attempts.Conflict) as e:
-            return ok(409 if isinstance(e, attempts.Conflict) else 400, {"error": str(e)})
+            conflict = isinstance(e, attempts.Conflict)
+            # The code tells the extension's outbox this is final, not a passing failure.
+            return ok(409 if conflict else 400, {"error": str(e), "code": "conflict" if conflict else "invalid", "retryable": False})
     if sub == "queue-order" and method == "POST":
         try:
             apply.set_order(_alerts_table, user_id, body.get("job_ids") or [])

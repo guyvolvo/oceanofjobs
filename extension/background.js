@@ -29,7 +29,8 @@ class HttpError extends Error {
   }
 }
 
-async function api(path, { method = 'GET', body, auth = true } = {}) {
+// timeout: a call that hangs fails with no status, which callers treat as transient.
+async function api(path, { method = 'GET', body, auth = true, timeout = 20000 } = {}) {
   const headers = {};
   const { token, authError } = auth ? await chrome.storage.local.get(['token', 'authError']) : {};
   if (auth) {
@@ -37,7 +38,7 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
   if (body) headers['Content-Type'] = 'application/json';
-  const res = await fetch(API + path, { method, headers, body: body && JSON.stringify(body) });
+  const res = await fetch(API + path, { method, headers, body: body && JSON.stringify(body), signal: AbortSignal.timeout(timeout) });
   // A 401 marks the connection expired and any answer that accepts the token
   // clears that, but only for the token still stored: the website may have
   // handed over a new one while this call was out.
@@ -62,6 +63,11 @@ const report = (job_id, status, reason) =>
 const newAttemptId = () => crypto.randomUUID().replace(/-/g, '');
 const SERVER_GONE = "Couldn't connect to Ocean of Jobs, so nothing was submitted. Try again in a minute.";
 
+// The codes the server's attempt and filled routes refuse with (api/handler.py
+// _ATTEMPT_REFUSALS). Any other answer (a one-off 401, a Cloudflare 403 page)
+// is not the server deciding, so the call is kept and repeated.
+const REFUSALS = new Set(['not_found', 'expired', 'not_eligible', 'limit_reached', 'job_taken', 'not_disputable', 'conflict', 'needs_review', 'invalid']);
+
 // One attempt call: {data} on success, {refused: code, error} when the
 // server said no (final), {transient: true} when it couldn't be reached or
 // failed (the same call may be repeated).
@@ -70,7 +76,7 @@ async function attemptCall(path, body, tries = 3) {
     try {
       return { data: await api(path, { method: 'POST', body }) };
     } catch (e) {
-      if (e.status && e.status < 500 && e.status !== 429) {
+      if (e.status && e.body && REFUSALS.has(e.body.code)) {
         return { refused: (e.body && e.body.code) || String(e.status), status: e.status, error: e.body && e.body.error,
           questions: (e.body && e.body.questions) || [] };
       }
@@ -80,13 +86,24 @@ async function attemptCall(path, body, tries = 3) {
   return { transient: true };
 }
 
+// Every read-modify-write of outbox, inflight and pendingHere runs here, one
+// at a time, so two settles at once can't overwrite each other's change.
+let chain = Promise.resolve();
+function serial(fn) {
+  const p = chain.then(fn);
+  chain = p.catch(() => {});
+  return p;
+}
+
 // Reports that must reach the server: settlements and Filled entries.
 // Kept in storage until the server acknowledges them, so they survive the
 // popup closing, the browser restarting and the network dropping.
 async function sendDurable(path, body) {
-  const { outbox = [] } = await chrome.storage.local.get('outbox');
-  outbox.push({ path, body, at: new Date().toISOString() });
-  await chrome.storage.local.set({ outbox });
+  await serial(async () => {
+    const { outbox = [] } = await chrome.storage.local.get('outbox');
+    outbox.push({ path, body, at: new Date().toISOString() });
+    await chrome.storage.local.set({ outbox });
+  });
   await flushOutbox();
 }
 
@@ -104,10 +121,13 @@ async function flushOutbox() {
       if (r.transient) left.push(item);
     }
     // Reports added while this ran are kept too.
-    const { outbox: now = [] } = await chrome.storage.local.get('outbox');
     const sent = new Set(outbox.filter((i) => !left.includes(i)).map((i) => JSON.stringify(i)));
-    const keep = now.filter((i) => !sent.has(JSON.stringify(i)));
-    await chrome.storage.local.set({ outbox: keep });
+    const keep = await serial(async () => {
+      const { outbox: now = [] } = await chrome.storage.local.get('outbox');
+      const rest = now.filter((i) => !sent.has(JSON.stringify(i)));
+      await chrome.storage.local.set({ outbox: rest });
+      return rest;
+    });
     if (keep.length) chrome.alarms.create('outbox', { delayInMinutes: 1 });
   } finally {
     flushing = false;
@@ -117,11 +137,13 @@ async function flushOutbox() {
 // Attempts this browser has started and not yet reported, so a crash or
 // restart can be reported on the next start: past the Submit gate it is
 // Submission unconfirmed (the click may have happened), before it a release.
-async function track(attemptId, phase) {
-  const { inflight = {} } = await chrome.storage.local.get('inflight');
-  if (phase) inflight[attemptId] = { phase, at: new Date().toISOString() };
-  else delete inflight[attemptId];
-  await chrome.storage.local.set({ inflight });
+function track(attemptId, phase) {
+  return serial(async () => {
+    const { inflight = {} } = await chrome.storage.local.get('inflight');
+    if (phase) inflight[attemptId] = { phase, at: new Date().toISOString() };
+    else delete inflight[attemptId];
+    await chrome.storage.local.set({ inflight });
+  });
 }
 
 async function settle(attemptId, outcome, reason = '', questions) {
@@ -146,7 +168,7 @@ async function reserve(job) {
   await track(attemptId, 'reserved');
   const r = await attemptCall('/me/apply/attempts', {
     attempt_id: attemptId, job_id: job.id, url: job.url, title: job.title, company: job.company_name || job.company_domain,
-    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    company_domain: job.company_domain, tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   if (r.data) return { attemptId };
   await track(attemptId, null);
@@ -246,11 +268,16 @@ async function draftAnswer(field, profile, preferences, job, ai) {
 const fits = (field, answer) =>
   answer != null && !(field.options && field.options.length && oojMatch.pickOption(field.options, answer) < 0) && oojMatch.fitsType(field, String(answer));
 
+// The server waits up to 30 seconds on the model.
+const DRAFT_TIMEOUT = 60000;
+// The CV goes up and down whole, base64, up to 5 MB.
+const CV_TIMEOUT = 120000;
+
 // /me/apply/draft, waiting out one rate limit (20 a minute) rather than
 // giving up on the server's AI for the rest of the run.
 async function draft(body) {
   try {
-    return await api('/me/apply/draft', { method: 'POST', body });
+    return await api('/me/apply/draft', { method: 'POST', body, timeout: DRAFT_TIMEOUT });
   } catch (e) {
     const wait = e.status === 429 && e.body && e.body.retry_after;
     if (!wait || wait > 90) throw e;
@@ -259,7 +286,7 @@ async function draft(body) {
       await new Promise((res) => setTimeout(res, Math.min(left, 10) * 1000));
       await chrome.runtime.getPlatformInfo();
     }
-    return api('/me/apply/draft', { method: 'POST', body });
+    return api('/me/apply/draft', { method: 'POST', body, timeout: DRAFT_TIMEOUT });
   }
 }
 
@@ -276,9 +303,10 @@ async function answerUnknown(field, job, ctx) {
       ctx.wroteIt = source === 'ai';
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
-      // 422: the profile cannot answer this, and a second model would only guess.
-      if (e.status === 422) return undefined;
-      // 402 (no plan or used up) and 503 (not set up) hold for the rest of the run.
+      // 402: the plan's AI answers ran out (or it has none), for the rest of the run.
+      // Anything else (422, a 503, a timeout) leaves the question unanswered: the
+      // own key's answers skip the server's checks.
+      if (e.status !== 402) return undefined;
       ctx.serverAi = false;
     }
   }
@@ -724,7 +752,7 @@ async function syncStorage() {
   if (!view.cv) {
     if (local.cv) await chrome.storage.local.remove(['cv', 'cvSavedAt']);
   } else if (!local.cv || local.cvSavedAt !== view.cv.uploaded_at) {
-    const file = await api('/me/cv');
+    const file = await api('/me/cv', { timeout: CV_TIMEOUT });
     await chrome.storage.local.set({ cv: { name: file.name, type: file.type, size: file.size, data: file.data }, cvSavedAt: file.uploaded_at });
   }
   const secrets = await api('/me/storage/secrets');
@@ -744,7 +772,7 @@ async function setStorageMode(mode, consent) {
     await api('/me/storage', { method: 'PUT', body: { mode: 'account', consent: consent === true } });
     const local = await chrome.storage.local.get(['cv', 'workday', 'ai']);
     if (local.cv) {
-      const saved = await api('/me/cv', { method: 'PUT', body: { name: local.cv.name, type: local.cv.type, data: local.cv.data, consent: true } });
+      const saved = await api('/me/cv', { method: 'PUT', body: { name: local.cv.name, type: local.cv.type, data: local.cv.data, consent: true }, timeout: CV_TIMEOUT });
       await chrome.storage.local.set({ cvSavedAt: saved.cv.uploaded_at });
     }
     await api('/me/storage/secrets', { method: 'PUT', body: {
@@ -767,7 +795,7 @@ async function saveCv(cv) {
     return storageState();
   }
   let savedAt = new Date().toISOString();
-  if (storageMode === 'account') savedAt = (await api('/me/cv', { method: 'PUT', body: { ...cv, consent: true } })).cv.uploaded_at;
+  if (storageMode === 'account') savedAt = (await api('/me/cv', { method: 'PUT', body: { ...cv, consent: true }, timeout: CV_TIMEOUT })).cv.uploaded_at;
   await chrome.storage.local.set({ cv, cvSavedAt: savedAt });
   return storageState();
 }
@@ -846,7 +874,7 @@ async function run() {
       if (outcome === 'captcha') break;
       if (outcome === 'submitted' || outcome === 'unconfirmed') {
         left--;
-        history.push({ job_id: job.id, company: job.company_domain, status: outcome, at: new Date().toISOString() });
+        history.push({ job_id: job.id, company_domain: job.company_domain, status: outcome, at: new Date().toISOString() });
       }
     }
   } catch (e) {
@@ -919,9 +947,19 @@ async function offerHere(url) {
 async function jobForTab(tabId, url, title, company) {
   const key = `tabjob:${tabId}`;
   const { [key]: board } = await chrome.storage.session.get(key);
-  const id = board && new URL(board.url).host === new URL(url).host ? board.id : await pageJobId(url);
+  const id = board && sameJob(board.url, url) ? board.id : await pageJobId(url);
   company = (await pageCompany(tabId)) || company;
-  return { id, url, title: title || '', company_name: company || '', company_domain: company || '', board: !!board };
+  return { id, url, title: title || '', company_name: company || '', company_domain: company || '', board: !!board && id === board.id };
+}
+
+// Whether the tab at url still shows the job opened at saved: the same page
+// or one under it (Workday's .../apply/autofillWithResume, Breezy's /apply),
+// with the same Greenhouse job in the query. Another job on the host is not.
+function sameJob(saved, url) {
+  const a = new URL(saved), b = new URL(url);
+  const ids = (u) => ['for', 'token', 'gh_jid'].map((k) => u.searchParams.get(k) || '').join('&');
+  const pa = a.pathname.replace(/\/+$/, ''), pb = b.pathname.replace(/\/+$/, '');
+  return a.origin === b.origin && ids(a) === ids(b) && (pb === pa || pb.startsWith(pa + '/'));
 }
 
 // The employer the page names: the posting's structured data, then a title
@@ -1077,9 +1115,11 @@ async function startSubmit(msg, tabId) {
   if (!held.attemptId) return { error: held.taken ? ALREADY : held.error };
   const ok = await cardGate(held.attemptId, tabId, msg.auto);
   if (!ok.ok) return ok;
-  const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
-  pendingHere[tabId] = { attemptId: held.attemptId, jobId: job.board ? job.id : null };
-  await chrome.storage.local.set({ pendingHere });
+  await serial(async () => {
+    const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
+    pendingHere[tabId] = { attemptId: held.attemptId, jobId: job.board ? job.id : null };
+    await chrome.storage.local.set({ pendingHere });
+  });
   return { ok: true };
 }
 
@@ -1494,7 +1534,7 @@ async function suggestAnswer(field, job, ctx) {
         job: { id: job.id, title: job.title, company: job.company_name, location: job.location } });
       return fits(field, answer) ? answer : undefined;
     } catch (e) {
-      if (e.status === 422) return undefined;
+      if (e.status !== 402) return undefined; // as in answerUnknown
       ctx.serverAi = false;
     }
   }
@@ -1522,11 +1562,16 @@ async function queueView() {
 // The outcome the card saw after pressing Submit, or the tab closed after
 // the gate: the click may have happened, so that one is unconfirmed.
 async function settleHere(tabId, result) {
-  const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
-  const p = pendingHere[tabId];
+  const p = await serial(async () => {
+    const { pendingHere = {} } = await chrome.storage.local.get('pendingHere');
+    const mine = pendingHere[tabId];
+    if (mine) {
+      delete pendingHere[tabId];
+      await chrome.storage.local.set({ pendingHere });
+    }
+    return mine;
+  });
   if (!p) return;
-  delete pendingHere[tabId];
-  await chrome.storage.local.set({ pendingHere });
   accountCache = null;
   const [outcome, why] = result === 'closed' ? ['unconfirmed', 'The tab closed before the site confirmed the application.'] : afterClick(result);
   await settle(p.attemptId, outcome, why);

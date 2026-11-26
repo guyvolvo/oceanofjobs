@@ -391,7 +391,9 @@
     const days = g.one_per_company_days;
     if (days > 0) {
       const since = ctx.now - days * 864e5;
-      const recent = history.some((h) => (h.status === 'submitted' || h.status === 'sent') && h.company === job.company_domain && Date.parse(h.at) >= since);
+      // History rows carry company_domain (the server adds the board's); company is a name.
+      const recent = !!job.company_domain && history.some((h) => WENT_OUT.includes(h.status) && h.company_domain === job.company_domain
+        && Date.parse(h.at) >= since);
       if (recent) return 'applied to this company recently';
     }
     if (ctx.minMatch != null && (job.match_score || 0) < ctx.minMatch) return 'below your minimum match';

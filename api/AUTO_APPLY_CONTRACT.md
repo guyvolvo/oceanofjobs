@@ -28,7 +28,8 @@ applies, charged plus reserved is below the limit. Of two requests for the
 last credit, exactly one succeeds.
 
 R2. **One attempt per job.** The same transaction locks the job by
-canonical identity (the ATS's own job id, `apply.canonical_job`). While an
+canonical identity (the ATS's own job id, `apply.canonical_job`) and by its
+board job id, so the job opened at another address is the same job. While an
 attempt is open, or once the job is Submitted or Submission unconfirmed, a
 new attempt for it is refused.
 
@@ -66,8 +67,9 @@ still Reserved 30 minutes after reservation becomes Abandoned and is
 released. Submission started restarts the 30 minutes, so a long fill
 cannot run the clock down before its outcome is reported. An attempt still
 in Submission started 30 minutes after that becomes Submission unconfirmed
-and is charged (R5). If its Failed report (R6) arrives after that expiry,
-the charge is released and the attempt becomes Failed; an unconfirmed the
+and is charged (R5). If its Failed or Needs input report (R6) arrives
+after that expiry, the charge is released and the attempt becomes Failed
+or Needs input; an unconfirmed the
 extension reported itself (R5) is never turned into Failed, only disputed. The server applies expiry whenever it reads a user's state and in a
 periodic sweep, so it never depends on the extension staying open.
 
@@ -122,7 +124,7 @@ answers.
 | Reserved | start (R1, R2) | reserved | Submission started, Failed, Skipped, Needs input, Abandoned |
 | Submission started | acknowledged report (R3) | reserved | Submitted, Submission unconfirmed, Failed or Needs input (R6 only) |
 | Submitted | site confirmation (R4) | charged | final |
-| Submission unconfirmed | R5, or expiry after submission start (R9) | charged, provisionally | Submitted if confirmed later, Not sent (disputed), Failed if it came from expiry and the R6 report arrives late (released) |
+| Submission unconfirmed | R5, or expiry after submission start (R9) | charged, provisionally | Submitted if confirmed later, Not sent (disputed), Failed or Needs input if it came from expiry and the R6 report arrives late (released) |
 | Not sent (disputed) | accepted dispute (R12) | refunded | Queued, by the user |
 | Failed | R6, R7 | released | Queued (R11) |
 | Needs input | R6, R7, R15 | released | Queued once answered |
