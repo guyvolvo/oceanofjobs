@@ -110,12 +110,14 @@ export function clean(b) {
     conditions: b.conditions && typeof b.conditions === "object" ? b.conditions : {}, actions };
 }
 
-// {{email}} {{plan}} {{waitlist}} {{license_until}} {{pro_left}} {{tag}} {{from}} {{subject}} {{message}}
+// {{name}} {{email}} {{plan}} {{waitlist}} {{license_until}} {{pro_left}} {{tag}} {{from}} {{subject}} {{message}}
 export function fill(text, vars) {
   return String(text || "").replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
 }
 export function vars(c, counts, extra = {}) {
   return {
+    // No name on the account: the part of the email before the @.
+    name: (c && (c.name || String(c.email || "").split("@")[0])) || "",
     email: (c && c.email) || "", plan: (c && (PLAN[c.plan] || c.plan)) || "",
     waitlist: c && c.waiting ? (c.waiting.pro ? "Pro" : c.waiting.basic ? "Basic" : "") : "",
     license_until: c && c.grant && c.grant.until ? fmt(c.grant.until) : "",

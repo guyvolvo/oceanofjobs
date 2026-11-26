@@ -109,6 +109,8 @@ export async function contacts(env, { fresh = false } = {}) {
     return {
       id: sub,
       email: attr(u, "email").toLowerCase(),
+      // Google sign-ins carry a name; email sign-ups don't.
+      name: attr(u, "name"),
       verified: attr(u, "email_verified") === "true",
       provider: provider(u),
       status: u.UserStatus,

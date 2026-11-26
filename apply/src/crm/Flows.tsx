@@ -29,7 +29,7 @@ const QUICK: { name: string; flow: Omit<Flow, "enabled" | "conditions"> & { cond
   { name: "License ending reminder", flow: { name: "License ends soon", trigger: "license_ending", days: 7, actions: [{ type: "email" }] } },
   { name: "After the license ends", flow: { name: "License ended", trigger: "license_ended", actions: [{ type: "email" }] } },
   { name: "Remind about the updated terms", flow: { name: "Terms reminder", trigger: "not_agreed", days: 3, actions: [{ type: "email" }] } },
-  { name: "Tell me about every sign-up", flow: { name: "New sign-up alert", trigger: "signup", actions: [{ type: "notify", subject: "New sign-up: {{email}}", body: "{{email}} just signed up." }] } },
+  { name: "Tell me about every sign-up", flow: { name: "New sign-up alert", trigger: "signup", actions: [{ type: "notify", subject: "New sign-up: {{name}}", body: "{{name}} ({{email}}) just signed up." }] } },
   { name: "Post new mail to Slack", flow: { name: "Inbox to Slack", trigger: "inbox_received", actions: [{ type: "slack", text: "New email from {{from}}: {{subject}}" }] } },
   { name: "Post Pro joins to Discord", flow: { name: "Pro joins to Discord", trigger: "waitlist_pro", actions: [{ type: "discord", text: "{{email}} joined the Pro waitlist. {{pro_left}} places left." }] } },
   { name: "Send sign-ups to a webhook", flow: { name: "Sign-ups to a webhook", trigger: "signup", actions: [{ type: "webhook" }] } },
@@ -92,7 +92,7 @@ function DefaultLog({ kind }: { kind: string }) {
   );
 }
 
-const VARS = "{{email}} {{plan}} {{waitlist}} {{license_until}} {{pro_left}} {{tag}} {{from}} {{subject}} {{message}}";
+const VARS = "{{name}} {{email}} {{plan}} {{waitlist}} {{license_until}} {{pro_left}} {{tag}} {{from}} {{subject}} {{message}}";
 
 function StepEditor({ s, spec, set }: { s: Step; spec: { name: string; fields: string[] }; set: (s: Step) => void }) {
   const up = (k: keyof Step, v: unknown) => set({ ...s, [k]: v });
