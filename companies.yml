@@ -1160,18 +1160,81 @@ tycowp:
     source: own-careers-data
     note: added 2026-09-18. 517 roles, all in Israel, no posting dates in the source. Was pinned to an empty Workable slug.
 
+leumi:
+  # Bank Leumi's own careers page, every role and its text on one page
+  # (f_leumi in probe.py). The token is the host. Count as of 2026-11-26.
+  - domain: leumi.co.il
+    token: "www.leumi.co.il"
+    jobs_seen: 34
+    source: own-careers-page
+    note: added 2026-11-26. 34 roles, all in Israel.
+
+hapoalim:
+  # Bank Hapoalim's jobs lobby (f_hapoalim in probe.py). The token is the
+  # host. The lobby shows ten roles before an AJAX load-more that Imperva
+  # refuses, so a lobby with ten or more is refused as a partial read.
+  # Count as of 2026-11-26.
+  - domain: bankhapoalim.co.il
+    token: "www.bankhapoalim.co.il"
+    jobs_seen: 6
+    source: own-careers-page
+    note: added 2026-11-26. 6 roles, all in Israel.
+
+mizrahi:
+  # Mizrahi Tefahot's open-jobs page (f_mizrahi in probe.py). The token
+  # is the listing URL without its scheme. Count as of 2026-11-26.
+  - domain: mizrahi-tefahot.co.il
+    token: "www.mizrahi-tefahot.co.il/about-mizrahi-tefahot-he/career/open-jobs/"
+    jobs_seen: 26
+    source: own-careers-page
+    note: added 2026-11-26. 26 roles, all in Israel.
+
+maccabi:
+  # Maccabi Healthcare Services. Its search page reads one JSON route
+  # with every public role and its text (f_maccabi in probe.py). The
+  # token is the host. Count as of 2026-11-26.
+  - domain: maccabi4u.co.il
+    token: "www.maccabi4u.co.il"
+    jobs_seen: 425
+    source: own-careers-api
+    note: added 2026-11-26. 425 roles, all in Israel.
+
+successfactors:
+  # SAP SuccessFactors Career Site Builder (f_successfactors in
+  # probe.py). The token is the career site's host; any tenant whose
+  # /search/ page shows "Results 1 - 25 of N" is a pin away.
+  # Count as of 2026-11-26.
+  - domain: icl-group.com
+    token: "careers.icl-group.com"
+    jobs_seen: 116
+    source: own-careers-page
+    note: added 2026-11-26. ICL Group, 116 roles worldwide, 27 of them in Israel.
+
 eightfold:
   # Eightfold's careers platform. The token is the careers host and the
   # tenant name its API wants, which are rarely the same string
-  # (f_eightfold in probe.py). Not every tenant is open: amdocs and
-  # qualcomm answer the same call with 403 "Not authorized for PCSX",
-  # so verify against the tenant before pinning.
-  # Counts as of 2026-09-18.
+  # (f_eightfold in probe.py). Tenants answer one of two APIs: teva the
+  # older /api/apply/v2/jobs, amdocs and qualcomm only /api/pcsx/search
+  # (the older one answers them 403 "Not authorized for PCSX"). The
+  # fetcher tries v2 and falls back to pcsx, so either kind is a pin.
+  # Counts as of 2026-09-18 for teva, 2026-11-26 for the others.
   - domain: tevapharm.com
     token: "careers.teva:tevapharm.com"
     jobs_seen: 558
     source: own-careers-api
     note: 558 roles worldwide, 23 of them in Israel. Teva was not tracked at all.
+
+  - domain: amdocs.com
+    token: "jobs.amdocs.com:amdocs.com"
+    jobs_seen: 51
+    source: own-careers-api
+    note: added 2026-11-26 through pcsx. 51 roles worldwide, 10 of them in Israel.
+
+  - domain: qualcomm.com
+    token: "careers.qualcomm.com:qualcomm.com"
+    jobs_seen: 2067
+    source: own-careers-api
+    note: added 2026-11-26 through pcsx. 2,067 roles worldwide, 37 of them in Israel. A read can miss about 3%, see the note above _EIGHTFOLD_PCSX.
 
 oracle:
   # Oracle Recruiting Cloud (Oracle Fusion HCM). The token is the Fusion
