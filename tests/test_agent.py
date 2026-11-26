@@ -46,6 +46,25 @@ with mock_aws():
     import handler  # noqa: E402
     handler._alerts_table = table
 
+    # Which topic a question is. A fixed answer skips review, so look-alikes get none.
+    for question, want in [
+        ("Are you willing to relocate?", "relocation"),
+        ("Would you consider relocating to Berlin?", "relocation"),
+        ("Are you open to relocation?", "relocation"),
+        ("Do you require relocation assistance?", None),
+        ("Will your company pay relocation?", None),
+        ("When can you start?", "start_date"),
+        ("What is your earliest start date?", "start_date"),
+        ("What was the start date of your last role?", None),
+        ("Start date of your current position", None),
+        ("How many days a week can you work from the office?", "onsite_days"),
+        ("Are you comfortable in the office 3 days a week?", None),
+        ("Can you work on site 3 days per week?", None),
+        ("How did you hear about us?", "referral_source"),
+    ]:
+        got = agent.topic_of(question)
+        check("topic of %r" % question, got == want, repr(got))
+
     # Defaults and the plan gate.
     a = agent.get(table, "free")
     check("a new agent is the defaults at version 0", a["version"] == 0 and "review" not in a and a["style"]["tone"] == "plain"

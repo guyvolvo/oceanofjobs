@@ -637,7 +637,9 @@ def lambda_handler(event, context):
             try:
                 if path == "/me/storage":
                     if method == "GET":
-                        return _response(200, json.dumps(user_files.view(_alerts_table, uid)))
+                        # user: the extension checks whose token it holds before
+                        # it uploads this browser's CV and secrets (syncStorage).
+                        return _response(200, json.dumps({**user_files.view(_alerts_table, uid), "user": uid}))
                     if method == "PUT":
                         return _response(200, json.dumps(user_files.set_mode(_alerts_table, uid, str(body.get("mode") or ""),
                                                                              consent=body.get("consent") is True)))

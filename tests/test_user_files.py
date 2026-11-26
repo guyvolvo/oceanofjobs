@@ -65,6 +65,7 @@ with mock_aws():
     check("without a KMS key the account option says it isn't ready", s == 503 and out["code"] == "not_ready", (s, out))
     s, out = call("u1", "GET", "/me/storage")
     check("and the view says so", s == 200 and out["ready"] is False and out["mode"] == "local", out)
+    check("and names the account it belongs to", out.get("user") == "u1", out)
 
     key = boto3.client("kms", region_name="il-central-1").create_key()["KeyMetadata"]["KeyId"]
     os.environ["OOJ_USER_KEY"] = key

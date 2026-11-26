@@ -160,12 +160,17 @@ def load(table, user_id: str, agent_id: str = DEFAULT_ID) -> dict:
 
 # Which of the six topics a question is, from its words; the extension's
 # field key wins when it names one. Matched on the normalised question.
+# A fixed answer skips review, so each pattern leaves out the look-alikes:
+# relocation assistance, the start date of a past job, and a yes/no
+# question about office days (its answer is not the number of days).
 TOPIC_RE = {
     "referral_source": re.compile(r"\bhow did you (hear|find out|learn|come across|find)\b|\bwhere did you (hear|find|see)\b|\breferral source\b"),
-    "start_date": re.compile(r"\bwhen (can|could|would) you (be able to )?start\b|\b(earliest|expected|desired|possible|preferred) start\b"
-                             r"|\bstart date\b|\bavailable to start\b|\bavailability to start\b"),
-    "relocation": re.compile(r"\breloca"),
-    "onsite_days": re.compile(r"\b(on ?site|in (the )?office|hybrid)\b.{0,40}\b(days?|week)\b|\bdays? (a|per) week\b.{0,40}\b(office|on ?site)\b"),
+    "start_date": re.compile(r"^(?!.*\b(last|previous|current|most recent|prior|former)\b).*"
+                             r"(\bwhen (can|could|would) you (be able to )?start\b|\b(earliest|expected|desired|possible|preferred) start\b"
+                             r"|\bstart date\b|\bavailable to start\b|\bavailability to start\b)"),
+    "relocation": re.compile(r"\b(willing|open|able|prepared|ready) to relocat|\bconsider(ing)? relocat|\bwould you relocat"),
+    "onsite_days": re.compile(r"^(?!(are|do|does|can|could|will|would|is|have|has|did|should)\b).*"
+                              r"(\b(on ?site|in (the )?office|hybrid)\b.{0,40}\b(days?|week)\b|\bdays? (a|per) week\b.{0,40}\b(office|on ?site)\b)"),
     "why_role": re.compile(r"\bwhy (this|the) (role|position|job)\b|\b(interested|interests you) (in|about) (this|the) (role|position|job)\b"),
     "why_company": re.compile(r"\bwhy (do|would) you (want|like|wish) to (work|join)\b|\bwhy (this|our) company\b|\bwhy (us|join us)\b"
                               r"|\bwhat (excites|attracts|draws|appeals to) you about (us|our|this company|working)\b"),
