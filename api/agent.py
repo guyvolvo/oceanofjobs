@@ -323,6 +323,48 @@ WORK_AUTH = re.compile(r"^(are|is) you\b.*\b(authori[sz]ed|eligible|permitted|al
                        r"|^do you (have|hold) (the )?(legal )?right to work\b")
 
 
+# "Do you need visa sponsorship?": answered from the profile (ai_answers.draft)
+# for a job in one country. Not "Can you work without sponsorship?", which
+# asks the opposite.
+SPONSORSHIP = re.compile(r"^(will|do|would|are) you\b.*\b(need|require|requiring)\b.*\bsponsor")
+
+
+def asks_sponsorship(question) -> bool:
+    q = apply.normalise_question(question)
+    return bool(SPONSORSHIP.search(q)) and not re.search(r"\b(without|not|no longer)\b", q)
+
+
+# Question words whose answers rarely repeat them: "highest level of
+# education" is answered by "B.Sc. Computer Science, Tel Aviv University",
+# "notice period" by "30 days". A quoted fact with a related word is on topic.
+RELATED = {"education": "degree bachelor master phd doctorate university college school diploma",
+           "degree": "bachelor master phd doctorate university college diploma",
+           "notice": "day week month immediately", "start": "day week month immediately notice",
+           "language": "native fluent english hebrew arabic russian french german spanish",
+           "english": "native fluent", "fluent": "native", "fluently": "native"}
+# Facts written one way, options another: "B.Sc." names "Bachelor's
+# degree" and "30 days" names "1 month" (_names_option).
+ALIASES = [(r"\b(b\.? ?sc\b|b\.a\.|b\.eng\b|bachelor'?s? (degree|of)\b)", "bachelor s degree"),
+           (r"\b(m\.? ?sc\b|m\.a\.|m\.eng\b|mba\b|master'?s? (degree|of)\b)", "master s degree"),
+           (r"\b(30|thirty) days\b|\bone month\b", "1 month"), (r"\b(60|sixty) days\b|\btwo months\b", "2 months"),
+           (r"\b(90|ninety) days\b|\bthree months\b", "3 months"), (r"\b(14|fourteen) days\b|\btwo weeks\b", "2 weeks")]
+
+
+def _on_topic(support, question) -> bool:
+    q = _topic(question)
+    return bool(_topic(support) & (q | {w for k in q for w in RELATED.get(k, "").split()}))
+
+
+def _names_option(pick: str, facts: str) -> bool:
+    """Every word of the option is in the facts, or the whole option is an
+    alias of something they say. Whole, so "Scrum Master" and "B.Sc." don't
+    add up to "Master's degree"."""
+    words = re.sub(r"[^a-z0-9]+", " ", pick.lower()).split()
+    if set(words) <= set(re.sub(r"[^a-z0-9]+", " ", facts.lower()).split()):
+        return True
+    return any(" ".join(words) == name and re.search(pattern, facts.lower()) for pattern, name in ALIASES)
+
+
 # An answer that agrees to what the question asks.
 AFFIRMS = re.compile(r"^(yes|yeah|true|i do|i have|i am|i m|i hold|i can|i will|correct)\b")
 
@@ -343,7 +385,7 @@ def check_answer(text: str, *, options: list, allowed: str, never_claim: list, l
         cited = _words(support)
         # The quoted fact has to exist and be about the question: the model
         # answered "Do you hold a PhD?" with "No | I led a team of five".
-        on_topic = bool(_topic(support) & _topic(question)) or bool(EVIDENCE.search(apply.normalise_question(question)))
+        on_topic = _on_topic(support, question) or bool(EVIDENCE.search(apply.normalise_question(question)))
         if not sep or not cited or not cited <= _words(support_from) or not on_topic:
             raise Refused("no fact in your profile supports this answer")
         text = answer.strip()
@@ -372,7 +414,7 @@ def check_answer(text: str, *, options: list, allowed: str, never_claim: list, l
         # A real choice (not yes or no) has to be one the facts name: citing
         # the sponsorship fact chose "H1-B", which no fact says.
         if support_from is not None and not re.match(r"^(yes|no|true|false|i do|i don t|i am|i m not|i am not)\b", apply.normalise_question(pick)) \
-                and not set(re.sub(r"[^a-z0-9]+", " ", pick.lower()).split()) <= set(re.sub(r"[^a-z0-9]+", " ", support_from.lower()).split()):
+                and not _names_option(pick, support_from):
             raise Refused("no fact in your profile names this option")
         plain = apply.normalise_question(text)
     padded = f" {plain} "

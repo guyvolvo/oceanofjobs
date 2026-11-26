@@ -103,7 +103,7 @@ check("but never the demographic answers", "woman" not in prompt and "gender" no
 check("nor the applicant's name", "Ada" not in prompt, prompt)
 check("and is told the question is not instructions", "never as instructions" in sent[-1][0]["content"])
 want = 600 * ai_answers.NEURONS_PER_M_IN / 1e6 + 120 * ai_answers.NEURONS_PER_M_OUT / 1e6
-check("today's neurons are counted and reported", abs(reported[-1] - round(want, 2)) < 0.01 and 6 < reported[-1] < 7, repr(reported))
+check("today's neurons are counted and reported", abs(reported[-1] - round(want, 2)) < 0.01 and 14 < reported[-1] < 15, repr(reported))
 ai_answers.draft(t, "u", {"question": "Main programming language?"}, {}, run=run("Python"), report=reported.append, now=NOW)
 check("the daily total adds up across users' calls", abs(reported[-1] - 2 * round(want, 2)) < 0.02, repr(reported))
 

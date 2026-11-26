@@ -1,22 +1,22 @@
 // The Workers AI Worker (infra/ai-worker.mjs): only the box's key gets
-// an answer, the model is always the cheap one, and odd input is refused.
+// an answer, the model is always the same one, and odd input is refused.
 // Run:  node --test tests/test_ai_worker.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../infra/ai-worker.mjs";
 
 const calls = [];
-const env = { AI_KEY: "k".repeat(43), AI: { run: async (model, input) => { calls.push({ model, input }); return { response: "30 days", usage: { prompt_tokens: 600, completion_tokens: 3 } }; } } };
+const env = { AI_KEY: "k".repeat(43), AI: { run: async (model, input) => { calls.push({ model, input }); return { output: [{ type: "reasoning", content: [{ text: "The facts say 30 days." }] }, { type: "message", content: [{ type: "output_text", text: "30 days" }] }], usage: { input_tokens: 600, output_tokens: 3 } }; } } };
 const req = (body, headers = { "x-ooj-ai-key": env.AI_KEY }, method = "POST", path = "/__ai") =>
   worker.fetch(new Request("https://oceanofjobs.com" + path, { method, headers: { "content-type": "application/json", ...headers }, body: method === "POST" ? JSON.stringify(body) : undefined }), env);
 const ok = { messages: [{ role: "system", content: "s" }, { role: "user", content: "q" }], model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", max_tokens: 5000 };
 
-test("the box's key gets an answer with its token counts, from the fixed small model", async () => {
+test("the box's key gets the answer without the reasoning, with its token counts, from the fixed model", async () => {
   const res = await req(ok);
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { response: "30 days", usage: { prompt_tokens: 600, completion_tokens: 3 }, model: "@cf/meta/llama-3.1-8b-instruct-fp8-fast" });
-  assert.equal(calls.at(-1).model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "a caller cannot pick a bigger model");
-  assert.equal(calls.at(-1).input.max_tokens, 300, "and output is capped");
+  assert.deepEqual(await res.json(), { response: "30 days", usage: { prompt_tokens: 600, completion_tokens: 3 }, model: "@cf/openai/gpt-oss-20b" });
+  assert.equal(calls.at(-1).model, "@cf/openai/gpt-oss-20b", "a caller cannot pick a bigger model");
+  assert.equal(calls.at(-1).input.max_output_tokens, 800, "and output is capped");
 });
 
 test("no key, a wrong key or a key of another length is refused before the model runs", async () => {

@@ -144,6 +144,42 @@ with mock_aws():
                                                "Yes | needs_visa_sponsorship_outside_those_countries: true", options=["Yes", "No"])["answer"] == "Yes")
     check("a question that isn't yes/no needs no citation", draft("Which city are you in?", "Haifa")["answer"] == "Haifa")
 
+    # From the 2026-11-26 model benchmark: right answers the checks refused.
+    table.put_item(Item={"user_id": "cv", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
+    apply.put_profile(table, "cv", {"contact": {"location": "Tel Aviv, Israel"},
+                                    "work": {"notice_period": "30 days", "authorized_countries": ["IL"], "needs_sponsorship": True}})
+    agent.put_resume(table, "cv", {"consent": True, "name": "cv.md", "text": "Experience\nBackend Engineer, Acme (2018 - 2024)\n"
+                                   "Education\nB.Sc. Computer Science, Tel Aviv University, 2018\nLanguages\nHebrew (native), English (fluent)\n"
+                                   "Scrum Master certificate, 2020"}, now=NOW)
+
+    def cv(question, answer, **body):
+        try:
+            return ai_answers.draft(table, "cv", {"question": question, **body}, {}, run=model(answer), report=lambda total: None, now=NOW)["answer"]
+        except ai_answers.CantAnswer as e:
+            return "refused: " + str(e)
+
+    check("a quote from the start of a CV line is found in the facts",
+          cv("Can you speak Hebrew fluently?", "Yes | Hebrew (native)", options=["Yes", "No"]) == "Yes")
+    check("a degree answers a question about education",
+          cv("What is your highest level of education?", "Bachelor's degree | B.Sc. Computer Science, Tel Aviv University, 2018",
+             options=["High school", "Bachelor's degree", "Master's degree"]) == "Bachelor's degree")
+    check("30 days names the option 1 month",
+          cv("What is your notice period?", "1 month | 30 days", options=["Immediately", "2 weeks", "1 month", "2 months"]) == "1 month")
+    check("a Scrum Master certificate doesn't name a Master's degree",
+          cv("What is the highest degree you have earned?", "Master's degree | Scrum Master certificate, 2020",
+             options=["High school", "Bachelor's degree", "Master's degree"]).startswith("refused"))
+    calls = len(sent)
+    us = {"id": "j-us", "title": "Engineer", "company": "Acme", "location": "Reston, VA, United States"}
+    il = {"id": "j-il", "title": "Engineer", "company": "Acme", "location": "Tel Aviv, Israel"}
+    q = "Will you now or in the future require sponsorship for employment visa status (e.g. H-1B)?"
+    check("sponsorship for a job in a listed country is No from the profile", cv(q, "Yes | x", options=["Yes", "No"], job=il) == "No")
+    check("and Yes for a job in another country", cv(q, "No | x", options=["Yes", "No"], job=us) == "Yes")
+    check("neither asked the model", len(sent) == calls)
+    check("the reverse question is left to the model", cv("Can you work in the US without sponsorship?", "No | needs_visa_sponsorship_outside_those_countries: true",
+                                                         options=["Yes", "No"], job=us) == "No" and len(sent) == calls + 1)
+    apply.put_profile(table, "cv", {"work": {"authorized_countries": ["IL"], "needs_sponsorship": False}})
+    check("someone who needs no sponsorship anywhere is No everywhere", cv(q, "Yes | x", options=["Yes", "No"], job=us) == "No")
+
     # "Test an answer" on /apply: the same pipeline, nothing saved, an AI answer still counted.
     before_n, before_month = len(apply.get_profile(table, "u")["answers"]), month()
     out = ai_answers.draft(table, "u", {"question": "Which streaming tool do you use most?"}, {"skills": ["Python"]}, run=model("Kafka"),
