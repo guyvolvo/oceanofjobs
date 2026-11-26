@@ -500,7 +500,11 @@ test('a question that only mentions a profile field is not answered with it', ()
   // The opposite of "needs sponsorship".
   assert.equal(value('Are you legally authorized to work in the United States without visa sponsorship?'), undefined);
   assert.equal(value('Can you work in the US without requiring sponsorship now or in the future?'), undefined);
-  assert.equal(value('Will you now or in the future require visa sponsorship?'), 'Yes');
+  // Sponsorship follows the job's country: none needed where the user is authorized.
+  assert.equal(value('Will you now or in the future require visa sponsorship?'), 'No');
+  assert.equal(value('Will you now or in the future require visa sponsorship?', { id: 'j', country: 'US' }), 'Yes');
+  assert.equal(value('Will you now or in the future require visa sponsorship?', { id: 'j' }), undefined);
+  assert.equal(value('Will you require sponsorship to work in the United States?'), undefined);
   assert.equal(value('How did you hear about us? (LinkedIn, Indeed, a friend)'), undefined);
   assert.equal(value('LinkedIn profile'), 'https://linkedin.com/in/a');
   assert.equal(value('What is your current salary?'), undefined);
