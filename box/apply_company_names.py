@@ -40,6 +40,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from lock import exclusive  # noqa: E402
+from referral_boards import REFERRAL_BOARDS  # noqa: E402
 from resolve_company_names import NAMES_KEY, STATIC_NAMES  # noqa: E402
 
 DB = Path(os.environ.get("DATA_PATH", "/var/lib/otj/jobs.db"))
@@ -66,6 +67,10 @@ def load_names(bucket: str) -> dict[str, str]:
     # The static map wins: it is the one place a wrong resolved name can
     # be corrected without touching S3.
     names.update(STATIC_NAMES)
+    # Referral boards too: the resolver skips a domain it has already named,
+    # so one named "Referral Board" before the override existed kept that
+    # name (Elastic's board, still showing 2026-11-24).
+    names.update({d: b["name"] for d, b in REFERRAL_BOARDS.items()})
     return {d: (n or "").strip() for d, n in names.items()}
 
 
