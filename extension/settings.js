@@ -51,7 +51,6 @@
         </div>
         <div id="s-cv"></div>
         <div id="s-link-box" hidden>
-          <p class="note">A share link to a PDF or DOCX, up to 5 MB, that anyone with the link can open, such as Google Drive, Google Docs, Dropbox or OneDrive. The extension downloads it again every 6 hours, so your edits are used.</p>
           <input class="input link" type="url" id="s-link" spellcheck="false" autocomplete="off" placeholder="https://drive.google.com/file/d/..." aria-label="Resume link">
           <div class="row"><button type="button" class="btn sm primary" id="s-link-save">Save</button></div>
         </div>
@@ -131,7 +130,7 @@
         $('s-cv').innerHTML = (cv ? `
           <div class="file"><span class="doc">${cv.type === CV_TYPES.pdf ? 'PDF' : 'DOCX'}</span>
             <span class="meta"><b title="${esc(cv.name)}">${esc(cv.name)}</b><span>${kb(cv.size)}, downloaded ${at(link.fetchedAt)}</span></span></div>` : '')
-          + (cv && link.error ? `<p class="note error cv-err">Couldn't update your resume from this link. ${esc(link.error)} The copy from ${at(link.fetchedAt)} is still used.</p>` : '');
+          + (cv && link.error ? `<p class="note error cv-err">${esc(link.error)}</p>` : '');
         $('s-cv').hidden = !cv;
       } else {
         $('s-cv').hidden = false;

@@ -838,13 +838,12 @@ async function saveSecrets(change) {
 // the link's file, so every filler reads it as before, and the uploaded
 // file waits in cvUpload until the member picks "Upload a file" again. On
 // the account the link's file is uploaded like any other. It is fetched
-// again at a run and before a fill once the copy is CV_LINK_HOURS old; a
-// failed fetch keeps the last good copy and leaves the error for Settings.
-const CV_LINK_HOURS = 6;
+// when a run applies or a fill starts, and kept only when its SHA-256
+// differs from the stored copy's; a failed fetch keeps the last good copy.
 const MAX_CV = 5 * 1024 * 1024;
 const CV_PDF = 'application/pdf';
 const CV_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const LINK_NOT_PUBLIC = "This link isn't public. Share the file with anyone who has the link, then save again.";
+const LINK_NOT_PUBLIC = "This link isn't public.";
 const LINK_NOT_CV = "The file at this link isn't a PDF or DOCX.";
 const LINK_TOO_BIG = 'The file at this link is larger than 5 MB.';
 const LINK_UNREACHABLE = "Couldn't reach this link. Check it and try again.";
@@ -882,7 +881,8 @@ async function fetchCvLink(link) {
   try { name = decodeURIComponent(name); } catch { /* kept as sent */ }
   name = name.trim() || 'Resume';
   if (!name.toLowerCase().endsWith(ext)) name = name.replace(/\.(pdf|docx?)$/i, '') + ext;
-  return { name, type, size: bytes.length, data: btoa(bin) };
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return { file: { name, type, size: bytes.length, data: btoa(bin) }, hash };
 }
 
 // Save in Settings (and picking "Link" again): fetch the link and use its
@@ -895,15 +895,15 @@ async function saveCvLink(link) {
     await chrome.storage.local.remove('cvLink');
     return storageState();
   }
-  let cv;
+  let got;
   try {
-    cv = await fetchCvLink(link);
+    got = await fetchCvLink(link);
   } catch (e) {
     return { error: e.message };
   }
-  await saveCv(cv);
+  await saveCv(got.file);
   await chrome.storage.local.set({
-    cvLink: { url: link, mode: 'link', fetchedAt: new Date().toISOString(), error: null },
+    cvLink: { url: link, mode: 'link', hash: got.hash, fetchedAt: new Date().toISOString(), error: null },
     ...(!inLink && s.cv ? { cvUpload: { cv: s.cv, savedAt: s.cvSavedAt } } : {}),
   });
   if (!inLink && !s.cv) await chrome.storage.local.remove('cvUpload');
@@ -920,21 +920,23 @@ async function useCvFile() {
   return storageState();
 }
 
+// On demand, when applying: fetch the link and keep the file only if its
+// hash changed, so the same file is never saved or sent to the account twice.
 async function refreshCvLink() {
   const { cvLink, cv } = await chrome.storage.local.get(['cvLink', 'cv']);
-  if (!cvLink || cvLink.mode !== 'link' || Date.now() - Date.parse(cvLink.fetchedAt) < CV_LINK_HOURS * 3600 * 1000) return;
-  let error = null;
+  if (!cvLink || cvLink.mode !== 'link') return;
+  let error = null, hash = cvLink.hash;
   try {
     const next = await fetchCvLink(cvLink.url);
-    // The same file again goes nowhere, so the account isn't sent it every 6 hours.
-    if (!cv || next.data !== cv.data) await saveCv(next);
+    if (!cv || next.hash !== cvLink.hash) await saveCv(next.file);
+    hash = next.hash;
   } catch (e) {
     error = e instanceof HttpError ? UNREACHABLE : e.message;
   }
   // Settings may have changed the link while the fetch was out.
   const { cvLink: now } = await chrome.storage.local.get('cvLink');
   if (!now || now.url !== cvLink.url || now.mode !== 'link') return;
-  await chrome.storage.local.set({ cvLink: { ...now, error, ...(error ? {} : { fetchedAt: new Date().toISOString() }) } });
+  await chrome.storage.local.set({ cvLink: { ...now, error, ...(error ? {} : { hash, fetchedAt: new Date().toISOString() }) } });
 }
 
 async function run() {
@@ -943,7 +945,6 @@ async function run() {
   try {
     // With the settings on the account, another computer may have changed them.
     if ((await chrome.storage.local.get('token')).token) await syncStorage().catch(() => {});
-    await refreshCvLink();
     const st = await chrome.storage.local.get(['token', 'paused', 'cv', 'ai']);
     if (!st.token) return;
     await flushOutbox();
@@ -988,8 +989,13 @@ async function run() {
       jobs = oojMatch.withQueued(queued, picked, guardrails);
     }
 
-    for (const job of jobs) {
+    for (const [i, job] of jobs.entries()) {
       if (left <= 0) break;
+      // The resume link is checked once a run, when there's a job to send.
+      if (i === 0) {
+        await refreshCvLink();
+        ctx.cv = (await chrome.storage.local.get('cv')).cv || ctx.cv;
+      }
       const outcome = await applyTo(job, ctx);
       if (outcome === 'limit') break;
       if (queuedIds.has(job.id)) await api(`/me/apply/queue/${encodeURIComponent(job.id)}`, { method: 'DELETE' }).catch(() => {});

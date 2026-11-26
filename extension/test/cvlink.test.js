@@ -46,7 +46,7 @@ test('any other https link is used as given; anything else is refused', () => {
 test('a PDF is accepted, named from Content-Disposition', async () => {
   let asked;
   const { ctx } = worker(async (url, init) => { asked = { url, init }; return file(PDF, { 'content-type': 'application/octet-stream', 'content-disposition': "attachment; filename=\"cv.pdf\"; filename*=UTF-8''Dana%20Levi%20CV.pdf" }); });
-  const cv = await ctx.fetchCvLink('https://drive.google.com/file/d/abc/view');
+  const { file: cv } = await ctx.fetchCvLink('https://drive.google.com/file/d/abc/view');
   assert.equal(asked.url, 'https://drive.google.com/uc?export=download&id=abc');
   assert.equal(asked.init.credentials, 'omit');
   assert.equal(cv.name, 'Dana Levi CV.pdf');
@@ -57,7 +57,7 @@ test('a PDF is accepted, named from Content-Disposition', async () => {
 
 test('a DOCX with no name anywhere is called Resume.docx', async () => {
   const { ctx } = worker(async () => file(DOCX, { 'x-url': 'https://drive.usercontent.google.com/download?id=abc' }));
-  const cv = await ctx.fetchCvLink('https://drive.google.com/file/d/abc/view');
+  const { file: cv } = await ctx.fetchCvLink('https://drive.google.com/file/d/abc/view');
   assert.equal(cv.name, 'Resume.docx');
   assert.equal(cv.type, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 });
@@ -117,12 +117,18 @@ test('a failed refresh keeps the last good copy and leaves the error for Setting
   assert.equal(store.cvLink.fetchedAt, fetchedAt);
 });
 
-test('a fresh copy is not fetched again', async () => {
-  let calls = 0;
-  const { ctx, store } = worker(async () => { calls++; return file(PDF); });
-  Object.assign(store, { cv: { data: 'AAAA' }, cvLink: { url: 'https://example.com/cv.pdf', mode: 'link', fetchedAt: new Date().toISOString(), error: null } });
+test('a refresh keeps the stored file when the hash is the same, and takes a changed one', async () => {
+  let body = PDF;
+  const { ctx, store } = worker(async () => file(body, { 'content-disposition': 'attachment; filename="Linked.pdf"' }));
+  await ctx.saveCvLink('https://example.com/Linked.pdf');
+  const first = store.cv, hash = store.cvLink.hash;
+  assert.match(hash, /^[0-9a-f]{64}$/);
   await ctx.refreshCvLink();
-  assert.equal(calls, 0);
+  assert.equal(store.cv, first);
+  body = Buffer.concat([PDF, Buffer.from('% edited')]);
+  await ctx.refreshCvLink();
+  assert.notEqual(store.cvLink.hash, hash);
+  assert.notEqual(store.cv.data, first.data);
 });
 
 test('on the account, the link\'s file goes up once and the account\'s copy never replaces it', async () => {
@@ -140,8 +146,7 @@ test('on the account, the link\'s file goes up once and the account\'s copy neve
   assert.equal(puts[0].name, 'Linked.pdf');
   await ctx.syncStorage();
   assert.equal(store.cv.name, 'Linked.pdf');
-  // The same file six hours later is not sent again.
-  store.cvLink.fetchedAt = new Date(Date.now() - 7 * 3600 * 1000).toISOString();
+  // The same file fetched again is not sent again.
   await ctx.refreshCvLink();
   assert.equal(puts.length, 1);
   assert.equal(store.cvLink.error, null);

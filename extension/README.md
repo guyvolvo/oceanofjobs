@@ -8,7 +8,7 @@ Plain JavaScript, Manifest V3, no build step and no dependencies.
 
 1. Open `chrome://extensions` and turn on Developer mode.
 2. Click "Load unpacked" and pick this `extension/` folder.
-3. Open the extension's settings and add your CV (PDF or DOCX, up to 5 MB): upload a file, or pick Link and paste a public share link (Google Drive, Google Docs as PDF, Dropbox, OneDrive or any https address). `background.js` downloads the link's file into the same `cv` every filler reads, downloads it again at a run or fill once the copy is 6 hours old (a failed download keeps the last copy and shows the error in Settings), and keeps the uploaded file aside so switching back needs no new upload; the link stays on this browser (`cvLink`), and in cloud storage only the downloaded file goes to the account.
+3. Open the extension's settings and add your CV (PDF or DOCX, up to 5 MB): upload a file, or pick Link and paste a public share link (Google Drive, Google Docs as PDF, Dropbox, OneDrive or any https address). `background.js` downloads the link's file into the same `cv` every filler reads, downloads it again when a run applies or a fill starts and keeps it only when its SHA-256 hash changed (a failed download keeps the last copy and shows the error in Settings), and keeps the uploaded file aside so switching back needs no new upload; the link stays on this browser (`cvLink`), and in cloud storage only the downloaded file goes to the account.
 4. On https://oceanofjobs.com/account#autoapply, connect the extension.
 
 ## Connecting without copy and paste
