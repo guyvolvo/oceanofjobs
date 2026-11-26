@@ -111,7 +111,10 @@ with mock_aws():
     s, out = call("u1", "GET", "/me/storage/secrets")
     check("the website can't read them back", s == 403, (s, out))
     s, out = call("u1", "GET", "/me/storage/secrets", extension=True)
-    check("the extension reads them back", out == {"workday": "Xk7!mP2#qR9$", "ai": {"provider": "anthropic", "key": "sk-ant-1", "model": "m"}}, out)
+    check("the extension reads them back", out == {"workday": "Xk7!mP2#qR9$", "ai": {"provider": "anthropic", "key": "sk-ant-1", "model": "m", "first": False}}, out)
+    call("u1", "PUT", "/me/storage/secrets", {"ai": {"provider": "anthropic", "key": "sk-ant-1", "model": "m", "first": True}}, extension=True)
+    s, out = call("u1", "GET", "/me/storage/secrets", extension=True)
+    check("'Use my key first' goes with the key", out["ai"]["first"] is True, out)
     stolen = dict(row)
     stolen["user_id"] = "u2"
     stolen["alert_id"] = "#storage"

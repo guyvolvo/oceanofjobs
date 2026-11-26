@@ -82,6 +82,34 @@ test("the plan's AI answers used up (402) moves to the own key", async () => {
   assert.deepEqual(own, ['Why us?']);
 });
 
+test('"Use my key first": the server is asked without its model, then the own key answers', async () => {
+  const bodies = [];
+  const { ctx, store } = worker(async (url, init) => {
+    if (!url.endsWith('/me/apply/draft')) return reply(200, {});
+    const body = JSON.parse(init.body);
+    bodies.push(body);
+    // A saved answer still comes from the server; anything else is left to the key.
+    return reply(200, body.question === 'Notice period?' ? { answer: '30 days', source: 'saved' } : { answer: null, source: 'own_key' });
+  });
+  store.token = 'ooj_x';
+  const own = [];
+  ctx.draftAnswer = async (field) => { own.push(field.label); return 'My own answer'; };
+  const c = { profile: {}, preferences: {}, settings: { fill: 'half' }, ai: { key: 'k', first: true }, serverAi: true };
+  assert.equal(await ctx.answerUnknown({ label: 'Why us?', type: 'text' }, { id: 'j1' }, c), 'My own answer');
+  assert.equal(c.wroteIt, true);
+  assert.equal(await ctx.suggestAnswer({ label: 'Why us?', type: 'text' }, { id: 'j1' }, c), 'My own answer');
+  assert.equal(await ctx.answerUnknown({ label: 'Notice period?', type: 'text' }, { id: 'j1' }, c), '30 days');
+  assert.deepEqual(own, ['Why us?', 'Why us?']);
+  assert.ok(bodies.every((b) => b.own_key === true));
+  assert.equal(c.serverAi, true, 'the server stays in use for the free answers');
+  // Full automatic never uses the own key, so it asks the server's model.
+  bodies.length = 0;
+  const full = { ...c, settings: { fill: 'full' } };
+  await ctx.answerUnknown({ label: 'Why us?', type: 'text' }, { id: 'j1' }, full);
+  assert.equal(bodies[0].own_key, undefined);
+  assert.deepEqual(own, ['Why us?', 'Why us?']);
+});
+
 test('an API call that hangs times out with no status, so attempt calls count it as transient', async () => {
   const hang = (url, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(init.signal.reason)));
   const { ctx, store } = worker(hang);

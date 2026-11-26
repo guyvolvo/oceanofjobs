@@ -302,6 +302,10 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
 
     if agent.is_trait(question):
         raise CantAnswer("only you can answer this one about yourself")
+    # The extension's "Use my key first": the free answers above still come
+    # from here, and the model call goes to the user's own key, uncounted.
+    if body.get("own_key") is True:
+        return {"answer": None, "remaining": remaining, "suggested": suggest, "source": "own_key"}
     # What draws them to this company: drafted from the posting or not at all.
     motive = agent.is_motivation(question)
     description = str((posting or {}).get("description") or "")
