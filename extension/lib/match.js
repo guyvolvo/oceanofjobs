@@ -157,7 +157,8 @@
   // country from the question (ai_answers.draft). True when the question names
   // no place, says "this country", or names the job's country.
   function asksJobCountry(label, job) {
-    const where = (normalise(label).match(/\bin (.+)$/) || [])[1];
+    // "now or in the future" names a time, not a place.
+    const where = (normalise(label).replace(/\bin the future\b/g, '').match(/\bin (.+)$/) || [])[1];
     if (!where || /\b(this|the|that|your) (country|location|role|position|job)\b|\bwhere\b/.test(where)) return true;
     return String((job && job.country) || '').split(',').some((c) => {
       try {
@@ -184,7 +185,12 @@
       case 'website': return blank(l.website);
       case 'salary': return blank(w.salary);
       case 'notice': return blank(w.notice_period);
-      case 'sponsorship': return yesNo(w.needs_sponsorship);
+      // Needed only where the user isn't authorized: an Israeli on an Israeli job says No.
+      case 'sponsorship': {
+        if (w.needs_sponsorship !== true) return yesNo(w.needs_sponsorship);
+        const auth = workAuth(w, job);
+        return auth === 'Yes' ? 'No' : auth === 'No' ? 'Yes' : undefined;
+      }
       case 'work_auth': return workAuth(w, job);
       case 'gender': case 'race': case 'veteran': case 'disability': return blank(e[key]);
       case 'hispanic': {
@@ -285,7 +291,7 @@
       // period list or a start date) gives way to a saved answer for this
       // exact question.
       let value = key ? profileValue(key, profile, job) : undefined;
-      if (key === 'work_auth' && !asksJobCountry(f.label, job)) value = undefined;
+      if ((key === 'work_auth' || key === 'sponsorship') && !asksJobCountry(f.label, job)) value = undefined;
       if (key === 'phone' && split && value) value = nationalNumber(value);
       // A box for the city alone (Workday's beside Country and Postal Code) gets "Tel Aviv", not "Tel Aviv, Israel".
       if (key === 'location' && value && f.type !== 'combobox' && CITY.test(normalise(f.label))) value = value.split(',')[0].trim();
