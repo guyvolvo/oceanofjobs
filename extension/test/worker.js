@@ -24,7 +24,7 @@ function worker(answer) {
     storage: { local: area(store), session: area({}), onChanged: noop },
   }, { get: (t, k) => (k in t ? t[k] : noop) });
   const ctx = {
-    chrome, console, URL, URLSearchParams, setTimeout, clearTimeout, crypto: globalThis.crypto, Intl,
+    chrome, console, URL, URLSearchParams, setTimeout, clearTimeout, crypto: globalThis.crypto, Intl, btoa, AbortSignal,
     fetch: (url, init) => answer(url, init, store),
   };
   ctx.globalThis = ctx;
