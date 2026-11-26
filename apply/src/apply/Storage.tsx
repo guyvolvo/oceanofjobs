@@ -117,7 +117,7 @@ export function ResumeStorage({ ext }: { ext: Ext }) {
   const saved = [view.workday ? "Workday password" : "", view.ai ? "your own AI key" : ""].filter(Boolean);
   return (
     <>
-      <Card title="Your resume" note="Saved to cloud storage. The extension attaches it to your applications.">
+      <Card title="Your resume" note="Saved to cloud storage.">
         {view.cv ? (
           <div className={`${BOX} sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center`}>
             <div className="min-w-0">

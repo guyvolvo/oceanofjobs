@@ -4,7 +4,7 @@
 // guide (Onboarding.tsx) over it.
 import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Plus, X } from "@/components/icons";
+import { CaretDown, Plus, X } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { FieldDescription, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -131,6 +131,8 @@ function Settings({ ext }: { ext: Ext }) {
   const [open, show] = useSection(SECTIONS.map(([id]) => id));
   const [asking, setAsking] = useState(false);
   const [askingFill, setAskingFill] = useState(false);
+  // Saved answers show only the question; a click opens its question and answer to edit.
+  const [expanded, setExpanded] = useState<number[]>([]);
   // Auto-apply mode and Full automatic need a resume first (null while it's
   // being checked). Full automatic needs Basic or Pro, the plans that can edit the agent.
   const [hasResume, setHasResume] = useState<boolean | null>(null);
@@ -199,7 +201,7 @@ function Settings({ ext }: { ext: Ext }) {
       <Sections open={open} show={show} items={SECTIONS}>
       <Section id="details">
       <ResumeStorage ext={ext} />
-      <Card title="Personal details" note="Used to fill in application forms. Your details are saved to your account so you can use them on any computer.">
+      <Card title="Personal details" note="Used to fill in application forms.">
         <div className={GRID}>
           {text("first_name", "First name", "")}
           {text("last_name", "Last name", "")}
@@ -296,20 +298,30 @@ function Settings({ ext }: { ext: Ext }) {
 
       <Section id="answers">
       <Card title="Saved answers" note="Save answers to common application questions. The extension reuses them when a question matches and lets you add new answers as you go.">
-        {form.answers.map((a) => (
-          <div key={a.id} className={`${BOX} grid-cols-[minmax(0,1fr)_auto] items-start`}>
-            <div className="flex min-w-0 flex-col gap-2 [&_input]:w-full">
-              <Input aria-label="Question" placeholder="Question, e.g. Why do you want to work here?" value={a.question}
-                onChange={(e) => setAnswer(a.id, { question: e.target.value })} />
-              <Textarea aria-label="Answer" placeholder="Your answer" rows={2} value={a.answer} onChange={(e) => setAnswer(a.id, { answer: e.target.value })} />
+        {form.answers.map((a) => {
+          const shown = expanded.includes(a.id);
+          return (
+            <div key={a.id} className={`${BOX} grid-cols-[minmax(0,1fr)_auto] items-start`}>
+              <div className="flex min-w-0 flex-col gap-2 [&_input]:w-full">
+                <button type="button" aria-expanded={shown} className="flex min-h-8 min-w-0 items-center gap-2 text-left font-medium"
+                  onClick={() => setExpanded((o) => (shown ? o.filter((x) => x !== a.id) : [...o, a.id]))}>
+                  <CaretDown size={16} className={cn("shrink-0 transition-transform", !shown && "-rotate-90")} />
+                  <span className="min-w-0 truncate">{a.question || "New question"}</span>
+                </button>
+                {shown && <>
+                  <Input aria-label="Question" placeholder="Question, e.g. Why do you want to work here?" value={a.question}
+                    onChange={(e) => setAnswer(a.id, { question: e.target.value })} />
+                  <Textarea aria-label="Answer" placeholder="Your answer" rows={2} value={a.answer} onChange={(e) => setAnswer(a.id, { answer: e.target.value })} />
+                </>}
+              </div>
+              <Button type="button" size="icon-sm" variant="ghost" aria-label={`Remove the answer to ${a.question || "this question"}`} title="Remove"
+                onClick={() => set("answers", form.answers.filter((x) => x.id !== a.id))}><X /></Button>
             </div>
-            <Button type="button" size="icon-sm" variant="ghost" aria-label={`Remove the answer to ${a.question || "this question"}`} title="Remove"
-              onClick={() => set("answers", form.answers.filter((x) => x.id !== a.id))}><X /></Button>
-          </div>
-        ))}
+          );
+        })}
         <div>
           <Button type="button" variant="outline"
-            onClick={() => set("answers", [...form.answers, { id: nextId++, question: "", answer: "" }])}><Plus />Add an answer</Button>
+            onClick={() => { const id = nextId++; set("answers", [...form.answers, { id, question: "", answer: "" }]); setExpanded((o) => [...o, id]); }}><Plus />Add an answer</Button>
         </div>
       </Card>
       </Section>
@@ -330,7 +342,7 @@ export default function SettingsPage() {
   // Finishing the setup reloads the form, so unsaved edits are saved or discarded first.
   const { guard, dialog } = useLeaveGuard();
   return (
-    <ApplyPage current="apply-settings" title="Auto apply settings" note="What the extension fills in, where it finds jobs, and how far it goes on its own." data={data}
+    <ApplyPage current="apply-settings" title="Auto apply settings" data={data}
       actions={<Button variant="outline" onClick={() => guard(() => dispatchEvent(new Event(SETUP)))}>Run setup again</Button>}>
       {dialog}
       <Onboarding plan={data.summary?.plan} ext={ext} onDone={() => setSettingsKey((k) => k + 1)} />

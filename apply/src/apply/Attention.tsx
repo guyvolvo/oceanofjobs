@@ -106,7 +106,7 @@ export default function AttentionPage() {
   const unconfirmed = (history || []).filter((r) => r.status === "unconfirmed" && r.attempt_id);
   const disputesLeft = data.summary?.disputes_left ?? 0;
   return (
-    <ApplyPage current="needs" title="Needs attention" note="Questions the forms asked, and submissions the extension couldn't confirm." data={data}>
+    <ApplyPage current="needs" title="Needs attention" data={data}>
       {!needs || !history ? <Waiting /> : !needs.length && !unconfirmed.length ? (
         <Nothing icon={<CheckCircle />} title="Looks good" description="Nothing waits for you." />
       ) : (
