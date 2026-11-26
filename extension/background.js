@@ -707,14 +707,25 @@ async function storageState() {
 
 async function syncStorage() {
   const view = await api('/me/storage');
-  const { storageMode: before } = await chrome.storage.local.get('storageMode');
-  await chrome.storage.local.set({ storageMode: view.mode });
+  const { storageMode: before, storageUser } = await chrome.storage.local.get(['storageMode', 'storageUser']);
+  // storageUser: the account this browser's CV and secrets belong to. That
+  // is the first account it synced with, then the one "account" mode keeps
+  // in step with. A token another script on the site planted is a different
+  // account, and nothing saved here goes up to it.
+  const owner = storageUser || view.user;
+  const next = view.mode === 'account' && before === 'account' ? view.user : owner;
+  await chrome.storage.local.set({ storageMode: view.mode, ...(next ? { storageUser: next } : {}) });
   if (view.mode !== 'account') return view;
-  if (before !== 'account') {
+  if (before !== 'account' && view.user && view.user === owner) {
     // Chosen elsewhere (a CV uploaded on the website, another computer):
     // what this browser kept goes up before the account's copy comes down,
     // so nothing saved here is lost.
-    const local = await chrome.storage.local.get(['workday', 'ai']);
+    const local = await chrome.storage.local.get(['cv', 'workday', 'ai']);
+    if (!view.cv && local.cv) {
+      const saved = await api('/me/cv', { method: 'PUT', body: { name: local.cv.name, type: local.cv.type, data: local.cv.data, consent: true } });
+      view.cv = saved.cv;
+      await chrome.storage.local.set({ cvSavedAt: saved.cv.uploaded_at });
+    }
     const up = {};
     if (!view.workday && local.workday && local.workday.password) up.workday = local.workday.password;
     if (!view.ai && local.ai && local.ai.key) up.ai = local.ai;
