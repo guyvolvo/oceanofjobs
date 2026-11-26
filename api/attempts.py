@@ -10,7 +10,9 @@ Rows, all in the alerts table under the user's id:
 - #attempt#<id>: one attempt. Its job, the period and time zone fixed at
   reservation, its state, when it expires, and an audit trail.
 - #joblock#<canonical job>: present while an attempt for the job is open,
-  or once it is Submitted or Submission unconfirmed (R2).
+  or once it is Submitted or Submission unconfirmed (R2). An attempt with
+  id_lock also holds #joblock#id:<job id>, so the same job reserved from
+  another address (a Workday or Breezy apply page) is refused too.
 - #ledger#month#<YYYY-MM> and #ledger#day#<YYYY-MM-DD>: "held" (reserved
   plus charged) and "charged" for that period, and "disputes" on months.
   DynamoDB conditions can't add two numbers, so "held < limit" is the
@@ -66,7 +68,7 @@ SETTLE = {
     (UNCONFIRMED, SUBMITTED): "none",
     # Only an unconfirmed the expiry made (reason "expired"): the start was
     # acknowledged, then the failure report came after the hold ran out.
-    (UNCONFIRMED, FAILED): "refund",
+    (UNCONFIRMED, FAILED): "refund", (UNCONFIRMED, NEEDS_INPUT): "refund",
 }
 
 
@@ -238,6 +240,12 @@ class Attempts:
     def _audit(self, event: str, now: datetime) -> dict:
         return {"at": now.isoformat(), "event": event}
 
+    @staticmethod
+    def _locks(a: dict) -> list[str]:
+        """The job lock rows an attempt holds. Attempts reserved before
+        id_lock existed hold only the canonical one."""
+        return [JOBLOCK + a["canon"]] + ([JOBLOCK + "id:" + a["job_id"]] if a.get("id_lock") else [])
+
     # R1, R2, R10, R13, R14
     def reserve(self, user_id: str, attempt_id: str, job: dict, now: datetime | None = None, tz: str | None = None) -> dict:
         now = _utc(now)
@@ -257,6 +265,7 @@ class Attempts:
         if apply.submitted_already(self.table, user_id, job_id, job.get("url")):
             raise JobTaken("this job was already submitted")
         canon = apply.canonical_job(job.get("url")) or "id:" + job_id
+        domain = str(job.get("company_domain") or "").strip().lower()
         month, day = periods(now, tz)
         month_limit, day_limit = limits(self.table, user_id)
         old_m, old_d = legacy_used(self.table, user_id, month, day, tz, now)
@@ -268,12 +277,16 @@ class Attempts:
                    "canon": canon, "title": apply._text(job.get("title"), 300), "company": apply._text(job.get("company"), 200),
                    "url": apply._text(job.get("url"), 1000), "tz": str(_zone(tz)), "month": month, "day": day,
                    "state": RESERVED, "reserved_at": now.isoformat(), "expires_at": (now + HOLD).isoformat(),
-                   "audit": [self._audit("reserved", now)]}
+                   "audit": [self._audit("reserved", now)],
+                   # The same board job from another address has another canon: lock its id too (R2).
+                   "id_lock": canon != "id:" + job_id,
+                   **({"company_domain": domain} if apply.DOMAIN.match(domain) and "." in domain else {})}
+        locks = self._locks(attempt)
         items = [
             {"Put": {"TableName": self.name, "Item": attempt, "ConditionExpression": "attribute_not_exists(alert_id)"}},
-            {"Put": {"TableName": self.name, "Item": ({"user_id": user_id, "alert_id": JOBLOCK + canon, "attempt_id": attempt_id,
-                                                            "job_id": job_id, "state": RESERVED, "at": now.isoformat()}),
-                     "ConditionExpression": "attribute_not_exists(alert_id)"}},
+            *({"Put": {"TableName": self.name, "Item": ({"user_id": user_id, "alert_id": lock, "attempt_id": attempt_id,
+                                                             "job_id": job_id, "state": RESERVED, "at": now.isoformat()}),
+                       "ConditionExpression": "attribute_not_exists(alert_id)"}} for lock in locks),
             self._ledger_update(user_id, LEDGER_MONTH + month, 1, 0, month_limit),
             self._ledger_update(user_id, LEDGER_DAY + day, 1, 0, day_limit),
         ]
@@ -285,9 +298,9 @@ class Attempts:
             if again and again["job_id"] == job_id:
                 return self.view(again)
             raise Conflict("this attempt id belongs to another job")
-        if reasons[1] == "ConditionalCheckFailed":
+        if "ConditionalCheckFailed" in reasons[1:1 + len(locks)]:
             raise JobTaken("this job already has an open or submitted application")
-        if "ConditionalCheckFailed" in reasons[2:]:
+        if "ConditionalCheckFailed" in reasons[1 + len(locks):]:
             raise LimitReached("no applications left in this period")
         raise RuntimeError(f"reservation failed: {reasons}")
 
@@ -397,24 +410,20 @@ class Attempts:
                                                    ":q": [apply._text(q, 300) for q in (questions or [])[:20] if str(q or "").strip()],
                                                    ":t": now.isoformat(), ":ev": [self._audit(outcome, now)]})}
         items = [{"Update": upd}]
-        lock = self._key(user_id, JOBLOCK + a["canon"])
-        if effect == "release":
-            items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, 0),
-                      self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, 0),
-                      {"Delete": {"TableName": self.name, "Key": lock, "ConditionExpression": "attempt_id = :a",
-                                  "ExpressionAttributeValues": ({":a": attempt_id})}}]
-        elif effect == "refund":
-            items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, -1),
-                      self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, -1),
-                      {"Delete": {"TableName": self.name, "Key": lock, "ConditionExpression": "attempt_id = :a",
-                                  "ExpressionAttributeValues": ({":a": attempt_id})}}]
+        locks = [self._key(user_id, lock) for lock in self._locks(a)]
+        if effect in ("release", "refund"):
+            charged = -1 if effect == "refund" else 0
+            items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, charged),
+                      self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, charged)]
+            items += [{"Delete": {"TableName": self.name, "Key": lock, "ConditionExpression": "attempt_id = :a",
+                                  "ExpressionAttributeValues": ({":a": attempt_id})}} for lock in locks]
         elif effect == "charge":
             items += [self._ledger_update(user_id, LEDGER_MONTH + a["month"], 0, 1),
                       self._ledger_update(user_id, LEDGER_DAY + a["day"], 0, 1)]
         if effect in ("charge", "none"):
-            items.append({"Update": {"TableName": self.name, "Key": lock, "UpdateExpression": "SET #s = :to",
-                                     "ConditionExpression": "attempt_id = :a", "ExpressionAttributeNames": {"#s": "state"},
-                                     "ExpressionAttributeValues": ({":to": outcome, ":a": attempt_id})}})
+            items += [{"Update": {"TableName": self.name, "Key": lock, "UpdateExpression": "SET #s = :to",
+                                  "ConditionExpression": "attempt_id = :a", "ExpressionAttributeNames": {"#s": "state"},
+                                  "ExpressionAttributeValues": ({":to": outcome, ":a": attempt_id})}} for lock in locks]
         reasons = self._transact(items)
         if reasons is not None:
             again = self._get(user_id, ATTEMPT + attempt_id)
@@ -495,8 +504,9 @@ class Attempts:
             # The refund comes off the periods the charge was made in (R13).
             self._ledger_update(user_id, LEDGER_MONTH + a["month"], -1, -1),
             self._ledger_update(user_id, LEDGER_DAY + a["day"], -1, -1),
-            {"Delete": {"TableName": self.name, "Key": self._key(user_id, JOBLOCK + a["canon"]),
-                        "ConditionExpression": "attempt_id = :a", "ExpressionAttributeValues": ({":a": attempt_id})}},
+            *({"Delete": {"TableName": self.name, "Key": self._key(user_id, lock),
+                          "ConditionExpression": "attempt_id = :a", "ExpressionAttributeValues": ({":a": attempt_id})}}
+              for lock in self._locks(a)),
         ]
         # The dispute allowance counts in the period the dispute is made.
         cap = self._ledger_update(user_id, LEDGER_MONTH + billing, 0, 0, disputes=1, dispute_cap=DISPUTES_PER_PERIOD)
@@ -613,6 +623,7 @@ class Attempts:
             state = a["state"]
             settled = a.get("settled_at")
             rows.append({"job_id": a["job_id"], "attempt_id": a["attempt_id"], "company": a.get("company") or "",
+                         **({"company_domain": a["company_domain"]} if a.get("company_domain") else {}),
                          "title": a.get("title") or "", "url": a.get("url") or "", "status": shown.get(state, state),
                          "reason": a.get("reason") or "", "at": settled or a["reserved_at"],
                          "disputable": state == UNCONFIRMED and bool(settled) and now - datetime.fromisoformat(settled) <= DISPUTE_WINDOW,

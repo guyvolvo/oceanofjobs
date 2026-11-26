@@ -134,6 +134,29 @@ with mock_aws():
     check("the same job from a careers page counts as the same job",
           raises(lambda: A.reserve("u", "careers-0001", job(99, "https://acme.com/careers?gh_jid=1007"), NOW), at.JobTaken))
 
+    # One board job id reserved from two addresses (Workday's autofillWithResume,
+    # Breezy's /apply): two canons, one job, one attempt.
+    t, A = fresh_table()
+    wd = "https://acme.wd1.myworkdayjobs.com/en-US/careers/job/Remote/Engineer_R1"
+    A.reserve("u", "twourl-0001", job(5, wd), NOW)
+    other = job(5, wd + "/apply/autofillWithResume")
+    check("the same job id from another address is refused while the first is reserved",
+          raises(lambda: A.reserve("u", "twourl-0002", other, NOW), at.JobTaken))
+    A.submission_started("u", "twourl-0001", NOW)
+    A.settle("u", "twourl-0001", at.SUBMITTED, "", NOW)
+    check("and once it was submitted", raises(lambda: A.reserve("u", "twourl-0003", other, NOW), at.JobTaken))
+    A.reserve("u", "twourl-0004", job(6, wd + "6"), NOW)
+    A.settle("u", "twourl-0004", at.FAILED, "form errors", NOW)
+    check("a released attempt frees both locks, so another address may retry",
+          A.reserve("u", "twourl-0005", job(6, wd + "6/apply"), NOW)["state"] == at.RESERVED)
+    A.submission_started("u", "twourl-0005", NOW)
+    A.settle("u", "twourl-0005", at.UNCONFIRMED, "no confirmation", NOW)
+    A.dispute("u", "twourl-0005", NOW)
+    check("and so does a disputed one", A.reserve("u", "twourl-0006", {**job(6), "company_domain": "acme.com"}, NOW)["state"] == at.RESERVED)
+    check("an attempt keeps the job's company domain for the one-per-company guardrail",
+          A._get("u", at.ATTEMPT + "twourl-0006").get("company_domain") == "acme.com"
+          and [r.get("company_domain") for r in A.history("u", NOW) if r["attempt_id"] == "twourl-0006"] == ["acme.com"])
+
     # A crash after each event.
     t, A = fresh_table()
     A.reserve("u", "crash-res-01", job(1), NOW)
@@ -212,6 +235,20 @@ with mock_aws():
     check("a late failure report refunds the expired charge once", A._get("u", at.ATTEMPT + "late-000001")["state"] == at.FAILED
           and m["held"] == 0 and m["charged"] == 0 and d["held"] == 0, repr((m, d)))
     check("and the job can be tried again", A.reserve("u", "late-000002", job(2), NOW + timedelta(minutes=42))["state"] == at.RESERVED)
+    # The same late report, but the human check refused the click: Needs input refunds too.
+    A.reserve("u", "late-000003", job(3), NOW)
+    A.submission_started("u", "late-000003", NOW)
+    A.expire("u", NOW + timedelta(minutes=31))
+    A.settle("u", "late-000003", at.NEEDS_INPUT, "ready to submit", NOW + timedelta(minutes=40))
+    m, d = counts(A)
+    # late-000002 still holds its one credit.
+    check("a late human-check refusal refunds the expired charge", A._get("u", at.ATTEMPT + "late-000003")["state"] == at.NEEDS_INPUT
+          and m["held"] == 1 and m["charged"] == 0 and d["held"] == 1, repr((m, d)))
+    A.reserve("u", "late-000004", job(4), NOW)
+    A.submission_started("u", "late-000004", NOW)
+    A.settle("u", "late-000004", at.UNCONFIRMED, "no confirmation", NOW)
+    check("but an unconfirmed the extension reported can't become Needs input",
+          raises(lambda: A.settle("u", "late-000004", at.NEEDS_INPUT, "ready to submit", NOW), at.Conflict))
 
     # The site's human check refused the click after the start (extension
     # viaGeneral): nothing was sent, so the credit goes back and the job

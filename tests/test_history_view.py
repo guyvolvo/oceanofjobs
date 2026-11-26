@@ -50,6 +50,7 @@ rows = handler._history_view([
 a, b, c, d = rows
 check("a board job takes the board's title and company name", a["title"] == "Kubernetes Researcher" and a["company"] == "PointFive", repr(a))
 check("and links to its board page", a["link"] == "/job/aaaaaaaaaaaaaaaa", repr(a))
+check("and carries the board's company domain", a["company_domain"] == "pointfive.com" and "company_domain" not in c, repr((a, c)))
 check("no confirmation is unconfirmed, not failed, in today's words",
       a["status"] == "unconfirmed" and a["reason"] == "The form was sent, but the site didn't confirm it. Check for a confirmation email.", repr(a))
 check("a company with no stored name keeps its domain", b["company"] == "wayve.ai", repr(b))

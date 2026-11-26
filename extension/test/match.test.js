@@ -166,7 +166,7 @@ test('isEeo keeps demographic questions away from AI', () => {
 const NOW = Date.parse('2026-10-20T12:00:00');
 const history = [
   { job_id: 'a1', company: 'figma.com', status: 'submitted', at: new Date(NOW - 3600e3).toISOString() },
-  { job_id: 'a2', company: 'stripe.com', status: 'submitted', at: new Date(NOW - 3 * 864e5).toISOString() },
+  { job_id: 'a2', company: 'Stripe', company_domain: 'stripe.com', status: 'submitted', at: new Date(NOW - 3 * 864e5).toISOString() },
   { job_id: 'a3', company: 'airbnb.com', status: 'skipped', at: new Date(NOW - 3600e3).toISOString() },
 ];
 
@@ -199,11 +199,22 @@ test('screenJob applies the guardrails', () => {
 // "submitted": it still counts as applied, for the day and for the company.
 test('a job the user sent themselves counts as applied', () => {
   const at = new Date(NOW).toISOString();
-  const sent = [{ job_id: 's1', company: 'acme.com', status: 'sent', at }];
+  const sent = [{ job_id: 's1', company: 'Acme', company_domain: 'acme.com', status: 'sent', at }];
   const ctx = { history: sent, guardrails: { one_per_company_days: 7 }, now: NOW, retrySkipped: true, minMatch: null };
   assert.equal(m.screenJob({ id: 's1', company_domain: 'acme.com' }, ctx), 'already applied');
   assert.equal(m.screenJob({ id: 's2', company_domain: 'acme.com' }, ctx), 'applied to this company recently');
   assert.equal(m.appliedToday(sent, NOW), 1);
+});
+
+// The history's company is the board's name ("Stripe"); the guardrail
+// compares the domain the server adds, and an unconfirmed send counts too.
+test('one per company compares domains and counts unconfirmed sends', () => {
+  const at = new Date(NOW).toISOString();
+  const ctx = { guardrails: { one_per_company_days: 7 }, now: NOW, retrySkipped: true, minMatch: null };
+  const named = [{ job_id: 'u1', company: 'Stripe', company_domain: 'stripe.com', status: 'unconfirmed', at }];
+  assert.equal(m.screenJob({ id: 'u2', company_domain: 'stripe.com' }, { ...ctx, history: named }), 'applied to this company recently');
+  assert.equal(m.screenJob({ id: 'u2', company_domain: 'Stripe' }, { ...ctx, history: [{ ...named[0], company_domain: undefined }] }), null);
+  assert.equal(m.screenJob({ id: 'u3' }, { ...ctx, history: [{ job_id: 'u1', status: 'submitted', at }] }), null);
 });
 
 // Regression, bug 2 (2026-10-21): a job skipped for a question the profile
