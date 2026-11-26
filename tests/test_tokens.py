@@ -240,7 +240,7 @@ status, _ = call("/api/me/alerts", auth=reader["token"])
 check("a read permission lets a token list alerts", status.startswith("200"), status)
 status, body = call("/api/me/alerts", "POST", reader["token"], {"filter": {"search": "devops"}})
 check("but not create one, and it says which permission is missing",
-      status.startswith("403") and b"can't change your alerts" in body and b"#settings" in body, status + body.decode()[:200])
+      status.startswith("403") and b"can't change your alerts" in body and b"/account/settings" in body, status + body.decode()[:200])
 status, _ = call("/api/me/alerts/0b6c3f2e-1d2a-4c5b-8e9f-0a1b2c3d4e5f", "DELETE", reader["token"])
 check("or delete one", status.startswith("403"), status)
 status, body = call("/api/me/saved", auth=reader["token"])
@@ -306,7 +306,7 @@ check("a read-only area can't be given write", tokens.clean_permissions({"matche
 for path, area in (("/api/me/dashboard", "matches"), ("/api/me/apply/summary", "usage"), ("/api/me/apply/needs", "needs"),
                    ("/api/me/apply/profile", "autoapply"), ("/api/me/apply/agent", "agent")):
     status, body = call(path, auth=reader["token"])
-    check(f"without it, {path} is refused and says which permission", status.startswith("403") and b"Make a token" in body, status)
+    check(f"without it, {path} is refused and says which permission", status.startswith("403") and b"give it that permission" in body, status)
 asst = tokens.create(table, "u-new", "assistant", 30, permissions={a: "write" for a in tokens.AREAS})["token"]
 for path in ("/api/me/apply/summary", "/api/me/apply/needs", "/api/me/apply/profile", "/api/me/apply/agent"):
     status, _ = call(path, auth=asst)

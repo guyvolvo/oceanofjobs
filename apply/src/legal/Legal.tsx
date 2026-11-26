@@ -37,7 +37,7 @@ function Privacy() {
   <p><strong>Email digests.</strong> Digests are sent only to verified email addresses. Each digest includes a link to disable the alert.</p>
 
   <h2>Personal access tokens</h2>
-  <p>You can create personal access tokens for the MCP server, and connecting the extension creates one. For each token we store its name, its last four characters, when it was created and last used, and a one-way hash of it. The token itself is shown to you once and is not stored. Revoking a token deletes its record.</p>
+  <p>You can create personal access tokens for the MCP server. Connecting the extension, or connecting an app such as Claude or ChatGPT to your account, creates one. For each token we store its name, its last four characters, when it was created and last used, and a one-way hash of it. The token itself is shown to you once and is not stored. Revoking a token deletes its record.</p>
 
   <h2>Terms, newsletter and waitlists</h2>
   <p>When you agree to our Terms of Service and Privacy Policy, we record the date and the version you agreed to.</p>

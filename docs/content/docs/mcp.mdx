@@ -8,7 +8,7 @@ import { ClientIcon } from '@/components/client-icon';
 
 **Server URL:** https://oceanofjobs.com/mcp
 
-The server uses Streamable HTTP and requires no API key. The three search tools are read-only and need no account. The saved jobs, auto apply, alert and preference tools work on your account and need a token.
+The server uses Streamable HTTP and requires no API key. The three search tools are read-only and need no account. The saved jobs, auto apply, alert and preference tools work on your account. The first time you use one, your client asks you to sign in, or you send a personal access token.
 
 ## Connect a client
 
@@ -30,7 +30,7 @@ In Claude, open **Customize**, then **Connectors**, then **Add custom connector*
 https://oceanofjobs.com/mcp
 ```
 
-The server needs no sign-in, so leave the advanced settings empty. Turn the connector on in a chat from the tools menu.
+Leave the advanced settings empty. Turn the connector on in a chat from the tools menu. Searching works right away. The first time you use your saved jobs, alerts or auto apply, Claude shows **Connect**: sign in to Ocean of Jobs and choose what Claude can do.
 
 ### <ClientIcon name="chatgpt" />ChatGPT
 
@@ -40,7 +40,7 @@ In ChatGPT, open **Settings**, then **Apps & Connectors**. Turn on **Developer m
 https://oceanofjobs.com/mcp
 ```
 
-Choose no authentication. In a new chat, pick the connector from the tools menu.
+For authentication, choose OAuth and leave the client fields empty. In a new chat, pick the connector from the tools menu. The first time you use your account, ChatGPT asks you to sign in to Ocean of Jobs and choose what it can do.
 
 ### <ClientIcon name="cursor" />Cursor
 
@@ -136,7 +136,7 @@ If your client only supports locally running MCP servers, you can connect throug
 
 ## Available tools
 
-The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs), five for your [auto apply queue and history](#auto-apply-queue), four for your [alerts](#alerts), two for your [search preferences](#search-preferences) and eight for the [rest of your account](#more-of-your-account) need a personal access token.
+The server exposes three read-only tools that need no account. Three tools for your [saved jobs](#saved-jobs), five for your [auto apply queue and history](#auto-apply-queue), four for your [alerts](#alerts), two for your [search preferences](#search-preferences) and eight for the [rest of your account](#more-of-your-account) need your account.
 
 ### `search_jobs`
 
@@ -188,7 +188,7 @@ Three more tools work on your own Ocean of Jobs account, so an assistant can kee
 | `list_saved_jobs` | Lists your saved jobs, newest saved first, with the same fields as search results. `gone` lists saved jobs whose listing no longer exists. |
 | `remove_saved_job` | Takes a job off your saved list. |
 
-These tools need a personal access token. Without one they answer with an error that says how to get one; the other tools keep working without it.
+These tools need your account. Without a sign-in or a token, the server asks the client to sign in; the other tools keep working without it.
 
 ## Auto apply queue
 
@@ -204,7 +204,7 @@ Five tools hand jobs to the Ocean of Jobs Chrome extension, which applies to the
 
 `source` is `board`, `alert`, `mcp`, `extension`, `matches` or `other`, and `null` for jobs added before 28 October 2026. Ocean of Jobs sets it from how the job was added: a job your assistant queues is always `mcp`. `outcome` is `null` until you mark one. Nothing is marked for you, so silence never becomes `no_reply`.
 
-Queueing only works after you turn on **Jobs queued by my AI assistant through MCP** in your [auto apply settings](https://oceanofjobs.com/account#aa-settings). Until then `queue_for_auto_apply` answers with an error that says so. These tools need the same personal access token as the saved-jobs tools. The history tools use the token's auto apply queue permission: read to list, write to mark an outcome.
+Queueing only works after you turn on **Jobs queued by my AI assistant through MCP** in your [auto apply settings](https://oceanofjobs.com/account#aa-settings). Until then `queue_for_auto_apply` answers with an error that says so. These tools need your account, like the saved-jobs tools. The history tools use the auto apply queue permission: read to list, write to mark an outcome.
 
 ## Alerts
 
@@ -275,7 +275,7 @@ In a client with a JSON configuration, such as Cursor or VS Code:
 }
 ```
 
-If your client has no way to set a header, the account tools aren't available in it. At the time of writing that includes the Claude and ChatGPT connector settings, which only offer OAuth sign-in.
+Clients that support sign-in, such as Claude and ChatGPT, don't need a token. They ask you to sign in and choose the permissions the first time you use an account tool. An app connected this way is listed with your tokens in **Settings**, where you can change what it can do or revoke it. Its access lasts 90 days, then it asks you to sign in again.
 
 Treat a token like a password. Don't paste it into a chat or commit it to a repository.
 

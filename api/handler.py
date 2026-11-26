@@ -16,6 +16,7 @@ project's original "no accounts" framing minus the few features that
 genuinely needed one -- see PRODUCT.md.
 """
 
+import base64
 import hashlib
 import hmac
 import json
@@ -56,6 +57,7 @@ import unsubscribe_token
 import user_files
 import dodo
 import tokens
+import oauth
 from profile import (CADENCE, DASHBOARD_ID, PROFILE_ID, SENIORITY, SKILLS, WORKPLACE, clean_profile,
                      empty_profile)
 import dashboard
@@ -831,6 +833,8 @@ def lambda_handler(event, context):
                 # A field of the wrong type ({"facts": ["x"]}); logged in case it's ours.
                 traceback.print_exc()
                 return _response(400, json.dumps({"error": "a field in the request has the wrong type", "code": "invalid"}))
+        if path.startswith("/oauth/") or path == "/me/oauth/authorize":
+            return route_oauth(path, method, event, params)
         if path == "/me/tokens":
             # Personal access tokens (tokens.py). Only a signed-in session
             # gets here: serve.py keeps a token to the routes its scope lists.
@@ -1249,6 +1253,42 @@ def _busy_response(content_type: str) -> dict:
 # site's own button) stay apart from "submitted".
 SENT_STATUSES = ("submitted", "unconfirmed", "sent")
 NO_OUTCOME = {"outcome": None, "outcome_at": None}
+
+
+def route_oauth(path: str, method: str, event, params: dict) -> dict:
+    """Sign-in for MCP apps (oauth.py). Errors are OAuth's own JSON."""
+    def answer(status, body):
+        resp = _response(status, json.dumps(body))
+        resp["headers"]["Cache-Control"] = "no-store"
+        return resp
+    try:
+        if path == "/oauth/register" and method == "POST":
+            return answer(201, oauth.register(json.loads(event.get("body") or "{}")))
+        if path == "/oauth/client" and method == "GET":
+            return answer(200, oauth.client(params.get("client_id"), params.get("redirect_uri")))
+        if path == "/oauth/token" and method == "POST":
+            raw = event.get("body") or ""
+            if event.get("isBase64Encoded"):
+                raw = base64.b64decode(raw).decode("utf-8", "replace")
+            ctype = {k.lower(): v for k, v in (event.get("headers") or {}).items()}.get("content-type", "")
+            form = json.loads(raw or "{}") if "json" in ctype else {k: v[0] for k, v in parse_qs(raw).items()}
+            if not isinstance(form, dict):
+                raise oauth.OAuthError("invalid_request", "send the token request as a form")
+            return answer(200, oauth.token(_alerts_table, form))
+        if path == "/me/oauth/authorize" and method == "POST":
+            claims = _authenticated_claims(event)
+            if claims.get("token_use") == "ooj":
+                return answer(403, {"error": "access_denied", "error_description": "sign in on the website to connect an app"})
+            email = claims.get("email") if email_is_verified(claims) else None
+            return answer(200, oauth.authorize(claims["sub"], email, json.loads(event.get("body") or "{}")))
+        return answer(405 if path in ("/oauth/register", "/oauth/client", "/oauth/token", "/me/oauth/authorize") else 404,
+                      {"error": "invalid_request", "error_description": "no such route or method"})
+    except oauth.OAuthError as e:
+        return answer(e.status, {"error": e.error, "error_description": e.description})
+    except oauth.NotConfigured:
+        return answer(503, {"error": "temporarily_unavailable", "error_description": "sign-in for apps is not set up on this server"})
+    except json.JSONDecodeError:
+        return answer(400, {"error": "invalid_request", "error_description": "the body is not valid JSON"})
 
 
 def _token_origin(event) -> str | None:
