@@ -413,6 +413,11 @@ export function Hero() {
         <div className="home-hero-text">
           <h1 id="home-title">Automate your<br />job search</h1>
           <Island name="hero-search" component={HeroSearch} props={{}} />
+          {/* Product Hunt's own badge, in its light or dark version to match the site. */}
+          <a className="mt-[18px] inline-block leading-none" href="https://www.producthunt.com/products/ocean-of-jobs?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-ocean-of-jobs" target="_blank" rel="noopener noreferrer">
+            <img className="block dark:hidden" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1332082&theme=light" width="250" height="54" alt="Ocean of Jobs on Product Hunt" />
+            <img className="hidden dark:block" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1332082&theme=dark" width="250" height="54" alt="Ocean of Jobs on Product Hunt" />
+          </a>
           <div className="mt-[18px] flex flex-wrap gap-2.5">
             <a className="home-docs" href="/docs">Docs<ArrowUpRight size={14} /></a>
             <a className="home-docs" href="#pricing">See pricing<svg className="home-down" viewBox="0 -960 960 960" width="16" height="16" aria-hidden="true"><path d="M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224v-487h-80Z" /></svg></a>
