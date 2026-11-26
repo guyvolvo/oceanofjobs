@@ -12,11 +12,14 @@ once), and per invocation:
      can actually absorb them is exactly the kind of growth that made
      Workday need its own dedicated Lambda; this is the same lesson
      applied proactively instead of after an outage.
-  2. Pops BATCH_SIZE candidates off the front of the queue, appends
-     their guessed domains to domains.txt, resolves them for real via
-     probe.py (not just trusting the earlier discovery-time guess), and
-     merges the ones that resolved straight into known.json (see below
-     -- Partition & Merge retired this script's own jobs.db write).
+  2. Pops BATCH_SIZE candidates off the front of the queue. Workday
+     tenants go to workday-tenants.json and Oracle boards to
+     oracle-boards.json. The rest get their guessed domains appended to
+     domains.txt; those carrying discovery's verified ats and token go
+     straight into known.json on that token, and those without one are
+     resolved via probe.py, the hits merged into known.json (see below
+     -- Partition & Merge retired this script's own jobs.db write) and
+     the misses written to discovery-rejected.json.
   3. Writes back whatever's left in the queue.
 
 Leaves the actual git commit to the calling workflow -- this script
@@ -56,7 +59,8 @@ import boto3
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "loader"))
-from load_to_sqlite import s3_pull, s3_push  # noqa: E402
+from load_to_sqlite import s3_update_json  # noqa: E402
+from discover_companies import REJECTED_PATH, load_rejected  # noqa: E402
 QUEUE_PATH = ROOT / "pending-discovery-candidates.json"
 DOMAINS_PATH = ROOT / "domains.txt"
 
@@ -161,6 +165,45 @@ def add_workday_tenants(candidates: list[dict]) -> int:
     return added
 
 
+ORACLE_PATH = ROOT / "oracle-boards.json"
+
+
+def add_oracle_boards(candidates: list[dict]) -> int:
+    """Append discovered Oracle Recruiting Cloud boards to
+    oracle-boards.json, which the hourly Lambda reads beside
+    companies.yml's oracle pins (scrape_workday_handler.py). Same kind of
+    list as workday-tenants.json, for the same reason: the fast poll
+    skips oracle (probe.py's SLOW_BOARD_ATS)."""
+    current = json.loads(ORACLE_PATH.read_text(encoding="utf-8")) if ORACLE_PATH.exists() else []
+    have = {t["token"].lower() for t in current}
+    have_domains = {t["domain"] for t in current}
+    added = 0
+    for c in candidates:
+        if c["token"].lower() in have:
+            continue
+        # The pod host stands in when the guessed domain is missing or taken.
+        domain = c.get("domain") or c["token"].split(":", 1)[0]
+        if domain in have_domains:
+            domain = c["token"].split(":", 1)[0]
+        current.append({"domain": domain, "token": c["token"], "jobs_seen": c.get("job_count", 0),
+                        "israel_jobs_seen": c.get("israel_job_count", 0), "source": "common-crawl",
+                        "added": datetime.now(timezone.utc).date().isoformat()})
+        have.add(c["token"].lower()); have_domains.add(domain); added += 1
+    ORACLE_PATH.write_text(json.dumps(current, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return added
+
+
+def add_rejected(candidates: list[dict]) -> None:
+    """Record candidates that probed to nothing, so discovery stops
+    queueing them again every day. load_rejected drops expired entries,
+    so rewriting from it prunes them."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    rows = load_rejected(REJECTED_PATH) + [
+        {"domain": c.get("domain"), "ats": c.get("ats"), "token": c.get("token"), "rejected": today}
+        for c in candidates]
+    REJECTED_PATH.write_text(json.dumps(rows, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     if not QUEUE_PATH.exists():
         print("no pending-discovery-candidates.json -- nothing to do", file=sys.stderr)
@@ -205,20 +248,26 @@ def main() -> int:
     if workday_pins:
         added = add_workday_tenants(workday_pins)
         print(f"  {len(workday_pins)} Workday tenants in this batch, {added} new, written to workday-tenants.json", file=sys.stderr)
+    # Oracle the same way, into oracle-boards.json: the fast poll cannot
+    # read it either, and its domain is a guess from the employer name.
+    oracle_pins = [c for c in batch if c.get("ats") == "oracle" and c.get("token")]
+    batch = [c for c in batch if not (c.get("ats") == "oracle" and c.get("token"))]
+    if oracle_pins:
+        added = add_oracle_boards(oracle_pins)
+        print(f"  {len(oracle_pins)} Oracle boards in this batch, {added} new, written to oracle-boards.json", file=sys.stderr)
     domains = [c["domain"] for c in batch]
-    # Comeet is the one ATS this step cannot re-resolve by probing a
-    # domain, and that is the whole reason companies.yml's first Comeet
-    # entries were extracted by hand. The API needs an opaque token that
-    # appears in no URL and that no guess reaches, so discovery already
-    # carried it here; re-deriving it would only lose it. These skip the
-    # probe below and go into known.json in the "uid:token" form
-    # refetch_known reads.
-    comeet_pins = [c for c in batch if c.get("ats") == "comeet" and c.get("token")]
-    probe_domains = [c["domain"] for c in batch if c.get("ats") != "comeet"]
+    # A candidate that carries ats and token was verified by discovery
+    # against the board itself, so it goes into known.json on that token
+    # without probing. Probing the guessed domain re-derives the token
+    # from the domain, which loses every token a guess cannot reach:
+    # Comeet's opaque ones, and slugs like workable:deloitte6. Only a
+    # candidate without a token is probed.
+    pins = [c for c in batch if c.get("ats") and c.get("token")]
+    probe_batch = [c for c in batch if not (c.get("ats") and c.get("token"))]
+    probe_domains = [c["domain"] for c in probe_batch]
     print(f"merging {len(batch)} candidates ({len(remaining)} will remain queued): {', '.join(domains)}", file=sys.stderr)
-    if comeet_pins:
-        print(f"  {len(comeet_pins)} are Comeet pins, merged on discovery's own token without re-probing",
-              file=sys.stderr)
+    if pins:
+        print(f"  {len(pins)} carry discovery's own token, merged without re-probing", file=sys.stderr)
 
     existing = set(
         line.strip() for line in DOMAINS_PATH.read_text(encoding="utf-8-sig").splitlines()
@@ -291,11 +340,18 @@ def main() -> int:
     requeue.update(r["domain"] for r in data if not r.get("ats") and r.get("retryable")
                    and "deadline" in (r.get("error") or ""))
     if requeue:
-        remaining = remaining + [c for c in batch if c["domain"] in requeue]
+        remaining = remaining + [c for c in probe_batch if c["domain"] in requeue]
         print(f"  {len(requeue)} not probed in time, queued again at the back", file=sys.stderr)
     hits = [r for r in data if r.get("ats")]
-    hits.extend({"domain": c["domain"], "ats": "comeet", "token": c["token"]} for c in comeet_pins)
-    print(f"{len(hits)}/{len(data) + len(comeet_pins)} resolved for real", file=sys.stderr)
+    # Probed and answered with nothing: rejected for a while, not dropped
+    # silently for discovery to find and queue again tomorrow.
+    answered = {r["domain"] for r in data} - requeue - {r["domain"] for r in hits}
+    dead = [c for c in probe_batch if c["domain"] in answered]
+    if dead:
+        add_rejected(dead)
+        print(f"  {len(dead)} probed to nothing, written to {REJECTED_PATH.name}", file=sys.stderr)
+    hits.extend({"domain": c["domain"], "ats": c["ats"], "token": c["token"]} for c in pins)
+    print(f"{len(hits)}/{len(data) + len(pins)} resolved for real", file=sys.stderr)
 
     bucket = os.environ.get("DATA_BUCKET")
     if bucket and hits:
@@ -305,16 +361,15 @@ def main() -> int:
         # already had. See this module's own docstring for why this
         # replaced a jobs.db write entirely rather than becoming a third
         # partition shape.
-        known_path = ROOT / "known-for-discovery-merge.json"
-        existed, _ = s3_pull(bucket, "known.json", known_path)
-        known = json.loads(known_path.read_text(encoding="utf-8")) if existed else []
-        by_domain = {e["domain"]: e for e in known}
-        for r in hits:
-            by_domain[r["domain"]] = {"domain": r["domain"], "ats": r["ats"], "token": r.get("token")}
-        known_path.write_text(json.dumps(list(by_domain.values()), ensure_ascii=False), encoding="utf-8")
-        s3_push(bucket, "known.json", known_path)
-        print(f"merged {len(hits)} newly-resolved companies into known.json ({len(by_domain)} total)",
-              file=sys.stderr)
+        def upsert(known):
+            by_domain = {e["domain"]: e for e in known or []}
+            for r in hits:
+                by_domain[r["domain"]] = {"domain": r["domain"], "ats": r["ats"], "token": r.get("token")}
+            print(f"merging {len(hits)} newly-resolved companies into known.json ({len(by_domain)} total)",
+                  file=sys.stderr)
+            return list(by_domain.values())
+
+        s3_update_json(bucket, "known.json", ROOT / "known-for-discovery-merge.json", upsert)
     elif not bucket:
         print("DATA_BUCKET not set -- skipping known.json update (local/test run)", file=sys.stderr)
 
