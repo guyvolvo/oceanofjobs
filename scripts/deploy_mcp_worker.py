@@ -4,14 +4,15 @@
     python scripts/deploy_mcp_worker.py --rollback  # delete the route only
 
 A deploy uploads the script with its bindings, sets ORIGIN_KEY, turns
-the workers.dev address off and makes sure oceanofjobs.com/mcp* points
-at the script, failing open.
+the workers.dev address off and makes sure oceanofjobs.com/mcp* and the
+two sign-in metadata addresses under /.well-known/ point at the script,
+failing open.
 
 ORIGIN_KEY comes from .env (OTJ_ORIGIN_SECRET), which
 scripts/rotate_origin_key.py keeps current. Neither it nor the API token
 is ever printed.
 
-Rollback deletes the route and leaves the script in place. /mcp then
+Rollback deletes the routes and leaves the script in place. /mcp then
 falls through to CloudFront, whose mcp_unavailable function answers a
 JSON-RPC 503 (infra/cloudfront.tf). The same thing happens on its own
 when the account's free daily Workers allowance runs out, because the
@@ -31,7 +32,8 @@ import cf  # noqa: E402
 
 ACCOUNT = "2f08a903f97b2824af964b0d4a85a1ed"
 SCRIPT = "otj-mcp"
-PATTERN = "oceanofjobs.com/mcp*"
+PATTERNS = ("oceanofjobs.com/mcp*", "oceanofjobs.com/.well-known/oauth-protected-resource*",
+            "oceanofjobs.com/.well-known/oauth-authorization-server*")
 SOURCE = ROOT / "infra" / "mcp-worker.mjs"
 METADATA = {
     "main_module": SOURCE.name,
@@ -104,23 +106,25 @@ def deploy() -> None:
     ok(cf.call("POST", f"/accounts/{ACCOUNT}/workers/scripts/{SCRIPT}/subdomain", {"enabled": False}),
        "turning off workers.dev")
     print("workers.dev address off")
-    want = {"pattern": PATTERN, "script": SCRIPT, "request_limit_fail_open": True}
-    existing = next((r for r in routes() if r["pattern"] == PATTERN), None)
-    if existing is None:
-        ok(cf.call("POST", "/zones/{oceanofjobs.com}/workers/routes", want), "adding the route")
-        print(f"route {PATTERN} added, failing open")
-    elif existing.get("script") != SCRIPT or not existing.get("request_limit_fail_open"):
-        ok(cf.call("PUT", f"/zones/{{oceanofjobs.com}}/workers/routes/{existing['id']}", want), "updating the route")
-        print(f"route {PATTERN} updated, failing open")
-    else:
-        print(f"route {PATTERN} already in place")
+    have = routes()
+    for pattern in PATTERNS:
+        want = {"pattern": pattern, "script": SCRIPT, "request_limit_fail_open": True}
+        existing = next((r for r in have if r["pattern"] == pattern), None)
+        if existing is None:
+            ok(cf.call("POST", "/zones/{oceanofjobs.com}/workers/routes", want), "adding the route")
+            print(f"route {pattern} added, failing open")
+        elif existing.get("script") != SCRIPT or not existing.get("request_limit_fail_open"):
+            ok(cf.call("PUT", f"/zones/{{oceanofjobs.com}}/workers/routes/{existing['id']}", want), "updating the route")
+            print(f"route {pattern} updated, failing open")
+        else:
+            print(f"route {pattern} already in place")
 
 
 def rollback() -> None:
-    gone = [r for r in routes() if r["pattern"] == PATTERN]
+    gone = [r for r in routes() if r["pattern"] in PATTERNS]
     for r in gone:
         ok(cf.call("DELETE", f"/zones/{{oceanofjobs.com}}/workers/routes/{r['id']}"), "deleting the route")
-    print(f"route {PATTERN} deleted; /mcp now answers CloudFront's 503" if gone else "no route to delete")
+    print(f"{len(gone)} routes deleted; /mcp now answers CloudFront's 503" if gone else "no route to delete")
 
 
 if __name__ == "__main__":

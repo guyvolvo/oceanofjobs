@@ -36,7 +36,7 @@ const AGENTS: Record<string, { name: string; cmd: (tok: string) => string; where
 const mask = (tok: string) => tok.slice(0, 12) + "…";
 
 // What a token may do, per area (api/tokens.py AREAS).
-const AREAS: [string, string][] = [
+export const AREAS: [string, string][] = [
   ["saved", "Saved jobs"], ["alerts", "Alerts"], ["preferences", "Search preferences"], ["matches", "Best matches"],
   ["queue", "Auto apply queue"], ["history", "Application history"], ["needs", "Needs attention"],
   ["autoapply", "Auto apply settings"], ["agent", "AI agent"], ["usage", "Plan and usage"],
@@ -45,7 +45,7 @@ const AREAS: [string, string][] = [
 const READ_ONLY = new Set(["matches", "usage"]);
 const ACCESS: Record<Access, string> = { none: "No access", read: "Read", write: "Read and write" };
 const every = (a: Access) => Object.fromEntries(AREAS.map(([k]) => [k, a])) as Record<string, Access>;
-type Perms = Record<string, Access>;
+export type Perms = Record<string, Access>;
 // Writing needs reading: Write ticks Read too, and clearing Read clears Write.
 const withRead = (p: Perms, k: string, on: boolean): Perms => ({ ...p, [k]: on ? (p[k] === "write" ? "write" : "read") : "none" });
 const withWrite = (p: Perms, k: string, on: boolean): Perms =>
@@ -55,7 +55,7 @@ const withWrite = (p: Perms, k: string, on: boolean): Perms =>
 // write, and Read all / Write all in the title row above them.
 const NARROW = "w-[1%] whitespace-nowrap";
 const some = (n: number) => (n === AREAS.length ? true : n > 0 ? "indeterminate" : false);
-function PermissionGrid({ perms, setPerms }: { perms: Perms; setPerms: (p: Perms) => void }) {
+export function PermissionGrid({ perms, setPerms }: { perms: Perms; setPerms: (p: Perms) => void }) {
   const reads = AREAS.filter(([k]) => perms[k] !== "none").length;
   const writes = AREAS.filter(([k]) => perms[k] === "write").length;
   const writable = AREAS.length - READ_ONLY.size;
@@ -82,7 +82,7 @@ function PermissionGrid({ perms, setPerms }: { perms: Perms; setPerms: (p: Perms
           ))}
         </TableBody>
       </Table>
-      <p className={`${NOTE} mt-2 text-sm`}>Full automatic, Auto-apply mode and letting an assistant queue jobs can only be turned on here, not with a token.</p>
+      <p className={`${NOTE} mt-2 text-sm`}>Full automatic, Auto-apply mode and letting an assistant queue jobs can only be turned on here, not by an app or a token.</p>
     </div>
   );
 }
@@ -190,7 +190,8 @@ function Tokens() {
     }
   };
   const editNothing = !!editing?.permissions && AREAS.every(([k]) => editPerms[k] === "none");
-  const full = (tokens?.length || 0) >= 5;
+  // Five of the user's own; the extension's and connected apps' are counted apart (api/tokens.py).
+  const full = (tokens || []).filter((t) => t.scope !== "extension" && !t.app).length >= 5;
   const a = AGENTS[agent];
   const nothing = AREAS.every(([k]) => perms[k] === "none");
 
@@ -244,7 +245,7 @@ function Tokens() {
           </div>
           <Secret full={a.cmd(made)} shown={a.cmd(mask(made))} label="the command" />
           {a.where ? <p className={NOTE}>{a.where}</p> : null}
-          <p className={NOTE}>Claude and ChatGPT connectors can't send a token yet, so the token doesn't work there.</p>
+          <p className={NOTE}>Claude and ChatGPT don't need a token. Add {MCP} as a connector there and sign in when it asks.</p>
         </div>
       ) : null}
       {!tokens ? <Loading /> : tokens.length ? (
@@ -255,6 +256,7 @@ function Tokens() {
                 <TableRow key={t.id}>
                   <TableCell>
                     <span className={JOB}>{t.name}</span>
+                    {t.app ? <span className={SUB}>Connected app</span> : null}
                     {t.permissions ? <span className={SUB}>{canDo(t.permissions)}</span> : null}
                     <span className={SUB}>{[`ends in ${t.hint}`, `made ${day(t.created_at)}`,
                       t.last_used_at ? `last used ${day(t.last_used_at)}` : "never used",

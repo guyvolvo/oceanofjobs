@@ -15,6 +15,11 @@ and nothing added since. An "extension" token (made
 by the website for the browser extension, one per browser) reaches
 saved jobs and /api/me/apply/*. serve.py holds the map. Neither can
 mint or revoke tokens.
+
+An app the user connected through sign-in (oauth.py) gets an "mcp"
+token too, named after the app and marked "client". Those are counted
+apart, like the extension's, and the least recently used goes past
+MAX_APPS, so reconnecting Claude never asks the user to revoke one.
 """
 
 import base64
@@ -30,6 +35,8 @@ ROW = "#token#"
 MAX_PER_USER = 5
 # Extension tokens, one per connected browser, counted apart from MAX_PER_USER.
 MAX_EXTENSIONS = 3
+# Apps connected through sign-in, counted apart too.
+MAX_APPS = 5
 EXPIRY_DAYS = (30, 90, None)  # None: never
 SCOPES = ("mcp", "extension")
 AREAS = ("saved", "queue", "alerts", "preferences", "history", "matches", "usage", "needs", "autoapply", "agent")
@@ -104,6 +111,8 @@ def _public(item: dict) -> dict:
     out = {"id": item["alert_id"][len(ROW):], "name": item.get("name"), "hint": item.get("hint"),
            "created_at": item.get("created_at"), "last_used_at": item.get("last_used_at"),
            "expires_at": item.get("expires_at"), "scope": item.get("scope") or "mcp"}
+    if item.get("client"):
+        out["app"] = True
     if out["scope"] == "mcp":
         out["permissions"] = permissions_of(item)
     return out
@@ -116,10 +125,12 @@ def list_tokens(table, user_id: str) -> list[dict]:
 
 
 def create(table, user_id: str, name, days, now: datetime | None = None, scope: str = "mcp", email: str | None = None,
-           permissions: dict | None = None) -> dict:
+           permissions: dict | None = None, client: bool = False, token_id: str | None = None) -> dict:
     """A new token. The only time the token itself is ever returned.
     email is the account's verified address, kept so an alert made with
-    the token has somewhere to go."""
+    the token has somewhere to go. client marks an app connected through
+    sign-in. token_id, when given, must not exist yet: the write fails
+    instead (oauth.py uses that to spend a sign-in code once)."""
     now = now or datetime.now(timezone.utc)
     name = str(name or "").strip()[:NAME_MAX] or "Token"
     if days not in EXPIRY_DAYS:
@@ -138,9 +149,14 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
         for t in ext[MAX_EXTENSIONS - 1:]:
             revoke(table, user_id, t["id"])
         existing = [t for t in existing if t["scope"] != "extension"]
-    if len(existing) >= MAX_PER_USER:
+    apps = sorted((t for t in existing if t.get("app")), key=lambda t: t["last_used_at"] or t["created_at"] or "", reverse=True)
+    if client:
+        for t in apps[MAX_APPS - 1:]:
+            revoke(table, user_id, t["id"])
+    elif len([t for t in existing if not t.get("app")]) >= MAX_PER_USER:
         raise ValueError(f"at most {MAX_PER_USER} tokens; revoke one first")
-    token_id = secrets.token_hex(4)
+    token_id = token_id or secrets.token_hex(4)
+    _check_id(token_id)
     token = f"{PREFIX}{_b64(user_id)}.{token_id}.{secrets.token_urlsafe(24)}"
     item = {"user_id": user_id, "alert_id": ROW + token_id, "hash": digest(token), "name": name,
             "hint": token[-4:], "created_at": now.isoformat(), "scope": scope}
@@ -150,6 +166,8 @@ def create(table, user_id: str, name, days, now: datetime | None = None, scope: 
         item["email"] = email
     if scope == "mcp":
         item["permissions"] = permissions
+    if client:
+        item["client"] = True
     table.put_item(Item=item, ConditionExpression="attribute_not_exists(alert_id)")
     return {**_public(item), "token": token}
 

@@ -147,11 +147,50 @@ test("saved-job tools need a token and say how to get one", async () => {
     ["list_alerts", {}], ["create_alert", { filter: { search: "devops" } }], ["get_preferences", {}], ["update_preferences", { cadence: "daily" }],
     ["get_best_matches", {}], ["get_plan_usage", {}], ["list_needs_attention", {}], ["answer_question", { question: "q", answer: "a" }],
     ["get_auto_apply_settings", {}], ["update_auto_apply_settings", { work: {} }], ["get_ai_agent", {}], ["update_ai_agent", { facts: [] }]]) {
-    const { result } = await call(name, args);
-    assert.equal(result.isError, true, name);
-    assert.match(result.content[0].text, /personal access token/);
+    const { res, body } = await call(name, args);
+    assert.equal(res.status, 401, name);
+    assert.match(res.headers.get("www-authenticate"), /^Bearer error="invalid_token", .*resource_metadata="https:\/\/oceanofjobs\.com\/\.well-known\/oauth-protected-resource\/mcp", scope="account"$/);
+    assert.match(body.error.message, /personal access token/);
   }
   assert.equal(calls.length, 0, "nothing reached the box");
+});
+
+test("ChatGPT gets the sign-in challenge in the tool result instead", async () => {
+  const res = await post({ jsonrpc: "2.0", id: 70, method: "tools/call", params: { name: "list_saved_jobs", arguments: {} } },
+    { "user-agent": "openai-mcp/1.0.0" });
+  assert.equal(res.status, 200);
+  const { result } = await res.json();
+  assert.equal(result.isError, true);
+  assert.match(result._meta["mcp/www_authenticate"][0], /^Bearer error="invalid_token", error_description="[^"]+", resource_metadata="[^"]+"/);
+});
+
+test("the public tools never ask for sign-in", async () => {
+  for (const [name, args] of [["search_jobs", { search: "devops" }], ["get_job", { id: "67ff4ef965d91ef7" }], ["get_company", { name: "acme" }]]) {
+    const { res } = await call(name, args);
+    assert.equal(res.status, 200, name);
+    assert.equal(res.headers.get("www-authenticate"), null, name);
+  }
+});
+
+test("the sign-in metadata is served, and tools/list says which tools need it", async () => {
+  for (const path of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
+    const prm = await (await worker.fetch(new Request("https://oceanofjobs.com" + path), env, ctx)).json();
+    assert.equal(prm.resource, "https://oceanofjobs.com/mcp");
+    assert.deepEqual(prm.authorization_servers, ["https://oceanofjobs.com"]);
+  }
+  const as = await (await worker.fetch(new Request("https://oceanofjobs.com/.well-known/oauth-authorization-server"), env, ctx)).json();
+  assert.equal(as.issuer, "https://oceanofjobs.com");
+  assert.equal(as.authorization_endpoint, "https://oceanofjobs.com/account/connect");
+  assert.equal(as.token_endpoint, "https://oceanofjobs.com/api/oauth/token");
+  assert.equal(as.registration_endpoint, "https://oceanofjobs.com/api/oauth/register");
+  assert.deepEqual(as.code_challenge_methods_supported, ["S256"]);
+  assert.deepEqual(as.token_endpoint_auth_methods_supported, ["none"]);
+  const tools = (await (await post({ jsonrpc: "2.0", id: 71, method: "tools/list" })).json()).result.tools;
+  const scheme = Object.fromEntries(tools.map((t) => [t.name, t._meta.securitySchemes[0].type]));
+  assert.equal(scheme.search_jobs, "noauth");
+  assert.equal(scheme.get_job, "noauth");
+  assert.equal(scheme.save_job, "oauth2");
+  assert.equal(scheme.update_ai_agent, "oauth2");
 });
 
 test("save, list and remove send the token to the box and are never cached", async () => {
@@ -277,14 +316,15 @@ test("alert and preference tools: the token goes to the box, bodies are JSON, pr
   }
 });
 
-test("a revoked token is a readable tool error, and other Authorization headers are ignored", async () => {
+test("a revoked token asks for sign-in again, and other Authorization headers are ignored", async () => {
   route("/api/me/saved", 401, { error: "unauthorized" });
   const res = await post({ jsonrpc: "2.0", id: 60, method: "tools/call", params: { name: "list_saved_jobs", arguments: {} } }, { authorization: "Bearer " + TOKEN });
-  const body = await res.json();
-  assert.equal(body.result.isError, true);
-  assert.match(body.result.content[0].text, /revoked or expired/);
+  assert.equal(res.status, 401);
+  assert.ok(res.headers.get("www-authenticate"));
+  assert.match((await res.json()).error.message, /revoked or expired/);
   const other = await post({ jsonrpc: "2.0", id: 61, method: "tools/call", params: { name: "list_saved_jobs", arguments: {} } }, { authorization: "Bearer eyJhbGciOi.some.jwt" });
-  assert.match((await other.json()).result.content[0].text, /needs an Ocean of Jobs personal access token[\s\S]*Claude and ChatGPT apps have no place for a token/);
+  assert.equal(other.status, 401);
+  assert.match((await other.json()).error.message, /Ocean of Jobs account/);
   assert.ok(!JSON.stringify(points).includes(TOKEN), "the token is never in analytics");
 });
 

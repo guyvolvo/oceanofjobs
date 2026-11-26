@@ -38,6 +38,16 @@
 // Cloudflare location, whoever is asking. The box's own expensive-query
 // guard sits behind that.
 //
+// Account tools need the user's own token. Apps with a place for a header
+// send a personal access token. Claude and ChatGPT have none, so they sign
+// in with OAuth: this Worker publishes the metadata under /.well-known/
+// and answers an account tool called without a token with 401 and a
+// WWW-Authenticate pointing at it (ChatGPT wants the same challenge in
+// the tool result's _meta instead). The authorization server is the
+// site itself: /account/connect and /api/oauth/* (api/oauth.py), which
+// hand out an ordinary personal access token. The search tools never
+// ask for sign-in.
+//
 // Deployed by scripts/deploy_mcp_worker.py. Tested by
 // tests/test_mcp_worker.mjs (node --test).
 
@@ -47,7 +57,7 @@ const SITE = "https://oceanofjobs.com";
 // change in what we store retire every old entry at once.
 const CACHE_PREFIX = SITE + "/__mcp_cache/v1";
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
-const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.2.1", websiteUrl: SITE };
+const SERVER = { name: "oceanofjobs", title: "Ocean of Jobs", version: "1.3.0", websiteUrl: SITE };
 const MAX_LIMIT = 25;
 const MAX_OFFSET = 200;
 const MAX_TTL = 300;
@@ -82,9 +92,8 @@ const INSTRUCTIONS =
   "table cell. Results are capped at 25 per call and offset 200; for " +
   "bulk data use the public REST API documented at " + SITE + "/api/help. " +
   "The account tools (saved jobs, the auto apply queue and history, alerts, preferences, best matches, plan and " +
-  "usage, needs attention, auto apply settings and the AI agent) work on the user's own Ocean of Jobs account and " +
-  "need a personal access token sent as Authorization: Bearer ooj_..., with the permission each one names. The " +
-  "Claude and ChatGPT apps can't send one yet, so there only the search tools work. Change " +
+  "usage, needs attention, auto apply settings and the AI agent) work on the user's own Ocean of Jobs account. The " +
+  "first one called asks the user to sign in and choose what you may do; the search tools never need it. Change " +
   "anything only when the user asks for it, and never save an answer or a fact the user didn't give you.";
 
 const JOB_PROPS = {
@@ -125,6 +134,8 @@ const LISTED_JOB = {
   required: [...JOB_REQUIRED, "other_locations", "salary"],
 };
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+// The tools anyone can call. Every other tool works on the user's account.
+const PUBLIC_TOOLS = ["search_jobs", "get_job", "get_company"];
 
 // Where a job came from: the first surface that added it, and every one that tried.
 const ORIGIN_PROPS = {
@@ -298,7 +309,7 @@ const TOOLS = [
     title: "Save a job",
     description:
       "Save a job to the user's Ocean of Jobs account, where it shows under Saved jobs on every " +
-      "device. Needs the user's personal access token. Saving the same job twice is harmless.",
+      "device. Needs the user signed in. Saving the same job twice is harmless.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string", description: "The job's id, e.g. 67ff4ef965d91ef7." } },
@@ -317,7 +328,7 @@ const TOOLS = [
     title: "List saved jobs",
     description:
       "The jobs saved on the user's Ocean of Jobs account, newest saved first, with the same " +
-      "fields as search results and when each was saved. Needs the user's personal access token.",
+      "fields as search results and when each was saved. Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "How many, 1 to 25. Default 10." } },
@@ -337,7 +348,7 @@ const TOOLS = [
   {
     name: "remove_saved_job",
     title: "Remove a saved job",
-    description: "Take a job off the user's saved list. Needs the user's personal access token.",
+    description: "Take a job off the user's saved list. Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string", description: "The job's id." } },
@@ -361,7 +372,7 @@ const TOOLS = [
       "assistant through MCP\" in their auto apply settings. For now the extension fills Greenhouse " +
       "Ashby and Workable forms only (an apply_url on boards.greenhouse.io, job-boards.greenhouse.io, " +
       "jobs.ashbyhq.com or apply.workable.com); a job on any other site is refused, so pick those jobs. This sends a real application, so " +
-      "queue a job only when the user asks for it. Needs the user's personal access token. " +
+      "queue a job only when the user asks for it. Needs the user signed in. " +
       "Queueing the same job twice is harmless: a job already in the queue, from anywhere, stays one entry. " +
       "A job already applied to or being applied to is refused.",
     inputSchema: {
@@ -383,7 +394,7 @@ const TOOLS = [
     description:
       "The jobs waiting in the user's auto apply queue, oldest first, with the same fields as " +
       "search results and when each was queued. A job leaves the queue once the extension has " +
-      "tried it. Needs the user's personal access token.",
+      "tried it. Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "How many, 1 to 25. Default 10." } },
@@ -403,7 +414,7 @@ const TOOLS = [
   {
     name: "remove_from_auto_apply_queue",
     title: "Remove a job from the auto apply queue",
-    description: "Take a job out of the user's auto apply queue before the extension applies to it. Needs the user's personal access token.",
+    description: "Take a job out of the user's auto apply queue before the extension applies to it. Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string", description: "The job's id." } },
@@ -427,7 +438,7 @@ const TOOLS = [
       "confirmation; sent means the user sent it with the site's own button and the site didn't " +
       "confirm it. Never call unconfirmed or sent submitted. outcome is only what the user marked (interview, " +
       "offer, rejected, no_reply) and null when they haven't; never treat silence as no reply. " +
-      "Needs the user's personal access token.",
+      "Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "How many, 1 to 25. Default 10." } },
@@ -467,7 +478,7 @@ const TOOLS = [
       "Record what the user says happened with an application that went out (submitted, " +
       "unconfirmed or sent): interview, offer, rejected or no_reply, or none to clear it. Only when the user " +
       "tells you; never guess. It changes nothing else: not the status and not the user's credits. " +
-      "Needs the user's personal access token.",
+      "Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: {
@@ -489,7 +500,7 @@ const TOOLS = [
     title: "List job alerts",
     description:
       "The user's job alerts: each one a saved search whose new matches are emailed to them, with " +
-      "its filter and whether it is on. Needs the user's personal access token.",
+      "its filter and whether it is on. Needs the user signed in.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     outputSchema: {
       type: "object",
@@ -504,8 +515,8 @@ const TOOLS = [
     description:
       "Create a job alert: Ocean of Jobs emails the user new jobs that match the filter, at the " +
       "times set in their preferences. Up to 5 alerts per account. The email goes to the address " +
-      "the account had when the token was made. Create one only when the user asks for it. Needs " +
-      "the user's personal access token.",
+      "the account had when it was connected. Create one only when the user asks for it. Needs " +
+      "the user signed in.",
     inputSchema: {
       type: "object",
       properties: { filter: ALERT_FILTER },
@@ -520,7 +531,7 @@ const TOOLS = [
     title: "Change a job alert",
     description:
       "Pause or resume a job alert, or replace its filter. A new filter starts from now: jobs " +
-      "already open are not emailed. Needs the user's personal access token.",
+      "already open are not emailed. Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: {
@@ -537,7 +548,7 @@ const TOOLS = [
   {
     name: "delete_alert",
     title: "Delete a job alert",
-    description: "Delete a job alert. Its emails stop. Needs the user's personal access token.",
+    description: "Delete a job alert. Its emails stop. Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string", description: "The alert's id, from list_alerts." } },
@@ -553,7 +564,7 @@ const TOOLS = [
     description:
       "The user's search preferences: their skills, the seniority, workplace and places they want, " +
       "and when alert emails are sent. The board's best matches and the account overview use them. " +
-      "Needs the user's personal access token.",
+      "Needs the user signed in.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     outputSchema: PREFERENCES,
     annotations: { title: "Get search preferences", ...READ_ONLY },
@@ -565,7 +576,7 @@ const TOOLS = [
       "Change some of the user's search preferences. Only the fields given change; a list given " +
       "replaces the old list, so read get_preferences first to add to one. Skills outside Ocean of " +
       "Jobs' own list are dropped, and the answer shows what was kept. Change them only when the " +
-      "user asks. Needs the user's personal access token.",
+      "user asks. Needs the user signed in.",
     inputSchema: {
       type: "object",
       properties: PREFERENCE_PROPS,
@@ -579,7 +590,7 @@ const TOOLS = [
     title: "Get best matches",
     description:
       "The open jobs that fit the user's skills best, from their account overview: each with the job's own skills " +
-      "and how many of them the user shares. Updated once a day. Needs a personal access token with Best matches.",
+      "and how many of them the user shares. Updated once a day. Needs the user signed in, with Best matches.",
     inputSchema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 25, description: "How many, 10 by default." } }, additionalProperties: false },
     outputSchema: { type: "object", properties: { updated_at: { type: ["string", "null"] }, matches: { type: "array", items: { type: "object" } } }, required: ["matches"] },
     annotations: { title: "Get best matches", ...READ_ONLY },
@@ -588,7 +599,7 @@ const TOOLS = [
     name: "get_plan_usage",
     title: "Get plan and usage",
     description: "The user's plan, how many applications it allows this period, how many are used, left and queued. " +
-      "Needs a personal access token with Plan and usage.",
+      "Needs the user signed in, with Plan and usage.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     outputSchema: { type: "object" },
     annotations: { title: "Get plan and usage", ...READ_ONLY },
@@ -598,7 +609,7 @@ const TOOLS = [
     title: "List jobs that need the user",
     description:
       "Applications the extension stopped on because a form asked something it had no answer for: the job and the " +
-      "questions, with any AI draft waiting for approval. Needs a personal access token with Needs attention.",
+      "questions, with any AI draft waiting for approval. Needs the user signed in, with Needs attention.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     outputSchema: { type: "object", properties: { needs: { type: "array", items: { type: "object" } } }, required: ["needs"] },
     annotations: { title: "List jobs that need the user", ...READ_ONLY },
@@ -609,7 +620,7 @@ const TOOLS = [
     description:
       "Save the user's answer to an application question, so the extension uses it next time. Send only words the " +
       "user gave you, never an answer you made up. job_id is needed when the question is about one company, such as " +
-      "why they want to work there. Needs a personal access token with Needs attention (write).",
+      "why they want to work there. Needs the user signed in, with Needs attention (write).",
     inputSchema: {
       type: "object",
       properties: {
@@ -627,7 +638,7 @@ const TOOLS = [
     title: "Get auto apply settings",
     description:
       "What the extension fills in on applications: contact details, links, work authorization, notice period, salary, " +
-      "optional demographic answers, saved answers, and its settings and limits. Needs a personal access token with " +
+      "optional demographic answers, saved answers, and its settings and limits. Needs the user signed in, with " +
       "Auto apply settings.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     outputSchema: { type: "object" },
@@ -640,7 +651,7 @@ const TOOLS = [
       "Change some auto apply settings. Give only the sections to change, in the shape get_auto_apply_settings " +
       "returns; a section given replaces that section, so read first and send it back whole with your change. " +
       "Full automatic, Auto-apply mode and which sources it applies from can't be changed here: the user turns those " +
-      "on at " + SITE + "/apply/settings. Change only what the user asks. Needs a personal access token with Auto " +
+      "on at " + SITE + "/apply/settings. Change only what the user asks. Needs the user signed in, with Auto " +
       "apply settings (write).",
     inputSchema: {
       type: "object",
@@ -658,7 +669,7 @@ const TOOLS = [
     title: "Get the AI agent",
     description:
       "How the user's AI agent answers application questions: the facts it may use, its fixed answers to common " +
-      "questions, what it must never claim, and its tone. Needs a personal access token with AI agent.",
+      "questions, what it must never claim, and its tone. Needs the user signed in, with AI agent.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     outputSchema: { type: "object" },
     annotations: { title: "Get the AI agent", ...READ_ONLY },
@@ -669,7 +680,7 @@ const TOOLS = [
     description:
       "Change the user's AI agent. Only the fields given change; a list given replaces the old list, so read " +
       "get_ai_agent first to add to one. facts must be true things the user told you about themselves. The resume " +
-      "is added only on the website. Needs a personal access token with AI agent (write) and a Basic or Pro plan.",
+      "is added only on the website. Needs the user signed in, with AI agent (write) and a Basic or Pro plan.",
     inputSchema: {
       type: "object",
       properties: {
@@ -694,6 +705,7 @@ const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "POST, GET, OPTIONS",
   "access-control-allow-headers": "content-type, accept, authorization, mcp-protocol-version, mcp-session-id",
+  "access-control-expose-headers": "www-authenticate",
 };
 
 function json(status, body, extra = {}) {
@@ -779,15 +791,45 @@ async function api(path, params, env, ctx, trace) {
   return { status: 200, body };
 }
 
-// Claude's and ChatGPT's connector settings only offer OAuth, with no
-// place for a header, so telling everyone to "add the header" sent people
-// to make a token they had nowhere to put (2026-11-24). Say where it works.
+// Sign-in (OAuth 2.1, api/oauth.py). The metadata clients read to find it.
+const PRM_URL = SITE + "/.well-known/oauth-protected-resource/mcp";
+const PROTECTED_RESOURCE = {
+  resource: SITE + "/mcp", authorization_servers: [SITE], scopes_supported: ["account"], bearer_methods_supported: ["header"],
+  resource_name: "Ocean of Jobs", resource_documentation: SITE + "/docs/mcp",
+};
+const AUTHORIZATION_SERVER = {
+  issuer: SITE, authorization_endpoint: SITE + "/account/connect", token_endpoint: SITE + "/api/oauth/token",
+  registration_endpoint: SITE + "/api/oauth/register", scopes_supported: ["account"], response_types_supported: ["code"],
+  grant_types_supported: ["authorization_code"], code_challenge_methods_supported: ["S256"],
+  token_endpoint_auth_methods_supported: ["none"], authorization_response_iss_parameter_supported: true,
+  service_documentation: SITE + "/docs/mcp",
+};
+const WELL_KNOWN = {
+  "/.well-known/oauth-protected-resource": PROTECTED_RESOURCE,
+  "/.well-known/oauth-protected-resource/mcp": PROTECTED_RESOURCE,
+  "/.well-known/oauth-authorization-server": AUTHORIZATION_SERVER,
+};
 const NEEDS_TOKEN =
-  "This needs an Ocean of Jobs personal access token, and this connection has none. Tell the user: the account " +
-  "tools work in apps that let you add a header to an MCP server, such as Claude Code, Cursor, VS Code and Codex. " +
-  "Create a token at " + SITE + "/account#settings and add it as the header Authorization: Bearer ooj_... " +
-  "The Claude and ChatGPT apps have no place for a token, so these tools aren't available there yet. " +
-  "Searching jobs works everywhere without one.";
+  "This needs the user's Ocean of Jobs account. Tell the user to connect it when asked. In an app that only takes " +
+  "a header, create a personal access token at " + SITE + "/account/settings and send it as Authorization: Bearer ooj_... " +
+  "Searching jobs works without one.";
+const CHALLENGE = `Bearer error="invalid_token", error_description="Sign in to Ocean of Jobs to use this tool", ` +
+  `resource_metadata="${PRM_URL}", scope="account"`;
+
+// The account tool was called without a working token: ask for sign-in.
+// Claude starts it only on an HTTP 401 with WWW-Authenticate; ChatGPT
+// wants the challenge in the tool result's _meta and a 200.
+function signIn(request, id, trace, message) {
+  trace.outcome = "auth_required";
+  if (/openai|chatgpt/i.test(request.headers.get("user-agent") || "")) {
+    return json(200, { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: message }], isError: true,
+      _meta: { "mcp/www_authenticate": [CHALLENGE] } } });
+  }
+  return json(401, { jsonrpc: "2.0", id, error: { code: -32001, message } }, { "www-authenticate": CHALLENGE });
+}
+
+// The box refused the token (revoked or expired): sign in again.
+class AuthNeeded extends Error {}
 
 // One call on the user's own account, with their personal access token.
 // Never cached, never counted as a cache miss: the answer is one
@@ -805,7 +847,7 @@ async function me(method, path, token, env, body = undefined) {
   } catch {
     throw new ToolError("Ocean of Jobs could not be reached. Try again shortly.");
   }
-  if (res.status === 401) throw new ToolError("The personal access token was not accepted: it may be revoked or expired. " + NEEDS_TOKEN);
+  if (res.status === 401) throw new AuthNeeded("The Ocean of Jobs sign-in was not accepted: it may be revoked or expired. " + NEEDS_TOKEN);
   // These carry the reason too: auto apply not turned on for MCP (403), a
   // job on a site the extension can't fill yet (422), an unknown job (404),
   // a job already applied to (409).
@@ -1243,6 +1285,11 @@ const HANDLERS = {
   get_ai_agent: getAiAgent, update_ai_agent: updateAiAgent,
 };
 
+// Each tool says whether it needs sign-in (ChatGPT reads this to know a
+// tool works before the user connects).
+const LISTED_TOOLS = TOOLS.map((t) => ({ ...t, _meta: { securitySchemes: PUBLIC_TOOLS.includes(t.name)
+  ? [{ type: "noauth" }] : [{ type: "oauth2", scopes: ["account"] }] } }));
+
 // The personal access token, if the client sent one. Anything else in
 // Authorization is ignored rather than refused: the public tools need none.
 function bearerToken(request) {
@@ -1262,6 +1309,7 @@ async function callTool(params, env, ctx, trace, token = null) {
     const out = await handler(args, env, ctx, trace, Date.now(), token);
     return { result: { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out, isError: false } };
   } catch (e) {
+    if (e instanceof AuthNeeded) return { auth: e.message };
     if (!(e instanceof ToolError)) throw e;
     trace.outcome = trace.limited ? "limited" : "tool_error";
     return { result: { content: [{ type: "text", text: e.message }], isError: true } };
@@ -1270,6 +1318,10 @@ async function callTool(params, env, ctx, trace, token = null) {
 
 async function handle(request, env, ctx, trace) {
   const url = new URL(request.url);
+  if (WELL_KNOWN[url.pathname]) {
+    if (request.method === "OPTIONS") return json(204, null);
+    return json(200, WELL_KNOWN[url.pathname], { "cache-control": "public, max-age=3600" });
+  }
   if (url.pathname !== "/mcp") return json(404, { error: "not found; the MCP endpoint is /mcp" });
   if (request.method === "OPTIONS") return json(204, null);
   if (request.method !== "POST") {
@@ -1308,9 +1360,16 @@ async function handle(request, env, ctx, trace) {
     });
   }
   if (method === "ping") return json(200, { jsonrpc: "2.0", id, result: {} });
-  if (method === "tools/list") return json(200, { jsonrpc: "2.0", id, result: { tools: TOOLS } });
+  if (method === "tools/list") return json(200, { jsonrpc: "2.0", id, result: { tools: LISTED_TOOLS } });
   if (method === "tools/call") {
-    const out = await callTool(params, env, ctx, trace, bearerToken(request));
+    const token = bearerToken(request);
+    const name = params && params.name;
+    if (!token && HANDLERS[name] && !PUBLIC_TOOLS.includes(name)) {
+      trace.tool = name;
+      return signIn(request, id, trace, NEEDS_TOKEN);
+    }
+    const out = await callTool(params, env, ctx, trace, token);
+    if (out.auth) return signIn(request, id, trace, out.auth);
     if (out.error) return rpcError(id, out.error.code, out.error.message, 200, trace);
     return json(200, { jsonrpc: "2.0", id, result: out.result });
   }

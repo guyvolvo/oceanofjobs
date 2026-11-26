@@ -24,7 +24,7 @@ export type Dashboard = {
 };
 export type Access = "none" | "read" | "write";
 export type Token = { id: string; name: string; hint: string; created_at: string; last_used_at?: string | null; expires_at?: string | null;
-  scope?: string; permissions?: Record<string, Access> };
+  scope?: string; app?: boolean; permissions?: Record<string, Access> };
 export type Option = { value: string; label: string; kind?: "country" | "city" };
 
 export const EMPTY_PROFILE: Profile = { skills: [], seniority: null, workplace: [], israel_only: true, country: [], city: [], cadence: "instant",

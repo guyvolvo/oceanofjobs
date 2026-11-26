@@ -149,8 +149,8 @@ def _permission_refusal(path: str, method: str, claims: dict) -> str | None:
             need = "read" if method in ("GET", "HEAD") else "write"
             if has == "write" or has == need:
                 return None
-            return (f"This token can't {'see' if need == 'read' else 'change'} your {label}. Make a token with that "
-                    "permission at https://oceanofjobs.com/account#settings")
+            return (f"This token can't {'see' if need == 'read' else 'change'} your {label}. The user can give it that "
+                    "permission under Edit, at https://oceanofjobs.com/account/settings")
     return None
 
 

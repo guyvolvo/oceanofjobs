@@ -27,6 +27,7 @@ const ROUTES: Record<string, Page> = {
   "/account/preferences": page(() => import("../account/Preferences")),
   "/account/billing": page(() => import("../account/Billing")),
   "/account/settings": page(() => import("../account/Settings")),
+  "/account/connect": page(() => import("../account/Connect")),
 };
 
 const HASHES: Record<string, string> = {
