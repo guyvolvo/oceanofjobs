@@ -34,7 +34,7 @@ HELP_HTML = """<!doctype html>
 <title>API reference | Ocean of Jobs</title>
 <link rel="canonical" href="https://oceanofjobs.com/api/help" />
 <meta name="description" content="Public JSON API for every job, company and market figure on Ocean of Jobs: search, filter, statistics and account routes." />
-<link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+<link rel="icon" href="/favicon.svg?v=4" type="image/svg+xml" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
 <style>
   /* Swagger UI's own look, kept. The three things below are the page
@@ -72,7 +72,7 @@ HELP_HTML = """<!doctype html>
 </head>
 <body>
 <a class="skip-link" href="#swagger-ui">Skip to the reference</a>
-<nav class="api-bar" aria-label="Site"><a class="api-brand" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=3" width="22" height="22" alt="" /></a><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a class="current" href="/api/help" aria-current="page">API</a></nav>
+<nav class="api-bar" aria-label="Site"><a class="api-brand" href="/" aria-label="Ocean of Jobs home"><img src="/favicon.svg?v=4" width="22" height="22" alt="" /></a><a href="/board">Jobs</a><a href="/companies">Companies</a><a href="/stats">Statistics</a><a class="current" href="/api/help" aria-current="page">API</a></nav>
 <div id="swagger-ui"><noscript><div class="api-fallback">
   This reference is rendered from an OpenAPI document. With JavaScript off,
   read it directly: <a href="/api/openapi.json">/api/openapi.json</a>.

@@ -33,9 +33,9 @@ const MIME: Record<string, string> = { ".js": "text/javascript", ".css": "text/c
 const HEAD = `<meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#17181c" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=3" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=4" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png?v=4" />
   <link rel="preload" href="/fonts/Geist-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   <script>
     (function () {

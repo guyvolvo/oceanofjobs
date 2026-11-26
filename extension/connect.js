@@ -7,8 +7,13 @@ document.documentElement.dataset.oojExtension = '1';
 // different id from the Web Store build.
 document.documentElement.dataset.oojExtensionId = chrome.runtime.id;
 
+// The token comes only from /apply (apply/src/ext.ts connectExtension) and
+// /account. Job pages show scraped text and every page runs analytics, so a
+// script there could post its own account's token.
+const CONNECT_PAGE = /^\/(apply|account)(\/|$)/;
+
 window.addEventListener('message', (event) => {
-  if (event.source !== window || event.origin !== ORIGIN) return;
+  if (event.source !== window || event.origin !== ORIGIN || !CONNECT_PAGE.test(location.pathname)) return;
   const msg = event.data || {};
   if (msg.type === 'ooj:connect' && typeof msg.token === 'string' && msg.token.startsWith('ooj_')) {
     chrome.storage.local.set({ token: msg.token, authError: false })

@@ -23,7 +23,7 @@ export const barText = "inline-flex h-8 items-center gap-[5px] text-sm text-mute
 export function Brand() {
   return (
     <a className="inline-flex items-center gap-2.5 whitespace-nowrap text-[17px] font-medium leading-none tracking-[-0.01em] text-foreground" href="/" aria-label="Ocean of Jobs home">
-      <img className="block size-[22px] flex-none" src="/favicon.svg?v=3" width="22" height="22" alt="" />
+      <img className="block size-[22px] flex-none" src="/favicon.svg?v=4" width="22" height="22" alt="" />
       <span translate="no">Ocean of Jobs</span>
     </a>
   );

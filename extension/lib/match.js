@@ -175,8 +175,9 @@
       case 'email': return blank(c.email);
       case 'phone': return blank(c.phone);
       case 'location': return blank(c.location);
-      case 'phone_country': case 'country': return countryOf(c.location);
-      case 'phone_code': return countryOf(c.location) || callingCountry(c.phone);
+      case 'country': return countryOf(c.location);
+      // The phone's own code first: +972 with a Berlin address is still Israel.
+      case 'phone_country': case 'phone_code': return callingCountry(c.phone) || countryOf(c.location);
       case 'phone_type': return blank(c.phone) && 'Mobile';
       case 'linkedin': return blank(l.linkedin);
       case 'github': return blank(l.github);
@@ -221,7 +222,7 @@
     return near ? String(near.answer) : undefined;
   }
 
-  const DECLINE = /decline|dont wish|do not wish|prefer not|choose not|rather not|not to (answer|disclose|say|self identify)/;
+  const DECLINE = /decline|dont wish|do not wish|prefer not|choose not|rather not|not to (answer|disclose|say|self identify)|(dont|do not) want to (answer|disclose|say)/;
 
   // Index of the option that says what `answer` says, or -1. A loose match
   // that fits two options is no match: "protected veteran" is in both "I am
@@ -237,7 +238,7 @@
     if (want === 'decline') return opts.findIndex((o) => DECLINE.test(o));
     const exact = opts.indexOf(want);
     if (exact >= 0) return exact;
-    if (want === 'yes' || want === 'no') return opts.findIndex((o) => o.split(' ')[0] === want);
+    if (want === 'yes' || want === 'no') return only((o) => o.split(' ')[0] === want);
     // A phone country list: "United States +1", next to "United States Minor Outlying Islands +1" or "U.S. Virgin Islands +1".
     const coded = only((o) => o.replace(/( \d+)+$/, '') === want);
     if (coded >= 0) return coded;
@@ -245,12 +246,21 @@
     return start >= 0 ? start : only((o) => (' ' + o + ' ').includes(' ' + want + ' '));
   }
 
+  // What a number box can take: "$50,000" as "50000", "1.234,5" as "1234.5",
+  // "2,5" as "2.5". undefined when it is not one number ("30 days").
+  function numberValue(value) {
+    const s = String(value == null ? '' : value).replace(/[\s\p{Sc}]/gu, '');
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) return s.replace(/,/g, '');
+    if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return s.replace(/\./g, '').replace(',', '.');
+    return /^-?\d+([.,]\d+)?$/.test(s) ? s.replace(',', '.') : undefined;
+  }
+
   // Ashby number and date inputs take nothing else, so "30 days" into a
   // number field is a missing answer rather than a failed application. The
   // only file we have is the CV, and that is planned before this.
   function fitsType(field, value) {
     if (field.type === 'file') return false;
-    if (field.type === 'number') return /^\s*-?\d+([.,]\d+)?\s*$/.test(value);
+    if (field.type === 'number') return numberValue(value) !== undefined;
     if (field.type === 'date') return !Number.isNaN(Date.parse(value));
     return true;
   }
@@ -391,7 +401,9 @@
     const days = g.one_per_company_days;
     if (days > 0) {
       const since = ctx.now - days * 864e5;
-      const recent = history.some((h) => (h.status === 'submitted' || h.status === 'sent') && h.company === job.company_domain && Date.parse(h.at) >= since);
+      // History rows carry company_domain (the server adds the board's); company is a name.
+      const recent = !!job.company_domain && history.some((h) => WENT_OUT.includes(h.status) && h.company_domain === job.company_domain
+        && Date.parse(h.at) >= since);
       if (recent) return 'applied to this company recently';
     }
     if (ctx.minMatch != null && (job.match_score || 0) < ctx.minMatch) return 'below your minimum match';
@@ -492,19 +504,19 @@
     'no confirmation after submitting': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     'no confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     'Greenhouse asked for an email security code': 'Greenhouse sent you a security code by email. Enter it on the page to continue.',
-    'unsupported site': "This site doesn't support automatic applications. Open the job to fill in the form yourself.",
+    'unsupported site': "This site isn't supported. Apply yourself.",
     'blocked company': 'This company is on your Never apply to list.',
     'applied to this company recently': 'You applied to this company recently.',
     'already applied': "You've already applied to this job.",
     'tab closed': 'The tab closed before the site confirmed the application.',
     'not submitted': 'The tab closed before the application was submitted.',
-    'sign in first': 'You need to sign in on this site to apply. Open the job and apply yourself.',
-    'no Workday password': 'Add a Workday password in Settings so the extension can sign in to Workday sites.',
-    'Workday account to verify': 'Workday emailed you a link to confirm your new account. Click the link, then try again.',
+    'sign in first': 'This site needs you to sign in. Apply yourself.',
+    'no Workday password': 'Add a Workday password in Settings.',
+    'Workday account to verify': 'Click the link Workday emailed you to confirm your account, then try again.',
     'no email in the profile': 'Add your email under Auto apply settings.',
     'Workday sign-in form not found': "Couldn't find the Workday sign-in form.",
     'Workday account form not found': "Couldn't find the form to create a Workday account.",
-    'ready to submit': 'Ready to submit. This site requires you to submit the form yourself. Open it and click Submit.',
+    'ready to submit': 'Ready. Open the form and submit it yourself.',
     'unconfirmed: the form closed without a confirmation': "The form was sent, but the site didn't confirm it. Check for a confirmation email.",
     // Why Full automatic stopped after filling (autoSubmit).
     'full automatic needs a paid plan': 'Full automatic needs the Basic or Pro plan.',
@@ -516,9 +528,9 @@
   const PREFIXES = [
     ['form errors: ', 'The form needs your attention: '],
     ['Ashby will not take this application: ', "Ashby couldn't submit this application: "],
-    ['needs answer: ', 'Please answer: '],
-    ['Workday sign-in: ', "Couldn't sign in to this company's Workday site: "],
-    ['Workday account: ', "Couldn't create an account on this company's Workday site: "],
+    ['needs answer: ', 'Answer: '],
+    ['Workday sign-in: ', "Couldn't sign in to Workday: "],
+    ['Workday account: ', "Couldn't create a Workday account: "],
   ];
 
   // One reason's own wording, or null when it has none.
@@ -547,7 +559,7 @@
     const s = [`Filled ${r.filled} ${plural(r.filled, 'field')}.`];
     if (r.suggested) s.push(`AI suggested ${r.suggested} ${plural(r.suggested, 'answer')}. Check ${plural(r.suggested, 'the one', 'the ones')} outlined in amber.`);
     // A wizard's pages already passed (Workday): their outlines went with them.
-    if (r.earlier) s.push(`AI answered ${r.earlier} ${plural(r.earlier, 'question on an earlier page', 'questions on earlier pages')}. Check ${plural(r.earlier, 'it', 'them')} on the review page before you submit.`);
+    if (r.earlier) s.push(`AI answered ${r.earlier} ${plural(r.earlier, 'question on an earlier page', 'questions on earlier pages')}. Check ${plural(r.earlier, 'it', 'them')} on the review page.`);
     const missing = (r.missing || []).length, errors = (r.errors || []).length;
     if (missing) s.push(`${missing} ${plural(missing, 'needs', 'need')} your attention.`);
     if (errors) s.push(`Couldn't fill ${errors} ${plural(errors, 'field')}.`);
@@ -556,8 +568,8 @@
 
   // What a Submit from the card or a Full automatic fill came to (background
   // submitHere, startSubmit), for the card and the popup.
-  const SUBMITTED = 'Application submitted. You can find it in your application history.';
-  const UNCONFIRMED = "We couldn't confirm that the site received your application, so it counts as one application for now. If it wasn't submitted, you can dispute it on your Auto apply page.";
+  const SUBMITTED = 'Application submitted.';
+  const UNCONFIRMED = "The site didn't confirm your application, so it counts as sent. If it wasn't, dispute it on your Auto apply page.";
   const quoted = (qs) => qs.map((q) => `"${q}"`).join(', ');
   const reviewText = (qs) => `Check the AI ${plural(qs.length, 'answer')} to ${quoted(qs)}, then submit the application.`;
   function sentText(s) {
@@ -565,9 +577,9 @@
     if (s && s.unknown) return UNCONFIRMED;
     if (s && s.review) return reviewText(s.review);
     if (s && s.failed && /^captcha: human check/.test(s.failed)) {
-      return "Not submitted. The site's human check stopped it. This attempt doesn't count toward your application limit. Use the site's Submit button.";
+      return "Not submitted. The site's human check stopped it. Use the site's Submit button.";
     }
-    if (s && s.failed) return `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}. This attempt doesn't count toward your application limit. Fix the issue on the form, then try again.`;
+    if (s && s.failed) return `Not submitted: ${reasonText(s.failed).replace(/\.$/, '')}.`;
     return reasonText((s && s.error) || 'Something went wrong. Reload the page and try again.');
   }
 
@@ -584,7 +596,7 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, planFill, isEeo, isStatement, mustAnswer, suggestable,
+    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, numberValue, planFill, isEeo, isStatement, mustAnswer, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, holdCode, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

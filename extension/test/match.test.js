@@ -166,7 +166,7 @@ test('isEeo keeps demographic questions away from AI', () => {
 const NOW = Date.parse('2026-10-20T12:00:00');
 const history = [
   { job_id: 'a1', company: 'figma.com', status: 'submitted', at: new Date(NOW - 3600e3).toISOString() },
-  { job_id: 'a2', company: 'stripe.com', status: 'submitted', at: new Date(NOW - 3 * 864e5).toISOString() },
+  { job_id: 'a2', company: 'Stripe', company_domain: 'stripe.com', status: 'submitted', at: new Date(NOW - 3 * 864e5).toISOString() },
   { job_id: 'a3', company: 'airbnb.com', status: 'skipped', at: new Date(NOW - 3600e3).toISOString() },
 ];
 
@@ -199,11 +199,22 @@ test('screenJob applies the guardrails', () => {
 // "submitted": it still counts as applied, for the day and for the company.
 test('a job the user sent themselves counts as applied', () => {
   const at = new Date(NOW).toISOString();
-  const sent = [{ job_id: 's1', company: 'acme.com', status: 'sent', at }];
+  const sent = [{ job_id: 's1', company: 'Acme', company_domain: 'acme.com', status: 'sent', at }];
   const ctx = { history: sent, guardrails: { one_per_company_days: 7 }, now: NOW, retrySkipped: true, minMatch: null };
   assert.equal(m.screenJob({ id: 's1', company_domain: 'acme.com' }, ctx), 'already applied');
   assert.equal(m.screenJob({ id: 's2', company_domain: 'acme.com' }, ctx), 'applied to this company recently');
   assert.equal(m.appliedToday(sent, NOW), 1);
+});
+
+// The history's company is the board's name ("Stripe"); the guardrail
+// compares the domain the server adds, and an unconfirmed send counts too.
+test('one per company compares domains and counts unconfirmed sends', () => {
+  const at = new Date(NOW).toISOString();
+  const ctx = { guardrails: { one_per_company_days: 7 }, now: NOW, retrySkipped: true, minMatch: null };
+  const named = [{ job_id: 'u1', company: 'Stripe', company_domain: 'stripe.com', status: 'unconfirmed', at }];
+  assert.equal(m.screenJob({ id: 'u2', company_domain: 'stripe.com' }, { ...ctx, history: named }), 'applied to this company recently');
+  assert.equal(m.screenJob({ id: 'u2', company_domain: 'Stripe' }, { ...ctx, history: [{ ...named[0], company_domain: undefined }] }), null);
+  assert.equal(m.screenJob({ id: 'u3' }, { ...ctx, history: [{ job_id: 'u1', status: 'submitted', at }] }), null);
 });
 
 // Regression, bug 2 (2026-10-21): a job skipped for a question the profile
@@ -296,7 +307,7 @@ test('plural picks the word for a count', () => {
 
 test('reasonText: internal reasons as the user reads them', () => {
   assert.equal(m.reasonText('captcha'), 'This site asked you to complete a CAPTCHA.');
-  assert.equal(m.reasonText('needs answer: Why us?; Salary?'), 'Please answer: Why us?; Salary?');
+  assert.equal(m.reasonText('needs answer: Why us?; Salary?'), 'Answer: Why us?; Salary?');
   assert.equal(m.reasonText('form errors: Email, Phone'), 'The form needs your attention: Email, Phone');
   assert.equal(m.reasonText('Ashby will not take this application: closed'), "Ashby couldn't submit this application: closed");
   assert.equal(m.reasonText('Country: no options to pick from'), 'Country: There are no options in this list.');
@@ -307,7 +318,7 @@ test('reasonText: internal reasons as the user reads them', () => {
   assert.equal(m.reasonText('could not fill Phone: no phone box on the page; CV: no file input'),
     "Couldn't fill in Phone: Couldn't find the phone number field.; CV: Couldn't find the file upload field.");
   assert.equal(m.reasonText('no confirmation after submitting'), "The form was sent, but the site didn't confirm it. Check for a confirmation email.");
-  assert.equal(m.reasonText('unsupported site'), "This site doesn't support automatic applications. Open the job to fill in the form yourself.");
+  assert.equal(m.reasonText('unsupported site'), "This site isn't supported. Apply yourself.");
   // Already user-facing, or with no wording of its own: unchanged.
   assert.equal(m.reasonText('below your minimum match'), 'below your minimum match');
   assert.equal(m.reasonText("Couldn't find the application form."), "Couldn't find the application form.");
@@ -322,9 +333,9 @@ test('filledText counts in the singular and plural and leaves out zeros', () => 
   assert.equal(m.filledText({ filled: 5, suggested: 2, missing: ['a', 'b'], errors: [] }),
     'Filled 5 fields. AI suggested 2 answers. Check the ones outlined in amber. 2 need your attention.');
   assert.equal(m.filledText({ filled: 7, suggested: 0, earlier: 1, missing: [], errors: [] }),
-    'Filled 7 fields. AI answered 1 question on an earlier page. Check it on the review page before you submit.');
+    'Filled 7 fields. AI answered 1 question on an earlier page. Check it on the review page.');
   assert.equal(m.filledText({ filled: 7, suggested: 1, earlier: 2, missing: [], errors: [] }),
-    'Filled 7 fields. AI suggested 1 answer. Check the one outlined in amber. AI answered 2 questions on earlier pages. Check them on the review page before you submit.');
+    'Filled 7 fields. AI suggested 1 answer. Check the one outlined in amber. AI answered 2 questions on earlier pages. Check them on the review page.');
 });
 
 test('mustAnswer: every required box is ticked, a required agreement is a yes', () => {
@@ -398,7 +409,7 @@ test('sentText: what a Submit came to, for the card and the popup', () => {
   assert.match(m.sentText({ failed: 'captcha: human check refused the click' }), /human check stopped it.*Use the site's Submit button/);
   assert.equal(m.sentText({ review: ['Why do you want to work here?'] }), 'Check the AI answer to "Why do you want to work here?", then submit the application.');
   assert.equal(m.sentText({ review: ['A?', 'B?'] }), 'Check the AI answers to "A?", "B?", then submit the application.');
-  assert.match(m.sentText({ failed: 'form errors: Phone' }), /^Not submitted: The form needs your attention: Phone\. This attempt doesn't count/);
+  assert.match(m.sentText({ failed: 'form errors: Phone' }), /^Not submitted: The form needs your attention: Phone\.$/);
   assert.equal(m.sentText({ error: 'blocked company' }), 'This company is on your Never apply to list.');
 });
 
@@ -512,4 +523,36 @@ test('mustAnswer: a question about a qualification is not an agreement', () => {
   assert.equal(yn('I certify that the information I provided is true and complete'), 'Yes');
   assert.equal(yn('Please confirm that the information above is accurate'), 'Yes');
   assert.equal(yn('I confirm I have read the job description'), 'Yes');
+});
+
+test('phone_code and phone_country come from the phone first, the location only without a +', () => {
+  const p = (phone, location) => ({ contact: { phone, location } });
+  for (const key of ['phone_code', 'phone_country']) {
+    assert.equal(m.profileValue(key, p('+972 58-785-8580', 'Berlin, Germany')), 'Israel', key);
+    assert.equal(m.profileValue(key, p('+972 58-785-8580', 'Tel Aviv')), 'Israel', key);
+    assert.equal(m.profileValue(key, p('058-785-8580', 'Tel Aviv, Israel')), 'Israel', key + ' with no +');
+  }
+  assert.equal(m.profileValue('country', p('+972 58-785-8580', 'Berlin, Germany')), 'Germany', 'country is where they live');
+  assert.equal(m.nationalNumber('058-785-8580'), '058-785-8580');
+});
+
+test('pickOption: a yes or no that starts two options is no match', () => {
+  const where = ['Yes, within Israel', 'Yes, internationally', 'No'];
+  assert.equal(m.pickOption(where, 'Yes'), -1);
+  assert.equal(m.pickOption(where, 'No'), 2);
+  assert.equal(m.pickOption(['Yes', 'No'], 'Yes'), 0);
+  assert.equal(m.pickOption(['Yes, I am', 'No, I am not'], 'No'), 1);
+});
+
+test('decline picks "I don\'t want to answer"', () => {
+  assert.equal(m.pickOption(['Male', 'Female', "I don't want to answer"], 'decline'), 2);
+  assert.equal(m.pickOption(['Yes', 'No', 'I do not want to say'], 'decline'), 2);
+});
+
+test('numberValue: what a number box can take', () => {
+  const want = { '50,000': '50000', '$50,000': '50000', '€ 1.234,5': '1234.5', '120000': '120000', '2,5': '2.5', '3.75': '3.75', '1,234.56': '1234.56' };
+  for (const [v, n] of Object.entries(want)) assert.equal(m.numberValue(v), n, v);
+  for (const v of ['30 days', '', '1-2', '50k']) assert.equal(m.numberValue(v), undefined, v);
+  assert.equal(m.fitsType({ type: 'number' }, '$50,000'), true);
+  assert.equal(m.fitsType({ type: 'number' }, '30 days'), false);
 });

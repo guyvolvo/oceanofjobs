@@ -67,7 +67,7 @@ def header(current: str = "") -> str:
     return f"""<div class="home site-header">
   <header class="home-bar hero-bar-head">
     <a class="home-brand" href="/" aria-label="Ocean of Jobs home">
-      <img class="home-mark" src="/favicon.svg?v=3" width="22" height="22" alt="" />
+      <img class="home-mark" src="/favicon.svg?v=4" width="22" height="22" alt="" />
       <span translate="no">Ocean of Jobs</span>
     </a>
     <nav class="site-menus home-nav" aria-label="Main">{"".join(parts)}</nav>

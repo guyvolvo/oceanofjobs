@@ -115,10 +115,21 @@
   function typeInto(box, value) {
     const el = box.querySelector('textarea, input:not([type="file"]):not([type="checkbox"]):not([type="radio"])');
     if (!el) return 'no input to type into';
-    setValue(el, value);
+    // Chrome empties a number box given "50,000".
+    const typed = el.type === 'number' ? root.oojMatch.numberValue(value) ?? value : value;
+    setValue(el, typed);
     el.dispatchEvent(new FocusEvent('blur'));
     el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
-    return null;
+    return String(typed).trim() && !el.value ? `the field did not take "${value}"` : null;
+  }
+
+  // A bare yyyy-mm-dd parses as UTC midnight, so its UTC parts keep its
+  // day; anything else ("January 15, 2027") parses as local midnight.
+  function usDate(value, d) {
+    const p = (n) => String(n).padStart(2, '0');
+    return /^\d{4}-\d\d-\d\d$/.test(value)
+      ? `${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())}/${d.getUTCFullYear()}`
+      : `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()}`;
   }
 
   // Ashby's date picker parses what is typed in its own format.
@@ -127,10 +138,8 @@
     if (Number.isNaN(d.getTime())) return `"${value}" is not a date`;
     const el = box.querySelector('input');
     if (!el) return 'no input to type into';
-    // A bare yyyy-mm-dd parses as UTC midnight; the UTC parts keep its day.
-    const p = (n) => String(n).padStart(2, '0');
     el.focus();
-    setValue(el, `${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())}/${d.getUTCFullYear()}`);
+    setValue(el, usDate(value, d));
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
     el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     return el.value ? null : 'the date did not stick';
@@ -287,5 +296,5 @@
 
   root.oojAts = root.oojAts || {};
   root.oojAts.ashby = { matches, onSite, formUrl, pageData, read, fill, submit, outcome };
-  if (typeof module === 'object' && module.exports) module.exports = { matches, onSite, formUrl, fromGraphql, decide };
+  if (typeof module === 'object' && module.exports) module.exports = { matches, onSite, formUrl, fromGraphql, decide, usDate };
 })(globalThis);

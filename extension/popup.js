@@ -69,6 +69,7 @@ const FILL = {
   review: ['Review answers', false],
   done: ['Ready to review', true],
   sent: ['Application sent', true],
+  unconfirmed: ["Couldn't confirm. Check the page.", true],
 };
 let fillState = 'checking';
 function setFill(state) {
@@ -85,7 +86,7 @@ async function detect() {
   const tab = await activeTab();
   if (!tab) return setFill('none');
   const { [filledKey(tab)]: filled } = await chrome.storage.session.get(filledKey(tab));
-  if (filled && filled.url === tab.url) return setFill(filled.sent ? 'sent' : filled.review ? 'review' : 'done');
+  if (filled && filled.url === tab.url) return setFill(filled.sent === 'unconfirmed' ? 'unconfirmed' : filled.sent ? 'sent' : filled.review ? 'review' : 'done');
   const r = await chrome.runtime.sendMessage({ type: 'pageState', tabId: tab.id }).catch(() => null);
   setFill((r && r.state) || 'none');
 }
@@ -100,10 +101,10 @@ async function review() {
   if (!r || !r.left) {
     await chrome.storage.session.set({ [filledKey(tab)]: { ...filled, review: false } });
     setFill('done');
-    out.textContent = "You're all caught up. Review the form, then submit it.";
+    out.textContent = 'Nothing left to check. Submit the form on the page.';
     return;
   }
-  const what = r.kind === 'required' ? 'This required field is still empty.' : 'AI suggested this answer. Check it before submitting.';
+  const what = r.kind === 'required' ? 'This required field is still empty.' : 'Check this AI answer.';
   out.textContent = `${what} ${r.index} of ${r.left} to review.`;
 }
 
@@ -130,11 +131,11 @@ $('fill').addEventListener('click', async () => {
   out.hidden = false;
   if (!r || r.error) return detect();
   // Sent or maybe sent: pressing again could send it twice.
-  const sent = !!(r.sent && (r.sent.submitted || r.sent.unknown));
+  const sent = r.sent && r.sent.submitted ? 'sent' : r.sent && r.sent.unknown ? 'unconfirmed' : '';
   const needsLook = !sent && (r.missing.length > 0 || r.suggested > 0);
   const now = await activeTab();
   await chrome.storage.session.set({ [filledKey(now)]: { url: now.url, frameId: r.frameId || 0, review: needsLook, sent } });
-  setFill(sent ? 'sent' : needsLook ? 'review' : 'done');
+  setFill(sent || (needsLook ? 'review' : 'done'));
 });
 
 let paused = false;
@@ -148,7 +149,7 @@ function render(s) {
   $('in').hidden = !s.connected;
   if (!s.connected) {
     $('out-text').textContent = s.authError
-      ? 'Your connection has expired. Your account and saved information are still there. Connect again to keep using the extension.'
+      ? 'Your connection has expired. Connect again to continue.'
       : 'Connect your Ocean of Jobs account to start applying.';
     return;
   }
@@ -218,7 +219,7 @@ function render(s) {
   list.hidden = $('needs-head').hidden = $('needs-help').hidden = !s.needs.length;
   $('pause').textContent = paused ? 'Resume' : 'Pause';
   $('state').textContent = paused
-    ? "Auto apply is paused. The extension won't apply to jobs automatically until you resume it."
+    ? 'Auto apply is paused.'
     : s.lastRun ? `Last checked ${new Date(s.lastRun).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not checked yet';
 }
 
@@ -256,7 +257,7 @@ async function renderQueue() {
     return li;
   }));
   note.hidden = q.total > 0 && q.total <= q.items.length;
-  note.textContent = q.total ? `Showing the first ${q.items.length} ${plural(q.items.length, 'job')}.` : 'Your queue is empty. Add jobs on Ocean of Jobs or through your AI assistant.';
+  note.textContent = q.total ? `Showing the first ${q.items.length} ${plural(q.items.length, 'job')}.` : 'Your queue is empty. Add jobs on Ocean of Jobs.';
 }
 
 chrome.runtime.sendMessage({ type: 'status' }).then((s) => {

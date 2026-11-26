@@ -114,6 +114,9 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .seg button.on { background: var(--pill-bg); color: var(--pill-fg); }
 .seg button:disabled:not(.on) { opacity: 0.5; cursor: default; }
 .seg + .note { margin-top: 8px; }
+.seg.cv-use { margin-bottom: 10px; }
+#s-cv + #s-link-box, .file + .cv-err { margin-top: 10px; }
+.input.link { margin-top: 8px; min-height: 34px; font-size: 13px; }
 .file { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .file .doc { display: grid; place-items: center; flex: none; width: 34px; height: 40px; border-radius: 6px; background: var(--soft-hover);
   font: 500 9.5px/1 "Geist", sans-serif; letter-spacing: 0.04em; }

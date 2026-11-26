@@ -1,8 +1,9 @@
-// The settings view: where the CV, the Workday password and the own AI key
+// The settings view: where the CV (a file, or a share link the background
+// downloads), the Workday password and the own AI key
 // are saved (this computer or the account), the fill button's reach, and
 // the account. Drawn in the popup (popup.html) and, when a file picker
 // would close the popup, in a tab (options.html). background.js keeps the
-// values (storageState, setStorageMode, saveCv, saveSecrets).
+// values (storageState, setStorageMode, saveCv, saveCvLink, saveSecrets).
 (function () {
   const PROVIDERS = globalThis.oojProviders;
   const MAX_CV = 5 * 1024 * 1024;
@@ -12,6 +13,7 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const kb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
   const day = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '');
+  const at = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
   // Workday's usual rules: 8 or more characters with a lower and an upper
   // case letter, a number and a symbol.
   const workdayOk = (p) => p.length >= 8 && /[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p);
@@ -27,6 +29,8 @@
   function mount(root, { inPopup = false, onBack = null } = {}) {
     let st = null;
     let confirming = null; // 'account' | 'local' while the mode change waits for a yes
+    let cvPick = null; // 'file' | 'link' once clicked; until then the saved choice
+    const cvUse = () => cvPick || (st.cvLink && st.cvLink.mode) || 'file';
 
     root.innerHTML = `
       ${inPopup ? `<div class="p-head"><button type="button" class="icon-btn" id="s-back" aria-label="Back">${ICONS.back}</button>Settings</div>` : ''}
@@ -41,13 +45,21 @@
       </section>
       <section class="p-sec" aria-labelledby="s-cv-h">
         <h3 id="s-cv-h">Resume</h3>
+        <div class="seg cv-use" role="radiogroup" aria-labelledby="s-cv-h">
+          <button type="button" role="radio" data-cv="file">Upload a file</button>
+          <button type="button" role="radio" data-cv="link">Link</button>
+        </div>
         <div id="s-cv"></div>
+        <div id="s-link-box" hidden>
+          <input class="input link" type="url" id="s-link" spellcheck="false" autocomplete="off" placeholder="https://drive.google.com/file/d/..." aria-label="Resume link">
+          <div class="row"><button type="button" class="btn sm primary" id="s-link-save">Save</button></div>
+        </div>
         <input type="file" id="s-cv-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
         <p class="note" id="s-cv-msg" role="status"></p>
       </section>
       <section class="p-sec" aria-labelledby="s-wd-h">
         <h3 id="s-wd-h">Workday password</h3>
-        <p class="note">Signs you in on Workday careers sites, and creates an account when you don't have one. If you don't set one, the extension makes one the first time it needs it and saves it here.</p>
+        <p class="note">Signs you in on Workday sites. Leave it empty to have one made for you.</p>
         <div class="pw"><input class="input" type="password" id="s-wd" autocomplete="new-password" spellcheck="false" aria-labelledby="s-wd-h"><button type="button" id="s-wd-show">Show</button></div>
         <div class="row"><button type="button" class="btn sm primary" id="s-wd-save">Save</button><button type="button" class="btn sm" id="s-wd-gen">Generate</button></div>
         <p class="note" id="s-wd-msg" role="status"></p>
@@ -57,7 +69,7 @@
           <summary class="disc"><span>Your own AI key</span><span id="s-ai-sum" class="muted"></span></summary>
           <label class="field" for="s-ai-provider">Provider<select class="input" id="s-ai-provider"><option value="">None</option></select></label>
           <label class="field" for="s-ai-key">API key<input class="input" type="password" id="s-ai-key" autocomplete="off" spellcheck="false"></label>
-          <label class="field" for="s-ai-model">Model<input class="input" type="text" id="s-ai-model" spellcheck="false" placeholder="Enter the model name used by your provider"></label>
+          <label class="field" for="s-ai-model">Model<input class="input" type="text" id="s-ai-model" spellcheck="false" placeholder="Model name"></label>
           <p class="note">Used after your plan's monthly AI answers run out.</p>
           <div class="row"><button type="button" class="btn sm primary" id="s-ai-save">Save</button></div>
           <p class="note" id="s-ai-msg" role="status"></p>
@@ -78,7 +90,7 @@
 
     function paint() {
       const account = st.mode === 'account';
-      for (const b of root.querySelectorAll('.seg button')) {
+      for (const b of root.querySelectorAll('.seg button[data-mode]')) {
         const on = b.dataset.mode === st.mode;
         b.setAttribute('aria-checked', String(on));
         b.classList.toggle('on', on);
@@ -86,8 +98,8 @@
       }
       $('s-mode-note').textContent = !st.connected ? 'Connect your account to use cloud storage.'
         : !st.ready && !account ? "Cloud storage isn't available yet."
-          : account ? 'Your resume, Workday password and AI key are saved to your account, encrypted.'
-            : 'Your resume, Workday password and AI key are saved only on this computer.';
+          : account ? 'Saved to your account, encrypted.'
+            : 'Saved only on this computer.';
       const c = $('s-confirm');
       c.hidden = !confirming;
       if (confirming === 'account') {
@@ -97,7 +109,7 @@
         c.querySelector('#s-agree').addEventListener('change', (e) => { c.querySelector('#s-yes').disabled = !e.target.checked; });
       } else if (confirming === 'local') {
         c.innerHTML = `<b>Switch to local storage?</b>
-          <p class="note">Your resume, Workday password and AI key are deleted from your account, and other computers won't have them.</p>
+          <p class="note">Your resume, Workday password and AI key are deleted from your account.</p>
           <div class="row"><button type="button" class="btn sm primary" id="s-yes">Delete from my account</button><button type="button" class="btn sm" id="s-no">Cancel</button></div>`;
       }
       if (confirming) {
@@ -105,7 +117,33 @@
         c.querySelector('#s-yes').addEventListener('click', () => changeMode(confirming));
       }
 
-      const cv = st.cv;
+      const use = cvUse();
+      for (const b of root.querySelectorAll('.seg button[data-cv]')) {
+        b.setAttribute('aria-checked', String(b.dataset.cv === use));
+        b.classList.toggle('on', b.dataset.cv === use);
+      }
+      $('s-link-box').hidden = use !== 'link';
+      const link = st.cvLink;
+      if (use === 'link') {
+        // The link's file, once one was downloaded; the upload stays put until then.
+        const cv = link && link.mode === 'link' ? st.cv : null;
+        $('s-cv').innerHTML = (cv ? `
+          <div class="file"><span class="doc">${cv.type === CV_TYPES.pdf ? 'PDF' : 'DOCX'}</span>
+            <span class="meta"><b title="${esc(cv.name)}">${esc(cv.name)}</b><span>${kb(cv.size)}, downloaded ${at(link.fetchedAt)}</span></span></div>` : '')
+          + (cv && link.error ? `<p class="note error cv-err">${esc(link.error)}</p>` : '');
+        $('s-cv').hidden = !cv;
+      } else {
+        $('s-cv').hidden = false;
+        paintFile();
+      }
+
+      $('s-ai-sum').innerHTML = (st.ai ? esc((PROVIDERS[st.ai.provider] || {}).label || st.ai.provider) : 'Not added') + ICONS.chev;
+      $('s-acct').textContent = st.connected ? 'Connected.' : 'Not connected.';
+      $('s-disconnect').disabled = !st.connected;
+    }
+
+    function paintFile() {
+      const cv = st.cvLink && st.cvLink.mode === 'link' ? null : st.cv;
       const pick = `<button type="button" class="btn sm" id="s-cv-pick">${ICONS.up}${cv ? 'Replace' : 'Choose a file'}</button>`;
       $('s-cv').innerHTML = cv ? `
         <div class="file"><span class="doc">${cv.type === CV_TYPES.pdf ? 'PDF' : 'DOCX'}</span>
@@ -114,10 +152,6 @@
         : `<div class="banner"><b>Add your resume to start applying</b><p class="note">PDF or DOCX, up to 5 MB.</p><div class="row">${pick}</div></div>`;
       $('s-cv-pick').addEventListener('click', pickCv);
       if (cv) $('s-cv-remove').addEventListener('click', removeCv);
-
-      $('s-ai-sum').innerHTML = (st.ai ? esc((PROVIDERS[st.ai.provider] || {}).label || st.ai.provider) : 'Not added') + ICONS.chev;
-      $('s-acct').textContent = st.connected ? 'Connected to your Ocean of Jobs account.' : 'Not connected to an Ocean of Jobs account.';
-      $('s-disconnect').disabled = !st.connected;
     }
 
     async function refresh(sync) {
@@ -135,7 +169,7 @@
       st = r;
       paint();
     }
-    root.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+    root.querySelectorAll('.seg button[data-mode]').forEach((b) => b.addEventListener('click', () => {
       if (b.dataset.mode === st.mode || b.disabled) return;
       confirming = b.dataset.mode;
       paint();
@@ -173,6 +207,45 @@
       paint();
       say('s-cv-msg', 'Resume removed.');
     }
+
+    // Both stay saved: the uploaded file while the link is used, and the
+    // link while the file is. Picking Link again downloads the file again.
+    root.querySelectorAll('.seg button[data-cv]').forEach((b) => b.addEventListener('click', async () => {
+      if (b.dataset.cv === cvUse()) return;
+      cvPick = b.dataset.cv;
+      paint();
+      say('s-cv-msg', '');
+      const link = st.cvLink;
+      if (cvPick === 'link' && link && link.mode === 'file') return saveLink(link.url);
+      if (cvPick === 'file' && link && link.mode === 'link') {
+        const r = await send({ type: 'storageCvFile' });
+        if (r && r.error) return say('s-cv-msg', r.error, true);
+        st = r;
+        paint();
+        say('s-cv-msg', st.cv ? `Using ${st.cv.name}.` : '');
+      }
+    }));
+    async function saveLink(url) {
+      if (!url && !st.cvLink) return say('s-cv-msg', 'Paste the link to your resume.', true);
+      if (!url) {
+        const r = await send({ type: 'storageCvLink', url: null });
+        if (r && r.error) return say('s-cv-msg', r.error, true);
+        st = r;
+        paint();
+        return say('s-cv-msg', 'Your resume link was removed.');
+      }
+      if (!globalThis.oojCvLink.direct(url)) return say('s-cv-msg', 'Paste a link that starts with https://.', true);
+      // Asked here, on a click, because Chrome only grants host access from a user gesture.
+      const granted = await chrome.permissions.request({ origins: globalThis.oojCvLink.origins(url) }).catch(() => false);
+      if (!granted) return say('s-cv-msg', 'Not saved. Click Save and allow access.', true);
+      say('s-cv-msg', 'Downloading…');
+      const r = await send({ type: 'storageCvLink', url });
+      if (r && r.error) return say('s-cv-msg', r.error, true);
+      st = r;
+      paint();
+      say('s-cv-msg', st.mode === 'account' ? 'Resume saved to your account.' : 'Resume saved.');
+    }
+    $('s-link-save').addEventListener('click', () => saveLink($('s-link').value.trim()));
 
     $('s-wd-show').addEventListener('click', () => {
       const shown = $('s-wd').type === 'text';
@@ -216,7 +289,7 @@
       if (!model) return say('s-ai-msg', 'Enter a model name.', true);
       // Asked here, on a click, because Chrome only grants host access from a user gesture.
       const granted = await chrome.permissions.request({ origins: [PROVIDERS[provider].origin] });
-      if (!granted) return say('s-ai-msg', "Chrome denied access to the provider, so your key wasn't saved. Click Save and allow access.", true);
+      if (!granted) return say('s-ai-msg', 'Not saved. Click Save and allow access.', true);
       const r = await send({ type: 'storageSecrets', change: { ai: { provider, key, model } } });
       if (r && r.error) return say('s-ai-msg', r.error, true);
       st = r;
@@ -231,7 +304,7 @@
       const ok = on ? await chrome.permissions.request(ALL_SITES) : await chrome.permissions.remove(ALL_SITES);
       $('s-all').checked = await chrome.permissions.contains(ALL_SITES);
       say('s-all-msg', !ok ? "Chrome couldn't change site access."
-        : on ? 'Enabled. Reload a careers page to show the button.' : 'Disabled. The button will appear only on supported hiring sites, such as Greenhouse, Lever, and Workday.');
+        : on ? 'On. Reload a careers page to see the button.' : 'Off. The button shows only on supported hiring sites.');
     });
     chrome.permissions.contains(ALL_SITES).then((on) => { $('s-all').checked = on; });
 
@@ -239,18 +312,19 @@
       await chrome.storage.local.remove(['token', 'authError', 'needs']);
       st.connected = false;
       paint();
-      $('s-acct').textContent = 'Disconnected. You can connect again from your account page.';
+      $('s-acct').textContent = 'Disconnected.';
     });
 
     // The saved values, for editing: the password and key stay hidden until
     // asked for. Read again after the account's copy comes down.
-    const fillInputs = () => chrome.storage.local.get(['workday', 'ai']).then(({ workday, ai }) => {
+    const fillInputs = () => chrome.storage.local.get(['workday', 'ai', 'cvLink']).then(({ workday, ai, cvLink }) => {
+      $('s-link').value = cvLink ? cvLink.url : '';
       $('s-wd').value = workday ? workday.password : '';
       $('s-ai-provider').value = ai ? ai.provider : '';
       $('s-ai-key').value = ai ? ai.key : '';
       $('s-ai-model').value = ai ? ai.model || '' : '';
     });
-    st = { connected: false, mode: 'local', ready: false, cv: null, workday: false, ai: null };
+    st = { connected: false, mode: 'local', ready: false, cv: null, cvLink: null, workday: false, ai: null };
     paint();
     fillInputs();
     refresh(false).then(() => refresh(true)).then(fillInputs);

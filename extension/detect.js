@@ -190,7 +190,7 @@
       <div class="h"><img src="${icon}" alt=""><span class="t">${name}</span><button class="x" aria-label="Close">×</button></div>
       <p class="msg"></p>
       <button class="go">Fill application</button>
-      <p class="frame" hidden>To show this card at the top of careers pages, allow access to all sites in <button class="link">Settings</button>.</p>
+      <p class="frame" hidden>To show this card at the top of the page, allow all sites in <button class="link">Settings</button>.</p>
       <button class="hide">Hide on this site until Chrome restarts</button>
     </div>`;
     document.documentElement.appendChild(host);
@@ -263,7 +263,6 @@
     }
     const title = String((document.querySelector('h1') || {}).textContent || document.title).trim().slice(0, 300);
     if (offer.assist) {
-      msg.textContent = 'Fill in this application with your profile. Review your answers before submitting.';
       go.addEventListener('click', async () => {
         go.disabled = true;
         go.textContent = 'Filling application…';
@@ -295,7 +294,7 @@
     msg.className = 'msg ok';
     msg.textContent = filledText(r) + ' ' + held(r)
       + (r.held === 'not an application form' ? '' : r.submit ? 'Review your answers, then submit the application here.'
-        + (r.botCheck ? " If the site's human check stops it, use the site's Submit button." : '')
+        + (r.botCheck ? " If the human check stops it, use the site's Submit button." : '')
         : r.botCheck ? "Review your answers, then use the site's Submit button."
           : 'Review your answers, then submit the application on the page.');
     go.hidden = !r.submit;
@@ -325,8 +324,7 @@
   function dedicatedCard(root, offer, title, msg, go) {
     const ats = dedicated;
     go.textContent = 'Fill application';
-    msg.textContent = 'Fill in the application with your profile, review your answers, then submit it here.'
-      + (offer.remaining != null ? ` ${offer.remaining} ${plural(offer.remaining, 'application')} left on your plan.` : '');
+    msg.textContent = offer.remaining != null ? `${offer.remaining} ${plural(offer.remaining, 'application')} left on your plan.` : '';
     let submitting = false;
     let auto = false;
     go.addEventListener('click', async () => {
@@ -389,9 +387,10 @@
           clearInterval(watch);
           send({ type: 'settleHere', result: out && out.failed ? out : null });
           msg.className = 'msg warn';
-          if (out && /^form errors/i.test(out.failed)) {
-            // The site's own errors: nothing was sent and the credit is back.
-            msg.textContent = `Not submitted: ${reasonText(out.failed).replace(/\.$/, '')}. Fix the issue on the form, then try again.`;
+          // The same rule as afterClick in background.js: these were not
+          // sent and the credit is back, so Submit stays.
+          if (out && /^(form errors|captcha|ashby will not take|submit button not found)/i.test(out.failed)) {
+            msg.textContent = sentText(out);
             go.disabled = false;
             go.textContent = 'Submit application';
           } else {

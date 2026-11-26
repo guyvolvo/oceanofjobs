@@ -1,24 +1,27 @@
-"""Build every icon the site serves from the two brand masters.
+"""Build every icon the site and the extension serve from the brand master.
 
 There was no script for this. The first set was made by hand in September
 and the only record of how was a comment in index.html, so the second
 rebrand started by working out what the first one had done. This exists so
 the third one does not.
 
-Two masters, both 512x512 with transparent corners, in brand/:
+One master, 512x512 with transparent corners, in brand/:
 
-  mark-light.png   green ring on paper, circular. Every favicon size and
-                   the .ico come from this one.
-  mark-dark.png    paper ring on a dark rounded square. Shipped as-is for
-                   the square slots other people's products crop for us:
-                   a LinkedIn page avatar, a GitHub organisation, anywhere
-                   a circle mask or a rounded-rect mask gets applied to
-                   whatever we upload.
+  mark-black.png   the black lighthouse: a white lighthouse with a black
+                   lantern on a near-black disc, inside an off-white ring.
+                   The same file the /login page serves as
+                   frontend/img/mark-black.png. Every favicon, the .ico,
+                   the extension icons and logo-square.png come from it.
 
-Both marks are the same ring at the same radii, measured: the stroke is
-7.2% of the canvas in each, and only the colours and the outer shape
-differ. That is why one master can feed the light set and the other needs
-no resizing at all.
+The off-white ring is what keeps the mark readable on a dark tab, a dark
+toolbar or the site's dark theme, and the near-black disc does the same on
+a light one, so no size needs a tile or an inverted variant. The ring is
+about 1px at 16px, which is still enough to outline the disc on Chrome's
+dark tab strip.
+
+The earlier masters were mark-light.png (the same lighthouse with a green
+lantern) and mark-dark.png (a paper ring on a dark green square). Both
+were replaced by this one in November 2026.
 
 Every size is resized once from the 512 master rather than stepped down
 through the larger ones, since a chain of resamples softens a 1px ring
@@ -47,6 +50,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 BRAND = ROOT / "brand"
 OUT = ROOT / "frontend"
+EXT = ROOT / "extension" / "icons"
 
 # 180 is apple-touch-icon, which iOS demands as PNG and will not take as
 # SVG. 512 is the largest anything asks for and doubles as the master the
@@ -59,16 +63,18 @@ PNG_SIZES = (512, 180, 32, 16)
 # asked for.
 ICO_SIZES = [(16, 16), (32, 32), (48, 48), (64, 64)]
 
+# The four sizes extension/manifest.json names. detect.js draws the
+# in-page card button from icon-48.png.
+EXT_SIZES = (16, 32, 48, 128)
+
 
 def build(check: bool = False) -> int:
-    light = BRAND / "mark-light.png"
-    dark = BRAND / "mark-dark.png"
-    for p in (light, dark):
-        if not p.exists():
-            print(f"missing master: {p}", file=sys.stderr)
-            return 1
+    master = BRAND / "mark-black.png"
+    if not master.exists():
+        print(f"missing master: {master}", file=sys.stderr)
+        return 1
 
-    src = Image.open(light).convert("RGBA")
+    src = Image.open(master).convert("RGBA")
     if src.size != (512, 512):
         print(f"expected a 512x512 master, got {src.size}", file=sys.stderr)
         return 1
@@ -101,12 +107,21 @@ def build(check: bool = False) -> int:
         svg_path.write_text(svg, encoding="utf-8")
     written.append(svg_path)
 
-    # The dark master ships unresized. Every platform that takes a square
-    # avatar wants at least 400px and scales down itself, so 512 is the
-    # one file that serves all of them.
+    for size in EXT_SIZES:
+        target = EXT / f"icon-{size}.png"
+        if not check:
+            src.resize((size, size), Image.LANCZOS).save(target)
+        written.append(target)
+
+    # Square avatars (LinkedIn, GitHub) get the mark on an opaque square in
+    # the disc's own colour, so a circle mask or a rounded-rect mask over
+    # it still shows the whole ring. 512 because every platform that takes
+    # one wants at least 400px and scales down itself.
     square = OUT / "logo-square.png"
     if not check:
-        Image.open(dark).convert("RGBA").save(square)
+        tile = Image.new("RGBA", src.size, src.getpixel((256, 60)))
+        tile.alpha_composite(src)
+        tile.convert("RGB").save(square)
     written.append(square)
 
     for p in written:
