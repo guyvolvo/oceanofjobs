@@ -676,3 +676,9 @@ test("the overview's applications: confirmed and unconfirmed apart, failed apart
   assert.deepEqual([d.confirmed, d.per_user_week, d.by_system], [0, null, []]);
   globalThis.fetch = realFetch;
 });
+
+test("{{name}} is the account's name, or the email before the @", async () => {
+  const A = await import("../lib/auto.mjs");
+  assert.equal(A.fill("{{name}} ({{email}}) signed up", A.vars({ name: "Dana Levi", email: "dana@example.com" })), "Dana Levi (dana@example.com) signed up");
+  assert.equal(A.vars({ name: "", email: "dana@example.com" }).name, "dana");
+});
