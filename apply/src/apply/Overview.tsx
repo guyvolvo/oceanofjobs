@@ -76,7 +76,7 @@ export default function OverviewPage() {
   const unmarked = sent.filter((r) => !r.outcome).slice(0, 3);
 
   return (
-    <ApplyPage current="overview" title="Overview" note="What auto apply has done, and what it is waiting on." data={data}>
+    <ApplyPage current="overview" title="Overview" data={data}>
       {!s ? <Waiting /> : (
         <>
           <Card title={`Applications ${period(s)}`} action={<span className="text-sm text-muted-foreground">{PLAN_NAME[s.plan] || "Free"} plan</span>}>

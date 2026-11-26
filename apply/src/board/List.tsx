@@ -128,8 +128,8 @@ const Row = memo(function Row({ j, index, size, selected, starred, applied, re, 
   const age = ageDays(j.posted_at);
   const fresh = age !== null && age <= 3 && !isReposted(j);
   const domain = companyDomain(j);
-  const ageText = applied || fmtPostedAgo(j, age);
-  const ageCls = applied || fresh ? "font-semibold text-foreground" : "text-muted-foreground";
+  const ageText = fmtPostedAgo(j, age);
+  const ageCls = fresh ? "font-semibold text-foreground" : "text-muted-foreground";
   const open = () => openJobAndPush(j.id);
   return (
     <div data-id={j.id} data-row-id={j.id} role="listitem" aria-posinset={index + 1} aria-setsize={size} aria-current={selected || undefined}
@@ -143,6 +143,7 @@ const Row = memo(function Row({ j, index, size, selected, starred, applied, re, 
             onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return; e.preventDefault(); open(); }}>
             <Highlight text={j.title} re={re} />
           </a>
+          {applied ? <span title={applied} className={cn(tag, "ml-1.5 border-[1.5px] border-[var(--ooj-green-text)] align-[2px] font-semibold text-[var(--ooj-green-text)]")}>Applied</span> : null}
           {j.seniority ? <span className={cn(tag, "ml-1.5 border-[1.5px] border-foreground/30 align-[2px] font-semibold text-foreground")}>{SENIORITY_LABELS[j.seniority] || j.seniority}</span> : null}
           {j.confidence === "best_effort" ? <span title="Read from the company's careers page, so it may be out of date." className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Unverified</span> : null}
           {j.closed_at ? <span title="This job is no longer open" className={cn(tag, "ml-1.5 align-[2px] text-muted-foreground")}>Closed</span> : null}

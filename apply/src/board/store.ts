@@ -158,9 +158,10 @@ async function syncQueueFromServer() {
   try {
     const [queue, history] = await Promise.all([
       api<{ queue?: { job_id: string }[] }>("/me/apply/queue"),
-      api<{ applied?: { job_id: string; status: string; at?: string }[] }>("/me/apply/history").catch(() => null)]);
+      // 500 is the most the API returns; the default 50 dropped older applications.
+      api<{ applied?: { job_id: string; status: string; at?: string }[] }>("/me/apply/history?limit=500").catch(() => null)]);
     U.queue = new Set((queue?.queue || []).map((r) => r.job_id));
-    U.appliedAt = new Map((history?.applied || []).filter((r) => (r.status === "submitted" || r.status === "sent") && r.at).map((r) => [r.job_id, r.at!]));
+    U.appliedAt = new Map((history?.applied || []).filter((r) => ["submitted", "sent", "unconfirmed"].includes(r.status) && r.at).map((r) => [r.job_id, r.at!]));
   } catch { return; }
   emit();
 }
