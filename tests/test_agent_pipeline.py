@@ -144,6 +144,18 @@ with mock_aws():
                                                "Yes | needs_visa_sponsorship_outside_those_countries: true", options=["Yes", "No"])["answer"] == "Yes")
     check("a question that isn't yes/no needs no citation", draft("Which city are you in?", "Haifa")["answer"] == "Haifa")
 
+    # "Use my key first" (extension): free answers still come from here, the model is left to the key.
+    calls, counted = len(sent), month()
+    own = ai_answers.draft(table, "u", {"question": "Which database do you know best?", "own_key": True}, {}, run=model("PostgreSQL"),
+                           report=lambda total: None, now=NOW)
+    check("own_key: the model isn't asked and nothing is counted", own["answer"] is None and own["source"] == "own_key"
+          and len(sent) == calls and month() == counted, repr(own))
+    check("own_key: a fixed answer still comes from the agent",
+          ai_answers.draft(table, "u", {"question": "How did you hear about this job?", "own_key": True}, {}, run=model("x"),
+                           report=lambda total: None, now=NOW)["source"] == "fixed")
+    check("own_key: a question only the user answers is still refused, so the key doesn't answer it either",
+          refused("What is your biggest weakness?", "anything", own_key=True) == "only you can answer this one about yourself")
+
     # From the 2026-11-26 model benchmark: right answers the checks refused.
     table.put_item(Item={"user_id": "cv", "alert_id": apply.PLAN_ROW, "plan": "basic", "status": "active"})
     apply.put_profile(table, "cv", {"contact": {"location": "Tel Aviv, Israel"},

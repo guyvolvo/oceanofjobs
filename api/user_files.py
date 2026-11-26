@@ -178,13 +178,14 @@ def put_secrets(table, user_id: str, body: dict) -> dict:
     if "ai" in body:
         ai = body["ai"]
         if ai is None:
-            removes += ["ai_enc", "ai_provider", "ai_model"]
+            removes += ["ai_enc", "ai_provider", "ai_model", "ai_first"]
         else:
             provider, key, model = (str((ai or {}).get(k) or "").strip() for k in ("provider", "key", "model"))
             if not (provider and key) or len(provider) > 40 or len(key) > 400 or len(model) > 100:
                 raise ValueError("Choose a provider and enter your API key.")
-            sets += ["ai_enc = :k", "ai_provider = :p", "ai_model = :mo"]
-            values.update({":k": _encrypt(user_id, "ai", key), ":p": provider, ":mo": model})
+            # first: the extension uses the key before the plan's AI answers.
+            sets += ["ai_enc = :k", "ai_provider = :p", "ai_model = :mo", "ai_first = :f"]
+            values.update({":k": _encrypt(user_id, "ai", key), ":p": provider, ":mo": model, ":f": ai.get("first") is True})
     if sets or removes:
         expr = (("SET " + ", ".join(sets)) if sets else "") + ((" REMOVE " + ", ".join(removes)) if removes else "")
         kw = {"ExpressionAttributeValues": values} if values else {}
@@ -199,7 +200,8 @@ def get_secrets(table, user_id: str) -> dict:
     if r.get("mode") != "account":
         return {"workday": None, "ai": None}
     return {"workday": _decrypt(user_id, "workday", r["workday_enc"]) if r.get("workday_enc") else None,
-            "ai": {"provider": r["ai_provider"], "key": _decrypt(user_id, "ai", r["ai_enc"]), "model": r.get("ai_model") or ""}
+            "ai": {"provider": r["ai_provider"], "key": _decrypt(user_id, "ai", r["ai_enc"]), "model": r.get("ai_model") or "",
+                   "first": r.get("ai_first") is True}
             if r.get("ai_enc") else None}
 
 

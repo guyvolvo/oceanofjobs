@@ -290,18 +290,26 @@ async function draft(body) {
   }
 }
 
+// "Use my key first" in Settings: the server still gives the free answers
+// (saved, fixed, from the profile) and refuses what only the user answers,
+// and replies source 'own_key' where it would have called its model. Never
+// on Full automatic, which doesn't use the own key at all.
+const keyFirst = (ctx) => !!(ctx.ai && ctx.ai.key && ctx.ai.first) && ctx.settings.fill !== 'full';
+
 // A required question with no saved answer. Our server drafts (and saves)
 // it on every plan; a plan out of AI answers falls back to the user's own
-// key. undefined means skip the job. ctx.wroteIt says
-// whether the AI wrote this answer just now, for the Submit gate.
+// key, as does "Use my key first". undefined means skip the job. ctx.wroteIt
+// says whether the AI wrote this answer just now, for the Submit gate.
 async function answerUnknown(field, job, ctx) {
   ctx.wroteIt = false;
   if (ctx.serverAi) {
     try {
-      const { answer, source } = await draft(
-        { question: field.label, options: field.options || [], job: { id: job.id, title: job.title, company: job.company_name || job.company_domain } });
-      ctx.wroteIt = source === 'ai';
-      return fits(field, answer) ? answer : undefined;
+      const { answer, source } = await draft({ question: field.label, options: field.options || [], ...(keyFirst(ctx) ? { own_key: true } : {}),
+        job: { id: job.id, title: job.title, company: job.company_name || job.company_domain, location: job.location } });
+      if (source !== 'own_key') {
+        ctx.wroteIt = source === 'ai';
+        return fits(field, answer) ? answer : undefined;
+      }
     } catch (e) {
       // 402: the plan's AI answers ran out (or it has none), for the rest of the run.
       // Anything else (422, a 503, a timeout) leaves the question unanswered: the
@@ -1653,16 +1661,17 @@ async function watchHere(tabId, frameId, before, workday) {
 }
 
 // The AI's best answer for a page the user will review: our server, or
-// the user's own key once the plan's AI answers run out. Not saved as a saved answer.
+// the user's own key once the plan's AI answers run out or with "Use my key
+// first". Not saved as a saved answer.
 // Full automatic submits without that review, so it gets the strict draft
 // (facts only, quoted) like a run, never a suggestion or the own key.
 async function suggestAnswer(field, job, ctx) {
   const full = ctx.settings.fill === 'full';
   if (ctx.serverAi) {
     try {
-      const { answer } = await draft({ question: field.label, options: field.options || [], ...(full ? {} : { mode: 'suggest' }),
-        job: { id: job.id, title: job.title, company: job.company_name, location: job.location } });
-      return fits(field, answer) ? answer : undefined;
+      const { answer, source } = await draft({ question: field.label, options: field.options || [], ...(full ? {} : { mode: 'suggest' }),
+        ...(keyFirst(ctx) ? { own_key: true } : {}), job: { id: job.id, title: job.title, company: job.company_name, location: job.location } });
+      if (source !== 'own_key') return fits(field, answer) ? answer : undefined;
     } catch (e) {
       if (e.status !== 402) return undefined; // as in answerUnknown
       ctx.serverAi = false;

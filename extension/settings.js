@@ -70,7 +70,8 @@
           <label class="field" for="s-ai-provider">Provider<select class="input" id="s-ai-provider"><option value="">None</option></select></label>
           <label class="field" for="s-ai-key">API key<input class="input" type="password" id="s-ai-key" autocomplete="off" spellcheck="false"></label>
           <label class="field" for="s-ai-model">Model<input class="input" type="text" id="s-ai-model" spellcheck="false" placeholder="Model name"></label>
-          <p class="note">Used after your plan's monthly AI answers run out.</p>
+          <label class="switch"><input type="checkbox" role="switch" id="s-ai-first"><i aria-hidden="true"></i><span>Use my key instead of my plan's AI answers</span></label>
+          <p class="note">When off, your key is used after your plan's monthly AI answers run out. Full automatic always uses your plan's AI answers.</p>
           <div class="row"><button type="button" class="btn sm primary" id="s-ai-save">Save</button></div>
           <p class="note" id="s-ai-msg" role="status"></p>
         </details>
@@ -290,10 +291,23 @@
       // Asked here, on a click, because Chrome only grants host access from a user gesture.
       const granted = await chrome.permissions.request({ origins: [PROVIDERS[provider].origin] });
       if (!granted) return say('s-ai-msg', 'Not saved. Click Save and allow access.', true);
-      const r = await send({ type: 'storageSecrets', change: { ai: { provider, key, model } } });
+      const r = await send({ type: 'storageSecrets', change: { ai: { provider, key, model, first: $('s-ai-first').checked } } });
       if (r && r.error) return say('s-ai-msg', r.error, true);
       st = r;
       paint();
+      say('s-ai-msg', 'Saved.');
+    });
+    // With a key saved the switch saves itself; without one, Save takes it along.
+    $('s-ai-first').addEventListener('change', async () => {
+      const first = $('s-ai-first').checked;
+      const { ai } = await chrome.storage.local.get('ai');
+      if (!ai || !ai.key) return;
+      const r = await send({ type: 'storageSecrets', change: { ai: { ...ai, first } } });
+      if (r && r.error) {
+        $('s-ai-first').checked = !first;
+        return say('s-ai-msg', r.error, true);
+      }
+      st = r;
       say('s-ai-msg', 'Saved.');
     });
 
@@ -323,6 +337,7 @@
       $('s-ai-provider').value = ai ? ai.provider : '';
       $('s-ai-key').value = ai ? ai.key : '';
       $('s-ai-model').value = ai ? ai.model || '' : '';
+      $('s-ai-first').checked = !!(ai && ai.first);
     });
     st = { connected: false, mode: 'local', ready: false, cv: null, cvLink: null, workday: false, ai: null };
     paint();
