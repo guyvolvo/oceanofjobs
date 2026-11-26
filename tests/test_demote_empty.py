@@ -95,9 +95,9 @@ live = [row("rafael.co.il"), row("cellebrite.com"), row("added-midrun.com", "com
 real_pull = lts.s3_pull
 lts.s3_pull = lambda bucket, key, dest: (Path(dest).write_text(json.dumps(live)), (True, "etag"))[1]
 try:
-    kept = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
-                                              tmp / "baseline.json", tmp / "resolved.json",
-                                              exclude=set(demoted))
+    kept, _ = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
+                                                 tmp / "baseline.json", tmp / "resolved.json",
+                                                 exclude=set(demoted))
 finally:
     lts.s3_pull = real_pull
 out = {e["domain"] for e in json.loads((tmp / "known.json").read_text())}

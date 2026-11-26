@@ -33,11 +33,13 @@ merge_discovered_batch.py pops off the front of the queue is
 Israel-heaviest first, entirely inside the existing unattended cron --
 not a parallel manual process to keep running by hand.
 
-Never auto-merges into domains.txt -- outputs verified candidates for
-review, same discipline as every hand-verified companies.yml pin in
-this project. A guessed domain ({token}.com) resolving to a real
-website isn't proof it's the SAME company the token belongs to, just a
-plausible starting point worth a human glance before merging.
+Its output is merged unattended: refresh_discovery_queue.py queues it
+and merge_discovered_batch.py drains the queue into known.json (and
+domains.txt, workday-tenants.json or oracle-boards.json). A guessed
+domain ({token}.com) resolving to a real website isn't proof it's the
+SAME company the token belongs to, so each candidate carries
+domain_verified and the loader and the UI treat an unverified domain as
+a guess.
 
 Workable is the one ATS with a better source than Common Crawl. It
 publishes a search across every board it hosts, filterable by location,
@@ -141,7 +143,6 @@ CC_INDEXES_WORKDAY = CC_INDEXES + [
 # CC_DOMAIN_MATCH below names them.
 CC_URL_PATTERNS = {
     "greenhouse": "boards.greenhouse.io/*",
-    "lever": "jobs.lever.co/*",
     # Oracle Recruiting Cloud. f_oracle_cx has existed and been tested
     # for a while against four hand-pinned tenants; the only thing
     # missing was ever finding a fifth. Both halves of its "pod:site"
@@ -506,6 +507,35 @@ def load_already_tracked(ats: str) -> set[str]:
     resp = requests.get(f"{SITE_ORIGIN}/api/companies", params={"resolved_only": "1", "ats": ats}, timeout=15)
     resp.raise_for_status()
     return {c["token"].split(":")[0].lower() for c in resp.json()["companies"] if c.get("token")}
+
+
+# Candidates the merge probed and found nothing for
+# (merge_discovered_batch.py writes it). Skipped here so the same dead
+# board is not verified and queued again every day; an entry expires
+# after REJECTED_DAYS so a company that opens a board later is retried.
+REJECTED_PATH = Path(__file__).parent / "discovery-rejected.json"
+REJECTED_DAYS = 90
+
+
+def load_rejected(path: Path = REJECTED_PATH) -> list[dict]:
+    """The unexpired rejected entries. Missing or unreadable is an empty
+    list: the cost is a re-verify, not a lost company."""
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    cutoff = time.strftime("%Y-%m-%d", time.gmtime(time.time() - REJECTED_DAYS * 86400))
+    return [r for r in rows if isinstance(r, dict) and (r.get("rejected") or "") >= cutoff]
+
+
+def rotate(items: list, limit: int, day: int) -> list:
+    """`limit` items starting at a window that moves by `limit` each day,
+    so a pool larger than the limit is covered over consecutive days
+    instead of its alphabetical tail never being checked."""
+    if not items:
+        return []
+    start = (day * limit) % len(items)
+    return (items[start:] + items[:start])[:limit]
 
 
 _TRAILING_NUM_RE = re.compile(r"-?\d+$")
@@ -1058,7 +1088,8 @@ def main() -> int:
     # Comeet candidate is "uid:slug" while load_already_tracked reads
     # back bare uids, and every other ATS's token carries no colon at
     # all, so for them this is the same subtraction it always was.
-    new_tokens = sorted(t for t in tokens if t.split(":")[0].lower() not in known)
+    rejected = {r.get("token") for r in load_rejected() if r.get("ats") == args.ats and r.get("token")}
+    new_tokens = sorted(t for t in tokens if t.split(":")[0].lower() not in known and t not in rejected)
     print(f"  {len(new_tokens)} genuinely new candidates to verify", file=sys.stderr)
 
     # I/O-bound (waiting on each candidate's own ATS API + a domain HEAD
@@ -1067,7 +1098,7 @@ def main() -> int:
     # (not one shared across threads issuing the domain-guess HEAD
     # requests) avoids connection-pool contention at this width.
     results = []
-    to_check = new_tokens[: args.verify_limit]
+    to_check = rotate(new_tokens, args.verify_limit, time.gmtime().tm_yday)
     done = 0
 
     def _verify(token: str):

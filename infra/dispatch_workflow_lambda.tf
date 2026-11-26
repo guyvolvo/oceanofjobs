@@ -158,3 +158,23 @@ resource "aws_lambda_permission" "allow_eventbridge_dispatch_discover" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.dispatch_discover_companies.arn
 }
+
+# The dispatcher failing. Its GitHub token expired on 2026-10-08 and every
+# dispatch answered 401 from then on with nothing said, so the scheduled
+# discovery and merge workflows stopped starting. It fires every ten
+# minutes, so three errors in an hour is a real failure, not a blip.
+resource "aws_cloudwatch_metric_alarm" "dispatch_workflow_errors" {
+  alarm_name          = "${var.project_name}-dispatch-workflow-errors"
+  alarm_description   = "The workflow dispatcher Lambda failed three or more times in an hour, so scheduled GitHub workflows are not starting. Check its log for the HTTP status; a 401 is an expired GitHub token."
+  namespace           = "AWS/Lambda"
+  metric_name         = "Errors"
+  dimensions          = { FunctionName = aws_lambda_function.dispatch_workflow.function_name }
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 1
+  threshold           = 3
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}

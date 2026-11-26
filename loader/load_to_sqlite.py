@@ -2211,6 +2211,28 @@ def s3_push_conditional(bucket: str, key: str, src: Path, etag: str | None) -> b
     return True
 
 
+def s3_update_json(bucket: str, key: str, path: Path, change, attempts: int = 5) -> bool:
+    """Read-modify-write of a JSON object in S3 that loses no one else's
+    write. change(rows) gets the current contents (None when the key does
+    not exist) and returns the new contents, or None to write nothing.
+    The push only lands if the key is unchanged since the pull; on a
+    conflict it pulls again and re-applies change to the newer contents.
+    Returns whether anything was written. known.json has several writers
+    (the batch merge, targeted runs, the full sweep), and a plain
+    pull-modify-push let whichever finished last drop the others' adds."""
+    for _ in range(attempts):
+        existed, etag = s3_pull(bucket, key, path)
+        rows = json.loads(path.read_text(encoding="utf-8")) if existed else None
+        new = change(rows)
+        if new is None:
+            return False
+        path.write_text(json.dumps(new, ensure_ascii=False), encoding="utf-8")
+        if s3_push_conditional(bucket, key, path, etag):
+            return True
+        print(f"s3://{bucket}/{key} changed since it was read, reading it again", file=sys.stderr)
+    raise RuntimeError(f"s3://{bucket}/{key} kept changing, gave up after {attempts} attempts")
+
+
 def clear_placeholder_logos(conn: sqlite3.Connection) -> int:
     """Swap every placeholder logo for the no-logo marker, whichever
     path wrote it: the logo file, or discovery's own upsert. Twenty
@@ -2264,9 +2286,10 @@ def apply_company_logos(conn: sqlite3.Connection, path: Path) -> int:
 
 def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
                                    baseline: Path, resolved: Path,
-                                  exclude: set[str] | None = None) -> int:
+                                  exclude: set[str] | None = None) -> tuple[int, str | None]:
     """Add back to known_out every company that reached known.json while a
-    long run was going. Returns how many.
+    long run was going. Returns how many, and the ETag of the live file it
+    read, for the conditional push that must follow (main()).
 
     The daily sweep takes over two hours, and export_known() writes what
     the sweep itself resolved, from domains.txt as it was checked out at
@@ -2291,9 +2314,9 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
     by this run.
     """
     live_path = known_out.with_name(known_out.stem + "-live.json")
-    existed, _ = s3_pull(bucket, key, live_path)
+    existed, etag = s3_pull(bucket, key, live_path)
     if not existed:
-        return 0
+        return 0, None
     live = json.loads(live_path.read_text(encoding="utf-8"))
     try:
         # Only that it is there: without the run's starting point, nothing
@@ -2301,7 +2324,7 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
         json.loads(baseline.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         # No baseline to compare against: keep nothing rather than guess.
-        return 0
+        return 0, etag
     swept, unanswered = set(), set()
     for r in iter_resolved(resolved):
         swept.add(r.get("domain"))
@@ -2325,7 +2348,7 @@ def keep_companies_added_meanwhile(bucket: str, key: str, known_out: Path,
     if added:
         known.extend(added)
         known_out.write_text(json.dumps(known, ensure_ascii=False), encoding="utf-8")
-    return len(added)
+    return len(added), etag
 
 
 def export_known(conn: sqlite3.Connection, path: Path) -> int:
@@ -2636,18 +2659,26 @@ def main() -> int:
             return 0
 
         if args.known_baseline:
-            kept = keep_companies_added_meanwhile(args.bucket, args.known_key, known_out,
-                                                  args.known_baseline, args.resolved,
-                                                  exclude=set(demoted) | set(pruned))
+            # Conditional on the live file keep_companies_added_meanwhile
+            # read, so a company the batch merge adds between that read and
+            # this push is not wiped. On a conflict, start again from this
+            # run's own export against the newer live file.
+            export = known_out.read_bytes()
+            for _ in range(attempts):
+                known_out.write_bytes(export)
+                kept, live_etag = keep_companies_added_meanwhile(args.bucket, args.known_key, known_out,
+                                                                 args.known_baseline, args.resolved,
+                                                                 exclude=set(demoted) | set(pruned))
+                if s3_push_conditional(args.bucket, args.known_key, known_out, live_etag):
+                    break
+                print("known.json changed since it was read, reading it again", file=sys.stderr)
+            else:
+                print(f"known.json kept changing, not pushed after {attempts} attempts", file=sys.stderr)
+                return 1
             print(f"known.json: kept {kept} companies added while this run was going", file=sys.stderr)
-
-        # known.json has no reader that needs it pinned to one exact
-        # jobs.db version (the fast-poll just wants "the latest resolved
-        # companies," not a specific snapshot), so a plain overwrite here
-        # is fine even though jobs.db's own push just went through the
-        # conditional path -- no need to re-run the whole cycle over a
-        # conflict on this file alone.
-        s3_push(args.bucket, args.known_key, known_out)
+        else:
+            # No baseline means a wholesale replace by design (scrape-fast.yml's manual run).
+            s3_push(args.bucket, args.known_key, known_out)
         print(f"pushed known.json ({n_known} companies) to s3://{args.bucket}/{args.known_key}", file=sys.stderr)
         return 0
 

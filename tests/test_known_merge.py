@@ -65,9 +65,9 @@ try:
     lts.s3_pull = fake_pull
     try:
         # dropped.com left domains.txt: --prune-stale demoted it in this run.
-        n = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
-                                               tmp / "known-at-start.json", tmp / "resolved.json",
-                                               exclude={"dropped.com"})
+        n, etag = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
+                                                     tmp / "known-at-start.json", tmp / "resolved.json",
+                                                     exclude={"dropped.com"})
     finally:
         lts.s3_pull = real_pull
     out = {e["domain"] for e in json.loads((tmp / "known.json").read_text())}
@@ -76,6 +76,7 @@ try:
     check("a board that did not answer the run is kept", "eramtalent.com" in out, repr(out))
     check("a company the batch merge added before the run, never probed by it, is kept", "batch-merged.com" in out, repr(out))
     check("the count says how many", n == 4, repr(n))
+    check("and the ETag of the live file it read, for the conditional push", etag == "etag", repr(etag))
     check("the run's own answer stays", "old.com" in out)
     check("a company pruned from domains.txt (exclude) stays pruned", "dropped.com" not in out, repr(out))
     check("a company the run probed and lost stays lost", "swept-away.com" not in out, repr(out))
@@ -84,17 +85,17 @@ try:
     (tmp / "known.json").write_text(json.dumps(export))
     lts.s3_pull = lambda bucket, key, dest: (False, None)
     try:
-        n = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
-                                               tmp / "known-at-start.json", tmp / "resolved.json")
+        n, etag = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
+                                                     tmp / "known-at-start.json", tmp / "resolved.json")
     finally:
         lts.s3_pull = real_pull
-    check("no live file keeps nothing", n == 0 and json.loads((tmp / "known.json").read_text()) == export)
+    check("no live file keeps nothing", n == 0 and etag is None and json.loads((tmp / "known.json").read_text()) == export)
 
     # No baseline: keep nothing rather than guess which companies are new.
     lts.s3_pull = fake_pull
     try:
-        n = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
-                                               tmp / "missing.json", tmp / "resolved.json")
+        n, _ = lts.keep_companies_added_meanwhile("b", "known.json", tmp / "known.json",
+                                                  tmp / "missing.json", tmp / "resolved.json")
     finally:
         lts.s3_pull = real_pull
     check("no baseline keeps nothing", n == 0)

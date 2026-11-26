@@ -49,6 +49,8 @@ concurrency:
 permissions:
   id-token: write
   contents: write
+  # gh workflow run deploy-scrape-lambda.yml after new tenants or Oracle boards.
+  actions: write
 
 env:
   AWS_REGION: il-central-1
@@ -77,11 +79,15 @@ jobs:
         run: python merge_discovered_batch.py
 
       - name: Commit domains.txt + queue changes, if any
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add domains.txt pending-discovery-candidates.json workday-tenants.json
+          git add domains.txt pending-discovery-candidates.json workday-tenants.json oracle-boards.json discovery-rejected.json
           git diff --cached --quiet && echo "nothing changed this run" && exit 0
+          # The slow Lambda bundles these two lists, so a change has to be deployed (step below).
+          redeploy=$(git diff --cached --name-only -- workday-tenants.json oracle-boards.json)
           git commit -m "Merge one batch of discovered companies"
           # Rebase before pushing, and retry. This step ran a bare push and
           # lost a whole batch to it on 2026-09-16: the merge had already
@@ -91,18 +97,26 @@ jobs:
           # workflow racing itself, not racing a human or discover-companies.
           #
           # The queue file is the contended one, and it is rewritten wholesale
-          # rather than edited, so a rebase conflicts on it every time.
-          # -X theirs, not ours: during a rebase "ours" is the upstream being
-          # replayed onto and "theirs" is the commit being replayed, so theirs
-          # is this run's work. Verified rather than recalled, because the
-          # names read backwards. Keeping this run's version is what we want:
-          # it already popped those candidates and pushed their companies to
-          # known.json in S3, so restoring the remote's older queue would
-          # re-merge work that is done.
+          # rather than edited, so a rebase conflicts on it every time. It has
+          # its own merge driver (.gitattributes, scripts/merge_discovery_queue.py):
+          # this run's pops stay popped, since their companies are already in
+          # known.json, and candidates discovery added meanwhile stay queued,
+          # where -X theirs alone used to drop them. -X theirs still covers
+          # the other files: during a rebase "theirs" is the commit being
+          # replayed, this run's work.
+          git config merge.discovery-queue.driver "python \"$PWD/scripts/merge_discovery_queue.py\" %O %A %B"
+          pushed=
           for attempt in 1 2 3; do
-            if git push; then exit 0; fi
+            if git push; then pushed=1; break; fi
             git pull --rebase -X theirs origin main || git rebase --abort
             sleep $((attempt * 5))
           done
-          echo "push still rejected after 3 attempts" >&2
-          exit 1
+          if [ -z "$pushed" ]; then
+            echo "push still rejected after 3 attempts" >&2
+            exit 1
+          fi
+          # A push made with GITHUB_TOKEN starts no push-triggered workflow,
+          # so deploy-scrape-lambda.yml never saw new tenants; a dispatch does start it.
+          if [ -n "$redeploy" ]; then
+            gh workflow run deploy-scrape-lambda.yml --ref main
+          fi

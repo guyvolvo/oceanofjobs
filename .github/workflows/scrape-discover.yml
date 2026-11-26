@@ -245,30 +245,27 @@ jobs:
           from pathlib import Path
           sys.path.insert(0, 'loader')
           sys.path.insert(0, 'api')
-          from load_to_sqlite import iter_resolved, s3_pull, s3_push
+          from load_to_sqlite import iter_resolved, s3_update_json
           hits = [{'domain': r['domain'], 'ats': r['ats'], 'token': r.get('token')}
                   for r in iter_resolved('resolved.ndjson') if r.get('ats')]
           if not hits:
               print('nothing resolved, known.json untouched')
               raise SystemExit(0)
-          bucket = os.environ['DATA_BUCKET']
-          path = Path('known-targeted.json')
-          existed, _ = s3_pull(bucket, 'known.json', path)
-          if not existed:
-              print('known.json not in S3, leaving it for the full sweep to create')
-              raise SystemExit(0)
-          known = json.loads(path.read_text(encoding='utf-8'))
-          before = len(known)
-          by_domain = {e['domain']: e for e in known}
-          for r in hits:
-              by_domain[r['domain']] = {'domain': r['domain'], 'ats': r['ats'], 'token': r.get('token')}
-          merged = list(by_domain.values())
-          # The same guard in the other direction: an upsert can only grow
-          # the file or keep its size. Anything smaller means a bad pull.
-          assert len(merged) >= before, (len(merged), before)
-          path.write_text(json.dumps(merged, ensure_ascii=False), encoding='utf-8')
-          s3_push(bucket, 'known.json', path)
-          print(f'upserted {len(hits)} companies into known.json ({before} -> {len(merged)})')
+          def upsert(known):
+              if known is None:
+                  print('known.json not in S3, leaving it for the full sweep to create')
+                  return None
+              by_domain = {e['domain']: e for e in known}
+              for r in hits:
+                  by_domain[r['domain']] = r
+              merged = list(by_domain.values())
+              # The same guard in the other direction: an upsert can only grow
+              # the file or keep its size. Anything smaller means a bad pull.
+              assert len(merged) >= len(known), (len(merged), len(known))
+              print(f'upserting {len(hits)} companies into known.json ({len(known)} -> {len(merged)})')
+              return merged
+          # Conditional, so a batch merge or full sweep writing meanwhile is not overwritten.
+          s3_update_json(os.environ['DATA_BUCKET'], 'known.json', Path('known-targeted.json'), upsert)
           "
 
       - name: "Report status: idle"

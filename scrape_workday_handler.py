@@ -128,6 +128,9 @@ BIG_TECH_TIME_RESERVE_MS = 300_000
 # Discovery's Workday tenants (merge_discovered_batch.py writes it, the
 # deploy bundles it), read beside companies.yml's hand-verified pins.
 TENANTS_PATH = ROOT / "workday-tenants.json"
+# Discovery's Oracle boards, the same way (merge_discovered_batch.py
+# writes it, the deploy bundles it), read beside companies.yml's oracle pins.
+ORACLE_PATH = ROOT / "oracle-boards.json"
 # This Lambda's own poll state, the same shape and module as the fast
 # poll's (loader/scrape_state.py) under its own key: per tenant, when it
 # is next due and the fingerprint of its board when last read.
@@ -339,6 +342,17 @@ def _workday_entries() -> list[dict]:
     return entries
 
 
+def _oracle_boards() -> list[tuple[str, str, dict]]:
+    """oracle-boards.json as big-tech entries, minus any board
+    companies.yml already pins by domain or token."""
+    if not ORACLE_PATH.exists():
+        return []
+    pins = probe.PINS.get("oracle", {})
+    tokens = {str(p.get("token") or "").lower() for p in pins.values()}
+    return [("oracle", b["domain"], b) for b in json.loads(ORACLE_PATH.read_text(encoding="utf-8"))
+            if b["domain"] not in pins and b["token"].lower() not in tokens]
+
+
 def _this_run(state: dict, entries: list[dict]) -> list[dict]:
     """The tenants this run reads: every pin, then the rotation's most
     overdue. The pins are companies.yml's hand-verified employers, the
@@ -416,7 +430,7 @@ def lambda_handler(event, context):
     # needs, so nearly the whole 15 minutes goes to tenants.
     workday_only = bool((event or {}).get("workday_only"))
     reserve_ms = 180_000 if workday_only else WORKDAY_TIME_RESERVE_MS
-    big_tech = [] if workday_only else [(ats, domain, pin) for ats in BIG_TECH_ATS for domain, pin in probe.PINS.get(ats, {}).items()]
+    big_tech = [] if workday_only else [(ats, domain, pin) for ats in BIG_TECH_ATS for domain, pin in probe.PINS.get(ats, {}).items()] + _oracle_boards()
     if not entries and not big_tech:
         print("no workday tenants or big-tech pins, skipping")
         return {"skipped": True}
@@ -427,7 +441,10 @@ def lambda_handler(event, context):
         print(f"not due this run (every_hours): {', '.join(sorted(not_due))}")
     # Longest unread first. In a fixed order the same few sites used up the
     # time every run, and the ones after them went unread for weeks.
-    big_tech.sort(key=lambda t: polled.get(t[1]) or "")
+    # Pins ahead of discovered Oracle boards, so hundreds of those cannot
+    # push Google or Microsoft out of a run's time.
+    pinned = {d for ats in BIG_TECH_ATS for d in probe.PINS.get(ats, {})}
+    big_tech.sort(key=lambda t: (t[1] not in pinned, polled.get(t[1]) or ""))
     print(f"known state: {sum(len(v) for v in known_ids.values())} open jobs across "
           f"{len(known_ids)} companies")
 
