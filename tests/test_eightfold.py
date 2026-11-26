@@ -115,6 +115,57 @@ check("a tenant that refuses (403, as amdocs and qualcomm do) is a failed read",
       probe.f_eightfold(Sess(ROWS, fail_at=0), TOKEN) is None)
 check("an empty board is a failed read", probe.f_eightfold(Sess([], count=0), TOKEN) is None)
 
+
+# The pcsx API, for tenants the v2 call refuses. Trimmed from
+# jobs.amdocs.com on 2026-11-26: 10 rows a page, no description in the
+# list, the text from position_details.
+def pcsx_pos(jid, locations=("Raanana, Center District, Israel",)):
+    return {"id": jid, "displayJobId": "213469", "name": f"Role {jid}", "locations": list(locations),
+            "standardizedLocations": ["Ra'anana, Center District, IL"], "postedTs": 1795364652,
+            "creationTs": 1790010016, "department": "Engineering", "workLocationOption": "hybrid",
+            "positionUrl": f"/careers/job/{jid}"}
+
+
+class PcsxSess:
+    def __init__(self, rows, fail_start=None):
+        self.rows, self.fail_start, self.calls = rows, fail_start, []
+
+    def get(self, url, **kw):
+        self.calls.append(url)
+        if "/api/apply/v2/" in url:
+            return Resp(403, {"message": "Not authorized for PCSX"})
+        if "/position_details" in url:
+            jid = int(url.split("position_id=")[1].split("&")[0])
+            return Resp(200, {"status": 200, "data": {"id": jid, "jobDescription": f"<p>Text of {jid}</p>"}})
+        start = int(url.split("start=")[1].split("&")[0])
+        if start == self.fail_start:
+            return Resp(500, None)
+        return Resp(200, {"status": 200, "data": {"count": len(self.rows), "positions": self.rows[start:start + 10]}})
+
+
+AMDOCS = "jobs.amdocs.com:amdocs.com"
+PCSX_ROWS = [pcsx_pos(563431014933800 + i) for i in range(23)]
+sess = PcsxSess(PCSX_ROWS)
+jobs = probe.f_eightfold(sess, AMDOCS, known_ids={"563431014933801"}, description_budget=1)
+check("pcsx: a tenant v2 refuses is read through pcsx, every page",
+      jobs is not None and len(jobs) == 23 and any("/api/apply/v2/" in c for c in sess.calls), jobs and len(jobs))
+check("pcsx: asks for every location",
+      all("&location=&" in c for c in sess.calls if "/pcsx/search" in c), sess.calls)
+j = jobs[0]
+check("pcsx: title, place, link, date, department, workplace",
+      (j.title, j.location, j.url, j.department, j.workplace_type)
+      == ("Role 563431014933800", "Raanana, Center District, Israel",
+          "https://jobs.amdocs.com/careers/job/563431014933800", "Engineering", "hybrid")
+      and (j.posted_at or "").startswith("2026-"), j)
+check("pcsx: the country resolves", probe._fill_classifications([j], "amdocs.com")[0].country == "IL")
+check("pcsx: descriptions only for undescribed roles, within the budget",
+      [x.external_id for x in jobs if x.description] == ["563431014933800"]
+      and "Text of 563431014933800" in jobs[0].description, [(x.external_id, x.description) for x in jobs[:3]])
+check("pcsx: no budget, no detail calls",
+      not any("position_details" in c for c in (lambda s: (probe.f_eightfold(s, AMDOCS), s.calls)[1])(PcsxSess(PCSX_ROWS))))
+check("pcsx: a page that fails part way fails the read",
+      probe.f_eightfold(PcsxSess(PCSX_ROWS, fail_start=10), AMDOCS) is None)
+
 # Wiring.
 check("registered as a fetcher", probe.FETCHERS.get("eightfold") is probe.f_eightfold)
 check("polls hourly, not in the five-minute sweep", "eightfold" in probe.SLOW_BOARD_ATS)
@@ -122,6 +173,9 @@ pin = probe.load_pins().get("eightfold", {}).get("tevapharm.com", {})
 check("tevapharm.com is pinned to its careers host and tenant", pin.get("token") == TOKEN, repr(pin))
 check("tevapharm.com is in the sweep",
       "tevapharm.com" in (ROOT / "domains.txt").read_text(encoding="utf-8").split())
+for domain, token in [("amdocs.com", AMDOCS), ("qualcomm.com", "careers.qualcomm.com:qualcomm.com")]:
+    check(f"{domain} is pinned to its careers host and tenant",
+          probe.load_pins().get("eightfold", {}).get(domain, {}).get("token") == token)
 os.environ.setdefault("DATA_BUCKET", "unused-in-this-test")
 import scrape_workday_handler  # noqa: E402
 check("the hourly Lambda polls it", "eightfold" in scrape_workday_handler.BIG_TECH_ATS)

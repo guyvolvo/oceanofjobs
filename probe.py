@@ -61,13 +61,13 @@ except ImportError:
 # running probe.py straight from the repo root, where job_filters.py
 # still lives under api/.
 try:
-    from countries import city_string, country_string
+    from countries import city_string, country_string, label_for
     from job_filters import IL_KEYWORDS
     from skills import SKILL_LABELS, extract_labels
     from same_company import SAME_COMPANY
 except ImportError:
     sys.path.insert(0, str(Path(__file__).with_name("api")))
-    from countries import city_string, country_string
+    from countries import city_string, country_string, label_for
     from job_filters import IL_KEYWORDS
     from skills import SKILL_LABELS, extract_labels
     from same_company import SAME_COMPANY
@@ -2949,18 +2949,72 @@ def f_oracle_cx(sess, token, known_ids=None, description_budget=None):
 # slug has neither a dot nor a colon, so this makes no request until a
 # pin names it.
 #
-# Not every tenant is open. Amdocs and Qualcomm answer this exact call
-# with 403 {"message": "Not authorized for PCSX"}, so a pin has to be
-# verified against the tenant before it lands, the same as Workday's.
+# Two APIs, and a tenant may answer only one. Teva answers
+# /api/apply/v2/jobs. Amdocs and Qualcomm answer that with 403 {"message":
+# "Not authorized for PCSX"} but serve /api/pcsx/search, the newer one
+# Microsoft's own fetcher reads (2026-11-26). The v2 call goes first and
+# pcsx is the fallback, so a pin needs no flag for which one it is.
 #
 # Paging is the server's to decide: it answered 10 rows to num=100 on
 # 2026-09-18, so the next offset is however many came back, never the
 # number asked for. Advancing by the requested size skipped 498 of Teva's
 # 558 jobs while looking like it had read them all.
 EIGHTFOLD_PAGE = 100
-EIGHTFOLD_MAX_JOBS = 2000
+EIGHTFOLD_MAX_JOBS = 3000
 _EIGHTFOLD_LIST = ("https://{host}/api/apply/v2/jobs?domain={domain}"
                    "&start={start}&num={num}&sort_by=timestamp")
+# No location: every place comes back, 10 rows a page. Rows that share a
+# timestamp swap places between page requests, so a read can miss a few
+# (2,007 of Qualcomm's 2,067 on 2026-11-26, as f_microsoft also can); the
+# loader closes a role only after three complete reads without it.
+_EIGHTFOLD_PCSX = "https://{host}/api/pcsx/search?domain={domain}&query=&location=&start={start}"
+_EIGHTFOLD_PCSX_DETAIL = "https://{host}/api/pcsx/position_details?position_id={jid}&domain={domain}&hl=en"
+
+
+def _eightfold_pcsx(sess, token, host, domain, known_ids, description_budget):
+    def search(start):
+        d = _oracle_get(sess, _EIGHTFOLD_PCSX.format(host=host, domain=domain, start=start))
+        data = d.get("data") if isinstance(d, dict) else None
+        if not isinstance(data, dict) or not isinstance(data.get("positions"), list):
+            return None
+        return data
+
+    first = search(0)
+    if first is None or not first["positions"]:
+        return None
+    total = int(first.get("count") or 0)
+    # Rows but no total means the field moved: page 1 alone would close
+    # every role past it.
+    if not total:
+        return None
+    size = len(first["positions"])
+    rest = _fetch_all(search, list(range(size, min(total, EIGHTFOLD_MAX_JOBS), size)))
+    if rest is None:
+        return None
+    _capped(total, EIGHTFOLD_MAX_JOBS)
+    rows = {}
+    for data in [first, *rest]:
+        for p in data["positions"]:
+            if _txt(p.get("id")):
+                rows.setdefault(_txt(p.get("id")), p)
+
+    def detail(jid):
+        d = _oracle_get(sess, _EIGHTFOLD_PCSX_DETAIL.format(host=host, domain=domain, jid=jid))
+        data = d.get("data") if isinstance(d, dict) else None
+        return _clean_text(data.get("jobDescription")) if isinstance(data, dict) else None
+
+    bodies = _new_bodies(rows, known_ids, description_budget, detail)
+    out = []
+    for jid, p in rows.items():
+        body = bodies.get(jid)
+        out.append(Job("eightfold", token, jid, _txt(p.get("name")),
+                       "; ".join(dict.fromkeys(_txt(x) for x in p.get("locations") or [] if _txt(x))),
+                       f"https://{host}{_txt(p.get('positionUrl')) or '/careers/job/' + jid}",
+                       _epoch_date(p.get("postedTs") or p.get("creationTs")),
+                       _txt(p.get("department")) or None,
+                       len(body or ""), body,
+                       workplace_type=_ATS_WORKPLACE_MAP.get(_txt(p.get("workLocationOption")).lower())))
+    return out
 
 
 def f_eightfold(sess, token, known_ids=None, description_budget=None):
@@ -2969,7 +3023,13 @@ def f_eightfold(sess, token, known_ids=None, description_budget=None):
     host, _, domain = token.partition(":")
     if "." not in host or not domain:
         return None
+    jobs = _eightfold_v2(sess, token, host, domain)
+    if jobs is None:
+        jobs = _eightfold_pcsx(sess, token, host, domain, known_ids, description_budget)
+    return jobs
 
+
+def _eightfold_v2(sess, token, host, domain):
     rows, total = [], None
     while True:
         payload = _oracle_get(sess, _EIGHTFOLD_LIST.format(
@@ -3628,6 +3688,290 @@ def f_deel(sess, token, known_ids=None, description_budget=None):
     return out or None
 
 
+def _new_bodies(ids, known_ids, description_budget, fetch):
+    """{id: description} for the ids not described yet, up to the budget
+    the hourly Lambda passes. No budget means none, so a CLI or nightly
+    read costs only the listing. Four at a time: these are companies' own
+    web servers, not APIs built for it."""
+    budget = description_budget if description_budget is not None else 0
+    wanted = [i for i in ids if not (known_ids and i in known_ids)][:budget]
+    if not wanted:
+        return {}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return dict(zip(wanted, pool.map(fetch, wanted)))
+
+
+# Israeli employers that list roles on their own sites, with no ATS
+# behind them. Each site is its own shape, so each has its own small
+# reader, keyed on the careers host (or listing URL) and making no
+# request until a pin names it. Hebrew throughout, so every location
+# ends in Israel: the regions these sites name ("השרון", "גוש דן") are
+# not places the country reader knows on their own.
+#
+# Bank Leumi. /he/leumi_main/searchjobs renders every open role into
+# one page, each with its full text, so one request reads the board.
+# The sitemap lists the same ids at /he/about/career/Job/{id}, which is
+# the link kept. Each role's text opens with a stock paragraph hidden by
+# an inline display:none, which is dropped.
+_LEUMI_ID_RE = re.compile(r'name="job_checkbox" value="(\d+)"')
+_LEUMI_TITLE_RE = re.compile(r'<button aria-expanded="false">(.*?)</button>', re.S)
+_LEUMI_AREA_RE = re.compile(r'<div class="area" role="cell">.*?<span>(.*?)</span>', re.S)
+_LEUMI_DEPT_RE = re.compile(r'department-text">.*?<a[^>]*>(.*?)</a>', re.S)
+_HIDDEN_SPAN_RE = re.compile(r'<span style="display:\s*none;?">.*?</span>', re.S)
+
+
+def f_leumi(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "." not in token or "/" in token:
+        return None
+    page = _html_page(sess, f"https://{token}/he/leumi_main/searchjobs")
+    if page is None:
+        return None
+    out = []
+    for row in page.split('<div class="table-row')[1:]:
+        jid, title = _LEUMI_ID_RE.search(row), _LEUMI_TITLE_RE.search(row)
+        if not jid or not title:
+            continue
+        area = _LEUMI_AREA_RE.search(row)
+        places = [p.strip() for p in html.unescape(area.group(1)).splitlines() if p.strip()] if area else []
+        dept = _LEUMI_DEPT_RE.search(row)
+        body = row.split('<div class="job-content">', 1)[1] if '<div class="job-content">' in row else ""
+        out.append(Job("leumi", token, jid.group(1), _strip_tags(title.group(1)),
+                       f"{'; '.join(places)}, Israel" if places else "Israel",
+                       f"https://{token}/he/about/career/Job/{jid.group(1)}",
+                       department=_strip_tags(dept.group(1)) if dept else None,
+                       description=_clean_text(_HIDDEN_SPAN_RE.sub("", body))))
+    for j in out:
+        j.description_chars = len(j.description or "")
+    if not out:
+        print(f"leumi {token}: no roles on the page ({len(page)} bytes)", file=sys.stderr)
+    return out or None
+
+
+# Bank Hapoalim. The lobby (/he/jobs-site/lobby, Drupal behind Imperva)
+# lists roles ten at a time and loads the rest through an AJAX route
+# that Imperva refuses to anything but a browser. A lobby showing a full
+# ten may have more behind it, and returning those ten would close the
+# rest, so that read is refused. Each role's page (/he/node/N) has the
+# text. requests keeps the cookie Imperva sets on the first redirect.
+_HAPOALIM_ROW_RE = re.compile(r'<a href="/he/node/(\d+)" class="views-row job">(.*?)</a>', re.S)
+_HAPOALIM_NAME_RE = re.compile(r'<div class="job-name"[^>]*>(.*?)</div>', re.S)
+_HAPOALIM_AREA_RE = re.compile(r'<div class="job-area">(.*?)</div>', re.S)
+_HAPOALIM_LIMIT_RE = re.compile(r'"number_to_display":"(\d+)"')
+_HAPOALIM_BODY_RE = re.compile(r'<div class="job-content-description-text">(.*?)</div>', re.S)
+
+
+def f_hapoalim(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "." not in token or "/" in token:
+        return None
+    try:
+        r = sess.get(f"https://{token}/he/jobs-site/lobby", timeout=40,
+                     headers={"User-Agent": _BROWSER_UA, "Accept": "text/html"})
+    except requests.RequestException as e:
+        print(f"hapoalim {token}: {e!r}", file=sys.stderr)
+        return None
+    if r.status_code != 200:
+        print(f"hapoalim {token}: lobby answered {r.status_code}", file=sys.stderr)
+        return None
+    # Imperva moves the site under /forms; a role's page answers 404 off it.
+    page, base = r.text, (r.url or "").split("/he/jobs-site")[0] or f"https://{token}"
+    rows = {}
+    for nid, card in _HAPOALIM_ROW_RE.findall(page):
+        name = _HAPOALIM_NAME_RE.search(card)
+        if name and nid not in rows:
+            places = [_strip_tags(a) for a in _HAPOALIM_AREA_RE.findall(card) if _strip_tags(a)]
+            rows[nid] = (_strip_tags(name.group(1)), places)
+    limit = _HAPOALIM_LIMIT_RE.search(page)
+    if not rows or len(rows) >= int(limit.group(1) if limit else 10):
+        print(f"hapoalim {token}: {len(rows)} roles on the lobby, refusing an empty or possibly partial read",
+              file=sys.stderr)
+        return None
+
+    def body(nid):
+        detail = _html_page(sess, f"{base}/he/node/{nid}")
+        m = _HAPOALIM_BODY_RE.search(detail or "")
+        return _clean_text(m.group(1)) if m else None
+
+    bodies = _new_bodies(rows, known_ids, description_budget, body)
+    return [Job("hapoalim", token, nid, title, f"{'; '.join(places)}, Israel" if places else "Israel",
+                f"https://{token}/he/node/{nid}", description_chars=len(bodies.get(nid) or ""),
+                description=bodies.get(nid))
+            for nid, (title, places) in rows.items()]
+
+
+# Mizrahi Tefahot. The open-jobs page renders every role as a card with
+# its region, field and a short blurb; the role's own page (the card's
+# slug under the listing) has the full text. The token is the listing
+# URL without its scheme, and the slug is the id. The blurb stands in
+# until the full text has been read.
+_MIZRAHI_ATTR_RE = re.compile(r'data-job(regions|fields)="([^"]*)"')
+_MIZRAHI_TITLE_RE = re.compile(r"<h3>(.*?)</h3>", re.S)
+_MIZRAHI_SLUG_RE = re.compile(r'class="toggler[^"]*" href="([\w-]+)"')
+_MIZRAHI_BLURB_RE = re.compile(r'<div class="jobDescription">(.*?)<a class="toggler', re.S)
+_MIZRAHI_BODY_RE = re.compile(r'<div class="jobDetails">(.*?)<div class="job-buttons">', re.S)
+
+
+def f_mizrahi(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "/" not in token or "." not in token.split("/", 1)[0]:
+        return None
+    listing = f"https://{token.rstrip('/')}/"
+    page = _html_page(sess, listing)
+    if page is None:
+        return None
+    rows = {}
+    for card in page.split('class="job filterItem"')[1:]:
+        title, slug = _MIZRAHI_TITLE_RE.search(card), _MIZRAHI_SLUG_RE.search(card)
+        if not title or not slug or slug.group(1) in rows:
+            continue
+        attrs = {k: html.unescape(v) for k, v in _MIZRAHI_ATTR_RE.findall(card)}
+        places = list(dict.fromkeys(p.strip() for p in attrs.get("regions", "").split("|") if p.strip()))
+        blurb = _MIZRAHI_BLURB_RE.search(card)
+        rows[slug.group(1)] = (_strip_tags(title.group(1)), places, attrs.get("fields", "").strip() or None,
+                               _clean_text(blurb.group(1)) if blurb else None)
+    if not rows:
+        print(f"mizrahi {token}: no roles on the page ({len(page)} bytes)", file=sys.stderr)
+        return None
+
+    def body(slug):
+        m = _MIZRAHI_BODY_RE.search(_html_page(sess, f"{listing}{slug}/") or "")
+        return _clean_text(m.group(1)) if m else None
+
+    bodies = _new_bodies(rows, known_ids, description_budget, body)
+    out = []
+    for slug, (title, places, field, blurb) in rows.items():
+        # The blurb only for a role never described: sent for one that
+        # was, it would replace the full text the loader already has.
+        text = bodies.get(slug) or (None if known_ids and slug in known_ids else blurb)
+        out.append(Job("mizrahi", token, slug, title, f"{'; '.join(places)}, Israel" if places else "Israel",
+                       f"{listing}{slug}/", department=field, description_chars=len(text or ""),
+                       description=text))
+    return out
+
+
+# Maccabi Healthcare Services. The search page fills itself from one
+# JSON route, /api/maccabi/SearchJobsApi/FilterJobs, which answers every
+# public role with its full text in "Notes". AdvertisingDestination "1"
+# is what the public page sends; leaving it out adds roles the page
+# never shows. 425 roles on 2026-11-26, 2.5 MB, hence the long timeout.
+MACCABI_PAGE = 500
+
+
+def f_maccabi(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "." not in token or "/" in token:
+        return None
+    rows, total = [], None
+    while total is None or len(rows) < total:
+        body = {"Areas": [], "Professions": [], "Jobs": [], "FreeText": "", "ResultsPerPage": MACCABI_PAGE,
+                "PageNumber": len(rows) // MACCABI_PAGE, "AdvertisingDestination": "1"}
+        try:
+            r = sess.post(f"https://{token}/api/maccabi/SearchJobsApi/FilterJobs", json=body, timeout=40,
+                          headers={"User-Agent": _BROWSER_UA, "Accept": "application/json"})
+            d = r.json() if r.status_code == 200 else None
+        except (requests.RequestException, ValueError) as e:
+            print(f"maccabi {token}: {e!r}", file=sys.stderr)
+            return None
+        page = d.get("Results") if isinstance(d, dict) else None
+        # A page that fails or comes back short is not "these closed".
+        if not isinstance(page, list) or not page:
+            print(f"maccabi {token}: page {body['PageNumber']} gave no roles", file=sys.stderr)
+            return None
+        total = int(d.get("TotalResults") or 0) if total is None else total
+        rows.extend(page)
+    out = []
+    for j in rows:
+        jid = _txt(j.get("JobId")) or _txt(j.get("Id"))
+        title = _strip_tags(_txt(j.get("Description")) or _txt(j.get("Title")))
+        if not jid or not title:
+            continue
+        places = [_txt(a.get("Description")).strip() for a in j.get("Areas") or [] if isinstance(a, dict)]
+        out.append(Job("maccabi", token, jid, title,
+                       f"{'; '.join(p for p in places if p)}, Israel" if any(places) else "Israel",
+                       _txt(j.get("JobUrl")) or f"https://{token}/careers/search-job-positions/",
+                       department=_txt(j.get("Profession")).strip() or None,
+                       description=_clean_text(j.get("Notes"))))
+        out[-1].description_chars = len(out[-1].description or "")
+    return out or None
+
+
+# SAP SuccessFactors Career Site Builder, the careers site many large
+# employers run on SuccessFactors. ICL is the first. The token is the
+# career site's host, so any tenant is a pin away.
+#
+# /search/ is the same table a visitor pages through, 25 rows at a time,
+# with "Results 1 - 25 of N" above it: id, title, place and date. The
+# sitemap and the RSS feed are no good for this: the RSS stops at 20,
+# and the sitemap is rebuilt about weekly. Each role's page carries
+# schema.org microdata with the full text, read for new roles within
+# the hourly budget. A table that ends before N is a partial read and
+# is refused.
+SF_MAX_JOBS = 3000
+_SF_TOTAL_RE = re.compile(r'paginationLabel"[^>]*>.*?of\s*<b>([\d,.]+)</b>', re.S)
+_SF_LINK_RE = re.compile(r'<a href="(/job/[^"]+/(\d+)/)" class="jobTitle-link">(.*?)</a>', re.S)
+_SF_PLACE_RE = re.compile(r'<span class="jobLocation">\s*(.*?)\s*</span>', re.S)
+_SF_DATE_RE = re.compile(r'<span class="jobDate">\s*(.*?)\s*</span>', re.S)
+_SF_BODY_RE = re.compile(r'itemprop="description"[^>]*>(.*?)(?:<div class="joblayouttoken|</body>)', re.S)
+
+
+def _sf_date(s):
+    for fmt in ("%d %b %Y", "%b %d, %Y", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(s.strip(), fmt).replace(tzinfo=timezone.utc).isoformat()
+        except ValueError:
+            continue
+    return None
+
+
+def _sf_location(s):
+    """"City, [state,] CC, postcode", e.g. "Haifa, IL" or "Ladenburg, DE,
+    68526". The bare codes read as US states (IL is Illinois, DE
+    Delaware), so the postcode goes and the code becomes its country's
+    name. "DE +1 more" is the table naming a first place only."""
+    text = re.sub(r"\s*\+\d+ more\W*$", "", _strip_tags(s))
+    parts = [p.strip() for p in text.split(",") if p.strip() and not re.search(r"\d", p)]
+    if parts and re.fullmatch(r"[A-Z]{2}", parts[-1]):
+        parts[-1] = label_for(parts[-1])
+    return ", ".join(parts)
+
+
+def f_successfactors(sess, token, known_ids=None, description_budget=None):
+    if not isinstance(token, str) or "." not in token or "/" in token:
+        return None
+    rows, total = {}, None
+    while total is None or len(rows) < min(total, SF_MAX_JOBS):
+        page = _html_page(sess, f"https://{token}/search/?q=&sortColumn=referencedate"
+                                f"&sortDirection=desc&startrow={len(rows)}")
+        if page is None:
+            return None
+        if total is None:
+            m = _SF_TOTAL_RE.search(page)
+            total = int(re.sub(r"\D", "", m.group(1))) if m else 0
+            if not total:
+                print(f"successfactors {token}: no result count on the search page", file=sys.stderr)
+                return None
+        before = len(rows)
+        for row in page.split('<tr class="data-row')[1:]:
+            link = _SF_LINK_RE.search(row)
+            if not link or link.group(2) in rows:
+                continue
+            place, date = _SF_PLACE_RE.search(row), _SF_DATE_RE.search(row)
+            rows[link.group(2)] = (link.group(1), _strip_tags(link.group(3)),
+                                   _sf_location(place.group(1)) if place else "",
+                                   _sf_date(date.group(1)) if date else None)
+        if len(rows) == before:
+            print(f"successfactors {token}: page at {before} of {total} was empty, refusing a partial read",
+                  file=sys.stderr)
+            return None
+    _capped(total, SF_MAX_JOBS)
+
+    def body(jid):
+        m = _SF_BODY_RE.search(_html_page(sess, f"https://{token}{rows[jid][0]}") or "")
+        return _clean_text(m.group(1)) if m else None
+
+    bodies = _new_bodies(rows, known_ids, description_budget, body)
+    return [Job("successfactors", token, jid, title, where, f"https://{token}{path}", posted,
+                description_chars=len(bodies.get(jid) or ""), description=bodies.get(jid))
+            for jid, (path, title, where, posted) in rows.items()]
+
+
 # Ordered by how often each one actually wins, because the guess loop
 # below tries them in this order and stops at the first hit. The old
 # order was roughly the order they were written in, which put personio
@@ -3684,6 +4028,13 @@ FETCHERS: dict[str, Callable] = {
     "hibob": f_hibob,
     "gem": f_gem,
     "deel": f_deel,
+    # Israeli employers' own sites, and SuccessFactors keyed on a host.
+    # See the notes above f_leumi and f_successfactors.
+    "leumi": f_leumi,
+    "hapoalim": f_hapoalim,
+    "mizrahi": f_mizrahi,
+    "maccabi": f_maccabi,
+    "successfactors": f_successfactors,
 }
 
 # Boards too big or too slow for the five-minute sweep. They poll from the
@@ -3691,7 +4042,8 @@ FETCHERS: dict[str, Callable] = {
 # state so a run only describes jobs it has not seen.
 # Read by scrape_workday_handler.py in this order, never by the fast sweep.
 BIG_TECH_ATS = ("microsoft", "google", "apple", "amazon", "checkpoint", "wpjobs", "oracle",
-                "eightfold", "redmatch", "wprest", "tycowp", "matrix")
+                "eightfold", "redmatch", "wprest", "tycowp", "matrix",
+                "leumi", "hapoalim", "mizrahi", "maccabi", "successfactors")
 SLOW_BOARD_ATS = frozenset({"workday", *BIG_TECH_ATS})
 
 # Comeet: not guessable like the ATSes above. The API needs an opaque
