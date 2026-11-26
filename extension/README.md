@@ -8,7 +8,7 @@ Plain JavaScript, Manifest V3, no build step and no dependencies.
 
 1. Open `chrome://extensions` and turn on Developer mode.
 2. Click "Load unpacked" and pick this `extension/` folder.
-3. Open the extension's settings and add your CV (PDF or DOCX, up to 5 MB).
+3. Open the extension's settings and add your CV (PDF or DOCX, up to 5 MB): upload a file, or pick Link and paste a public share link (Google Drive, Google Docs as PDF, Dropbox, OneDrive or any https address). `background.js` downloads the link's file into the same `cv` every filler reads, downloads it again at a run or fill once the copy is 6 hours old (a failed download keeps the last copy and shows the error in Settings), and keeps the uploaded file aside so switching back needs no new upload; the link stays on this browser (`cvLink`), and in cloud storage only the downloaded file goes to the account.
 4. On https://oceanofjobs.com/account#autoapply, connect the extension.
 
 ## Connecting without copy and paste
@@ -58,6 +58,7 @@ On any other site the card fills the form, and offers "Submit application" too w
 - `scripting`, `activeTab`: fill the tab the popup was opened on. No `tabs` permission.
 - Host permissions: oceanofjobs.com for the API, and the job and application sites our listings come from, one pattern per ATS where it has its own domain: Greenhouse, Ashby, Workable, Lever, SmartRecruiters, Recruitee, Personio, Teamtailor, Breezy, Comeet, Workday, Oracle Recruiting Cloud, Deel, JazzHR (applytojob.com), Pinpoint, BambooHR, Jobvite, HiBob, Gem, Eightfold, Niloosoft (hunterhrms.com), the big tech careers sites (Amazon, Microsoft, Apple, Check Point, Ness) and the Israeli boards we read (Experis, Matrix, Nogamy, Yael Group, Clalit's RedMatch board, IAI). google.com is left out: Chrome ignores the path in a host permission, so `/about/careers/` would mean all of Google. Sources whose jobs live only on company domains (WordPress boards, Recruitee and Personio custom domains) are covered by the optional access below.
 - Optional `https://*/*`: every https site. The popup asks for it the first time "Fill in this page" is clicked on a site outside the host permissions, with a line saying why. It asks once (`allSitesAsked`, saved before the answer since the prompt can close the popup), so a no is never asked again from the popup; Settings has a toggle that asks or removes it. When granted, `background.js` registers `lib/match.js`, `ats/generic.js` and `detect.js` for every https page except oceanofjobs.com and the ATS sites (`detect-all`, all frames, `document_idle`, kept across restarts), and drops them again when the access is removed (`chrome.permissions.onAdded` and `onRemoved`).
+- Optional access to a resume link's host and the hosts its download redirects to (`lib/cvlink.js`, under the optional `https://*/*`, e.g. drive.google.com and drive.usercontent.google.com): asked when the user saves the link.
 - Optional access to the AI provider's API host (`lib/providers.js`, under the optional `https://*/*`): asked when the user saves their own AI key.
 
 Adding hosts to `host_permissions` makes Chrome disable the extension for existing users on update until they accept the new sites. The optional access never does.

@@ -1,4 +1,4 @@
-importScripts('lib/providers.js', 'lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js', 'ats/generic.js', 'ats/workday.js');
+importScripts('lib/providers.js', 'lib/cvlink.js', 'lib/match.js', 'ats/greenhouse.js', 'ats/ashby.js', 'ats/workable.js', 'ats/generic.js', 'ats/workday.js');
 
 const API = 'https://oceanofjobs.com/api';
 // One job at a time, so a full run is a few minutes; the plan and the
@@ -692,7 +692,7 @@ let running = false;
 // that is a copy, refreshed from the account here (syncStorage), and
 // every change made in Settings goes to both.
 async function storageState() {
-  const local = await chrome.storage.local.get(['token', 'authError', 'cv', 'cvSavedAt', 'workday', 'ai', 'storageMode']);
+  const local = await chrome.storage.local.get(['token', 'authError', 'cv', 'cvSavedAt', 'cvLink', 'workday', 'ai', 'storageMode']);
   let view = null;
   if (local.token && !local.authError) view = await api('/me/storage').catch((e) => ({ error: e.status || 0 }));
   return {
@@ -700,6 +700,7 @@ async function storageState() {
     mode: view && !view.error ? view.mode : local.storageMode || 'local',
     ready: !!(view && view.ready),
     cv: local.cv ? { name: local.cv.name, type: local.cv.type, size: local.cv.size, savedAt: local.cvSavedAt || null } : null,
+    cvLink: local.cvLink || null,
     workday: !!(local.workday && local.workday.password),
     ai: local.ai ? { provider: local.ai.provider, model: local.ai.model || '' } : null,
   };
@@ -720,8 +721,12 @@ async function syncStorage() {
     if (!view.ai && local.ai && local.ai.key) up.ai = local.ai;
     if (Object.keys(up).length) await api('/me/storage/secrets', { method: 'PUT', body: up });
   }
-  const local = await chrome.storage.local.get(['cv', 'cvSavedAt']);
-  if (!view.cv) {
+  const local = await chrome.storage.local.get(['cv', 'cvSavedAt', 'cvLink']);
+  // A browser on a resume link keeps the link's file; refreshCvLink puts it on the account.
+  const ownLink = local.cvLink && local.cvLink.mode === 'link';
+  if (ownLink) {
+    // nothing comes down
+  } else if (!view.cv) {
     if (local.cv) await chrome.storage.local.remove(['cv', 'cvSavedAt']);
   } else if (!local.cv || local.cvSavedAt !== view.cv.uploaded_at) {
     const file = await api('/me/cv');
@@ -759,14 +764,13 @@ async function setStorageMode(mode, consent) {
   return storageState();
 }
 
-async function saveCv(cv) {
+async function saveCv(cv, savedAt = new Date().toISOString()) {
   const { storageMode } = await chrome.storage.local.get('storageMode');
   if (!cv) {
     if (storageMode === 'account') await api('/me/cv', { method: 'DELETE' });
     await chrome.storage.local.remove(['cv', 'cvSavedAt']);
     return storageState();
   }
-  let savedAt = new Date().toISOString();
   if (storageMode === 'account') savedAt = (await api('/me/cv', { method: 'PUT', body: { ...cv, consent: true } })).cv.uploaded_at;
   await chrome.storage.local.set({ cv, cvSavedAt: savedAt });
   return storageState();
@@ -788,12 +792,117 @@ async function saveSecrets(change) {
   return storageState();
 }
 
+// A resume at a share link (lib/cvlink.js), kept per browser in cvLink:
+// {url, mode: 'link' | 'file', fetchedAt, error}. In link mode `cv` holds
+// the link's file, so every filler reads it as before, and the uploaded
+// file waits in cvUpload until the member picks "Upload a file" again. On
+// the account the link's file is uploaded like any other. It is fetched
+// again at a run and before a fill once the copy is CV_LINK_HOURS old; a
+// failed fetch keeps the last good copy and leaves the error for Settings.
+const CV_LINK_HOURS = 6;
+const MAX_CV = 5 * 1024 * 1024;
+const CV_PDF = 'application/pdf';
+const CV_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const LINK_NOT_PUBLIC = "This link isn't public. Share the file with anyone who has the link, then save again.";
+const LINK_NOT_CV = "The file at this link isn't a PDF or DOCX.";
+const LINK_TOO_BIG = 'The file at this link is larger than 5 MB.';
+const LINK_UNREACHABLE = "Couldn't reach this link. Check it and try again.";
+
+async function fetchCvLink(link) {
+  const url = oojCvLink.direct(link);
+  if (!url) throw new Error(LINK_UNREACHABLE);
+  let res, bytes;
+  try {
+    // Without cookies: the copy has to be the one anyone with the link gets.
+    res = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(30000) });
+    if (res.status === 401 || res.status === 403) throw new Error(LINK_NOT_PUBLIC);
+    if (!res.ok) throw new Error(LINK_UNREACHABLE);
+    if (+res.headers.get('content-length') > MAX_CV) throw new Error(LINK_TOO_BIG);
+    // shortcut: a response with no length is read whole before the size check; fine for share hosts, which send one.
+    bytes = new Uint8Array(await res.arrayBuffer());
+  } catch (e) {
+    throw [LINK_NOT_PUBLIC, LINK_TOO_BIG].includes(e.message) ? e : new Error(LINK_UNREACHABLE);
+  }
+  if (bytes.length > MAX_CV) throw new Error(LINK_TOO_BIG);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  // By the bytes, not the name or content type: Drive sends octet-stream.
+  const type = bin.startsWith('%PDF') ? CV_PDF : bin.startsWith('PK\x03\x04') && bin.includes('word/document.xml') ? CV_DOCX : null;
+  if (!type) {
+    // A sign-in, permission or virus scan page instead of the file.
+    const html = /text\/html/i.test(res.headers.get('content-type') || '') || /^\s*</.test(bin.slice(0, 512));
+    throw new Error(html ? LINK_NOT_PUBLIC : LINK_NOT_CV);
+  }
+  const ext = type === CV_PDF ? '.pdf' : '.docx';
+  const cd = res.headers.get('content-disposition') || '';
+  const raw = (cd.match(/filename\*\s*=\s*(?:[\w-]+'[^']*')?"?([^";]+)/i) || cd.match(/filename\s*=\s*"?([^";]+)/i) || [])[1]
+    || [res.url, url].map((a) => (a ? new URL(a).pathname.split('/').pop() : '')).find((n) => /\.(pdf|docx)$/i.test(n));
+  let name = raw || 'Resume';
+  try { name = decodeURIComponent(name); } catch { /* kept as sent */ }
+  name = name.trim() || 'Resume';
+  if (!name.toLowerCase().endsWith(ext)) name = name.replace(/\.(pdf|docx?)$/i, '') + ext;
+  return { name, type, size: bytes.length, data: btoa(bin) };
+}
+
+// Save in Settings (and picking "Link" again): fetch the link and use its
+// file. An empty link removes it and brings the uploaded file back.
+async function saveCvLink(link) {
+  const s = await chrome.storage.local.get(['cv', 'cvSavedAt', 'cvLink']);
+  const inLink = s.cvLink && s.cvLink.mode === 'link';
+  if (!link) {
+    if (inLink) await useCvFile();
+    await chrome.storage.local.remove('cvLink');
+    return storageState();
+  }
+  let cv;
+  try {
+    cv = await fetchCvLink(link);
+  } catch (e) {
+    return { error: e.message };
+  }
+  await saveCv(cv);
+  await chrome.storage.local.set({
+    cvLink: { url: link, mode: 'link', fetchedAt: new Date().toISOString(), error: null },
+    ...(!inLink && s.cv ? { cvUpload: { cv: s.cv, savedAt: s.cvSavedAt } } : {}),
+  });
+  if (!inLink && !s.cv) await chrome.storage.local.remove('cvUpload');
+  return storageState();
+}
+
+// "Upload a file" in Settings: the uploaded file is the one used again.
+async function useCvFile() {
+  const { cvLink, cvUpload } = await chrome.storage.local.get(['cvLink', 'cvUpload']);
+  if (!cvLink || cvLink.mode !== 'link') return storageState();
+  await saveCv(cvUpload ? cvUpload.cv : null, cvUpload ? cvUpload.savedAt : undefined);
+  await chrome.storage.local.set({ cvLink: { ...cvLink, mode: 'file' } });
+  await chrome.storage.local.remove('cvUpload');
+  return storageState();
+}
+
+async function refreshCvLink() {
+  const { cvLink, cv } = await chrome.storage.local.get(['cvLink', 'cv']);
+  if (!cvLink || cvLink.mode !== 'link' || Date.now() - Date.parse(cvLink.fetchedAt) < CV_LINK_HOURS * 3600 * 1000) return;
+  let error = null;
+  try {
+    const next = await fetchCvLink(cvLink.url);
+    // The same file again goes nowhere, so the account isn't sent it every 6 hours.
+    if (!cv || next.data !== cv.data) await saveCv(next);
+  } catch (e) {
+    error = e instanceof HttpError ? UNREACHABLE : e.message;
+  }
+  // Settings may have changed the link while the fetch was out.
+  const { cvLink: now } = await chrome.storage.local.get('cvLink');
+  if (!now || now.url !== cvLink.url || now.mode !== 'link') return;
+  await chrome.storage.local.set({ cvLink: { ...now, error, ...(error ? {} : { fetchedAt: new Date().toISOString() }) } });
+}
+
 async function run() {
   if (running) return;
   running = true;
   try {
     // With the settings on the account, another computer may have changed them.
     if ((await chrome.storage.local.get('token')).token) await syncStorage().catch(() => {});
+    await refreshCvLink();
     const st = await chrome.storage.local.get(['token', 'paused', 'cv', 'ai']);
     if (!st.token) return;
     await flushOutbox();
@@ -1023,6 +1132,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, info) => {
 });
 
 async function fillHere(msg, tabId, frameId) {
+  await refreshCvLink();
   const st = await chrome.storage.local.get(['cv', 'ai']);
   if (!st.cv) return { error: NO_CV };
   const name = adapterFor(msg.url);
@@ -1263,6 +1373,7 @@ async function fillTab(tabId) {
 // loading is the account already being fetched for this fill, if any.
 async function assist(tabId, frameId, name, page, url, title, loading) {
   if (page.error) return { error: page.error };
+  await refreshCvLink();
   const st = await chrome.storage.local.get(['cv', 'ai']);
   let a;
   try {
@@ -1675,7 +1786,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (msg.type === 'openOptions') { chrome.runtime.openOptionsPage(); reply({ ok: true }); return false; }
   // The settings view (settings.js), in the popup or its tab.
   const storageCall = { storageState: () => storageState(), storageSync: () => syncStorage().then(storageState, storageState),
-    storageMode: () => setStorageMode(msg.mode, msg.consent), storageCv: () => saveCv(msg.cv), storageSecrets: () => saveSecrets(msg.change) }[msg.type];
+    storageMode: () => setStorageMode(msg.mode, msg.consent), storageCv: () => saveCv(msg.cv),
+    storageCvLink: () => saveCvLink(msg.url), storageCvFile: () => useCvFile(), storageSecrets: () => saveSecrets(msg.change) }[msg.type];
   if (storageCall) {
     storageCall().then(reply, (e) => reply({ error: (e.body && e.body.error) || (e.status === 401 ? EXPIRED : UNEXPECTED) }));
     return true;
