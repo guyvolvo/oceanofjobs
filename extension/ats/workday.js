@@ -89,8 +89,10 @@
     return at ? { at } : { error: 'application form not found' };
   }
 
-  const problem = () => {
-    const el = $('errorMessage') || [...document.querySelectorAll('[role="alert"]')].find((e) => shown(e) && e.innerText.trim());
+  // Workday's error message, else any alert's text. errorsOnly (after
+  // Submit): not a bare alert, since a notice that it went in is one too.
+  const problem = (errorsOnly) => {
+    const el = $('errorMessage') || (!errorsOnly && [...document.querySelectorAll('[role="alert"]')].find((e) => shown(e) && e.innerText.trim()));
     return el ? el.innerText.trim().slice(0, 200) : '';
   };
   const VERIFY = /verify (your )?(email|account)|verification (email|link|code)|check your (email|inbox)|we (have )?sent (you )?an email/i;
@@ -98,7 +100,10 @@
   // Signs in, or creates the account when Workday has none for the email.
   // 'in' once past it, {verify: true} when Workday emailed a link to click
   // first, {failed: reason} otherwise. Never fills the "beecatcher" trap.
-  async function account(email, password) {
+  // Workday makes no account without its terms box ticked: ticked only
+  // when terms is true, which the caller passes only when the user saved a Workday
+  // password in Settings (automatic account creation). Never otherwise.
+  async function account(email, password, terms) {
     if (!(await waitFor(() => $('signInContent'), 10000))) return 'in';
     const byEmail = $('SignInWithEmailButton');
     if (byEmail) press(byEmail);
@@ -126,7 +131,10 @@
     type($('verifyPassword'), password);
     await sleep(400);
     const agree = $('createAccountCheckbox');
-    if (agree && !agree.checked) press(agree);
+    if (agree && !agree.checked) {
+      if (terms !== true) return { failed: 'Workday account: accept its terms on the page, then try again' };
+      press(agree);
+    }
     await sleep(600);
     pressButton($('createAccountSubmitButton'));
     const made = await waitFor(() => (!$('signInContent') ? 'in' : VERIFY.test(text()) ? 'verify' : problem()), 20000);
@@ -161,7 +169,7 @@
     const until = Date.now() + ms;
     for (;;) {
       if (!$('pageFooterNextButton') && !$('bottom-navigation-next-button') && DONE.test(text())) return 'submitted';
-      const fresh = problem();
+      const fresh = problem(true);
       if (fresh && !(before.errors || []).includes(fresh)) return { failed: 'form errors: ' + fresh };
       if (Date.now() >= until) return root.oojAts.generic.outcome(before, 1000, true);
       await sleep(500);

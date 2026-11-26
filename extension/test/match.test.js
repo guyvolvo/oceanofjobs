@@ -513,3 +513,35 @@ test('mustAnswer: a question about a qualification is not an agreement', () => {
   assert.equal(yn('Please confirm that the information above is accurate'), 'Yes');
   assert.equal(yn('I confirm I have read the job description'), 'Yes');
 });
+
+test('phone_code and phone_country come from the phone first, the location only without a +', () => {
+  const p = (phone, location) => ({ contact: { phone, location } });
+  for (const key of ['phone_code', 'phone_country']) {
+    assert.equal(m.profileValue(key, p('+972 58-785-8580', 'Berlin, Germany')), 'Israel', key);
+    assert.equal(m.profileValue(key, p('+972 58-785-8580', 'Tel Aviv')), 'Israel', key);
+    assert.equal(m.profileValue(key, p('058-785-8580', 'Tel Aviv, Israel')), 'Israel', key + ' with no +');
+  }
+  assert.equal(m.profileValue('country', p('+972 58-785-8580', 'Berlin, Germany')), 'Germany', 'country is where they live');
+  assert.equal(m.nationalNumber('058-785-8580'), '058-785-8580');
+});
+
+test('pickOption: a yes or no that starts two options is no match', () => {
+  const where = ['Yes, within Israel', 'Yes, internationally', 'No'];
+  assert.equal(m.pickOption(where, 'Yes'), -1);
+  assert.equal(m.pickOption(where, 'No'), 2);
+  assert.equal(m.pickOption(['Yes', 'No'], 'Yes'), 0);
+  assert.equal(m.pickOption(['Yes, I am', 'No, I am not'], 'No'), 1);
+});
+
+test('decline picks "I don\'t want to answer"', () => {
+  assert.equal(m.pickOption(['Male', 'Female', "I don't want to answer"], 'decline'), 2);
+  assert.equal(m.pickOption(['Yes', 'No', 'I do not want to say'], 'decline'), 2);
+});
+
+test('numberValue: what a number box can take', () => {
+  const want = { '50,000': '50000', '$50,000': '50000', '€ 1.234,5': '1234.5', '120000': '120000', '2,5': '2.5', '3.75': '3.75', '1,234.56': '1234.56' };
+  for (const [v, n] of Object.entries(want)) assert.equal(m.numberValue(v), n, v);
+  for (const v of ['30 days', '', '1-2', '50k']) assert.equal(m.numberValue(v), undefined, v);
+  assert.equal(m.fitsType({ type: 'number' }, '$50,000'), true);
+  assert.equal(m.fitsType({ type: 'number' }, '30 days'), false);
+});
