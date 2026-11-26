@@ -1,7 +1,8 @@
 // Workers AI for the box: POST https://oceanofjobs.com/__ai
 //
 // The API (api/ai_answers.py) drafts answers to application questions
-// with a small model. It calls this Worker rather than Cloudflare's REST
+// with gpt-oss-20b, chosen 2026-11-26 by a benchmark of 7 Workers AI
+// models on 47 questions: no wrong answers, where Llama 3.1 8B gave 4. It calls this Worker rather than Cloudflare's REST
 // API, so no Cloudflare API token exists for it anywhere: the model is a
 // binding (env.AI). The only credential is AI_KEY, a random secret shared
 // with the box by scripts/deploy_ai_worker.py and never printed.
@@ -14,7 +15,9 @@
 //
 // Deployed by scripts/deploy_ai_worker.py.
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
+const MODEL = "@cf/openai/gpt-oss-20b";
+// Output tokens include the model's reasoning (about 40 for a yes or no).
+const MAX_OUT = 800;
 const MAX_BODY = 16384;
 
 function reply(status, body) {
@@ -45,10 +48,13 @@ export default {
     if (!messages || !messages.every((m) => m && typeof m.content === "string" && ["system", "user"].includes(m.role))) {
       return reply(400, { error: "messages must be system and user turns" });
     }
-    const maxTokens = Math.min(Number(body.max_tokens) || 200, 300);
+    const maxTokens = Math.min(Number(body.max_tokens) || 600, MAX_OUT);
     try {
-      const out = await env.AI.run(MODEL, { messages, max_tokens: maxTokens });
-      return reply(200, { response: out.response ?? "", usage: out.usage ?? null, model: MODEL });
+      const out = await env.AI.run(MODEL, { input: messages, reasoning: { effort: "low" }, max_output_tokens: maxTokens });
+      // The answer is the message item; the reasoning item before it is never sent on.
+      const text = (out.output || []).filter((o) => o.type === "message").flatMap((o) => o.content || []).map((c) => c.text || "").join("");
+      const u = out.usage;
+      return reply(200, { response: text, usage: u ? { prompt_tokens: u.input_tokens, completion_tokens: u.output_tokens } : null, model: MODEL });
     } catch (e) {
       return reply(502, { error: "model failed", detail: String(e && e.message || e).slice(0, 200) });
     }

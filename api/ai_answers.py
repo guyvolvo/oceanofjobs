@@ -5,10 +5,10 @@ saved answer for, the extension asks here; we ask Cloudflare Workers AI
 with only the user's own application profile, and save what comes back
 as a new saved answer, so the same question is never paid for twice.
 
-Cost (2026-10-20 prices): Llama 3.1 8B fp8-fast is $0.045 / $0.384 per
-million input / output tokens, $0.011 per 1,000 neurons, 10,000 neurons
-a day free. A typical answer is about 7 neurons, so the free tier covers
-about 1,500 answers a day. Every call's neurons are added to a daily
+Cost (2026-11-26 prices): gpt-oss-20b is $0.20 / $0.30 per million
+input / output tokens, $0.011 per 1,000 neurons, 10,000 neurons a day
+free. A typical answer is about 14 neurons (output includes the model's
+reasoning), so the free tier covers about 700 answers a day. Every call's neurons are added to a daily
 total and sent to CloudWatch (AINeuronsToday), and infra/alarms.tf
 emails at 80% of the free 10,000.
 
@@ -34,12 +34,12 @@ import agent
 import apply
 import countries
 
-MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast"  # fixed in infra/ai-worker.mjs too; the rates below are its
+MODEL = "@cf/openai/gpt-oss-20b"  # fixed in infra/ai-worker.mjs too; the rates below are its
 AI_URL = "https://oceanofjobs.com/__ai"
 AI_KEY_FILE = os.environ.get("AI_KEY_FILE", "/var/lib/otj/ai-worker.key")
 # Neurons per million tokens: the model's $ price over $0.011 per 1,000 neurons.
-NEURONS_PER_M_IN = 0.045 / 0.011 * 1000
-NEURONS_PER_M_OUT = 0.384 / 0.011 * 1000
+NEURONS_PER_M_IN = 0.20 / 0.011 * 1000
+NEURONS_PER_M_OUT = 0.30 / 0.011 * 1000
 # AI answers a month, per plan. Protection against runaway use, far above
 # what an honest month needs (two new questions per application). Free
 # gets enough for its 10 applications, so a first application works
@@ -55,7 +55,7 @@ RATE_ROW = "#ai_rate"
 # and settles to what it really used after. The 80% alarm only emails;
 # this refuses. About $0.45 a day past the free 10,000.
 DAILY_NEURONS = 50_000
-MAX_OUT = 200  # max_tokens sent to the Worker (workers_ai)
+MAX_OUT = 600  # max_tokens sent to the Worker (workers_ai), reasoning included
 MAX_QUESTION = 500
 # Each saved answer as background for the model. Saved answers may be 4,000
 # characters, and 30 of them made one call about 15 times its usual size.
@@ -162,7 +162,7 @@ def workers_ai(messages: list[dict]) -> tuple[str, int, int]:
         key = ""
     if not key:
         raise NotConfigured("AI answers are not configured")
-    req = urllib.request.Request(AI_URL, data=json.dumps({"messages": messages, "max_tokens": 200}).encode(),
+    req = urllib.request.Request(AI_URL, data=json.dumps({"messages": messages, "max_tokens": MAX_OUT}).encode(),
                                  headers={"x-ooj-ai-key": key, "Content-Type": "application/json",
                                           "User-Agent": "oceanofjobs-api"})
     try:
@@ -285,6 +285,16 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
         value = agent.pick_option(value, options) if options else value
         if value is not None:
             return {"answer": value, "remaining": remaining, "suggested": suggest, "source": "profile"}
+    # "Will you need visa sponsorship?" for a job in one country, from the
+    # same list. Every model benchmarked said "Yes" for a job in a country
+    # the applicant may already work in.
+    sponsor = profile["work"]["needs_sponsorship"]
+    job_countries = countries.countries_of(where)
+    if agent.asks_sponsorship(question) and len(job_countries) == 1 and sponsor is not None:
+        value = "No" if sponsor is False or job_countries[0] in authorized else "Yes"
+        value = agent.pick_option(value, options) if options else value
+        if value is not None:
+            return {"answer": value, "remaining": remaining, "suggested": suggest, "source": "profile"}
     saved = agent.saved_answer(profile, question, job_id)
     if saved and (not options or agent.pick_option(saved["answer"], options)):
         return {"answer": agent.pick_option(saved["answer"], options) if options else saved["answer"], "remaining": remaining,
@@ -342,7 +352,9 @@ def draft(table, user_id: str, body: dict, prefs: dict, run=workers_ai, report=_
     report(_count(table, SYSTEM_USER, day, round(neurons(p, c) - held, 2)))
     # Checked before it's counted or saved: a refused answer costs the user
     # nothing (the service's neurons above are still counted).
-    facts_text = " ".join([json.dumps(known, ensure_ascii=False), " ".join(f["text"] for f in ag["facts"])])
+    # As JSON a line break is the two characters \n, which glued an "n" to
+    # the first word of every CV line ("nhebrew"), and quotes of it failed.
+    facts_text = " ".join([json.dumps(known, ensure_ascii=False).replace("\\n", " "), " ".join(f["text"] for f in ag["facts"])])
     allowed = " ".join([facts_text, job_text, question, " ".join(options)])
     try:
         text = agent.check_answer(text, options=options, allowed=allowed, never_claim=ag["never_claim"], length=ag["style"]["length"],
