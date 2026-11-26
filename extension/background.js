@@ -456,7 +456,9 @@ async function intoWorkday(tabId, ctx, job) {
     ({ workday } = await chrome.storage.local.get('workday'));
     if (!workday || !workday.password) return 'no Workday password';
   }
-  let signed = await inTab(tabId, 'workday', 'account', [email, workday.password]).catch(() => null);
+  // true: Workday makes no account without its terms box, and making the
+  // account is what the user turned on (README, Fill in this page).
+  let signed = await inTab(tabId, 'workday', 'account', [email, workday.password, true]).catch(() => null);
   // A new account sends some sites to their own sign-in page; the redirect
   // can land a moment after the page reports loaded.
   await new Promise((res) => setTimeout(res, 2000));
