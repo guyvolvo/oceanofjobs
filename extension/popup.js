@@ -69,6 +69,7 @@ const FILL = {
   review: ['Review answers', false],
   done: ['Ready to review', true],
   sent: ['Application sent', true],
+  unconfirmed: ["Couldn't confirm. Check the page.", true],
 };
 let fillState = 'checking';
 function setFill(state) {
@@ -85,7 +86,7 @@ async function detect() {
   const tab = await activeTab();
   if (!tab) return setFill('none');
   const { [filledKey(tab)]: filled } = await chrome.storage.session.get(filledKey(tab));
-  if (filled && filled.url === tab.url) return setFill(filled.sent ? 'sent' : filled.review ? 'review' : 'done');
+  if (filled && filled.url === tab.url) return setFill(filled.sent === 'unconfirmed' ? 'unconfirmed' : filled.sent ? 'sent' : filled.review ? 'review' : 'done');
   const r = await chrome.runtime.sendMessage({ type: 'pageState', tabId: tab.id }).catch(() => null);
   setFill((r && r.state) || 'none');
 }
@@ -130,11 +131,11 @@ $('fill').addEventListener('click', async () => {
   out.hidden = false;
   if (!r || r.error) return detect();
   // Sent or maybe sent: pressing again could send it twice.
-  const sent = !!(r.sent && (r.sent.submitted || r.sent.unknown));
+  const sent = r.sent && r.sent.submitted ? 'sent' : r.sent && r.sent.unknown ? 'unconfirmed' : '';
   const needsLook = !sent && (r.missing.length > 0 || r.suggested > 0);
   const now = await activeTab();
   await chrome.storage.session.set({ [filledKey(now)]: { url: now.url, frameId: r.frameId || 0, review: needsLook, sent } });
-  setFill(sent ? 'sent' : needsLook ? 'review' : 'done');
+  setFill(sent || (needsLook ? 'review' : 'done'));
 });
 
 let paused = false;

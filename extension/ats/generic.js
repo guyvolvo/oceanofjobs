@@ -575,8 +575,9 @@
   const typeable = (el) => el.tagName === 'INPUT' && !el.readOnly;
 
   // The options a custom dropdown shows once open: in the list it points
-  // at, else anywhere on the page.
-  function listOf(el) {
+  // at, else anywhere on the page, less those in stale (options already
+  // on the page before a location was typed: another field's list).
+  function listOf(el, stale) {
     const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
     const doc = scope(el);
     const lists = [...new Set([el.getAttribute('aria-controls'), el.getAttribute('aria-owns'), input && input.getAttribute('aria-controls')])]
@@ -585,7 +586,7 @@
       .concat(el.id ? deep(doc, '[role="listbox"][aria-labelledby]').filter((l) => l.getAttribute('aria-labelledby').split(/\s+/).includes(el.id)) : []);
     // Not Workday's chosen-value pills: they are options too, and on show beside every closed dropdown.
     const opts = (lists.length ? lists : [el.ownerDocument]).flatMap((l) => deep(l, '[role="option"]'))
-      .filter((o) => shown(o) && !o.closest('[data-automation-id="selectedItemList"]'));
+      .filter((o) => shown(o) && !o.closest('[data-automation-id="selectedItemList"]') && !(stale && !lists.length && stale.has(o)));
     return opts.length && opts;
   }
 
@@ -626,7 +627,9 @@
   // Typeahead and custom dropdowns: type, then pick from what the list shows.
   async function chooseOption(el, value, key, options) {
     const input = el.tagName === 'INPUT' ? el : deep(el, 'input')[0];
-    const listed = () => listOf(el);
+    // A place picks the first suggestion, so only a list tied to the box or one that appeared after typing counts.
+    const stale = key === 'location' ? new Set(deep(el.ownerDocument, '[role="option"]')) : null;
+    const listed = () => listOf(el, stale);
     const prompt = !!input && input.getAttribute('data-uxi-widget-type') === 'selectinput';
     // Already showing it (Workday sets Country Phone Code from Country): left alone, never reopened.
     if (chosen(el).some((t) => root.oojMatch.pickOption([t], value) === 0)) return null;
@@ -688,9 +691,11 @@
     }
     if (f.type === 'combobox') return chooseOption(el, f.value, f.key, f.options);
     if (el.type === 'date' && !/^\d{4}-\d\d-\d\d$/.test(f.value)) return 'needs a date';
-    setValue(el, f.value);
+    // Chrome empties a number box given "50,000".
+    const value = el.type === 'number' ? root.oojMatch.numberValue(f.value) ?? f.value : f.value;
+    setValue(el, value);
     leave(el);
-    return null;
+    return String(value).trim() && !el.value ? `the field did not take "${f.value}"` : null;
   }
 
   // A site that uploads the CV the moment it is attached shows it doing
@@ -872,11 +877,13 @@
     return before;
   }
 
-  // What the form flags: fields marked invalid, else visible error text.
+  // What the form flags: fields marked invalid, else visible text in an
+  // element whose class says error. Not any role=alert: a success notice
+  // ("Done! We got your details.") is one too.
   function fieldErrors(f) {
     const bad = deep(f, '[aria-invalid="true"]').filter(shown).map((el) => tidy(labelOf(el, f)));
     if (!bad.length) {
-      bad.push(...deep(f, '[role="alert"], [class*="error" i], [class*="invalid" i]')
+      bad.push(...deep(f, '[class*="error" i], [class*="invalid" i]')
         .filter((el) => shown(el) && !deep(el, CONTROLS).length).map((el) => clean(el.innerText)).filter((t) => t.length < 200));
     }
     return [...new Set(bad.filter(Boolean))];

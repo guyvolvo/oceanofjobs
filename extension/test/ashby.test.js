@@ -103,3 +103,14 @@ test('outcome: success, failure text, captcha, field errors', () => {
   assert.deepEqual(ashby.decide({ errors: ['Email is required'] }), { failed: 'form errors: Email is required' });
   assert.equal(ashby.decide({ errors: [] }), null);
 });
+
+test('a typed date keeps its day east of UTC', () => {
+  const tz = process.env.TZ;
+  process.env.TZ = 'Asia/Jerusalem';
+  try {
+    const { usDate } = require('../ats/ashby.js');
+    for (const v of ['January 15, 2027', '01/15/2027', '2027-01-15']) assert.equal(usDate(v, new Date(v)), '01/15/2027', v);
+  } finally {
+    if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz;
+  }
+});

@@ -389,9 +389,10 @@
           clearInterval(watch);
           send({ type: 'settleHere', result: out && out.failed ? out : null });
           msg.className = 'msg warn';
-          if (out && /^form errors/i.test(out.failed)) {
-            // The site's own errors: nothing was sent and the credit is back.
-            msg.textContent = `Not submitted: ${reasonText(out.failed).replace(/\.$/, '')}. Fix the issue on the form, then try again.`;
+          // The same rule as afterClick in background.js: these were not
+          // sent and the credit is back, so Submit stays.
+          if (out && /^(form errors|captcha|ashby will not take|submit button not found)/i.test(out.failed)) {
+            msg.textContent = sentText(out);
             go.disabled = false;
             go.textContent = 'Submit application';
           } else {

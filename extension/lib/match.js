@@ -175,8 +175,9 @@
       case 'email': return blank(c.email);
       case 'phone': return blank(c.phone);
       case 'location': return blank(c.location);
-      case 'phone_country': case 'country': return countryOf(c.location);
-      case 'phone_code': return countryOf(c.location) || callingCountry(c.phone);
+      case 'country': return countryOf(c.location);
+      // The phone's own code first: +972 with a Berlin address is still Israel.
+      case 'phone_country': case 'phone_code': return callingCountry(c.phone) || countryOf(c.location);
       case 'phone_type': return blank(c.phone) && 'Mobile';
       case 'linkedin': return blank(l.linkedin);
       case 'github': return blank(l.github);
@@ -221,7 +222,7 @@
     return near ? String(near.answer) : undefined;
   }
 
-  const DECLINE = /decline|dont wish|do not wish|prefer not|choose not|rather not|not to (answer|disclose|say|self identify)/;
+  const DECLINE = /decline|dont wish|do not wish|prefer not|choose not|rather not|not to (answer|disclose|say|self identify)|(dont|do not) want to (answer|disclose|say)/;
 
   // Index of the option that says what `answer` says, or -1. A loose match
   // that fits two options is no match: "protected veteran" is in both "I am
@@ -237,7 +238,7 @@
     if (want === 'decline') return opts.findIndex((o) => DECLINE.test(o));
     const exact = opts.indexOf(want);
     if (exact >= 0) return exact;
-    if (want === 'yes' || want === 'no') return opts.findIndex((o) => o.split(' ')[0] === want);
+    if (want === 'yes' || want === 'no') return only((o) => o.split(' ')[0] === want);
     // A phone country list: "United States +1", next to "United States Minor Outlying Islands +1" or "U.S. Virgin Islands +1".
     const coded = only((o) => o.replace(/( \d+)+$/, '') === want);
     if (coded >= 0) return coded;
@@ -245,12 +246,21 @@
     return start >= 0 ? start : only((o) => (' ' + o + ' ').includes(' ' + want + ' '));
   }
 
+  // What a number box can take: "$50,000" as "50000", "1.234,5" as "1234.5",
+  // "2,5" as "2.5". undefined when it is not one number ("30 days").
+  function numberValue(value) {
+    const s = String(value == null ? '' : value).replace(/[\s\p{Sc}]/gu, '');
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) return s.replace(/,/g, '');
+    if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return s.replace(/\./g, '').replace(',', '.');
+    return /^-?\d+([.,]\d+)?$/.test(s) ? s.replace(',', '.') : undefined;
+  }
+
   // Ashby number and date inputs take nothing else, so "30 days" into a
   // number field is a missing answer rather than a failed application. The
   // only file we have is the CV, and that is planned before this.
   function fitsType(field, value) {
     if (field.type === 'file') return false;
-    if (field.type === 'number') return /^\s*-?\d+([.,]\d+)?\s*$/.test(value);
+    if (field.type === 'number') return numberValue(value) !== undefined;
     if (field.type === 'date') return !Number.isNaN(Date.parse(value));
     return true;
   }
@@ -586,7 +596,7 @@
   const jobish = (text) => JOBISH.test(String(text || ''));
 
   const api = {
-    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, planFill, isEeo, isStatement, mustAnswer, suggestable,
+    notJobSite, jobish, pickFrame, normalise, classify, nationalNumber, profileValue, findAnswer, pickOption, fitsType, numberValue, planFill, isEeo, isStatement, mustAnswer, suggestable,
     appliedToday, isBlocked, screenJob, pickJobs, withQueued, budget, autoSubmit, holdCode, countryOf, plural, reasonText, filledText, sentText, SUBMITTED, UNCONFIRMED,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

@@ -404,6 +404,7 @@ const OUTCOMES = [
   ["a required field with a JavaScript submit button", `<form>${FIELDS}<label>Why us? <textarea required></textarea></label><button type="button">Submit application</button></form>`, null],
   ["a form that hides while sending and comes back", `<form id="f" onsubmit="event.preventDefault(); f.hidden = true; setTimeout(() => f.hidden = false, 1000)">${FIELDS}<button>Submit</button></form>`, null],
   ["nothing happens", `<form onsubmit="event.preventDefault()">${FIELDS}<button>Submit</button></form>`, null],
+  ["a success notice the SENT wording misses is unconfirmed, not an error", `<form novalidate onsubmit="event.preventDefault(); document.getElementById('ok').hidden = false">${FIELDS}<div id="ok" role="alert" class="MuiAlert-standardSuccess" hidden>Done! We got your details.</div><button>Submit</button></form>`, null],
 ];
 for (const [name, html, want] of OUTCOMES) {
   await check(`outcome: ${name}`, async () => {
@@ -635,6 +636,31 @@ await check("a city box that lists once typed is picked without waiting for a li
   const r = await fillTimed("City", "London, UK", "location");
   assert.deepEqual([r.errors, r.value], [[], "London, UK"]);
   assert.ok(r.took < 1000, `took ${r.took} ms`);
+});
+await check("a city box with no list of its own picks from what typing shows, not another field's open list", async () => {
+  // Another dropdown's list is open; the city box names no list and draws one after the form when typed into.
+  await serve(`<form>${FIELDS}<ul role="listbox"><li role="option">Paris, France</li></ul><label>City <input name="city" autocomplete="off"></label><button>Submit</button></form>
+    <script>const city = document.querySelector('[name=city]');
+      document.addEventListener('click', (e) => { if (e.target.matches('[role=option]')) city.value = e.target.textContent; });
+      city.addEventListener('input', () => setTimeout(() => { if (!document.getElementById('sug')) document.body.insertAdjacentHTML('beforeend', '<ul id="sug" role="listbox"><li role="option">London, UK</li></ul>'); }, 200));</script>`);
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const f = (await g.read()).fields.find((x) => x.label === "City");
+    const { errors } = await g.fill([{ ...f, type: "combobox", key: "location", value: "London, UK" }], null);
+    return { errors, value: document.querySelector("[name=city]").value };
+  });
+  assert.deepEqual(r, { errors: [], value: "London, UK" });
+});
+await check("a number box takes 50,000 as 50000, and a word it empties is an error", async () => {
+  await serve(`<form>${FIELDS}<label>Expected salary <input type="number" name="pay"></label><label>Years <input type="number" name="yrs"></label><button>Submit</button></form>`);
+  const r = await page.evaluate(async () => {
+    const g = globalThis.oojAts.generic;
+    const fields = (await g.read()).fields;
+    const by = (l) => fields.find((x) => x.label === l);
+    const { errors } = await g.fill([{ ...by("Expected salary"), value: "$50,000" }, { ...by("Years"), value: "five" }], null);
+    return { errors, pay: document.querySelector("[name=pay]").value };
+  });
+  assert.deepEqual(r, { errors: ['Years: the field did not take "five"'], pay: "50000" });
 });
 await check("a typed list that settles without the answer gives up early; one that changes still gets it", async () => {
   await serve(`<form>${FIELDS}${typeahead("school", "School", ["Oxford Brookes", "Oxford College"], 200)}${typeahead("uni", "University", ["Oxford Brookes"], 200, ["Oxford Brookes", "Oxford University"])}<button>Submit</button></form>`);
