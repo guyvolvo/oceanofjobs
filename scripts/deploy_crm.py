@@ -47,7 +47,14 @@ SECRETS = {"AWS_ACCESS_KEY_ID": "CRM_AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"
            # The key that lets a request reach box.oceanofjobs.com directly (waitlist changes).
            "ORIGIN_KEY": "OTJ_ORIGIN_SECRET",
            # Read-only Cloudflare analytics for the Usage page (crm/lib/usage.mjs).
-           "CF_ANALYTICS_TOKEN": "CLOUDFLARE_ANALYTICS_TOKEN"}
+           "CF_ANALYTICS_TOKEN": "CLOUDFLARE_ANALYTICS_TOKEN",
+           # Social (crm/lib/social.mjs): the key that seals the networks' tokens, and each network's own app.
+           "SOCIAL_KEY": "CRM_SOCIAL_KEY",
+           "INSTAGRAM_APP_ID": "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET": "INSTAGRAM_APP_SECRET",
+           "LINKEDIN_CLIENT_ID": "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET": "LINKEDIN_CLIENT_SECRET",
+           "TIKTOK_CLIENT_KEY": "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET": "TIKTOK_CLIENT_SECRET"}
+SOCIAL_APPS = {"Instagram": ("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET"), "LinkedIn": ("LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"),
+               "TikTok": ("TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET")}
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".svg": "image/svg+xml"}
 
 
@@ -149,6 +156,8 @@ def check() -> int:
     app, why = access_app(e)
     print("AWS key and unsubscribe secret:", "missing " + ", ".join(missing) if missing else "in .env")
     print("Access:", "ready" if app else why)
+    apps = [n for n, keys in SOCIAL_APPS.items() if all(e.get(k) for k in keys)]
+    print("Social:", ("apps for " + ", ".join(apps) if apps else "no network apps in .env yet") + ("" if e.get("CRM_SOCIAL_KEY") else ", CRM_SOCIAL_KEY missing"))
     print("Changelog publishing:", "ready" if e.get("CRM_GITHUB_TOKEN") else "CRM_GITHUB_TOKEN not in .env (publishing will say it isn't set up)")
     return 0 if app and not missing else 1
 
@@ -162,8 +171,8 @@ def deploy() -> None:
     ok(cf.call("POST", f"/accounts/{ACCOUNT}/workers/scripts/{SCRIPT}/subdomain", {"enabled": False, "previews_enabled": False}), "turning off workers.dev")
     print("workers.dev and preview addresses off")
     # The flows' scheduled run (crm/lib/auto.mjs): every 10 minutes.
-    ok(cf.call("PUT", f"/accounts/{ACCOUNT}/workers/scripts/{SCRIPT}/schedules", [{"cron": "*/10 * * * *"}]), "setting the schedule")
-    print("flows run every 10 minutes")
+    ok(cf.call("PUT", f"/accounts/{ACCOUNT}/workers/scripts/{SCRIPT}/schedules", [{"cron": "*/10 * * * *"}, {"cron": "2-59/5 * * * *"}]), "setting the schedule")
+    print("flows run every 10 minutes, social posts every 5")
     dns()
     # Fail closed: over the free quota, the host answers an error, never an origin.
     want = {"pattern": PATTERN, "script": SCRIPT, "request_limit_fail_open": False}
