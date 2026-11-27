@@ -15,10 +15,11 @@ import { waitlistChange } from "./lib/admin.mjs";
 import * as A from "./lib/auto.mjs";
 import * as S from "./lib/store.mjs";
 import * as U from "./lib/usage.mjs";
+import * as Social from "./lib/social.mjs";
 
 const SECURITY = {
-  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://oceanofjobs.com; font-src 'self' data:; "
-    + "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https://oceanofjobs.com; font-src 'self' data:; "
+    + "connect-src 'self' https://oceanofjobs.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
@@ -28,6 +29,7 @@ const SECURITY = {
 };
 const BATCH = 15; // recipients per send call: two subrequests each, under a free Worker's 50
 const REPO = "guyvolvo/oceanofjobs";
+const SOCIAL_CRON = "2-59/5 * * * *"; // its own run, so posting and the flows each get a free Worker's 50 subrequests
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { ...SECURITY, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const fail = (status, error) => json(status, { error });
@@ -601,6 +603,45 @@ async function api(request, env, who, path) {
     }
   }
 
+  if (area === "social") {
+    const origin = url.origin;
+    const key = more ? decodeURIComponent(more) : "";
+    if (sub === "accounts" && method === "GET") return json(200, { accounts: await Social.accounts(env), key: !!env.SOCIAL_KEY, callback: Social.callback(origin, "") });
+    if (sub === "accounts" && key && method === "DELETE") { await Social.disconnect(env, key, who); return json(200, { ok: true }); }
+    if (sub === "connect" && key && method === "POST") return json(200, { url: await Social.connectUrl(env, key, origin) });
+    if (sub === "callback" && key && method === "GET") {
+      // The network sends the browser back here; the page reads the outcome from the query.
+      let to = `/?social=${encodeURIComponent(key)}#social`;
+      try { await Social.finishConnect(env, key, q, origin, who); } catch (e) {
+        console.log("social connect failed", key, e && e.message);
+        to = `/?social_error=${encodeURIComponent(e.status && e.status < 500 || e.net ? e.message : "Couldn't connect. Try again.")}#social`;
+      }
+      return new Response(null, { status: 302, headers: { ...SECURITY, Location: to, "Cache-Control": "no-store" } });
+    }
+    if (sub === "media" && method === "POST") return json(200, await Social.upload(env, request, who));
+    if (sub === "overview" && method === "GET") return json(200, await Social.overview(env));
+    if (sub === "comments" && method === "GET") return json(200, { media: await Social.comments(env) });
+    if (sub === "comments" && method === "POST") return json(200, await Social.commentAction(env, await body(request), who));
+    if (sub === "posts" && !key && method === "GET") return json(200, { posts: await S.list(env, "social_post", { limit: 300 }) });
+    if (sub === "posts" && !key && method === "POST") return json(200, { post: await Social.save(env, await body(request), who) });
+    if (sub === "posts" && key) {
+      const post = await S.get(env, "social_post", key);
+      if (!post) return fail(404, "That post is gone.");
+      if (!last && method === "DELETE") {
+        // Off the CRM only: whatever was posted stays up on the network.
+        await S.del(env, "social_post", key);
+        await S.audit(env, who, "social delete", { post: key });
+        return json(200, { ok: true });
+      }
+      if (last === "advance" && method === "POST") {
+        if (post.status !== "publishing") return json(200, { post });
+        return json(200, { post: (await Social.advance(env, post, { only: q.network || undefined })).post });
+      }
+      if (last === "retry" && method === "POST") return json(200, { post: await Social.retry(env, key, q.network || "", who) });
+      if (last === "stats" && method === "GET") return json(200, { stats: await Social.postStats(env, post) });
+    }
+  }
+
   if (area === "audit" && method === "GET") return json(200, { entries: await S.list(env, "audit", { limit: 200 }) });
   return fail(404, "No such route.");
 }
@@ -645,9 +686,13 @@ export async function receive(msg, env) {
   }
 }
 
+export { SOCIAL_CRON };
+
 export default {
   email: (msg, env) => receive(msg, env),
-  scheduled: (event, env, ctx) => ctx.waitUntil(A.run(env).catch((e) => console.log("automatic emails failed", e && e.message))),
+  scheduled: (event, env, ctx) => ctx.waitUntil(event.cron === SOCIAL_CRON
+    ? Social.run(env).catch((e) => console.log("social run failed", e && e.message))
+    : A.run(env).catch((e) => console.log("automatic emails failed", e && e.message))),
   async fetch(request, env) {
     const url = new URL(request.url);
     const who = await owner(request, env);

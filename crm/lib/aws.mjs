@@ -13,11 +13,12 @@ async function hmac(key, data) {
 
 // Signs and sends one request. `target` is the x-amz-target header for the
 // JSON APIs; `path` and `query` for REST ones (SES v2).
-export async function signedFetch(env, { service, host, method = "POST", path = "/", body = "", headers = {}, now = new Date() }) {
+export async function signedFetch(env, { service, host, method = "POST", path = "/", body = "", headers = {}, now = new Date(), unsigned = false }) {
   const region = env.AWS_REGION || "il-central-1";
   const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const day = amzDate.slice(0, 8);
-  const payloadHash = await sha256(body);
+  // A stream can't be hashed up front; S3 over HTTPS accepts it unsigned.
+  const payloadHash = unsigned ? "UNSIGNED-PAYLOAD" : await sha256(body);
   const all = { host, "x-amz-date": amzDate, "x-amz-content-sha256": payloadHash, ...Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])) };
   const names = Object.keys(all).sort();
   const canonical = [method, path, "", names.map((n) => `${n}:${String(all[n]).trim()}\n`).join(""), names.join(";"), payloadHash].join("\n");
@@ -90,6 +91,19 @@ export const cognito = (env, op, payload) =>
 export const s3Put = (env, key, bytes, type) =>
   signedFetch(env, { service: "s3", host: `${env.SITE_BUCKET}.s3.${region(env)}.amazonaws.com`, method: "PUT", path: "/" + key, body: bytes,
     headers: { "content-type": type, "cache-control": "public, max-age=31536000, immutable" } });
+
+// S3: a social post's media, streamed from the page's upload with its
+// length fixed, so S3 gets Content-Length without the Worker holding it.
+export function s3Stream(env, key, stream, length, type) {
+  let body = stream;
+  if (typeof FixedLengthStream === "function") {
+    const { readable, writable } = new FixedLengthStream(length);
+    stream.pipeTo(writable);
+    body = readable;
+  }
+  return signedFetch(env, { service: "s3", host: `${env.SITE_BUCKET}.s3.${region(env)}.amazonaws.com`, method: "PUT", path: "/" + key, body, unsigned: true,
+    headers: { "content-type": type, "cache-control": "public, max-age=31536000, immutable" } });
+}
 
 // SES v2: one email.
 export const sesSend = (env, payload) =>

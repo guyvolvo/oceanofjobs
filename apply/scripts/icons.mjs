@@ -1,7 +1,7 @@
 // Google's Material Symbols (Outlined, weight 400, 24px optical size: the
 // files fonts.google.com/icons downloads) -> src/components/icons.tsx.
 // Each export keeps the name the pages already import; MAP says which
-// symbol it draws. GitHub, LinkedIn and Instagram are their own published marks
+// symbol it draws. GitHub, LinkedIn, Instagram and TikTok are their own published marks
 // (Simple Icons). Run by hand after changing MAP: node scripts/icons.mjs
 // It also writes api/icons.py: the symbols the server-rendered job and
 // company pages draw (SERVER).
@@ -27,9 +27,11 @@ const MAP = {
   Warning: "warning", WarningCircle: "error", X: "close", XCircle: "cancel",
   // The CRM's sidebar (src/crm/App.tsx).
   Article: "article", FlowArrow: "account_tree", FunnelSimple: "filter_alt", Hourglass: "hourglass_empty", Users: "group",
+  // The CRM's Social page (src/crm/social/).
+  Megaphone: "campaign", ImageSquare: "image", Heart: "favorite", Eye: "visibility", EyeSlash: "visibility_off", Repeat: "replay",
 };
 const SERVER = ["location_on", "home", "schedule", "calendar_today", "language", "notifications", "star", "link", "keyboard_arrow_down"];
-const BRANDS = { GithubLogo: "github", LinkedinLogo: "linkedin", InstagramLogo: "instagram" };
+const BRANDS = { GithubLogo: "github", LinkedinLogo: "linkedin", InstagramLogo: "instagram", TiktokLogo: "tiktok" };
 
 const get = async (url) => {
   const r = await fetch(url);

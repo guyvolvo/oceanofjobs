@@ -2,7 +2,7 @@
 // activity). Contacts, emails and the changelog have their own files.
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Article, ChartBar, ClockCounterClockwise, EnvelopeSimple, FlowArrow, FunnelSimple, Hourglass, Moon, SquaresFour, Sun, Tray, Users, type Icon } from "@/components/icons";
+import { Article, ChartBar, ClockCounterClockwise, EnvelopeSimple, FlowArrow, FunnelSimple, Hourglass, Megaphone, Moon, SquaresFour, Sun, Tray, Users, type Icon } from "@/components/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem,
@@ -17,12 +17,13 @@ import { Inbox } from "./Inbox";
 import { Waitlist } from "./Waitlist";
 import { Flows } from "./Flows";
 import { Usage } from "./Usage";
+import { Social } from "./social/Social";
 import { Btn, Loading, Panel, SelectField, TextField } from "./ui";
 
 const TABS: { value: string; label: string; icon: Icon }[] = [
   { value: "overview", label: "Overview", icon: SquaresFour }, { value: "inbox", label: "Inbox", icon: Tray }, { value: "contacts", label: "Users", icon: Users }, { value: "usage", label: "Usage", icon: ChartBar },
   { value: "waitlist", label: "Waitlist", icon: Hourglass }, { value: "segments", label: "Groups", icon: FunnelSimple }, { value: "emails", label: "Emails", icon: EnvelopeSimple },
-  { value: "flows", label: "Flows", icon: FlowArrow }, { value: "changelog", label: "Changelog", icon: Article }, { value: "activity", label: "Activity", icon: ClockCounterClockwise },
+  { value: "flows", label: "Flows", icon: FlowArrow }, { value: "social", label: "Social", icon: Megaphone }, { value: "changelog", label: "Changelog", icon: Article }, { value: "activity", label: "Activity", icon: ClockCounterClockwise },
 ];
 
 export function useLoad<T>(path: string) {
@@ -267,6 +268,7 @@ export function App() {
           {tab === "changelog" ? <Changelog onEmail={() => go("emails")} /> : null}
           {tab === "activity" ? <Activity /> : null}
           {tab === "usage" ? <Usage /> : null}
+          {tab === "social" ? <Social /> : null}
         </main>
       </div>
     </SidebarProvider>

@@ -31,12 +31,12 @@ export function SignupsChart({ buckets: days }: { buckets: [string, number][] })
 }
 
 // Users in total at the end of each day.
-export function GrowthChart({ buckets: days }: { buckets: [string, number][] }) {
-  const config = { n: { label: "Users", color: "var(--chart-brand)" } } satisfies ChartConfig;
+export function GrowthChart({ buckets: days, label = "Users" }: { buckets: [string, number][]; label?: string }) {
+  const config = { n: { label, color: "var(--chart-brand)" } } satisfies ChartConfig;
   const data = days.map(([d, n]) => ({ at: at(d), n }));
   return (
     <ChartContainer config={config} className={`${BOX} h-[200px]`} role="img"
-      aria-label={`Total users, from ${days[0]?.[1]} to ${days[days.length - 1]?.[1]}.`}>
+      aria-label={`${label === "Users" ? "Total users" : label}, from ${days[0]?.[1]} to ${days[days.length - 1]?.[1]}.`}>
       <AreaChart data={data} margin={{ left: -16, right: 4, top: 8 }}>
         <defs>
           <linearGradient id="crm-growth" x1="0" y1="0" x2="0" y2="1">
