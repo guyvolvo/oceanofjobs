@@ -5,6 +5,7 @@ from .env (CLOUDFLARE_API_TOKEN) and never printing it.
     python scripts/cf.py POST /zones/<id>/dns_records '{"type":"CNAME",...}'
 """
 import json
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -14,8 +15,16 @@ ZONES = {"oceanofjobs.com": "820df5408d0b7e9498a9eacc7584b8ce",
          "opentechjobs.org": "b3ba4888acc47a656eb070aca1a65919"}
 
 
+def env_file() -> Path:
+    """The repo's .env; from a git worktree, the main checkout's (worktrees have none)."""
+    if (ROOT / ".env").exists():
+        return ROOT / ".env"
+    common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    return Path(common).parent / ".env"
+
+
 def token() -> str:
-    for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
+    for line in env_file().read_text(encoding="utf-8").splitlines():
         if line.startswith("CLOUDFLARE_API_TOKEN="):
             return line.split("=", 1)[1].strip().strip('"')
     sys.exit("no CLOUDFLARE_API_TOKEN in .env")

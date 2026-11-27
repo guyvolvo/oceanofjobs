@@ -53,7 +53,7 @@ TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": 
 
 def env() -> dict:
     out = {}
-    for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
+    for line in cf.env_file().read_text(encoding="utf-8").splitlines():
         if "=" in line and not line.startswith("#"):
             k, v = line.split("=", 1)
             out[k.strip()] = v.strip().strip('"')
