@@ -28,7 +28,7 @@
 }
 
 body { margin: 0; background: var(--background); color: var(--foreground); font: 400 14px/1.5 var(--font-sans); }
-.crm-main { min-width: 0; width: 100%; max-width: 1200px; padding: 24px 28px 64px; box-sizing: border-box; }
+.crm-main { min-width: 0; width: 100%; padding: 24px 28px 64px; box-sizing: border-box; }
 @media (max-width: 767px) { .crm-main { padding: 16px 16px 48px; } }
 .crm-brand { display: flex; align-items: center; gap: 10px; font: 500 16px var(--font-sans); white-space: nowrap; }
 .crm-brand small { padding: 2px 8px; border-radius: 999px; background: var(--secondary); color: var(--muted-foreground); font-size: 12px; }
