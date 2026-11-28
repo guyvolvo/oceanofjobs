@@ -27789,3 +27789,6 @@ tigisolar.com
 cannbit.com
 tnuport.co.il
 pei.co.il
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+aka_food.com
