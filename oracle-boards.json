@@ -1542,5 +1542,493 @@
   "israel_jobs_seen": 0,
   "source": "common-crawl",
   "added": "2026-11-28"
+ },
+ {
+  "domain": "cottage.de",
+  "token": "eglz.fa.us2.oraclecloud.com:CX",
+  "jobs_seen": 138,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "vdot.de",
+  "token": "etgi.fa.us8.oraclecloud.com:CX_4005",
+  "jobs_seen": 137,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "seha.com",
+  "token": "fa-eutv-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
+  "jobs_seen": 137,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "fife.com",
+  "token": "ekmu.fa.em3.oraclecloud.com:CX",
+  "jobs_seen": 136,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "dtu.de",
+  "token": "efzu.fa.em2.oraclecloud.com:CX_1",
+  "jobs_seen": 135,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "hillside.com",
+  "token": "ebrf.fa.us2.oraclecloud.com:CX_1",
+  "jobs_seen": 133,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "sbic.org",
+  "token": "edox.fa.ap1.oraclecloud.com:CX_3001",
+  "jobs_seen": 133,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "vanderbilt-university.com",
+  "token": "ecsr.fa.us2.oraclecloud.com:CX_1",
+  "jobs_seen": 132,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "ichor.fr",
+  "token": "fa-eovh-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
+  "jobs_seen": 132,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "mountaire.com",
+  "token": "ebtg.fa.us2.oraclecloud.com:Career-Site",
+  "jobs_seen": 131,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "mas.org",
+  "token": "egmh.fa.us6.oraclecloud.com:CX_1",
+  "jobs_seen": 131,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "sew.ai",
+  "token": "fa-erav-saasfaprod1.fa.ocs.oraclecloud.com:SEW-jobs-and-career",
+  "jobs_seen": 131,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "east.co",
+  "token": "fa-euru-saasfaprod1.fa.ocs.oraclecloud.com:External",
+  "jobs_seen": 131,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "mr.de",
+  "token": "fa-etyi-saasfaprod1.fa.ocs.oraclecloud.com:MrPriceGroupCareers",
+  "jobs_seen": 130,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "navy.com",
+  "token": "fa-etbx-saasfaprod1.fa.ocs.oraclecloud.com:nfcu",
+  "jobs_seen": 128,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "undp.com",
+  "token": "estm.fa.em2.oraclecloud.com:CX_1",
+  "jobs_seen": 127,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "ewal.fa.us8.oraclecloud.com",
+  "token": "ewal.fa.us8.oraclecloud.com:CX_1",
+  "jobs_seen": 127,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "samuel.com",
+  "token": "ebct.fa.us2.oraclecloud.com:CX_1033",
+  "jobs_seen": 125,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "childrens.com",
+  "token": "egnx.fa.us2.oraclecloud.com:CX",
+  "jobs_seen": 124,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "harper.com",
+  "token": "fa-eneh-saasfaprod1.fa.ocs.oraclecloud.com:HarperCollege",
+  "jobs_seen": 124,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "ebhu.fa.us2.oraclecloud.com",
+  "token": "ebhu.fa.us2.oraclecloud.com:CX",
+  "jobs_seen": 123,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "hoffman.com",
+  "token": "efsp.fa.us6.oraclecloud.com:CX",
+  "jobs_seen": 123,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "family.ai",
+  "token": "fa-eufr-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
+  "jobs_seen": 123,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "hand.com",
+  "token": "emdm.fa.ap1.oraclecloud.com:CX",
+  "jobs_seen": 122,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "aps.com",
+  "token": "fa-epop-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
+  "jobs_seen": 120,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "hapag.org",
+  "token": "fa-etuy-saasfaeuraprod1.fa.ocs.oraclecloud.com:CX_1",
+  "jobs_seen": 119,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "egug-dev1.fa.us2.oraclecloud.com",
+  "token": "egug-dev1.fa.us2.oraclecloud.com:CX",
+  "jobs_seen": 118,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "choctaw.org",
+  "token": "egoh.fa.us2.oraclecloud.com:CX_1001",
+  "jobs_seen": 117,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "unipol.com",
+  "token": "hdix.fa.em3.oraclecloud.com:CX_1",
+  "jobs_seen": 117,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "wiltshire.com",
+  "token": "fa-euxi-saasfaukgovprod1.fa.ocs.oraclecloud.com:CX_1001",
+  "jobs_seen": 116,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "pella.com",
+  "token": "ebgj.fa.us2.oraclecloud.com:Pella-Careers",
+  "jobs_seen": 115,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "garrett.com",
+  "token": "ehth-dev1.fa.em2.oraclecloud.com:CX",
+  "jobs_seen": 115,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "enxp.fa.us6.oraclecloud.com",
+  "token": "enxp.fa.us6.oraclecloud.com:CX",
+  "jobs_seen": 115,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "mufg.de",
+  "token": "hcmn.fa.ap1.oraclecloud.com:CX_1001",
+  "jobs_seen": 113,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "aci-worldwide.com",
+  "token": "ebwg.fa.us2.oraclecloud.com:CX",
+  "jobs_seen": 112,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "solistica.com",
+  "token": "edym.fa.us2.oraclecloud.com:CX_1",
+  "jobs_seen": 109,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "tforce.io",
+  "token": "efjm.fa.ca2.oraclecloud.com:TForceFreight",
+  "jobs_seen": 108,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "bsc.de",
+  "token": "ecge.fa.us2.oraclecloud.com:CX_1003",
+  "jobs_seen": 106,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "sdu.org",
+  "token": "fa-eosd-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
+  "jobs_seen": 106,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "perficient.com",
+  "token": "fa-etqd-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
+  "jobs_seen": 105,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "icu.com",
+  "token": "eduu.fa.us2.oraclecloud.com:CX_1",
+  "jobs_seen": 101,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "canon.org",
+  "token": "ejqe.fa.em2.oraclecloud.com:CX_1",
+  "jobs_seen": 100,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "ejmd.fa.us2.oraclecloud.com",
+  "token": "ejmd.fa.us2.oraclecloud.com:CX_2001",
+  "jobs_seen": 98,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "ekac.fa.ap1.oraclecloud.com",
+  "token": "ekac.fa.ap1.oraclecloud.com:CX_1001",
+  "jobs_seen": 98,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "lifeview.fr",
+  "token": "etud.fa.us8.oraclecloud.com:CX_1",
+  "jobs_seen": 98,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "bcps.org",
+  "token": "bcps-ibohjb.fa.ocs.oraclecloud.com:CX_1",
+  "jobs_seen": 98,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "carmeuse.com",
+  "token": "ekiz.fa.em2.oraclecloud.com:CX",
+  "jobs_seen": 97,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "leicestershire-county-council.com",
+  "token": "eism.fa.em2.oraclecloud.com:lcc",
+  "jobs_seen": 95,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "sph.com",
+  "token": "fa-eqec-saasfaprod1.fa.ocs.oraclecloud.com:CX_2",
+  "jobs_seen": 94,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "mouser.com",
+  "token": "eabw.fa.us2.oraclecloud.com:CX_1",
+  "jobs_seen": 93,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "ammega.com",
+  "token": "fa-eugx-saasfaprod1.fa.ocs.oraclecloud.com:CX_1001",
+  "jobs_seen": 91,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "levy.org",
+  "token": "ejdf.fa.us6.oraclecloud.com:CX",
+  "jobs_seen": 90,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "frontgrade.com",
+  "token": "exzj.fa.us8.oraclecloud.com:CX_1",
+  "jobs_seen": 90,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "euroclear.io",
+  "token": "don.fa.em2.oraclecloud.com:CX_1003",
+  "jobs_seen": 89,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "atco.co",
+  "token": "eezy.fa.ca2.oraclecloud.com:CX",
+  "jobs_seen": 89,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "new.com",
+  "token": "evqk.fa.us8.oraclecloud.com:CX_1",
+  "jobs_seen": 89,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "lorain-county.com",
+  "token": "ccyj.fa.us6.oraclecloud.com:CX",
+  "jobs_seen": 87,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "infoblox.com",
+  "token": "efpv.fa.us6.oraclecloud.com:CX_1",
+  "jobs_seen": 87,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "search.com",
+  "token": "elhe.fa.us8.oraclecloud.com:intern",
+  "jobs_seen": 86,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "civeo.com",
+  "token": "fa-esyi-saasfaprod1.fa.ocs.oraclecloud.com:CX_1",
+  "jobs_seen": 85,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
+ },
+ {
+  "domain": "csx.io",
+  "token": "fa-eowa-saasfaprod1.fa.ocs.oraclecloud.com:CSXCareers",
+  "jobs_seen": 84,
+  "israel_jobs_seen": 0,
+  "source": "common-crawl",
+  "added": "2026-11-28"
  }
 ]

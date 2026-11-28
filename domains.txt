@@ -27795,3 +27795,7 @@ aka_food.com
 
 # Common Crawl discovery batch (merge_discovered_batch.py)
 helpinghandshomecare.co.uk
+
+# Common Crawl discovery batch (merge_discovered_batch.py)
+hims-and-hers.de
+signalfire.com
